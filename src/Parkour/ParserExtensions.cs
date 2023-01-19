@@ -114,6 +114,22 @@ public static partial class ParserExtensions
         new FirstMultiParser<TInput, TOutput>(parser.ToMultiParser(), nextParser);
 
     /// <summary>
+    /// A parser that is invoked only if the condition parser succeeds on a look-ahead scan.
+    /// </summary>
+    public static Parser<TInput, TOutput> If<TInput, TOutput>(
+        this Parser<TInput, TOutput> parser,
+        Parser<TInput> conditionParser) =>
+        new IfParser<TInput, TOutput>(conditionParser, parser);
+
+    /// <summary>
+    /// A parser that is invoked only if the condition parser succeeds on a look-ahead scan.
+    /// </summary>
+    public static Parser<TInput, IReadOnlyList<TOutput>> If<TInput, TOutput>(
+        this Parser<TInput, IReadOnlyList<TOutput>> parser,
+        Parser<TInput> conditionParser) =>
+        new IfMultiParser<TInput, TOutput>(conditionParser, parser.ToMultiParser());
+
+    /// <summary>
     /// A parser that applies the output of the left parser to the rigth parser and 
     /// then repeatedly applies the output of the right parser back to itself
     /// until the right no longer succeeds.
@@ -165,15 +181,17 @@ public static partial class ParserExtensions
     /// A parser that produces the default value if this parser does not succeed.
     /// </summary>
     public static Parser<TInput, TOutput> Optional<TInput, TOutput>(
-        this Parser<TInput, TOutput> parser) =>
-        new OptionalParser<TInput, TOutput>(parser);
+        this Parser<TInput, TOutput> parser,
+        Func<TOutput>? fnMissing = null) =>
+        new OptionalParser<TInput, TOutput>(parser, fnMissing);
 
     /// <summary>
     /// A parser that produces the default value if this parser does not succeed.
     /// </summary>
     public static Parser<TInput, IReadOnlyList<TOutput>> Optional<TInput, TOutput>(
-        this Parser<TInput, IReadOnlyList<TOutput>> parser) =>
-        new OptionalMultiParser<TInput, TOutput>(parser);
+        this Parser<TInput, IReadOnlyList<TOutput>> parser,
+        Func<IEnumerable<TOutput>> fnMissing) =>
+        new OptionalMultiParser<TInput, TOutput>(parser, fnMissing);
 
     /// <summary>
     /// A parser the returns the output of the parser that consumes the most input.
@@ -269,7 +287,15 @@ public static partial class ParserExtensions
     public static Parser<TInput, TOutput> Required<TInput, TOutput>(
         this Parser<TInput, TOutput> parser,
         Func<TOutput> fnMissing) =>
-        new RequiredParser<TInput, TOutput>(parser, fnMissing);
+        new OptionalParser<TInput, TOutput>(parser, fnMissing, isRequired: true);
+
+    /// <summary>
+    /// A parser that returns a specified value when this parser fails.
+    /// </summary>
+    public static Parser<TInput, IReadOnlyList<TOutput>> Required<TInput, TOutput>(
+        this Parser<TInput, IReadOnlyList<TOutput>> parser,
+        Func<IReadOnlyList<TOutput>> fnMissing) =>
+        new OptionalMultiParser<TInput, TOutput>(parser, fnMissing, isRequired: true);
 
     /// <summary>
     /// A parser that repeatedly applies left parser output values with the output of the right parser.

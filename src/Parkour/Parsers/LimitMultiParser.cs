@@ -17,7 +17,12 @@ public sealed class LimitMultiParser<TInput, TOutput> : MultiParser<TInput, TOut
         {
             var limitLength = input.Length - remainingInput.Length;
             var limitedInput = input[..limitLength];
-            return _parser.ParseInto(limitedInput, outputList, out remainingInput);
+            if (_parser.ParseInto(limitedInput, outputList, out var limitedRemainingInput))
+            {
+                var consumedLength = limitedInput.Length - limitedRemainingInput.Length;
+                remainingInput = input[consumedLength..];
+                return true;
+            }
         }
 
         remainingInput = input;
@@ -32,7 +37,7 @@ public sealed class LimitMultiParser<TInput, TOutput> : MultiParser<TInput, TOut
             var limitedInput = input[..limitLength];
             var success = _parser.Scan(limitedInput, out var limitedRemainingInput);
             var consumedLength = limitedInput.Length - limitedRemainingInput.Length;
-            remainingInput = input[..consumedLength];
+            remainingInput = input[consumedLength..];
             return success;
         }
 
@@ -50,7 +55,7 @@ public sealed class LimitMultiParser<TInput, TOutput> : MultiParser<TInput, TOut
             var limitedInput = input[..limitLength];
             var success = _parser.Search(limitedInput, ref afterMissing, out var limitedRemainingInput, fnCallback);
             var consumedLength = limitedInput.Length - limitedRemainingInput.Length;
-            remainingInput = input[..consumedLength];
+            remainingInput = input[consumedLength..];
             return success;
         }
         else

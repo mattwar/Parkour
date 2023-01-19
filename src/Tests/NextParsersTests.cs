@@ -123,6 +123,23 @@ public class NextParsersTests
     }
 
     [TestMethod]
+    public void TestConvert()
+    {
+        var p = Match("A").Convert(span => Concat(span.ToArray()));
+        Test(p, "$", "'A'");
+        Test(p, "A$", "");
+    }
+
+    [TestMethod]
+    public void TestForward()
+    {
+        var a = Match("A");
+        var f = Forward(() => a);
+        Test(f, "$", "'A'");
+        Test(f, "A$", "");
+    }
+
+    [TestMethod]
     public void TestMissing_AfterAndElement()
     {
         var abcd = Match("A").And(Required(Match("B")).And(Match("C")).And(Match("D")));

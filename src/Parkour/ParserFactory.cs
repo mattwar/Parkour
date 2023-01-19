@@ -1,7 +1,7 @@
 ﻿namespace Parkour;
 using Parsers;
 
-public static class ParserFactory<TInput>
+public static class ParserFactory<TInput> where TInput : notnull
 {
     public static Parser<TInput, TInput> Any =
         Match(span => span.Length > 0 ? 1 : 0, "<any>");
@@ -20,6 +20,12 @@ public static class ParserFactory<TInput>
 
     public static Parser<TInput, TOutput> Forward<TOutput>(Func<Parser<TInput, TOutput>> fnParser, string? term = null) =>
         new ForwardParser<TInput, TOutput>(fnParser, term);
+
+    public static Parser<TInput, TOutput> If<TOutput>(Parser<TInput> conditionParser, Parser<TInput, TOutput> parser) =>
+        new IfParser<TInput, TOutput>(conditionParser, parser);
+
+    public static Parser<TInput, IReadOnlyList<TOutput>> If<TOutput>(Parser<TInput> conditionParser, Parser<TInput, IReadOnlyList<TOutput>> parser) =>
+        new IfMultiParser<TInput, TOutput>(conditionParser, parser.ToMultiParser());
 
     public static Parser<TInput, TOutput> LeftReduce<TOutput>(
         Parser<TInput, TOutput> leftParser,
@@ -115,20 +121,40 @@ public static class ParserFactory<TInput>
         Action<OperatorsParser<TInput, TOutput>.OperatorBuilder> builder) =>
         new OperatorsParser<TInput, TOutput>(primaryParser, primaryParser, builder);
 
-    public static Parser<TInput, TOutput> Optional<TOutput>(Parser<TInput, TOutput> parser) =>
+    public static Parser<TInput, TOutput> Optional<TOutput>(Parser<TInput, TOutput> parser, Func<TOutput> fnMissing = null) =>
         parser.Optional();
 
     public static Parser<TInput, IReadOnlyList<TOutput>> Optional<TOutput>(Parser<TInput, IReadOnlyList<TOutput>> parser) =>
         parser.Optional();
 
     public static Parser<TInput, TOutput> Required<TOutput>(Parser<TInput, TOutput> parser, Func<TOutput> fnMissing) =>
-        new RequiredParser<TInput, TOutput>(parser, fnMissing);
+        parser.Required(fnMissing);
+
+    public static Parser<TInput, IReadOnlyList<TOutput>> Required<TOutput>(Parser<TInput, IReadOnlyList<TOutput>> parser, Func<IReadOnlyList<TOutput>> fnMissing) =>
+        parser.Required(fnMissing);
 
     public static Parser<TInput, TOutput2> RightReduce<TOutput1, TOutput2>(
         Parser<TInput, TOutput1> leftParser,
         Parser<TInput, TOutput2> rightParser,
         Func<TOutput1, TOutput2, TOutput2> fnAggregator) =>
         new RightReduceParser<TInput, TOutput1, TOutput2>(leftParser, rightParser, fnAggregator);
+
+    /// <summary>
+    /// A parser that switches to one or more parsers based on the current input 
+    /// matching a sequence of one or more literal values.
+    /// </summary>
+    public static Parser<TInput, TOutput> Switch<TOutput>(
+        Func<SwitchParserContext, SwitchParserContext<TInput, TOutput>> fnBuilder,
+        EqualityComparer<TInput> comparer) =>
+        new SwitchParser<TInput, TOutput>(fnBuilder, comparer);
+
+    /// <summary>
+    /// A parser that switches to one or more parsers based on the current input 
+    /// matching a sequence of one or more literal values.
+    /// </summary>
+    public static Parser<TInput, TOutput> Switch<TOutput>(
+        Func<SwitchParserContext, SwitchParserContext<TInput, TOutput>> fnBuilder) =>
+        new SwitchParser<TInput, TOutput>(fnBuilder, EqualityComparer<TInput>.Default);
 
     public static Parser<TInput, IReadOnlyList<TOutput>> ZeroOrMore<TOutput>(Parser<TInput, IReadOnlyList<TOutput>> parser) =>
         parser.ZeroOrMore();
