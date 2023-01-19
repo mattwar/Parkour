@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33205.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parkour", "Parkour\Parkour.csproj", "{A4C3F417-9F34-4699-9E80-FE669CA2B5B2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{A722DD18-61E0-490A-943F-F9BDA58E97B3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A722DD18-61E0-490A-943F-F9BDA58E97B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A722DD18-61E0-490A-943F-F9BDA58E97B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A722DD18-61E0-490A-943F-F9BDA58E97B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A722DD18-61E0-490A-943F-F9BDA58E97B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A4C3F417-9F34-4699-9E80-FE669CA2B5B2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4C3F417-9F34-4699-9E80-FE669CA2B5B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4C3F417-9F34-4699-9E80-FE669CA2B5B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4C3F417-9F34-4699-9E80-FE669CA2B5B2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A2D28931-50D9-4720-A04A-8EAA215F9924}
+	EndGlobalSection
+EndGlobal
