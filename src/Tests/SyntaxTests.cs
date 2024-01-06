@@ -1,4 +1,5 @@
 using Parkour;
+using Tiny;
 
 namespace Tests;
 using static TestHelpers;
@@ -6,9 +7,9 @@ using static TestHelpers;
 [TestClass]
 public class SyntaxTests
 {
-    private static string AtStart = "<Expression>, 'not', '-', <Identifier>, <Number>, '('";
+    private static string AtStart = "<Expression>, 'not', '-', <IdentifierToken>, <NumberToken>, <StringToken>, '('";
     private static string AfterPrimary = "'*', '/', '+', '-', '>', '>=', '<', '<=', '==', '!=', 'and', 'or', <any>";
-    private static string AfterBinaryOp = "'-', <Identifier>, <Number>, '('";
+    private static string AfterBinaryOp = "'-', <IdentifierToken>, <NumberToken>, <StringToken>, '('";
     private static string AfterParenthesizedPrimary = "'*', '/', '+', '-', '>', '>=', '<', '<=', '==', '!=', 'and', 'or', ')'";
 
     [TestMethod]
