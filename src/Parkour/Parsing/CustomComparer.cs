@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace Parkour;
+namespace Parkour.Parsing;
 
 internal class CustomEqualityComparer<T> : EqualityComparer<T>
 {

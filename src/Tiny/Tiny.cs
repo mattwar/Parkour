@@ -1,5 +1,5 @@
 ﻿using System;
-using Parkour.Semantics;
+using Parkour.Analysis;
 
 namespace Tiny
 {

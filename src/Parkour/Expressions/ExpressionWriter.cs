@@ -1,13 +1,14 @@
-﻿namespace Parkour.Semantics;
+﻿namespace Parkour.Expressions;
+using Symbols;
 
-public class SemanticWriter
+public class ExpressionWriter
 {
     private TextWriter _writer;
     private readonly string _indentation;
     private string _currentIndentation;
     private bool _needsIndentation;
 
-    public SemanticWriter(TextWriter writer, string? indentation = null)
+    public ExpressionWriter(TextWriter writer, string? indentation = null)
     {
         _writer = writer;
         _indentation = indentation ?? "  ";
@@ -15,12 +16,12 @@ public class SemanticWriter
         _needsIndentation = false;
     }
 
-    public SemanticWriter(string? indentation = null)
+    public ExpressionWriter(string? indentation = null)
         : this(new StringWriter(), indentation)
     {
     }
 
-    public string WriteExpression(Semantic expression)
+    public string WriteExpression(Expression expression)
     {
         Write(expression);
         return _writer.ToString() ?? "";
@@ -70,7 +71,7 @@ public class SemanticWriter
         _currentIndentation = oldIndentation;
     }
 
-    private void WriteIndented(Semantic expression)
+    private void WriteIndented(Expression expression)
     {
         var oldIndentation = _currentIndentation;
         _currentIndentation += _indentation;
@@ -78,9 +79,9 @@ public class SemanticWriter
         _currentIndentation = oldIndentation;
     }
 
-    private void WriteBlockOrIndented(Semantic expression)
+    private void WriteBlockOrIndented(Expression expression)
     {
-        if (expression is Semantic.Block block)
+        if (expression is BlockExpression block)
         {
             Write(expression);
         }
@@ -90,11 +91,11 @@ public class SemanticWriter
         }
     }
 
-    private void Write(Semantic expression)
+    private void Write(Expression expression)
     {
         switch (expression)
         {
-            case Semantic.Block block:
+            case BlockExpression block:
                 WriteLine();
                 WriteLine("{");
                 WriteIndented(() =>
@@ -110,7 +111,7 @@ public class SemanticWriter
                 WriteLine("}");
                 break;
 
-            case Semantic.Branch branch:
+            case BranchExpression branch:
                 if (branch.IsBreak)
                 {
                     Write("break");
@@ -136,15 +137,15 @@ public class SemanticWriter
                 }
                 break;
 
-            case Semantic.Call call:
-                if (call.CalledSymbol is Symbol.Function fn)
+            case CallExpression call:
+                if (call.CalledSymbol is FunctionSymbol fn)
                 {
-                    if (call.Expression is Semantic.Path path)
+                    if (call.Expression is PathExpression path)
                     {
                         Write(path.Expression);
                         Write(".");
                     }
-                    else if (call.Expression is Semantic.Reference rex)
+                    else if (call.Expression is ReferenceExpression rex)
                     {
                         Write(call.CalledSymbol.Name);
                     }
@@ -167,7 +168,7 @@ public class SemanticWriter
                 Write(")");
                 break;
 
-            case Semantic.Condition condition:
+            case ConditionExpression condition:
                 Write("if (");
                 Write(condition.Test);
                 WriteLine(")");
@@ -177,7 +178,7 @@ public class SemanticWriter
                 WriteLine();
                 break;
 
-            case Semantic.Constant constant:
+            case ConstantExpression constant:
                 Write(constant.Value switch
                 {
                     string str => $"\"{str}\"",
@@ -186,7 +187,7 @@ public class SemanticWriter
                 });
                 break;
 
-            case Semantic.Convert convert:
+            case ConvertExpression convert:
                 Write("Convert(");
                 Write(convert.Expression);
                 Write(", ");
@@ -194,8 +195,8 @@ public class SemanticWriter
                 Write(")");
                 break;
 
-            case Semantic.Function function:
-                if (function.Body is Semantic.Block)
+            case FunctionExpression function:
+                if (function.Body is BlockExpression)
                     Write("function ");
                 Write("(");
                 for (int i = 0; i < function.Parameters.Count; i++)
@@ -205,29 +206,29 @@ public class SemanticWriter
                     Write(function.Parameters[i].Name);
                 }
                 Write(")");
-                if (function.Body is not Semantic.Block)
+                if (function.Body is not BlockExpression)
                     Write(" => ");
                 Write(function.Body);
                 break;
 
-            case Semantic.Declaration declaration:
+            case DeclarationExpression declaration:
                 Write("var ");
                 Write(declaration.Name);
                 Write(" = ");
                 Write(declaration.Initializer);
                 break;
 
-            case Semantic.Path path:
+            case PathExpression path:
                 Write(path.Expression);
                 Write(".");
                 Write(path.Reference);
                 break;
 
-            case Semantic.Reference rex:
+            case ReferenceExpression rex:
                 Write(rex.Name);
                 break;
 
-            case Semantic.While whilst:
+            case WhileExpression whilst:
                 Write("while (");
                 Write(whilst.Test);
                 Write(")");
@@ -236,7 +237,7 @@ public class SemanticWriter
                 break;
 
             default:
-                throw new InvalidOperationException($"Unhandled expression kind '{expression.GetType().Name}' in {nameof(SemanticWriter)}.Write");
+                throw new InvalidOperationException($"Unhandled expression kind '{expression.GetType().Name}' in {nameof(ExpressionWriter)}.Write");
         }
     }
 }

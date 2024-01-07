@@ -1,5 +1,6 @@
 ﻿using Parkour;
-using Parkour.Semantics;
+using Parkour.Analysis;
+using Parkour.Symbols;
 using Parkour.Syntax;
 
 namespace Tiny
@@ -43,7 +44,7 @@ namespace Tiny
                             case TokenKinds.IdentifierToken:
                                 if (_globals.TryGetValue(token.Text, out var symbol))
                                 {
-                                    _symbolMap.Add(token, new SemanticInfo(symbol as Symbol.Type, symbol));
+                                    _symbolMap.Add(token, new SemanticInfo(symbol as TypeSymbol, symbol));
                                 }
                                 else
                                 {
@@ -70,7 +71,7 @@ namespace Tiny
             return new TinyTreeAnalysis(tree, _symbolMap);
         }
 
-        private Symbol.Type? GetResultType(SyntaxElement element)
+        private TypeSymbol? GetResultType(SyntaxElement element)
         {
             if (_symbolMap.TryGetValue(element, out var info))
             {
@@ -157,7 +158,7 @@ namespace Tiny
                 }
             }
 
-            public override Symbol.Type? GetResultType(SyntaxElement element) =>
+            public override TypeSymbol? GetResultType(SyntaxElement element) =>
                 GetSemanticInfo(element)?.ResultType;
 
 
@@ -176,11 +177,11 @@ namespace Tiny
         private class SemanticInfo
         {
             public Symbol? ReferencedSymbol { get; }
-            public Symbol.Type? ResultType { get; }
+            public TypeSymbol? ResultType { get; }
             public IReadOnlyList<Diagnostic> Diagnostics { get; }
 
             internal SemanticInfo(
-                Symbol.Type? resultType = null,
+                TypeSymbol? resultType = null,
                 Symbol? referencedSymbol = null,
                 IReadOnlyList<Diagnostic>? diagnostics = null)
             {

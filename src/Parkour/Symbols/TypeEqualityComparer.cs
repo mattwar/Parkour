@@ -1,0 +1,80 @@
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace Parkour.Symbols;
+
+public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
+{
+    public static TypeEqualityComparer Instance = new TypeEqualityComparer();
+
+    private TypeEqualityComparer() { }
+
+    public bool Equals(TypeSymbol? type1, TypeSymbol? type2)
+    {
+        // most types are singetons
+        if (type1 == type2) return true;
+
+        if (type1 == null && type2 == null) return true;
+        if (type1 == null || type2 == null) return false;
+
+        switch (type1)
+        {
+            case ArraySymbol array1 when type2 is ArraySymbol array2:
+                return Equals(array1.ElementType, array2.ElementType);
+            case ListSymbol list1 when type2 is ListSymbol list2:
+                return Equals(list1.ElementType, list2.ElementType);
+            case UnionSymbol union1 when type2 is UnionSymbol union2:
+                if (union1.Types.Count != union2.Types.Count)
+                    return false;
+                for (int i = 0; i < union1.Types.Count; i++)
+                {
+                    if (!Equals(union1.Types[i], union2.Types[i]))
+                        return false;
+                }
+                return true;
+            case GroupSymbol group1 when type2 is GroupSymbol group2:
+                if (group1.Symbols.Count != group2.Symbols.Count)
+                    return false;
+                for (int i = 0; i < group1.Symbols.Count; i++)
+                {
+                    if (!SymbolEqualityComparer.Instance.Equals(group1.Symbols[i], group2.Symbols[1]))
+                        return false;
+                }
+                return true;
+        }
+
+        return false;
+    }
+
+    public int GetHashCode([DisallowNull] TypeSymbol type)
+    {
+        var hc = 0;
+
+        switch (type)
+        {
+            case ArraySymbol array:
+                hc = GetHashCode(array.ElementType);
+                break;
+            case ListSymbol list:
+                hc = GetHashCode(list.ElementType);
+                break;
+            case UnionSymbol union:
+                for (int i = 0; i < union.Types.Count; i++)
+                {
+                    hc = HashCode.Combine(hc, GetHashCode(union.Types[i]));
+                }
+                break;
+            case GroupSymbol group:
+                for (int i = 0; i < group.Symbols.Count; i++)
+                {
+                    hc = HashCode.Combine(hc, SymbolEqualityComparer.Instance.GetHashCode(group.Symbols[i]));
+                }
+                break;
+            default:
+                // rest are singleton types so we use the runtime default hashcode.
+                hc = type.GetHashCode();
+                break;
+        }
+
+        return hc;
+    }
+}

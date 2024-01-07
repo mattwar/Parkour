@@ -1,4 +1,4 @@
-﻿namespace Parkour.Parsers;
+﻿namespace Parkour.Parsing.Parsers;
 
 public sealed class SwitchParser<TInput, TOutput> : Parser<TInput, TOutput> where TInput: notnull
 {

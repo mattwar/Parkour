@@ -1,4 +1,4 @@
-﻿namespace Parkour;
+﻿namespace Parkour.Parsing;
 
 public static class CharParserExtensions
 {

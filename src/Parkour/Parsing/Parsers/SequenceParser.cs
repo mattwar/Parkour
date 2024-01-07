@@ -1,4 +1,4 @@
-﻿namespace Parkour;
+﻿namespace Parkour.Parsing.Parsers;
 
 public sealed class SequenceParser<TInput, TOutput> : Parser<TInput, TOutput>
 {

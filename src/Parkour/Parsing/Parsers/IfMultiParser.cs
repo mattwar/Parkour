@@ -1,4 +1,4 @@
-﻿namespace Parkour.Parsers;
+﻿namespace Parkour.Parsing.Parsers;
 
 public class IfMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {

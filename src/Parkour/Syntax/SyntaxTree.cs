@@ -1,6 +1,7 @@
-﻿using Parkour.Semantics;
+﻿using Parkour.Analysis;
 
 namespace Parkour.Syntax;
+using Parsing;
 
 public partial class SyntaxTree
 {

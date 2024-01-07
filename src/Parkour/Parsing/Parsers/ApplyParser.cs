@@ -1,6 +1,4 @@
-﻿using Parkour;
-
-namespace Parkour.Parsers;
+﻿namespace Parkour.Parsing.Parsers;
 
 public sealed class ApplyParser<TInput, TOutput1, TOutput2, TOutput3> : Parser<TInput, TOutput3>
 {

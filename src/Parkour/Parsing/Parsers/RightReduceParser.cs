@@ -1,6 +1,4 @@
-﻿using Parkour;
-
-namespace Parkour.Parsers;
+﻿namespace Parkour.Parsing.Parsers;
 
 public sealed class RightReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput, TOutput2>
 {

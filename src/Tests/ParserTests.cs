@@ -1,4 +1,6 @@
 ﻿using Parkour;
+using Parkour.Parsing;
+using Parkour.Syntax;
 
 namespace Tests
 {

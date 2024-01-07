@@ -1,59 +1,59 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
-using static Parkour.Semantics.Symbol;
 
-namespace Parkour.Semantics;
+namespace Parkour.Analysis;
+using Symbols;
 
 public abstract class SymbolModel
 {
-    public abstract Symbol.Namespace GlobalNamespace { get; }
+    public abstract NamespaceSymbol GlobalNamespace { get; }
 
-    public static readonly Symbol.Type Unknown = new Symbol.Type("Unknown", typeof(object));
-    public static readonly Symbol.Type Null = new Symbol.Type("Null", typeof(object));
-    public static readonly Symbol.Type Any = new Symbol.Type("Any", typeof(object));
-    public static readonly Symbol.Type Void = new Symbol.Type("Void", typeof(void));
+    public static readonly TypeSymbol Unknown = new TypeSymbol("Unknown", typeof(object));
+    public static readonly TypeSymbol Null = new TypeSymbol("Null", typeof(object));
+    public static readonly TypeSymbol Any = new TypeSymbol("Any", typeof(object));
+    public static readonly TypeSymbol Void = new TypeSymbol("Void", typeof(void));
 
-    public Symbol.Type? _typeType;
-    public Symbol.Type Type => _typeType ??= GetType(typeof(System.Type));
+    public TypeSymbol? _typeType;
+    public TypeSymbol Type => _typeType ??= GetType(typeof(System.Type));
 
-    private Symbol.Type? _boolType;
-    public Symbol.Type Boolean => _boolType ??= GetType(typeof(bool));
+    private TypeSymbol? _boolType;
+    public TypeSymbol Boolean => _boolType ??= GetType(typeof(bool));
 
-    private Symbol.Type? _byteType;
-    public Symbol.Type Byte => _byteType ??= GetType(typeof(byte));
+    private TypeSymbol? _byteType;
+    public TypeSymbol Byte => _byteType ??= GetType(typeof(byte));
 
-    private Symbol.Type? _int16Type;
-    public Symbol.Type Int16 => _int16Type ??= GetType(typeof(short));
+    private TypeSymbol? _int16Type;
+    public TypeSymbol Int16 => _int16Type ??= GetType(typeof(short));
 
-    private Symbol.Type? _int32Type;
-    public Symbol.Type Int32 => _int32Type ??= GetType(typeof(int));
+    private TypeSymbol? _int32Type;
+    public TypeSymbol Int32 => _int32Type ??= GetType(typeof(int));
 
-    private Symbol.Type? _int64Type;
-    public Symbol.Type Int64 => _int64Type ??= GetType(typeof(long));
+    private TypeSymbol? _int64Type;
+    public TypeSymbol Int64 => _int64Type ??= GetType(typeof(long));
 
-    private Symbol.Type? _float32Type;
-    public Symbol.Type Single => _float32Type ??= GetType(typeof(float));
+    private TypeSymbol? _float32Type;
+    public TypeSymbol Single => _float32Type ??= GetType(typeof(float));
 
-    private Symbol.Type? _float64Type;
-    public Symbol.Type Double => _float64Type ??= GetType(typeof(double));
+    private TypeSymbol? _float64Type;
+    public TypeSymbol Double => _float64Type ??= GetType(typeof(double));
 
-    private Symbol.Type? _decimalType;
-    public Symbol.Type Decimal => _decimalType ??= GetType(typeof(decimal));
+    private TypeSymbol? _decimalType;
+    public TypeSymbol Decimal => _decimalType ??= GetType(typeof(decimal));
 
-    private Symbol.Type? _charType;
-    public Symbol.Type Char => _charType ??= GetType(typeof(char));
+    private TypeSymbol? _charType;
+    public TypeSymbol Char => _charType ??= GetType(typeof(char));
 
-    private Symbol.Type? _stringType;
-    public Symbol.Type String => _stringType ??= GetType(typeof(string));
+    private TypeSymbol? _stringType;
+    public TypeSymbol String => _stringType ??= GetType(typeof(string));
 
-    private Symbol.Type? _objectType;
-    public Symbol.Type Object => _objectType ??= GetType(typeof(object));
+    private TypeSymbol? _objectType;
+    public TypeSymbol Object => _objectType ??= GetType(typeof(object));
 
     /// <summary>
     /// Gets the type based on equivalent runtime type.
     /// </summary>
-    public virtual Symbol.Type GetType(System.Type type) =>
-        (Symbol.Type)GetSymbol(type.FullName!)!;
+    public virtual TypeSymbol GetType(System.Type type) =>
+        (TypeSymbol)GetSymbol(type.FullName!)!;
 
     /// <summary>
     /// Gets the symbol corresponding the symbol's full name. (ie System.Int32)
@@ -77,40 +77,40 @@ public abstract class SymbolModel
         return symbol;
     }
 
-    private readonly ConditionalWeakTable<ImmutableList<Symbol>, Group> _listToGroupMap =
-        new ConditionalWeakTable<ImmutableList<Symbol>, Group>();
+    private readonly ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol> _listToGroupMap =
+        new ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol>();
 
-    private readonly ConditionalWeakTable<ImmutableList<Symbol.Type>, Union> _listToUnionMap =
-        new ConditionalWeakTable<ImmutableList<Symbol.Type>, Union>();
+    private readonly ConditionalWeakTable<ImmutableList<TypeSymbol>, UnionSymbol> _listToUnionMap =
+        new ConditionalWeakTable<ImmutableList<TypeSymbol>, UnionSymbol>();
 
 
     /// <summary>
     /// Gets an array of the specified element type.
     /// </summary>
-    public virtual Symbol.Array GetArray(Symbol.Type elementType) =>
-        new Symbol.Array(elementType);
+    public virtual ArraySymbol GetArray(TypeSymbol elementType) =>
+        new ArraySymbol(elementType);
 
     /// <summary>
     /// Gets a list of the specified element type.
     /// </summary>
-    public virtual Symbol.List GetList(Symbol.Type elementType) =>
-        new Symbol.List(elementType);
+    public virtual ListSymbol GetList(TypeSymbol elementType) =>
+        new ListSymbol(elementType);
 
     /// <summary>
     /// Gets the union or individual type from a list of types.
     /// </summary>
-    public virtual Symbol.Type GetUnion(IEnumerable<Symbol.Type> types)
+    public virtual TypeSymbol GetUnion(IEnumerable<TypeSymbol> types)
     {
         if (!types.Any())
             return SymbolModel.Void;
 
-        if (types is IReadOnlyList<Symbol.Type> roTypes
+        if (types is IReadOnlyList<TypeSymbol> roTypes
             && roTypes.Count == 1)
         {
             return roTypes[0];
         }
 
-        var immutableTypes = types as ImmutableList<Symbol.Type>;
+        var immutableTypes = types as ImmutableList<TypeSymbol>;
         if (immutableTypes != null
             && _listToUnionMap.TryGetValue(immutableTypes, out var union))
         {
@@ -138,7 +138,7 @@ public abstract class SymbolModel
         if (canonicalTypes.Count == 1)
             return canonicalTypes[0];
 
-        union = _listToUnionMap.GetValue(canonicalTypes, _newTypes => new Union(_newTypes));
+        union = _listToUnionMap.GetValue(canonicalTypes, _newTypes => new UnionSymbol(_newTypes));
 
         // also associate union with original list, if it was immutable
         if (immutableTypes != null)
@@ -148,11 +148,11 @@ public abstract class SymbolModel
 
         return union;
 
-        static IEnumerable<Symbol.Type> FlattenUnions(IEnumerable<Symbol.Type> types)
+        static IEnumerable<TypeSymbol> FlattenUnions(IEnumerable<TypeSymbol> types)
         {
             foreach (var type in types)
             {
-                if (type is Union union)
+                if (type is UnionSymbol union)
                 {
                     foreach (var unionType in union.Types)
                         yield return unionType;
@@ -166,8 +166,8 @@ public abstract class SymbolModel
     /// <summary>
     /// Gets the union or individual type from a list of types.
     /// </summary>
-    public virtual Symbol.Type GetUnion(params Symbol.Type[] types) =>
-        GetUnion((IEnumerable<Symbol.Type>)types);
+    public virtual TypeSymbol GetUnion(params TypeSymbol[] types) =>
+        GetUnion((IEnumerable<TypeSymbol>)types);
 
     /// <summary>
     /// Gets the group or individual symbol for the specified symbols.
@@ -198,7 +198,7 @@ public abstract class SymbolModel
         if (canonicalSymbols.Count == 1)
             return canonicalSymbols[0];
 
-        group = _listToGroupMap.GetValue(canonicalSymbols, _symbols => new Group(_symbols));
+        group = _listToGroupMap.GetValue(canonicalSymbols, _symbols => new GroupSymbol(_symbols));
 
         // also associate union with original list, if it was immutable
         if (immutableSymbols != null)
@@ -223,7 +223,7 @@ public class RuntimeSymbolModel : SymbolModel
     private ConditionalWeakTable<object, Symbol> _runtimeToSymbolMap =
         new ConditionalWeakTable<object, Symbol>();
 
-    public override Namespace GlobalNamespace { get; }
+    public override NamespaceSymbol GlobalNamespace { get; }
 
     public RuntimeSymbolModel(ImmutableList<Assembly>? assemblies = null)
     {
@@ -238,7 +238,7 @@ public class RuntimeSymbolModel : SymbolModel
     /// <summary>
     /// Gets a namespace symbol containing the types and namespaces as members.
     /// </summary>
-    private Symbol.Namespace GetNamespace(string containingName, string name, IReadOnlyList<System.Type> types)
+    private NamespaceSymbol GetNamespace(string containingName, string name, IReadOnlyList<System.Type> types)
     {
         var fullName = containingName.Length > 0 && name.Length > 0 
             ? containingName + "." + name
@@ -248,7 +248,7 @@ public class RuntimeSymbolModel : SymbolModel
         var nestedTypes = types.Where(t => t.Namespace != null && t.Namespace.Contains(nameWithDot)).ToList();
         var nestedNamespaces = nestedTypes.Select(t => t.Namespace).Where(n => n != null).Distinct();
 
-        return new Symbol.Namespace(name, () =>
+        return new NamespaceSymbol(name, () =>
         {
             var list = new List<Symbol>();
             list.AddRange(typesInNamespace.Select(t => GetType(t)));
@@ -266,8 +266,8 @@ public class RuntimeSymbolModel : SymbolModel
         }
     }
 
-    public override Symbol.Type GetType(System.Type type) =>
-        (Symbol.Type)GetOrCreateSymbol(type);
+    public override TypeSymbol GetType(System.Type type) =>
+        (TypeSymbol)GetOrCreateSymbol(type);
 
     private Symbol GetOrCreateSymbol(object runtimeSymbol)
     {
@@ -333,9 +333,9 @@ public class RuntimeSymbolModel : SymbolModel
             _ => SymbolModifier.None
         };
 
-    private ImmutableList<Parameter> GetParameters(MethodBase method) =>
+    private ImmutableList<ParameterSymbol> GetParameters(MethodBase method) =>
         method.GetParameters().Select(p =>
-            new Parameter(p.Name ?? "", GetType(p.ParameterType))).ToImmutableList();
+            new ParameterSymbol(p.Name ?? "", GetType(p.ParameterType))).ToImmutableList();
 
     private bool TryCreateSymbol(object runtimeSymbol, out Symbol symbol)
     {
@@ -344,7 +344,7 @@ public class RuntimeSymbolModel : SymbolModel
         switch (runtimeSymbol)
         {
             case FieldInfo field:
-                symbol = new Field(
+                symbol = new FieldSymbol(
                     field.Name,
                     field.DeclaringType != null ? GetType(field.DeclaringType) : null,
                     GetAccess(field),
@@ -364,7 +364,7 @@ public class RuntimeSymbolModel : SymbolModel
                 break;
 
             case MethodInfo method:
-                symbol = new Method(
+                symbol = new MethodSymbol(
                     method.Name,
                     method.DeclaringType != null ? GetType(method.DeclaringType) : null,
                     GetAccess(method),
@@ -375,7 +375,7 @@ public class RuntimeSymbolModel : SymbolModel
                 break;
 
             case ConstructorInfo constructor:
-                symbol = new Constructor(
+                symbol = new ConstructorSymbol(
                     constructor.DeclaringType != null ? GetType(constructor.DeclaringType) : null,
                     GetAccess(constructor),
                     GetModifiers(constructor),
@@ -387,7 +387,7 @@ public class RuntimeSymbolModel : SymbolModel
             case System.Type type:
                 if (type.IsClass || type.IsValueType || type.IsInterface)
                 {
-                    symbol = new Symbol.Type(
+                    symbol = new TypeSymbol(
                         type.Name,
                         type.DeclaringType != null ? GetType(type.DeclaringType) : null,
                         GetAccess(type),

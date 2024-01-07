@@ -1,4 +1,4 @@
-﻿namespace Parkour.Parsers;
+﻿namespace Parkour.Parsing.Parsers;
 
 public sealed class SelectParser<TInput, TOutput, TOutput2> : Parser<TInput, TOutput2>
 {

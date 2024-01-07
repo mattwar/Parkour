@@ -1,4 +1,5 @@
-﻿namespace Parkour.Semantics;
+﻿namespace Parkour.Expressions;
+using Symbols;
 
 public interface IBindingScope<TScope>
 {

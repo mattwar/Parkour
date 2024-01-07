@@ -1,4 +1,4 @@
-﻿namespace Parkour.Parsers;
+﻿namespace Parkour.Parsing.Parsers;
 
 public sealed class RepeatMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {

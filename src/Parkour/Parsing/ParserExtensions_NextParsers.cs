@@ -1,5 +1,4 @@
-﻿namespace Parkour;
-using Parsers;
+﻿namespace Parkour.Parsing;
 
 public static partial class ParserExtensions
 {

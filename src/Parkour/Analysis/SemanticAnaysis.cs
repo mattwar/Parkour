@@ -1,5 +1,5 @@
-﻿namespace Parkour.Semantics;
-
+﻿namespace Parkour.Analysis;
+using Symbols;
 using Syntax;
 
 public abstract class SemanticAnalysis

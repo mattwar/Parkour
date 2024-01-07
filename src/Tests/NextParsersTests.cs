@@ -1,11 +1,12 @@
 ﻿using Parkour;
+using Parkour.Parsing;
+using Parkour.Syntax;
 
 namespace Tests;
 
 using static TestHelpers;
 using static CharParserFactory;
 using static ParserFactory<char>;
-using static System.Net.Mime.MediaTypeNames;
 
 [TestClass]
 public class NextParsersTests

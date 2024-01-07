@@ -1,6 +1,4 @@
-﻿using Parkour;
-
-namespace Parkour.Parsers;
+﻿namespace Parkour.Parsing.Parsers;
 
 public sealed class ForwardParser<TInput, TOutput> : Parser<TInput, TOutput>
 {

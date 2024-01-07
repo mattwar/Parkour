@@ -1,148 +1,149 @@
-﻿namespace Parkour.Semantics;
+﻿namespace Parkour.Analysis;
+using Symbols;
 
 /// <summary>
 /// Operator functions that are unbound.
 /// </summary>
 public static class Operators
 {
-    public static Symbol.Function UnaryOp(string name, Symbol.Type operandType, Symbol.Type resultType) =>
+    public static FunctionSymbol UnaryOp(string name, TypeSymbol operandType, TypeSymbol resultType) =>
         SymbolFactory.Operator(name, resultType, SymbolFactory.Parameter("operand", operandType));
 
-    public static Symbol.Function UnaryOp(string name, Symbol.Type operand) =>
+    public static FunctionSymbol UnaryOp(string name, TypeSymbol operand) =>
         UnaryOp(name, operand, operand);
 
-    public static Symbol.Function BinaryOp(string name, Symbol.Type leftType, Symbol.Type rightType, Symbol.Type resultType) =>
+    public static FunctionSymbol BinaryOp(string name, TypeSymbol leftType, TypeSymbol rightType, TypeSymbol resultType) =>
         SymbolFactory.Operator(name, resultType, SymbolFactory.Parameter("left", leftType), SymbolFactory.Parameter("right", rightType));
 
-    public static Symbol.Function BinaryOp(string name, Symbol.Type argsType, Symbol.Type resultType) =>
+    public static FunctionSymbol BinaryOp(string name, TypeSymbol argsType, TypeSymbol resultType) =>
         BinaryOp(name, argsType, argsType, resultType);
 
-    public static Symbol.Function BinaryOp(string name, Symbol.Type type) =>
+    public static FunctionSymbol BinaryOp(string name, TypeSymbol type) =>
         BinaryOp(name, type, type, type);
 
-    public static readonly Symbol.Function Add =
+    public static readonly FunctionSymbol Add =
         BinaryOp(nameof(Add), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function Subtract =
+    public static readonly FunctionSymbol Subtract =
         BinaryOp(nameof(Subtract), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function Multiply =
+    public static readonly FunctionSymbol Multiply =
         BinaryOp(nameof(Multiply), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function Divide =
+    public static readonly FunctionSymbol Divide =
         BinaryOp(nameof(Divide), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function Remainder =
+    public static readonly FunctionSymbol Remainder =
         BinaryOp(nameof(Remainder), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function Negate =
+    public static readonly FunctionSymbol Negate =
         UnaryOp(nameof(Negate), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function BitwiseAnd =
+    public static readonly FunctionSymbol BitwiseAnd =
         BinaryOp(nameof(BitwiseAnd), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function BitwiseOr =
+    public static readonly FunctionSymbol BitwiseOr =
         BinaryOp(nameof(BitwiseOr), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function BitwiseXor =
+    public static readonly FunctionSymbol BitwiseXor =
         BinaryOp(nameof(BitwiseXor), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function BitwiseNot =
+    public static readonly FunctionSymbol BitwiseNot =
         UnaryOp(nameof(BitwiseNot), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function ShiftLeft =
+    public static readonly FunctionSymbol ShiftLeft =
         BinaryOp(nameof(ShiftLeft), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function ShiftRight =
+    public static readonly FunctionSymbol ShiftRight =
         BinaryOp(nameof(ShiftRight), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function Equal =
+    public static readonly FunctionSymbol Equal =
         BinaryOp(nameof(Equal), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function NotEqual =
+    public static readonly FunctionSymbol NotEqual =
         BinaryOp(nameof(NotEqual), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function LessThan =
+    public static readonly FunctionSymbol LessThan =
         BinaryOp(nameof(LessThan), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function LessThanOrEqual =
+    public static readonly FunctionSymbol LessThanOrEqual =
         BinaryOp(nameof(LessThanOrEqual), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function GreaterThan =
+    public static readonly FunctionSymbol GreaterThan =
         BinaryOp(nameof(GreaterThan), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function GreaterThanOrEqual =
+    public static readonly FunctionSymbol GreaterThanOrEqual =
         BinaryOp(nameof(GreaterThanOrEqual), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function LogicalNot =
+    public static readonly FunctionSymbol LogicalNot =
         UnaryOp(nameof(LogicalNot), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function LogicalAnd =
+    public static readonly FunctionSymbol LogicalAnd =
         BinaryOp(nameof(LogicalAnd), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function LogicalAndAlso =
+    public static readonly FunctionSymbol LogicalAndAlso =
         BinaryOp(nameof(LogicalAndAlso), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function LogicalOr =
+    public static readonly FunctionSymbol LogicalOr =
         BinaryOp(nameof(LogicalOr), SymbolModel.Any, SymbolModel.Unknown);
 
-    public static readonly Symbol.Function LogicalOrElse =
+    public static readonly FunctionSymbol LogicalOrElse =
         BinaryOp(nameof(LogicalOrElse), SymbolModel.Any, SymbolModel.Unknown);
 
 }
 
 public sealed class Intrinsics
 {
-    public static Symbol.Function UnaryOp(string name, Symbol.Function related, Symbol.Type operandType, Symbol.Type resultType) =>
+    public static FunctionSymbol UnaryOp(string name, FunctionSymbol related, TypeSymbol operandType, TypeSymbol resultType) =>
         SymbolFactory.Intrinsic(name, related, resultType, SymbolFactory.Parameter("operand", operandType));
 
-    public static Symbol.Function UnaryOp(string name, Symbol.Function related, Symbol.Type operand) =>
+    public static FunctionSymbol UnaryOp(string name, FunctionSymbol related, TypeSymbol operand) =>
         UnaryOp(name, related, operand, operand);
 
-    public static Symbol.Function BinaryOp(string name, Symbol.Function related, Symbol.Type leftType, Symbol.Type rightType, Symbol.Type resultType) =>
+    public static FunctionSymbol BinaryOp(string name, FunctionSymbol related, TypeSymbol leftType, TypeSymbol rightType, TypeSymbol resultType) =>
         SymbolFactory.Intrinsic(name, related, resultType, SymbolFactory.Parameter("left", leftType), SymbolFactory.Parameter("right", rightType));
 
-    public static Symbol.Function BinaryOp(string name, Symbol.Function related, Symbol.Type argsType, Symbol.Type resultType) =>
+    public static FunctionSymbol BinaryOp(string name, FunctionSymbol related, TypeSymbol argsType, TypeSymbol resultType) =>
         BinaryOp(name, related, argsType, argsType, resultType);
 
-    public static Symbol.Function BinaryOp(string name, Symbol.Function related, Symbol.Type type) =>
+    public static FunctionSymbol BinaryOp(string name, FunctionSymbol related, TypeSymbol type) =>
         BinaryOp(name, related, type, type, type);
 
     // Int32 operators
-    public Symbol.Function AddInt32 { get; }
-    public Symbol.Function SubtractInt32 { get; }
-    public Symbol.Function MultiplyInt32 { get; }
-    public Symbol.Function DivideInt32 { get; }
-    public Symbol.Function RemainderInt32 { get; }
-    public Symbol.Function NegateInt32 { get; }
-    public Symbol.Function BitwiseAndInt32 { get; }
-    public Symbol.Function BitwiseOrInt32 { get; }
-    public Symbol.Function BitwiseXorInt32 { get; }
-    public Symbol.Function BitwiseNotInt32 { get; }
-    public Symbol.Function ShiftLeftInt32 { get; }
-    public Symbol.Function ShiftRightInt32 { get; }
-    public Symbol.Function EqualInt32 { get; }
-    public Symbol.Function NotEqualInt32 { get; }
-    public Symbol.Function LessThanInt32 { get; }
-    public Symbol.Function LessThanOrEqualInt32 { get; }
-    public Symbol.Function GreaterThanInt32 { get; }
-    public Symbol.Function GreaterThanOrEqualInt32 { get; }
+    public FunctionSymbol AddInt32 { get; }
+    public FunctionSymbol SubtractInt32 { get; }
+    public FunctionSymbol MultiplyInt32 { get; }
+    public FunctionSymbol DivideInt32 { get; }
+    public FunctionSymbol RemainderInt32 { get; }
+    public FunctionSymbol NegateInt32 { get; }
+    public FunctionSymbol BitwiseAndInt32 { get; }
+    public FunctionSymbol BitwiseOrInt32 { get; }
+    public FunctionSymbol BitwiseXorInt32 { get; }
+    public FunctionSymbol BitwiseNotInt32 { get; }
+    public FunctionSymbol ShiftLeftInt32 { get; }
+    public FunctionSymbol ShiftRightInt32 { get; }
+    public FunctionSymbol EqualInt32 { get; }
+    public FunctionSymbol NotEqualInt32 { get; }
+    public FunctionSymbol LessThanInt32 { get; }
+    public FunctionSymbol LessThanOrEqualInt32 { get; }
+    public FunctionSymbol GreaterThanInt32 { get; }
+    public FunctionSymbol GreaterThanOrEqualInt32 { get; }
 
     // string operators
-    public Symbol.Function ConcatString { get; }
-    public Symbol.Function EqualString { get; }
-    public Symbol.Function NotEqualString { get; }
-    public Symbol.Function LessThanString { get; }
-    public Symbol.Function LessThanOrEqualString { get; }
-    public Symbol.Function GreaterThanString { get; }
-    public Symbol.Function GreaterThanOrEqualString { get; }
+    public FunctionSymbol ConcatString { get; }
+    public FunctionSymbol EqualString { get; }
+    public FunctionSymbol NotEqualString { get; }
+    public FunctionSymbol LessThanString { get; }
+    public FunctionSymbol LessThanOrEqualString { get; }
+    public FunctionSymbol GreaterThanString { get; }
+    public FunctionSymbol GreaterThanOrEqualString { get; }
 
     // boolean logical operators
-    public Symbol.Function LogicalNotBoolean { get; }
-    public Symbol.Function LogicalAndBoolean { get; }
-    public Symbol.Function LogicalAndAlsoBoolean { get; }
-    public Symbol.Function LogicalOrElseBoolean { get; }
-    public Symbol.Function LogicalOrBoolean { get; }
+    public FunctionSymbol LogicalNotBoolean { get; }
+    public FunctionSymbol LogicalAndBoolean { get; }
+    public FunctionSymbol LogicalAndAlsoBoolean { get; }
+    public FunctionSymbol LogicalOrElseBoolean { get; }
+    public FunctionSymbol LogicalOrBoolean { get; }
 
     public Intrinsics(SymbolModel model)
     {
@@ -182,7 +183,7 @@ public sealed class Intrinsics
         this.LogicalOrBoolean = BinaryOp(nameof(LogicalOrBoolean), Operators.LogicalOr, model.Boolean);
 
         // operator intrinsics
-        _nameToIntrinsics = new Dictionary<Symbol.Function, ImmutableList<Symbol.Function>>
+        _nameToIntrinsics = new Dictionary<FunctionSymbol, ImmutableList<FunctionSymbol>>
         {
             { Operators.Add, ImmutableList.Create(
                 this.AddInt32,
@@ -252,12 +253,12 @@ public sealed class Intrinsics
         };
     }
 
-    public ImmutableList<Symbol.Function> GetOperatorIntrinsics(Symbol.Function @operator) =>
+    public ImmutableList<FunctionSymbol> GetOperatorIntrinsics(FunctionSymbol @operator) =>
         _nameToIntrinsics.TryGetValue(@operator, out var intrinsics)
             ? intrinsics
-            : ImmutableList<Symbol.Function>.Empty;
+            : ImmutableList<FunctionSymbol>.Empty;
 
-    private readonly Dictionary<Symbol.Function, ImmutableList<Symbol.Function>> _nameToIntrinsics;
+    private readonly Dictionary<FunctionSymbol, ImmutableList<FunctionSymbol>> _nameToIntrinsics;
 
 
 

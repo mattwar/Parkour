@@ -1,5 +1,5 @@
 ﻿using System.Text;
-using Parkour.Semantics;
+using Parkour.Analysis;
 
 namespace Parkour.Syntax;
 

@@ -1,4 +1,4 @@
-﻿namespace Parkour;
+﻿namespace Parkour.Parsing;
 using Parsers;
 
 public static class ParserFactory<TInput> where TInput : notnull

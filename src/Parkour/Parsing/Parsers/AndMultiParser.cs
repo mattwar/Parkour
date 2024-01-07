@@ -1,7 +1,4 @@
-﻿using Parkour;
-using static Parkour.Semantics.Symbol;
-
-namespace Parkour.Parsers;
+﻿namespace Parkour.Parsing.Parsers;
 
 public sealed class AndMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {

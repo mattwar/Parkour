@@ -1,4 +1,5 @@
-﻿namespace Parkour.Semantics;
+﻿namespace Parkour.Expressions;
+using Symbols;
 
 internal static class DiagnosticFactory
 {
@@ -26,6 +27,6 @@ internal static class DiagnosticFactory
     public static Diagnostic CallIsAmbiguous() =>
         new Diagnostic("The call refers to more than one invokable symbol, and a best symbol cannot be determined.");
 
-    public static Diagnostic CannotConvert(Symbol.Type source, Symbol.Type target) =>
+    public static Diagnostic CannotConvert(TypeSymbol source, TypeSymbol target) =>
         new Diagnostic($"Cannot convert from type '{source.Name}' to type '{target.Name}'.");
 }

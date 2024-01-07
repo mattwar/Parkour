@@ -1,5 +1,5 @@
 ﻿using Parkour;
-using Parkour.Semantics;
+using Parkour.Analysis;
 
 namespace Tests
 {

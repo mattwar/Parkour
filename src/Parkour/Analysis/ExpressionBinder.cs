@@ -1,6 +1,8 @@
-﻿namespace Parkour.Semantics;
+﻿namespace Parkour.Analysis;
+using Expressions;
+using Symbols;
 
-public class SemanticBinder<TScope>
+public class ExpressionBinder<TScope>
     where TScope : IBindingScope<TScope>
 {
     private readonly SymbolModel _symbols;
@@ -10,14 +12,14 @@ public class SemanticBinder<TScope>
     private readonly ObjectPool<List<Symbol>> _symbolListPool =
         new ObjectPool<List<Symbol>>(() => new List<Symbol>(), list => list.Clear());
 
-    private readonly ObjectPool<List<Symbol.Member>> _memberListPool =
-        new ObjectPool<List<Symbol.Member>>(() => new List<Symbol.Member>(), list => list.Clear());
+    private readonly ObjectPool<List<MemberSymbol>> _memberListPool =
+        new ObjectPool<List<MemberSymbol>>(() => new List<MemberSymbol>(), list => list.Clear());
 
     private readonly ObjectPool<List<Diagnostic>> _diagnosticListPool =
         new ObjectPool<List<Diagnostic>>(() => new List<Diagnostic>(), list => list.Clear());
 
 
-    public SemanticBinder(SymbolModel symbols, Intrinsics intrinsics)
+    public ExpressionBinder(SymbolModel symbols, Intrinsics intrinsics)
     {
         _symbols = symbols;
         _intrinsics = intrinsics;
@@ -26,7 +28,7 @@ public class SemanticBinder<TScope>
     /// <summary>
     /// Rebinds all expressions.
     /// </summary>
-    public Semantic Rebind(Semantic expression, in TScope scope)
+    public Expression Rebind(Expression expression, in TScope scope)
     {
         var oldRebind = _rebind;
         _rebind = true;
@@ -38,49 +40,49 @@ public class SemanticBinder<TScope>
     /// <summary>
     /// Binds all unbound expressions.
     /// </summary>
-    public Semantic Bind(Semantic expression, in TScope scope)
+    public Expression Bind(Expression expression, in TScope scope)
     {
         if (!(_rebind || expression.ContainsUnknowns))
             return expression;
 
         switch (expression)
         {
-            case Semantic.Block block:
+            case BlockExpression block:
                 return BindBlock(block, scope);
 
-            case Semantic.Branch branch:
+            case BranchExpression branch:
                 return BindBranch(branch, scope);
 
-            case Semantic.Call call:
+            case CallExpression call:
                 return BindCall(call, scope);
 
-            case Semantic.Condition condition:
+            case ConditionExpression condition:
                 return BindCondition(condition, scope);
 
-            case Semantic.Constant constant:
+            case ConstantExpression constant:
                 return BindConstant(constant, scope);
 
-            case Semantic.Convert convert:
+            case ConvertExpression convert:
                 return BindConvert(convert, scope);
 
-            case Semantic.Declaration declaration:
+            case DeclarationExpression declaration:
                 return BindDeclaration(declaration, scope);
 
-            case Semantic.Function function:
+            case FunctionExpression function:
                 return BindFunction(function, scope);
 
-            case Semantic.Path path:
+            case PathExpression path:
                 return BindPath(path, scope);
 
-            case Semantic.Reference reference:
+            case ReferenceExpression reference:
                 return BindReference(reference, scope);
 
             default:
-                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(SemanticBinder<TScope>)} BindSymbols");
+                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(ExpressionBinder<TScope>)} BindSymbols");
         }
     }
 
-    public virtual Semantic BindBlock(Semantic.Block block, in TScope scope)
+    public virtual Expression BindBlock(BlockExpression block, in TScope scope)
     {
         var rebind = false;
 
@@ -89,7 +91,7 @@ public class SemanticBinder<TScope>
         {
             var boundExpression = rebind ? Rebind(expression, scope) : Bind(expression, scope);
 
-            if (boundExpression is Semantic.Declaration decl
+            if (boundExpression is DeclarationExpression decl
                 && decl.Variable != null)
             {
                 // if the declaration changes then the variable is now different 
@@ -104,16 +106,16 @@ public class SemanticBinder<TScope>
         if (newList == block.Expressions)
             return block;
 
-        return new Semantic.Block(newList);
+        return new BlockExpression(newList);
     }
 
-    public virtual Semantic BindBranch(Semantic.Branch branch, in TScope scope)
+    public virtual Expression BindBranch(BranchExpression branch, in TScope scope)
     {
         var expression = branch.Expression != null
             ? Bind(branch.Expression, scope)
             : null;
 
-        var targetSymbol = scope.FindSymbol<Symbol.Target>(s => s.Name == branch.TargetName);
+        var targetSymbol = scope.FindSymbol<TargetSymbol>(s => s.Name == branch.TargetName);
         var diagnostics =
             targetSymbol == null ? ImmutableList.Create(DiagnosticFactory.NoMatchingTarget(branch.TargetName))
             : null;
@@ -122,10 +124,10 @@ public class SemanticBinder<TScope>
             && targetSymbol == branch.Target)
             return branch;
 
-        return new Semantic.Branch(branch.TargetName, expression, targetSymbol, diagnostics);
+        return new BranchExpression(branch.TargetName, expression, targetSymbol, diagnostics);
     }
 
-    public virtual Semantic BindCall(Semantic.Call call, in TScope scope)
+    public virtual Expression BindCall(CallExpression call, in TScope scope)
     {
         var candidates = _symbolListPool.AllocateFromPool();
         var diagnostics = _diagnosticListPool.AllocateFromPool();
@@ -136,7 +138,7 @@ public class SemanticBinder<TScope>
 
             var instance = expression;
 
-            if (expression is Semantic.Path path) // xxx.Method?
+            if (expression is PathExpression path) // xxx.Method?
             {
                 instance = path.Expression;
                 GetCalledSymbolCandidates(path.Expression, path.Reference.Name, arguments, scope, candidates);
@@ -144,7 +146,7 @@ public class SemanticBinder<TScope>
 
             if (candidates.Count == 0)
             {
-                if (expression.ReferencedSymbol is Symbol.Group refGroup
+                if (expression.ReferencedSymbol is GroupSymbol refGroup
                     && refGroup.Symbols.Any(IsCallableSymbol))
                 {
                     candidates.AddRange(refGroup.Symbols);
@@ -154,7 +156,7 @@ public class SemanticBinder<TScope>
                 {
                     candidates.Add(expression.ReferencedSymbol);
                 }
-                else if (expression.ResultType is Symbol.Group group)
+                else if (expression.ResultType is GroupSymbol group)
                 {
                     candidates.AddRange(group.Symbols);
                 }
@@ -193,7 +195,7 @@ public class SemanticBinder<TScope>
                 && call.ResultType == resultType)
                 return call;
             
-            return new Semantic.Call(expression, arguments, calledSymbol, resultType, diagnostics.ToImmutableList());
+            return new CallExpression(expression, arguments, calledSymbol, resultType, diagnostics.ToImmutableList());
         }
         finally
         {
@@ -202,21 +204,24 @@ public class SemanticBinder<TScope>
         }
     }
 
-    public virtual Semantic BindCondition(Semantic.Condition condition, in TScope scope)
+    public virtual Expression BindCondition(ConditionExpression condition, in TScope scope)
     {
         var test = Bind(condition.Test, scope);
         var whenTrue = Bind(condition.WhenTrue, scope);
         var whenFalse = Bind(condition.WhenFalse, scope);
 
+        var resultType = _symbols.GetUnion(whenTrue.ResultType, whenFalse.ResultType);
+
         if (test == condition.Test
             && whenTrue == condition.WhenTrue
-            && whenFalse == condition.WhenFalse)
+            && whenFalse == condition.WhenFalse
+            && resultType == condition.ResultType)
             return condition;
 
-        return SemanticFactory.Condition(test, whenTrue, whenFalse);
+        return new ConditionExpression(test, whenTrue, whenFalse, resultType);
     }
 
-    public virtual Semantic BindConstant(Semantic.Constant constant, in TScope scope)
+    public virtual Expression BindConstant(ConstantExpression constant, in TScope scope)
     {
         var resultType = constant.Value == null
             ? SymbolModel.Null
@@ -225,10 +230,10 @@ public class SemanticBinder<TScope>
         if (resultType == constant.ResultType)
             return constant;
 
-        return new Semantic.Constant(constant.Value, resultType);
+        return new ConstantExpression(constant.Value, resultType);
     }
 
-    public virtual Semantic BindConvert(Semantic.Convert convert, in TScope scope)
+    public virtual Expression BindConvert(ConvertExpression convert, in TScope scope)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var candidates = _symbolListPool.AllocateFromPool();
@@ -247,7 +252,7 @@ public class SemanticBinder<TScope>
                 return convert;
             }
 
-            return new Semantic.Convert(
+            return new ConvertExpression(
                 convert.Kind,
                 expression,
                 convert.ConvertedType,
@@ -260,13 +265,16 @@ public class SemanticBinder<TScope>
         }
     }
 
-    public virtual Semantic BindDeclaration(Semantic.Declaration declaration, in TScope scope)
+    public virtual Expression BindDeclaration(DeclarationExpression declaration, in TScope scope)
     {
         var initializer = Bind(declaration.Initializer, scope);
 
+        var resultType = initializer.ResultType;
+
         if (initializer == declaration.Initializer
             && declaration.Variable != null
-            && declaration.Variable.VariableType == initializer.ResultType)
+            && declaration.Variable.VariableType == initializer.ResultType
+            && declaration.ResultType == resultType)
         {
             return declaration;
         }
@@ -274,20 +282,20 @@ public class SemanticBinder<TScope>
         var variable = declaration.Variable != null 
             && declaration.Variable.VariableType == initializer.ResultType
             ? declaration.Variable
-            : new Symbol.Variable(declaration.Name, initializer.ResultType);
+            : new VariableSymbol(declaration.Name, initializer.ResultType);
 
-        return SemanticFactory.Declare(declaration.Name, initializer);
+        return new DeclarationExpression(declaration.Name, initializer, variable, resultType);
     }
 
-    public virtual Semantic BindFunction(Semantic.Function function, in TScope scope)
+    public virtual Expression BindFunction(FunctionExpression function, in TScope scope)
     {
         var parameters = function.Symbol != null
             ? function.Symbol.Parameters
-            : function.Parameters.Select(p => new Symbol.Parameter(p.Name, p.ParameterType)).ToImmutableList();
+            : function.Parameters.Select(p => new ParameterSymbol(p.Name, p.ParameterType)).ToImmutableList();
 
         var parameterScope = scope.AddAmbientSymbols(parameters);
 
-        var returnTarget = function.ReturnTarget ?? new Symbol.Target("return", SymbolModel.Unknown);
+        var returnTarget = function.ReturnTarget ?? new TargetSymbol("return", SymbolModel.Unknown);
         var bodyScope = parameterScope.AddAmbientSymbol(returnTarget);
 
         var body = Bind(function.Body, bodyScope);
@@ -302,16 +310,16 @@ public class SemanticBinder<TScope>
 
         if (returnTarget.Type != body.ResultType)
         {
-            returnTarget = new Symbol.Target(returnTarget.Name, returnType);
+            returnTarget = new TargetSymbol(returnTarget.Name, returnType);
             bodyScope = parameterScope.AddAmbientSymbol(returnTarget);
             body = Rebind(body, bodyScope);
         }
 
-        var symbol = (function.Symbol == null || function.Symbol.ReturnType != returnType)
-            ? new Symbol.Function(function.Name, parameters, returnType)
+        var symbol = (function.Symbol == null || function.ReturnType != returnType)
+            ? new FunctionSymbol(function.Name, parameters, returnType)
             : function.Symbol;
 
-        return new Semantic.Function(
+        return new FunctionExpression(
             function.Name, 
             function.Parameters, 
             body,
@@ -320,12 +328,12 @@ public class SemanticBinder<TScope>
             returnTarget);
     }
 
-    public virtual Symbol.Type GetFunctionResultType(Semantic body)
+    public virtual TypeSymbol GetFunctionResultType(Expression body)
     {
         var returns = body.SelectWhere(
             s => !HasOwnBody(s),
-            s => s is Semantic.Branch b && b.IsReturn,
-            s => (Semantic.Branch)s);
+            s => s is BranchExpression b && b.IsReturn,
+            s => (BranchExpression)s);
 
         if (returns.Count == 0)
             return body.ResultType;
@@ -333,15 +341,15 @@ public class SemanticBinder<TScope>
         return _symbols.GetUnion(returns.Select(r => r.ResultType).Concat(new[] { body.ResultType }));
     }
 
-    private static bool HasOwnBody(Semantic expression) =>
+    private static bool HasOwnBody(Expression expression) =>
         expression switch
         {
-            Semantic.Function f => true,
-            Semantic.Class m => true,
+            FunctionExpression f => true,
+            ClassDeclaration m => true,
             _ => false,
         };
 
-    public virtual Semantic BindPath(Semantic.Path path, in TScope scope)
+    public virtual Expression BindPath(PathExpression path, in TScope scope)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var members = _memberListPool.AllocateFromPool();
@@ -350,7 +358,7 @@ public class SemanticBinder<TScope>
         {
             var expression = Bind(path.Expression, scope);
 
-            if (expression.ResultType is Symbol.Group)
+            if (expression.ResultType is GroupSymbol)
                 diagnostics.Add(DiagnosticFactory.UnknownName(path.Reference.Name));
 
             var reference = BindPathReference(expression, path.Reference);
@@ -359,7 +367,7 @@ public class SemanticBinder<TScope>
                 && path.Reference == reference)
                 return path;
 
-            return new Semantic.Path(
+            return new PathExpression(
                 expression, 
                 reference,
                 diagnostics: diagnostics.Count > 0 ? diagnostics.ToImmutableList() : null);
@@ -371,13 +379,13 @@ public class SemanticBinder<TScope>
         }
     }
 
-    public virtual Semantic.Reference BindPathReference(Semantic expression, Semantic.Reference reference)
+    public virtual ReferenceExpression BindPathReference(Expression expression, ReferenceExpression reference)
     {
         var members = _memberListPool.AllocateFromPool();
 
         try
         {
-            if (expression.ReferencedSymbol is Symbol.Type type)
+            if (expression.ReferencedSymbol is TypeSymbol type)
                 FindMembers(type, m => m.IsStatic && m.Name == reference.Name, members);
             else
                 FindMembers(expression.ResultType, m => !m.IsStatic && m.Name == reference.Name, members);
@@ -392,9 +400,9 @@ public class SemanticBinder<TScope>
         }
     }
 
-    public virtual Semantic BindReference(Semantic.Reference reference, in TScope scope)
+    public virtual Expression BindReference(ReferenceExpression reference, in TScope scope)
     {
-        if (reference.ReferencedSymbol is Symbol.Function fn)
+        if (reference.ReferencedSymbol is FunctionSymbol fn)
         {
             var intrinsics = _intrinsics.GetOperatorIntrinsics(fn);
             if (intrinsics != null)
@@ -408,37 +416,36 @@ public class SemanticBinder<TScope>
         return UpdateReference(reference, symbol);
     }
 
-    public virtual Semantic.Reference UpdateReference(Semantic.Reference reference, Symbol? referencedSymbol)
+    public virtual ReferenceExpression UpdateReference(ReferenceExpression reference, Symbol? referencedSymbol)
     {
         if (referencedSymbol != null && referencedSymbol == reference.ReferencedSymbol)
             return reference;
 
         if (referencedSymbol == null)
-            return new Semantic.Reference(reference.Name, SymbolModel.Unknown, SymbolModel.Unknown, ImmutableList.Create(DiagnosticFactory.UnknownName(reference.Name)));
+            return new ReferenceExpression(reference.Name, SymbolModel.Unknown, SymbolModel.Unknown, ImmutableList.Create(DiagnosticFactory.UnknownName(reference.Name)));
 
         var resultType = GetReferenceResultType(referencedSymbol);
-        return new Semantic.Reference(reference.Name, referencedSymbol, resultType);
+        return new ReferenceExpression(reference.Name, referencedSymbol, resultType);
     }
 
-    public virtual Symbol.Type GetReferenceResultType(Symbol? symbol) =>
+    public virtual TypeSymbol GetReferenceResultType(Symbol? symbol) =>
         symbol switch
         {
-            Symbol.Variable v => v.VariableType,
-            Symbol.Parameter p => p.ParameterType,
-            Symbol.Field f => f.FieldType,
-            Symbol.Function f => f,
-            Symbol.Group g => _symbols.GetGroup(g.Members.Select(m => GetReferenceResultType(m))) as Symbol.Type ?? SymbolModel.Unknown,
-            Symbol.Type t => _symbols.Type,
+            VariableSymbol v => v.VariableType,
+            ParameterSymbol p => p.ParameterType,
+            FieldSymbol f => f.FieldType,
+            FunctionSymbol f => f,
+            GroupSymbol g => _symbols.GetGroup(g.Members.Select(m => GetReferenceResultType(m))) as TypeSymbol ?? SymbolModel.Unknown,
+            TypeSymbol t => _symbols.Type,
             _ => SymbolModel.Unknown
         };
 
-
-    public Semantic BindWhile(Semantic.While loop, in TScope scope)
+    public Expression BindWhile(WhileExpression loop, in TScope scope)
     {
         var test = Bind(loop.Test, scope);
 
-        var breakTarget = loop.BreakTarget ?? new Symbol.Target("break", SymbolModel.Void);
-        var continueTarget = loop.ContinueTarget ?? new Symbol.Target("continue", SymbolModel.Void);
+        var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", SymbolModel.Void);
+        var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", SymbolModel.Void);
 
         var bodyContext = scope.AddAmbientSymbols(breakTarget, continueTarget);
         var body = Bind(loop.Body, bodyContext);
@@ -451,12 +458,12 @@ public class SemanticBinder<TScope>
 
         if (breakTarget.Type != body.ResultType && !body.ContainsUnknowns)
         {
-            breakTarget = new Symbol.Target(breakTarget.Name, body.ResultType);
+            breakTarget = new TargetSymbol(breakTarget.Name, body.ResultType);
             bodyContext = scope.AddAmbientSymbols(breakTarget, continueTarget);
             body = Rebind(loop.Body, bodyContext);
         }
 
-        return new Semantic.While(
+        return new WhileExpression(
             test, 
             body, 
             body.ResultType,
@@ -464,7 +471,7 @@ public class SemanticBinder<TScope>
             continueTarget);
     }
 
-    private ImmutableList<Semantic> Bind(ImmutableList<Semantic> expressions, in TScope scope)
+    private ImmutableList<Expression> Bind(ImmutableList<Expression> expressions, in TScope scope)
     {
         if (expressions.Count == 0)
             return expressions;
@@ -476,7 +483,7 @@ public class SemanticBinder<TScope>
     /// <summary>
     /// Apply additional rewrites that may fix invalid expressions
     /// </summary>
-    public virtual Semantic Reduce(Semantic expression)
+    public virtual Expression Reduce(Expression expression)
     {
         return expression;
     }
@@ -502,7 +509,7 @@ public class SemanticBinder<TScope>
                     members.Add(tmember);
             }
 
-            if (currentContainer is Symbol.Member smember)
+            if (currentContainer is MemberSymbol smember)
                 currentContainer = smember.Container;
         }
     }
@@ -522,37 +529,37 @@ public class SemanticBinder<TScope>
                     return tmember;
             }
 
-            if (currentContainer is Symbol.Member smember)
+            if (currentContainer is MemberSymbol smember)
                 currentContainer = smember.Container;
         }
 
         return null;
     }
 
-    public Symbol.Member? FindMember(Symbol container, Func<Symbol.Member, bool> fnMatches) =>
-        FindMember<Symbol.Member>(container, fnMatches);
+    public MemberSymbol? FindMember(Symbol container, Func<MemberSymbol, bool> fnMatches) =>
+        FindMember<MemberSymbol>(container, fnMatches);
 
     public virtual bool IsCallableSymbol(Symbol symbol) =>
-        symbol is Symbol.Function or Symbol.Method or Symbol.Constructor;
+        symbol is FunctionSymbol or MethodSymbol or ConstructorSymbol;
 
-    public virtual Symbol.Type? GetCalledSymbolReturnType(Symbol symbol) =>
+    public virtual TypeSymbol? GetCalledSymbolReturnType(Symbol symbol) =>
         symbol switch
         {
-            Symbol.Function f => f.ReturnType,
-            Symbol.Method m => m.ReturnType,
-            Symbol.Constructor c => c.ReturnType,
+            FunctionSymbol f => f.ReturnType,
+            MethodSymbol m => m.ReturnType,
+            ConstructorSymbol c => c.ReturnType,
             _ => null
         };
 
     /// <summary>
     /// Gets the list of candidate symbols for a call with the supplied arguments
     /// </summary>
-    public virtual void GetCalledSymbolCandidates(Semantic instance, string name, ImmutableList<Semantic> arguments, in TScope scope, List<Symbol> candidates)
+    public virtual void GetCalledSymbolCandidates(Expression instance, string name, ImmutableList<Expression> arguments, in TScope scope, List<Symbol> candidates)
     {
         FindMembers(instance.ResultType, s => s.Name == name && MatchesParameters(s, arguments), candidates);
     }
 
-    public virtual Symbol? GetBestCalledSymbol(Semantic instance, ImmutableList<Semantic> arguments, List<Symbol> candidates)
+    public virtual Symbol? GetBestCalledSymbol(Expression instance, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
         // todo: be better
         return candidates.FirstOrDefault(c => MatchesParameters(c, arguments));
@@ -561,16 +568,16 @@ public class SemanticBinder<TScope>
     /// <summary>
     /// Returns true if the callable symbol has parameters that are compatible with the arguments
     /// </summary>
-    public virtual bool MatchesParameters(Symbol callableSymbol, ImmutableList<Semantic> arguments) =>
+    public virtual bool MatchesParameters(Symbol callableSymbol, ImmutableList<Expression> arguments) =>
         callableSymbol switch
         {
-            Symbol.Function function => MatchesParameters(function.Parameters, arguments),
-            Symbol.Method method => MatchesParameters(method.Parameters, arguments),
-            Symbol.Constructor constructor => MatchesParameters(constructor.Parameters, arguments),
+            FunctionSymbol function => MatchesParameters(function.Parameters, arguments),
+            MethodSymbol method => MatchesParameters(method.Parameters, arguments),
+            ConstructorSymbol constructor => MatchesParameters(constructor.Parameters, arguments),
             _ => false
         };
 
-    public virtual bool MatchesParameters(ImmutableList<Symbol.Parameter> parameters, ImmutableList<Semantic> arguments)
+    public virtual bool MatchesParameters(ImmutableList<ParameterSymbol> parameters, ImmutableList<Expression> arguments)
     {
         if (parameters.Count != arguments.Count)
             return false;
@@ -584,14 +591,14 @@ public class SemanticBinder<TScope>
         return true;
     }
 
-    public virtual bool MatchesParameter(Symbol.Parameter parameter, Semantic argument)
+    public virtual bool MatchesParameter(ParameterSymbol parameter, Expression argument)
     {
         return parameter.ParameterType == SymbolModel.Any
             || argument.ResultType == SymbolModel.Unknown
             || parameter.ParameterType == argument.ResultType;
     }
 
-    public virtual Semantic ConvertTo(Semantic expression, Symbol.Type convertedType, Semantic.ConversionKind kind)
+    public virtual Expression ConvertTo(Expression expression, TypeSymbol convertedType, ConversionKind kind)
     {
         if (expression.ResultType == convertedType
             || convertedType == SymbolModel.Void
@@ -599,12 +606,12 @@ public class SemanticBinder<TScope>
             return expression;
         
         if (CanConvert(kind, expression.ResultType, convertedType))
-            return new Semantic.Convert(kind, expression, convertedType);
+            return new ConvertExpression(kind, expression, convertedType);
 
-        return new Semantic.Convert(kind, expression, convertedType, diagnostics: ImmutableList.Create(DiagnosticFactory.CannotConvert(expression.ResultType, convertedType)));
+        return new ConvertExpression(kind, expression, convertedType, diagnostics: ImmutableList.Create(DiagnosticFactory.CannotConvert(expression.ResultType, convertedType)));
     }
 
-    public virtual bool CanConvert(Semantic.ConversionKind conversion, Symbol.Type source, Symbol.Type target)
+    public virtual bool CanConvert(ConversionKind conversion, TypeSymbol source, TypeSymbol target)
     {
         if (IsAssignableTo(source, target))
             return true;
@@ -612,7 +619,7 @@ public class SemanticBinder<TScope>
         if (CanDownCast(source, target))
             return true; 
 
-        if (conversion == Semantic.ConversionKind.Narrowing)
+        if (conversion == ConversionKind.Narrowing)
         {
             return IsAssignableTo(target, source)
                 || CanUpCast(source, target);
@@ -622,7 +629,7 @@ public class SemanticBinder<TScope>
         return source == target; // other rule?
     }
 
-    public virtual bool CanDownCast(Symbol.Type source, Symbol.Type target)
+    public virtual bool CanDownCast(TypeSymbol source, TypeSymbol target)
     {
         for (var s = source; s != null; s = s.BaseType)
         {
@@ -633,7 +640,7 @@ public class SemanticBinder<TScope>
         return false;
     }
 
-    public virtual bool CanUpCast(Symbol.Type source, Symbol.Type target)
+    public virtual bool CanUpCast(TypeSymbol source, TypeSymbol target)
     {
         for (var t = target; t != null; t = t.BaseType)
         {
@@ -644,7 +651,7 @@ public class SemanticBinder<TScope>
         return false;
     }
 
-    public virtual bool IsAssignableTo(Symbol.Type source, Symbol.Type target)
+    public virtual bool IsAssignableTo(TypeSymbol source, TypeSymbol target)
     {
         if (source == target)
             return true;
@@ -655,28 +662,28 @@ public class SemanticBinder<TScope>
         return false;
     }
 
-    public virtual void GetConversionOperatorCandidates(Semantic.ConversionKind kind, Symbol.Type source, Symbol.Type target, in TScope scope, List<Symbol> operators)
+    public virtual void GetConversionOperatorCandidates(ConversionKind kind, TypeSymbol source, TypeSymbol target, in TScope scope, List<Symbol> operators)
     {
         FindMembers(source, s => IsMatchingConversionOperator(s, kind, source, target), operators);
         FindMembers(target, s => IsMatchingConversionOperator(s, kind, source, target), operators);
     }
 
-    public virtual bool IsMatchingConversionOperator(Symbol symbol, Semantic.ConversionKind kind, Symbol.Type source, Symbol.Type target) =>
+    public virtual bool IsMatchingConversionOperator(Symbol symbol, ConversionKind kind, TypeSymbol source, TypeSymbol target) =>
         symbol switch
         {
-            Symbol.Function function =>
+            FunctionSymbol function =>
                 function.ReturnType == target
                 && function.Parameters.Count == 1
-                && CanConvert(Semantic.ConversionKind.Widening, source, function.Parameters[0].ParameterType),
-            Symbol.Method method =>
+                && CanConvert(ConversionKind.Widening, source, function.Parameters[0].ParameterType),
+            MethodSymbol method =>
                 method.IsStatic
                 && method.ReturnType == target
                 && method.Parameters.Count == 1
-                && CanConvert(Semantic.ConversionKind.Widening, source, method.Parameters[0].ParameterType),
+                && CanConvert(ConversionKind.Widening, source, method.Parameters[0].ParameterType),
             _ => false
         };
 
-    public virtual Symbol? GetBestConversionOperator(Semantic expression, Symbol.Type target, List<Symbol> candidates)
+    public virtual Symbol? GetBestConversionOperator(Expression expression, TypeSymbol target, List<Symbol> candidates)
     {
         // todo: do better
         return candidates.FirstOrDefault();

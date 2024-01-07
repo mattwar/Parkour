@@ -1,6 +1,8 @@
 ﻿using Parkour;
-using Parkour.Semantics;
-using static Parkour.Semantics.SemanticFactory;
+using Parkour.Expressions;
+using Parkour.Analysis;
+using Parkour.Symbols;
+using static Parkour.Expressions.ExpressionFactory;
 
 namespace Tests;
 
@@ -86,9 +88,9 @@ public class SimpleBindingTests
         TestBinding(Call(Path(Constant(1), Reference("ToString"))), _symbols.String);
     }
 
-    private void TestBinding(Semantic expression, Symbol.Type? expectedResultType = null, Symbol? expectedReferencedSymbol = null, SimpleBindingScope? scope = null)
+    private void TestBinding(Expression expression, TypeSymbol? expectedResultType = null, Symbol? expectedReferencedSymbol = null, SimpleBindingScope? scope = null)
     {
-        var binder = new SemanticBinder<SimpleBindingScope>(_symbols, _intrinsics);
+        var binder = new ExpressionBinder<SimpleBindingScope>(_symbols, _intrinsics);
         var bound = binder.Bind(expression, scope ?? DefaultTestScope);
 
         Assert.IsFalse(bound.ContainsUnknowns, "expression contains unknowns after binding");
