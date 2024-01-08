@@ -5,22 +5,25 @@ using Analysis;
 
 public sealed class ParameterSymbol : Symbol
 {
-    private readonly Func<TypeSymbol>? _fnParameterType;
-    public ParameterInfo? RuntimeParameter { get; }
-
+    private Func<TypeSymbol>? _fnParameterType;
     private TypeSymbol? _parameterType;
+
     public TypeSymbol ParameterType
     {
         get
         {
-            if (_parameterType == null)
+            if (_parameterType == null && _fnParameterType is Func<TypeSymbol> fn)
             {
-                _parameterType = _fnParameterType != null ? _fnParameterType() : SymbolModel.Unknown;
+                _fnParameterType = null;
+                var tmp = fn();
+                Interlocked.CompareExchange(ref _parameterType, tmp, null);
             }
 
-            return _parameterType;
+            return _parameterType ?? CommonSymbols.Unknown;
         }
     }
+
+    public ParameterInfo? RuntimeParameter { get; }
 
     public ParameterSymbol(string name, Func<TypeSymbol> fnParameterType, ParameterInfo? runtimeParameter = null)
         : base(name)

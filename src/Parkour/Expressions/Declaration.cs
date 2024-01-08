@@ -14,7 +14,7 @@ public abstract class Declaration : Expression
         SymbolAccess access,
         SymbolModifier modifiers,
         ImmutableList<Diagnostic>? diagnostics)
-        : base(state, SymbolModel.Void, diagnostics)
+        : base(state, CommonSymbols.Void, diagnostics)
     {
         this.Name = name;
         this.Access = access;

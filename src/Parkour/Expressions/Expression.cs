@@ -27,10 +27,10 @@ public abstract class Expression
     private protected Expression(ContainsState state, TypeSymbol? resultType, ImmutableList<Diagnostic>? diagnostics)
     {
         this.State = state;
-        this.ResultType = resultType ?? SymbolModel.Unknown;
+        this.ResultType = resultType ?? CommonSymbols.Unknown;
         this.Diagnostics = diagnostics ?? ImmutableList<Diagnostic>.Empty;
 
-        if (this.ResultType == SymbolModel.Unknown)
+        if (this.ResultType == CommonSymbols.Unknown)
             this.State |= ContainsState.Unknowns;
 
         if (this.Diagnostics.Count > 0)
@@ -40,8 +40,13 @@ public abstract class Expression
     public string ToText() =>
         new ExpressionWriter().WriteExpression(this);
 
-    public ImmutableList<Diagnostic> GetDiagnostics() =>
-        this.SelectWhere(s => s.HasDiagnostics, s => s.Diagnostics).SelectMany(dx => dx).ToImmutableList();
+    /// <summary>
+    /// Get all contained diagnostics
+    /// </summary>
+    public ImmutableList<Diagnostic> GetContainedDiagnostics() =>
+        this.SelectWhere(s => s.HasDiagnostics, s => s.Diagnostics)
+            .SelectMany(dx => dx)
+            .ToImmutableList();
 
     internal static ContainsState CombineState(IEnumerable<Expression> items) =>
         items.Aggregate(ContainsState.None, (s, e) => s | e.State);

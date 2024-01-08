@@ -13,7 +13,7 @@ public class FunctionSymbol : TypeSymbol
         : base(name)
     {
         Parameters = parameters;
-        ReturnType = returnType ?? SymbolModel.Unknown;
+        ReturnType = returnType ?? CommonSymbols.Unknown;
         RuntimeMethod = runtimeMethod;
     }
 

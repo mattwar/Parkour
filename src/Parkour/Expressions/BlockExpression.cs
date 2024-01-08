@@ -1,5 +1,5 @@
 ﻿namespace Parkour.Expressions;
-using Analysis;
+using Symbols;
 
 public sealed class BlockExpression : Expression
 {
@@ -10,7 +10,7 @@ public sealed class BlockExpression : Expression
         ImmutableList<Diagnostic>? diagnostics = null)
         : base(
               CombineState(expressions),
-              expressions.Count > 0 ? expressions[^1].ResultType : SymbolModel.Void,
+              expressions.Count > 0 ? expressions[^1].ResultType : CommonSymbols.Void,
               diagnostics)
     {
         this.Expressions = expressions.ToImmutableList();

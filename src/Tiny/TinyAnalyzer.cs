@@ -7,20 +7,20 @@ namespace Tiny
 {
     public class TinyAnalyzer
     {
-        private readonly SymbolModel _model;
+        private readonly CommonSymbols _symbols;
         private readonly Dictionary<string, Symbol> _globals;
         private readonly Dictionary<SyntaxElement, SemanticInfo> _symbolMap;
 
-        private TinyAnalyzer(Dictionary<string, Symbol> globals, SymbolModel model)
+        private TinyAnalyzer(Dictionary<string, Symbol> globals, CommonSymbols model)
         {
             _globals = globals;
-            _model = model;
+            _symbols = model;
             _symbolMap = new Dictionary<SyntaxElement, SemanticInfo>();
         }
 
-        public static SyntaxTreeAnalysis Analyze(SyntaxTree syntax, Dictionary<string, Symbol> globals, SymbolModel model)
+        public static SyntaxTreeAnalysis Analyze(SyntaxTree syntax, Dictionary<string, Symbol> globals, CommonSymbols symbols)
         {
-            var analyzer = new TinyAnalyzer(globals, model);
+            var analyzer = new TinyAnalyzer(globals, symbols);
             return analyzer.Analyze(syntax);
         }
 
@@ -34,11 +34,11 @@ namespace Tiny
                         switch (token.Kind)
                         {
                             case TokenKinds.NumberToken:
-                                _symbolMap.Add(token, new SemanticInfo(_model.Double));
+                                _symbolMap.Add(token, new SemanticInfo(_symbols.Double));
                                 break;
 
                             case TokenKinds.StringToken:
-                                _symbolMap.Add(token, new SemanticInfo(_model.String));
+                                _symbolMap.Add(token, new SemanticInfo(_symbols.String));
                                 break;
 
                             case TokenKinds.IdentifierToken:
@@ -92,32 +92,32 @@ namespace Tiny
 
                 if (node.Kind == NodeKinds.Add)
                 {
-                    if (leftType == _model.Double && rightType == _model.Double)
+                    if (leftType == _symbols.Double && rightType == _symbols.Double)
                     {
-                        return new SemanticInfo(_model.Double);
+                        return new SemanticInfo(_symbols.Double);
                     }
-                    else if (leftType == _model.String && rightType == _model.String
-                        || leftType == _model.String && rightType == _model.String
-                        || leftType == _model.String && rightType == _model.String)
+                    else if (leftType == _symbols.String && rightType == _symbols.String
+                        || leftType == _symbols.String && rightType == _symbols.String
+                        || leftType == _symbols.String && rightType == _symbols.String)
                     {
-                        return new SemanticInfo(_model.String);
+                        return new SemanticInfo(_symbols.String);
                     }
                 }
                 else
                 {
-                    if (leftType == _model.Double && rightType == _model.Double)
+                    if (leftType == _symbols.Double && rightType == _symbols.Double)
                     {
-                        return new SemanticInfo(_model.Double);
+                        return new SemanticInfo(_symbols.Double);
                     }
                 }
 
-                if (leftType != SymbolModel.Unknown && rightType != SymbolModel.Unknown)
+                if (leftType != CommonSymbols.Unknown && rightType != CommonSymbols.Unknown)
                 {
-                    return new SemanticInfo(SymbolModel.Unknown, diagnostics: new[] { GetOperatorNotDefinedForTypes(op.Text, leftType, rightType) });
+                    return new SemanticInfo(CommonSymbols.Unknown, diagnostics: new[] { GetOperatorNotDefinedForTypes(op.Text, leftType, rightType) });
                 }
             }
 
-            return new SemanticInfo(SymbolModel.Unknown);
+            return new SemanticInfo(CommonSymbols.Unknown);
         }
 
         private static Diagnostic GetOperatorNotDefinedForTypes(string opName, params Symbol?[] types)

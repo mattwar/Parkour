@@ -15,7 +15,7 @@ public sealed class BranchExpression : Expression
         ImmutableList<Diagnostic>? diagnostics = null)
         : base(
               expression != null ? expression.State : ContainsState.None,
-              expression != null ? expression.ResultType : SymbolModel.Void,
+              expression != null ? expression.ResultType : CommonSymbols.Void,
               diagnostics)
     {
         this.TargetName = targetName;

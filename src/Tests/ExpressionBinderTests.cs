@@ -7,27 +7,22 @@ using static Parkour.Expressions.ExpressionFactory;
 namespace Tests;
 
 [TestClass]
-public class SimpleBindingTests
+public class ExpressionBinderTests
 {
-    private readonly SymbolModel _symbols;
-    private readonly Intrinsics _intrinsics;
+    private readonly CommonSymbols _symbols;
+    private readonly BindingScope _defaultTestScope;
 
-
-    public SimpleBindingScope DefaultTestScope { get; }
-
-    public SimpleBindingTests()
+    public ExpressionBinderTests()
     {
-        _symbols = new RuntimeSymbolModel();
-        _intrinsics = new Intrinsics(_symbols);
+        _symbols = RuntimeSymbols.GetOrCreateCommonSymbols();
+        _defaultTestScope = CreateBindingScope(_symbols);
+    }
 
-        this.DefaultTestScope = SimpleBindingScope.Default.AddAmbientSymbols(
-            ImmutableList.Create<Symbol>(
-                _symbols.Int32, 
-                _symbols.Int64, 
-                _symbols.Single, 
-                _symbols.Double, 
-                _symbols.String)
-            );
+    public static BindingScope CreateBindingScope(CommonSymbols symbols)
+    {
+        return BindingScope.Default.AddNamespaces(
+            symbols.GlobalNamespace,
+            symbols.System);
     }
 
     [TestMethod]
@@ -88,10 +83,10 @@ public class SimpleBindingTests
         TestBinding(Call(Path(Constant(1), Reference("ToString"))), _symbols.String);
     }
 
-    private void TestBinding(Expression expression, TypeSymbol? expectedResultType = null, Symbol? expectedReferencedSymbol = null, SimpleBindingScope? scope = null)
+    private void TestBinding(Expression expression, TypeSymbol? expectedResultType = null, Symbol? expectedReferencedSymbol = null, BindingScope? scope = null)
     {
-        var binder = new ExpressionBinder<SimpleBindingScope>(_symbols, _intrinsics);
-        var bound = binder.Bind(expression, scope ?? DefaultTestScope);
+        var binder = new ExpressionBinder(_symbols, scope ?? this._defaultTestScope);
+        var bound = binder.Bind(expression);
 
         Assert.IsFalse(bound.ContainsUnknowns, "expression contains unknowns after binding");
 

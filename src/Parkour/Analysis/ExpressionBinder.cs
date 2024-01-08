@@ -1,13 +1,14 @@
 ﻿namespace Parkour.Analysis;
 using Expressions;
 using Symbols;
+using System;
 
-public class ExpressionBinder<TScope>
-    where TScope : IBindingScope<TScope>
+public class ExpressionBinder
 {
-    private readonly SymbolModel _symbols;
-    private readonly Intrinsics _intrinsics;
+    private readonly CommonSymbols _symbols;
+    private readonly Operators _operators;
     private bool _rebind;
+    private BindingScope _scope;
 
     private readonly ObjectPool<List<Symbol>> _symbolListPool =
         new ObjectPool<List<Symbol>>(() => new List<Symbol>(), list => list.Clear());
@@ -18,29 +19,49 @@ public class ExpressionBinder<TScope>
     private readonly ObjectPool<List<Diagnostic>> _diagnosticListPool =
         new ObjectPool<List<Diagnostic>>(() => new List<Diagnostic>(), list => list.Clear());
 
-
-    public ExpressionBinder(SymbolModel symbols, Intrinsics intrinsics)
+    public ExpressionBinder(CommonSymbols symbols, BindingScope scope)
     {
         _symbols = symbols;
-        _intrinsics = intrinsics;
+        _operators = Operators.From(_symbols);
+        _scope = scope;
     }
+
+    protected BindingScope CurrentScope => _scope;
 
     /// <summary>
     /// Rebinds all expressions.
     /// </summary>
-    public Expression Rebind(Expression expression, in TScope scope)
+    public Expression Rebind(Expression expression)
     {
         var oldRebind = _rebind;
         _rebind = true;
-        var rebound = Bind(expression, scope);
+        var rebound = Bind(expression);
         _rebind = oldRebind;
         return rebound;
+    }
+
+    protected Expression RebindInScope(Expression expression, BindingScope scope)
+    {
+        var oldScope = _scope;
+        _scope = scope;
+        var rebound = Rebind(expression);
+        _scope = oldScope;
+        return rebound;
+    }
+
+    protected Expression BindInScope(Expression expression, BindingScope scope)
+    {
+        var oldScope = _scope;
+        _scope = scope;
+        var bound = Bind(expression);
+        _scope = oldScope;
+        return bound;
     }
 
     /// <summary>
     /// Binds all unbound expressions.
     /// </summary>
-    public Expression Bind(Expression expression, in TScope scope)
+    public Expression Bind(Expression expression)
     {
         if (!(_rebind || expression.ContainsUnknowns))
             return expression;
@@ -48,48 +69,53 @@ public class ExpressionBinder<TScope>
         switch (expression)
         {
             case BlockExpression block:
-                return BindBlock(block, scope);
+                return BindBlock(block);
 
             case BranchExpression branch:
-                return BindBranch(branch, scope);
+                return BindBranch(branch);
 
             case CallExpression call:
-                return BindCall(call, scope);
+                return BindCall(call);
 
             case ConditionExpression condition:
-                return BindCondition(condition, scope);
+                return BindCondition(condition);
 
             case ConstantExpression constant:
-                return BindConstant(constant, scope);
+                return BindConstant(constant);
 
             case ConvertExpression convert:
-                return BindConvert(convert, scope);
+                return BindConvert(convert);
 
             case DeclarationExpression declaration:
-                return BindDeclaration(declaration, scope);
+                return BindDeclaration(declaration);
 
             case FunctionExpression function:
-                return BindFunction(function, scope);
+                return BindFunction(function);
+
+            case OperatorExpression opex:
+                return BindOperator(opex);
 
             case PathExpression path:
-                return BindPath(path, scope);
+                return BindPath(path);
 
             case ReferenceExpression reference:
-                return BindReference(reference, scope);
+                return BindReference(reference);
 
             default:
-                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(ExpressionBinder<TScope>)} BindSymbols");
+                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(ExpressionBinder)} BindSymbols");
         }
     }
 
-    public virtual Expression BindBlock(BlockExpression block, in TScope scope)
+    protected virtual Expression BindBlock(BlockExpression block)
     {
         var rebind = false;
+        var oldScope = _scope;
 
         // rebind expressions 
-        var (newList, finalScope) = block.Expressions.Rewrite(scope, (expression, scope) =>
+        var (newList, _) = block.Expressions.Rewrite(_scope, (expression, scope) =>
         {
-            var boundExpression = rebind ? Rebind(expression, scope) : Bind(expression, scope);
+            _scope = scope;
+            var boundExpression = rebind ? Rebind(expression) : Bind(expression);
 
             if (boundExpression is DeclarationExpression decl
                 && decl.Variable != null)
@@ -103,19 +129,21 @@ public class ExpressionBinder<TScope>
             return (boundExpression, scope);
         });
 
+        _scope = oldScope;
+
         if (newList == block.Expressions)
             return block;
 
         return new BlockExpression(newList);
     }
 
-    public virtual Expression BindBranch(BranchExpression branch, in TScope scope)
+    protected virtual Expression BindBranch(BranchExpression branch)
     {
         var expression = branch.Expression != null
-            ? Bind(branch.Expression, scope)
+            ? Bind(branch.Expression)
             : null;
 
-        var targetSymbol = scope.FindSymbol<TargetSymbol>(s => s.Name == branch.TargetName);
+        var targetSymbol = _scope.FindSymbol<TargetSymbol>(s => s.Name == branch.TargetName);
         var diagnostics =
             targetSymbol == null ? ImmutableList.Create(DiagnosticFactory.NoMatchingTarget(branch.TargetName))
             : null;
@@ -127,21 +155,21 @@ public class ExpressionBinder<TScope>
         return new BranchExpression(branch.TargetName, expression, targetSymbol, diagnostics);
     }
 
-    public virtual Expression BindCall(CallExpression call, in TScope scope)
+    protected virtual Expression BindCall(CallExpression call)
     {
         var candidates = _symbolListPool.AllocateFromPool();
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = Bind(call.Expression, scope);
-            var arguments = Bind(call.Arguments, scope);
+            var expression = Bind(call.Expression);
+            var arguments = BindList(call.Arguments);
 
             var instance = expression;
 
             if (expression is PathExpression path) // xxx.Method?
             {
                 instance = path.Expression;
-                GetCalledSymbolCandidates(path.Expression, path.Reference.Name, arguments, scope, candidates);
+                GetCalledSymbolCandidates(path.Expression, path.Reference.Name, arguments, candidates);
             }
 
             if (candidates.Count == 0)
@@ -176,7 +204,7 @@ public class ExpressionBinder<TScope>
             {
                 calledSymbol = GetBestCalledSymbol(instance, arguments, candidates);
 
-                if (calledSymbol == null || calledSymbol == SymbolModel.Unknown)
+                if (calledSymbol == null || calledSymbol == CommonSymbols.Unknown)
                 {
                     if (candidates.Count > 1)
                         diagnostics.Add(DiagnosticFactory.CallIsAmbiguous());
@@ -204,11 +232,11 @@ public class ExpressionBinder<TScope>
         }
     }
 
-    public virtual Expression BindCondition(ConditionExpression condition, in TScope scope)
+    protected virtual Expression BindCondition(ConditionExpression condition)
     {
-        var test = Bind(condition.Test, scope);
-        var whenTrue = Bind(condition.WhenTrue, scope);
-        var whenFalse = Bind(condition.WhenFalse, scope);
+        var test = Bind(condition.Test);
+        var whenTrue = Bind(condition.WhenTrue);
+        var whenFalse = Bind(condition.WhenFalse);
 
         var resultType = _symbols.GetUnion(whenTrue.ResultType, whenFalse.ResultType);
 
@@ -221,10 +249,10 @@ public class ExpressionBinder<TScope>
         return new ConditionExpression(test, whenTrue, whenFalse, resultType);
     }
 
-    public virtual Expression BindConstant(ConstantExpression constant, in TScope scope)
+    protected virtual Expression BindConstant(ConstantExpression constant)
     {
         var resultType = constant.Value == null
-            ? SymbolModel.Null
+            ? CommonSymbols.Null
             : _symbols.GetType(constant.Value.GetType());
 
         if (resultType == constant.ResultType)
@@ -233,18 +261,17 @@ public class ExpressionBinder<TScope>
         return new ConstantExpression(constant.Value, resultType);
     }
 
-    public virtual Expression BindConvert(ConvertExpression convert, in TScope scope)
+    protected virtual Expression BindConvert(ConvertExpression convert)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var candidates = _symbolListPool.AllocateFromPool();
         try
         {
-            var expression = Bind(convert.Expression, scope);
+            var expression = Bind(convert.Expression);
 
             var canConvert = CanConvert(convert.Kind, expression.ResultType, convert.ConvertedType);
 
-            GetConversionOperatorCandidates(convert.Kind, expression.ResultType, convert.ConvertedType, scope, candidates);
-
+            GetConversionOperatorCandidates(convert.Kind, expression.ResultType, convert.ConvertedType, candidates);
 
             if (convert.Expression == expression
                 && (canConvert || convert.HasDiagnostics))
@@ -265,9 +292,9 @@ public class ExpressionBinder<TScope>
         }
     }
 
-    public virtual Expression BindDeclaration(DeclarationExpression declaration, in TScope scope)
+    protected virtual Expression BindDeclaration(DeclarationExpression declaration)
     {
-        var initializer = Bind(declaration.Initializer, scope);
+        var initializer = Bind(declaration.Initializer);
 
         var resultType = initializer.ResultType;
 
@@ -287,48 +314,91 @@ public class ExpressionBinder<TScope>
         return new DeclarationExpression(declaration.Name, initializer, variable, resultType);
     }
 
-    public virtual Expression BindFunction(FunctionExpression function, in TScope scope)
+    public virtual TypeSymbol? BindType(Expression typeExpression, List<Diagnostic>? diagnostics)
     {
-        var parameters = function.Symbol != null
-            ? function.Symbol.Parameters
-            : function.Parameters.Select(p => new ParameterSymbol(p.Name, p.ParameterType)).ToImmutableList();
-
-        var parameterScope = scope.AddAmbientSymbols(parameters);
-
-        var returnTarget = function.ReturnTarget ?? new TargetSymbol("return", SymbolModel.Unknown);
-        var bodyScope = parameterScope.AddAmbientSymbol(returnTarget);
-
-        var body = Bind(function.Body, bodyScope);
-
-        var returnType = GetFunctionResultType(body);
-
-        if (body == function.Body
-            && function.Symbol != null
-            && function.ResultType == function.Symbol
-            && function.ReturnType == returnType)
-            return function;
-
-        if (returnTarget.Type != body.ResultType)
+        var expr = Bind(typeExpression);
+        if (expr.ReferencedSymbol is TypeSymbol type)
         {
-            returnTarget = new TargetSymbol(returnTarget.Name, returnType);
-            bodyScope = parameterScope.AddAmbientSymbol(returnTarget);
-            body = Rebind(body, bodyScope);
+            return type;
         }
-
-        var symbol = (function.Symbol == null || function.ReturnType != returnType)
-            ? new FunctionSymbol(function.Name, parameters, returnType)
-            : function.Symbol;
-
-        return new FunctionExpression(
-            function.Name, 
-            function.Parameters, 
-            body,
-            returnType,
-            symbol, 
-            returnTarget);
+        else
+        {
+            // TODO: add diagnostic?
+            return null;
+        }
     }
 
-    public virtual TypeSymbol GetFunctionResultType(Expression body)
+    protected virtual ImmutableList<ParameterSymbol> BindParameters(ImmutableList<ParameterDeclaration> parameters, List<Diagnostic> diagnostics)
+    {
+        if (parameters.Count == 0)
+            return ImmutableList<ParameterSymbol>.Empty;
+
+        var list = new List<ParameterSymbol>();
+
+        foreach (var p in parameters)
+        {
+            var type = p.ParameterType != null
+                ? BindType(p.ParameterType, diagnostics) ?? CommonSymbols.Unknown
+                : CommonSymbols.Any;
+
+            list.Add(new ParameterSymbol(p.Name, type));
+        }
+
+        return list.ToImmutableList();
+    }
+
+    protected virtual Expression BindFunction(FunctionExpression function)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var parameters = function.Symbol != null
+                ? function.Symbol.Parameters
+                : BindParameters(function.Parameters, diagnostics);
+
+            var parameterScope = this.CurrentScope.AddAmbientSymbols(parameters);
+
+            var returnTarget = function.ReturnTarget ?? new TargetSymbol("return", CommonSymbols.Unknown);
+            var bodyScope = parameterScope.AddAmbientSymbol(returnTarget);
+
+            var body = BindInScope(function.Body, bodyScope);
+
+            var returnType = GetFunctionResultType(body);
+
+            if (body == function.Body
+                && function.Symbol != null
+                && function.ResultType == function.Symbol
+                && function.ReturnType == returnType
+                && diagnostics.Count == 0)
+                return function;
+
+            if (returnTarget.Type != body.ResultType)
+            {
+                returnTarget = new TargetSymbol(returnTarget.Name, returnType);
+                bodyScope = parameterScope.AddAmbientSymbol(returnTarget);
+                body = RebindInScope(body, bodyScope);
+            }
+
+            var symbol = (function.Symbol == null || function.ReturnType != returnType)
+                ? new FunctionSymbol(function.Name, parameters, returnType)
+                : function.Symbol;
+
+            return new FunctionExpression(
+                function.Name,
+                function.Parameters,
+                body,
+                returnType,
+                symbol,
+                returnTarget,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }           
+    }
+
+    protected virtual TypeSymbol GetFunctionResultType(Expression body)
     {
         var returns = body.SelectWhere(
             s => !HasOwnBody(s),
@@ -339,24 +409,50 @@ public class ExpressionBinder<TScope>
             return body.ResultType;
 
         return _symbols.GetUnion(returns.Select(r => r.ResultType).Concat(new[] { body.ResultType }));
+
+        static bool HasOwnBody(Expression expression) =>
+            expression switch
+            {
+                FunctionExpression f => true,
+                ClassDeclaration m => true,
+                _ => false,
+            };
     }
 
-    private static bool HasOwnBody(Expression expression) =>
-        expression switch
-        {
-            FunctionExpression f => true,
-            ClassDeclaration m => true,
-            _ => false,
-        };
+    protected virtual Expression BindOperator(OperatorExpression opex)
+    {
+        var ops = _operators.GetOperators(opex.Kind);
+        var referencedSymbol = _symbols.GetGroup(ops);
 
-    public virtual Expression BindPath(PathExpression path, in TScope scope)
+        if (referencedSymbol != null && referencedSymbol == opex.ReferencedSymbol)
+            return opex;
+
+        if (referencedSymbol == null)
+        {
+            return new OperatorExpression(
+                opex.Kind,
+                CommonSymbols.Unknown,
+                CommonSymbols.Unknown,
+                ImmutableList.Create(DiagnosticFactory.UnknownOperator(opex.Kind)));
+        }
+        else
+        {
+            var resultType = GetReferenceResultType(referencedSymbol);
+            return new OperatorExpression(
+                opex.Kind,
+                referencedSymbol,
+                resultType);
+        }
+    }
+
+    protected virtual Expression BindPath(PathExpression path)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var members = _memberListPool.AllocateFromPool();
 
         try
         {
-            var expression = Bind(path.Expression, scope);
+            var expression = Bind(path.Expression);
 
             if (expression.ResultType is GroupSymbol)
                 diagnostics.Add(DiagnosticFactory.UnknownName(path.Reference.Name));
@@ -379,16 +475,28 @@ public class ExpressionBinder<TScope>
         }
     }
 
-    public virtual ReferenceExpression BindPathReference(Expression expression, ReferenceExpression reference)
+    protected virtual ReferenceExpression BindPathReference(Expression expression, ReferenceExpression reference)
     {
-        var members = _memberListPool.AllocateFromPool();
+        var members = _symbolListPool.AllocateFromPool();
 
         try
         {
             if (expression.ReferencedSymbol is TypeSymbol type)
-                FindMembers(type, m => m.IsStatic && m.Name == reference.Name, members);
+            {
+                GetMatchingTypeMembers(
+                    type, 
+                    reference.Name, 
+                    s => s is MemberSymbol m && m.IsStatic, 
+                    members);
+            }
             else
-                FindMembers(expression.ResultType, m => !m.IsStatic && m.Name == reference.Name, members);
+            {
+                GetMatchingTypeMembers(
+                    expression.ResultType, 
+                    reference.Name, 
+                    s => s is MemberSymbol m && !m.IsStatic, 
+                    members);
+            }
 
             Symbol? symbol = _symbols.GetGroup(members);
 
@@ -396,59 +504,54 @@ public class ExpressionBinder<TScope>
         }
         finally
         {
-            _memberListPool.ReturnToPool(members);
+            _symbolListPool.ReturnToPool(members);
         }
     }
 
-    public virtual Expression BindReference(ReferenceExpression reference, in TScope scope)
+    protected virtual Expression BindReference(ReferenceExpression reference)
     {
-        if (reference.ReferencedSymbol is FunctionSymbol fn)
-        {
-            var intrinsics = _intrinsics.GetOperatorIntrinsics(fn);
-            if (intrinsics != null)
-            {
-                return UpdateReference(reference, _symbols.GetGroup(intrinsics));
-            }
-        }
-
-        var symbol = scope.FindSymbol(reference.Name);
-
+        var symbol = this.CurrentScope.FindSymbol<Symbol>(s => s.Name == reference.Name);
         return UpdateReference(reference, symbol);
     }
 
-    public virtual ReferenceExpression UpdateReference(ReferenceExpression reference, Symbol? referencedSymbol)
+    protected virtual ReferenceExpression UpdateReference(ReferenceExpression reference, Symbol? referencedSymbol)
     {
         if (referencedSymbol != null && referencedSymbol == reference.ReferencedSymbol)
             return reference;
 
         if (referencedSymbol == null)
-            return new ReferenceExpression(reference.Name, SymbolModel.Unknown, SymbolModel.Unknown, ImmutableList.Create(DiagnosticFactory.UnknownName(reference.Name)));
+            return new ReferenceExpression(reference.Name, CommonSymbols.Unknown, CommonSymbols.Unknown, ImmutableList.Create(DiagnosticFactory.UnknownName(reference.Name)));
 
         var resultType = GetReferenceResultType(referencedSymbol);
         return new ReferenceExpression(reference.Name, referencedSymbol, resultType);
     }
 
-    public virtual TypeSymbol GetReferenceResultType(Symbol? symbol) =>
-        symbol switch
+    /// <summary>
+    /// Determines the result type of a <see cref="ReferenceExpression"/> given the referenced symbol.
+    /// </summary>
+    protected virtual TypeSymbol GetReferenceResultType(Symbol? referencedSymbol) =>
+        referencedSymbol switch
         {
             VariableSymbol v => v.VariableType,
             ParameterSymbol p => p.ParameterType,
             FieldSymbol f => f.FieldType,
+            PropertySymbol p => p.PropertyType,
             FunctionSymbol f => f,
-            GroupSymbol g => _symbols.GetGroup(g.Members.Select(m => GetReferenceResultType(m))) as TypeSymbol ?? SymbolModel.Unknown,
-            TypeSymbol t => _symbols.Type,
-            _ => SymbolModel.Unknown
+            GroupSymbol g => g,
+            MethodSymbol => CommonSymbols.Void,
+            TypeSymbol => _symbols.Type,
+            _ => CommonSymbols.Unknown
         };
 
-    public Expression BindWhile(WhileExpression loop, in TScope scope)
+    private Expression BindWhile(WhileExpression loop)
     {
-        var test = Bind(loop.Test, scope);
+        var test = Bind(loop.Test);
 
-        var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", SymbolModel.Void);
-        var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", SymbolModel.Void);
+        var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", CommonSymbols.Void);
+        var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", CommonSymbols.Void);
 
-        var bodyContext = scope.AddAmbientSymbols(breakTarget, continueTarget);
-        var body = Bind(loop.Body, bodyContext);
+        var bodyContext = this.CurrentScope.AddAmbientSymbols(breakTarget, continueTarget);
+        var body = BindInScope(loop.Body, bodyContext);
 
         if (test == loop.Test
             && body == loop.Body
@@ -459,8 +562,8 @@ public class ExpressionBinder<TScope>
         if (breakTarget.Type != body.ResultType && !body.ContainsUnknowns)
         {
             breakTarget = new TargetSymbol(breakTarget.Name, body.ResultType);
-            bodyContext = scope.AddAmbientSymbols(breakTarget, continueTarget);
-            body = Rebind(loop.Body, bodyContext);
+            bodyContext = this.CurrentScope.AddAmbientSymbols(breakTarget, continueTarget);
+            body = RebindInScope(loop.Body, bodyContext);
         }
 
         return new WhileExpression(
@@ -471,78 +574,26 @@ public class ExpressionBinder<TScope>
             continueTarget);
     }
 
-    private ImmutableList<Expression> Bind(ImmutableList<Expression> expressions, in TScope scope)
+    protected virtual ImmutableList<Expression> BindList(ImmutableList<Expression> expressions)
     {
         if (expressions.Count == 0)
             return expressions;
 
-        var tmpContext = scope;
-        return expressions.Rewrite(e => Bind(e, tmpContext));
+        return expressions.Rewrite(e => Bind(e));
     }
 
     /// <summary>
     /// Apply additional rewrites that may fix invalid expressions
     /// </summary>
-    public virtual Expression Reduce(Expression expression)
+    protected virtual Expression Reduce(Expression expression)
     {
         return expression;
     }
 
-    public void FindSymbols<Symbol>(ImmutableList<Symbol> symbols, Func<Symbol, bool> fnMatches, List<Symbol> list)
-    {
-        foreach (var symbol in symbols)
-        {
-            if (fnMatches(symbol))
-                list.Add(symbol);
-        }
-    }
-
-    public void FindMembers<TMember>(Symbol container, Func<TMember, bool> fnMatches, List<TMember> members)
-        where TMember : Symbol
-    {
-        var currentContainer = container;
-        while (currentContainer != null)
-        {
-            foreach (var member in currentContainer.Members)
-            {
-                if (member is TMember tmember && fnMatches(tmember))
-                    members.Add(tmember);
-            }
-
-            if (currentContainer is MemberSymbol smember)
-                currentContainer = smember.Container;
-        }
-    }
-
-    public void FindMembers(Symbol container, Func<Symbol, bool> fnMatches, List<Symbol> members) =>
-        FindMembers<Symbol>(container, fnMatches, members);
-
-    public TMember? FindMember<TMember>(Symbol container, Func<TMember, bool> fnMatches)
-        where TMember : Symbol
-    {
-        var currentContainer = container;
-        while (currentContainer != null)
-        {
-            foreach (var member in currentContainer.Members)
-            {
-                if (member is TMember tmember && fnMatches(tmember))
-                    return tmember;
-            }
-
-            if (currentContainer is MemberSymbol smember)
-                currentContainer = smember.Container;
-        }
-
-        return null;
-    }
-
-    public MemberSymbol? FindMember(Symbol container, Func<MemberSymbol, bool> fnMatches) =>
-        FindMember<MemberSymbol>(container, fnMatches);
-
-    public virtual bool IsCallableSymbol(Symbol symbol) =>
+    protected virtual bool IsCallableSymbol(Symbol symbol) =>
         symbol is FunctionSymbol or MethodSymbol or ConstructorSymbol;
 
-    public virtual TypeSymbol? GetCalledSymbolReturnType(Symbol symbol) =>
+    protected virtual TypeSymbol? GetCalledSymbolReturnType(Symbol symbol) =>
         symbol switch
         {
             FunctionSymbol f => f.ReturnType,
@@ -554,12 +605,12 @@ public class ExpressionBinder<TScope>
     /// <summary>
     /// Gets the list of candidate symbols for a call with the supplied arguments
     /// </summary>
-    public virtual void GetCalledSymbolCandidates(Expression instance, string name, ImmutableList<Expression> arguments, in TScope scope, List<Symbol> candidates)
+    protected virtual void GetCalledSymbolCandidates(Expression instance, string name, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
-        FindMembers(instance.ResultType, s => s.Name == name && MatchesParameters(s, arguments), candidates);
+        GetMatchingTypeMembers(instance.ResultType, name, s => MatchesParameters(s, arguments), candidates);
     }
 
-    public virtual Symbol? GetBestCalledSymbol(Expression instance, ImmutableList<Expression> arguments, List<Symbol> candidates)
+    protected virtual Symbol? GetBestCalledSymbol(Expression instance, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
         // todo: be better
         return candidates.FirstOrDefault(c => MatchesParameters(c, arguments));
@@ -568,7 +619,7 @@ public class ExpressionBinder<TScope>
     /// <summary>
     /// Returns true if the callable symbol has parameters that are compatible with the arguments
     /// </summary>
-    public virtual bool MatchesParameters(Symbol callableSymbol, ImmutableList<Expression> arguments) =>
+    protected virtual bool MatchesParameters(Symbol callableSymbol, ImmutableList<Expression> arguments) =>
         callableSymbol switch
         {
             FunctionSymbol function => MatchesParameters(function.Parameters, arguments),
@@ -577,7 +628,7 @@ public class ExpressionBinder<TScope>
             _ => false
         };
 
-    public virtual bool MatchesParameters(ImmutableList<ParameterSymbol> parameters, ImmutableList<Expression> arguments)
+    protected virtual bool MatchesParameters(ImmutableList<ParameterSymbol> parameters, ImmutableList<Expression> arguments)
     {
         if (parameters.Count != arguments.Count)
             return false;
@@ -591,18 +642,18 @@ public class ExpressionBinder<TScope>
         return true;
     }
 
-    public virtual bool MatchesParameter(ParameterSymbol parameter, Expression argument)
+    protected virtual bool MatchesParameter(ParameterSymbol parameter, Expression argument)
     {
-        return parameter.ParameterType == SymbolModel.Any
-            || argument.ResultType == SymbolModel.Unknown
+        return parameter.ParameterType == CommonSymbols.Any
+            || argument.ResultType == CommonSymbols.Unknown
             || parameter.ParameterType == argument.ResultType;
     }
 
-    public virtual Expression ConvertTo(Expression expression, TypeSymbol convertedType, ConversionKind kind)
+    protected virtual Expression ConvertTo(Expression expression, TypeSymbol convertedType, ConversionKind kind)
     {
         if (expression.ResultType == convertedType
-            || convertedType == SymbolModel.Void
-            || convertedType == SymbolModel.Unknown)
+            || convertedType == CommonSymbols.Void
+            || convertedType == CommonSymbols.Unknown)
             return expression;
         
         if (CanConvert(kind, expression.ResultType, convertedType))
@@ -611,7 +662,7 @@ public class ExpressionBinder<TScope>
         return new ConvertExpression(kind, expression, convertedType, diagnostics: ImmutableList.Create(DiagnosticFactory.CannotConvert(expression.ResultType, convertedType)));
     }
 
-    public virtual bool CanConvert(ConversionKind conversion, TypeSymbol source, TypeSymbol target)
+    protected virtual bool CanConvert(ConversionKind conversion, TypeSymbol source, TypeSymbol target)
     {
         if (IsAssignableTo(source, target))
             return true;
@@ -629,29 +680,35 @@ public class ExpressionBinder<TScope>
         return source == target; // other rule?
     }
 
-    public virtual bool CanDownCast(TypeSymbol source, TypeSymbol target)
+    protected virtual bool CanDownCast(TypeSymbol source, TypeSymbol target)
     {
-        for (var s = source; s != null; s = s.BaseType)
+        if (source == target)
+            return true;
+
+        foreach (var sbt in source.BaseTypes)
         {
-            if (s == target)
+            if (CanDownCast(sbt, target))
                 return true;
         }
 
         return false;
     }
 
-    public virtual bool CanUpCast(TypeSymbol source, TypeSymbol target)
+    protected virtual bool CanUpCast(TypeSymbol source, TypeSymbol target)
     {
-        for (var t = target; t != null; t = t.BaseType)
+        if (target == source)
+            return true;
+
+        foreach (var tbt in target.BaseTypes)
         {
-            if (t == source)
+            if (CanUpCast(source, tbt))
                 return true;
         }
 
         return false;
     }
 
-    public virtual bool IsAssignableTo(TypeSymbol source, TypeSymbol target)
+    protected virtual bool IsAssignableTo(TypeSymbol source, TypeSymbol target)
     {
         if (source == target)
             return true;
@@ -662,13 +719,13 @@ public class ExpressionBinder<TScope>
         return false;
     }
 
-    public virtual void GetConversionOperatorCandidates(ConversionKind kind, TypeSymbol source, TypeSymbol target, in TScope scope, List<Symbol> operators)
+    protected virtual void GetConversionOperatorCandidates(ConversionKind kind, TypeSymbol source, TypeSymbol target, List<Symbol> operators)
     {
-        FindMembers(source, s => IsMatchingConversionOperator(s, kind, source, target), operators);
-        FindMembers(target, s => IsMatchingConversionOperator(s, kind, source, target), operators);
+        GetMatchingTypeMembers(source, null, s => IsMatchingConversionOperator(s, kind, source, target), operators);
+        GetMatchingTypeMembers(target, null, s => IsMatchingConversionOperator(s, kind, source, target), operators);
     }
 
-    public virtual bool IsMatchingConversionOperator(Symbol symbol, ConversionKind kind, TypeSymbol source, TypeSymbol target) =>
+    protected virtual bool IsMatchingConversionOperator(Symbol symbol, ConversionKind kind, TypeSymbol source, TypeSymbol target) =>
         symbol switch
         {
             FunctionSymbol function =>
@@ -683,9 +740,34 @@ public class ExpressionBinder<TScope>
             _ => false
         };
 
-    public virtual Symbol? GetBestConversionOperator(Expression expression, TypeSymbol target, List<Symbol> candidates)
+    protected virtual Symbol? GetBestConversionOperator(Expression expression, TypeSymbol target, List<Symbol> candidates)
     {
         // todo: do better
         return candidates.FirstOrDefault();
+    }
+
+    protected virtual void GetMatchingTypeMembers(TypeSymbol type, string? name, Func<Symbol, bool>? fnMatch, List<Symbol> members)
+    {
+        TypeSymbol? symbol = type;
+        int initialCount = members.Count;
+
+        while (symbol != null)
+        {
+            if (name != null)
+            {
+                symbol.GetMembers(name, fnMatch, members);
+            }
+            else if (fnMatch != null)
+            {
+                symbol.GetMembers(fnMatch, members);
+            }
+
+            if (members.Count > initialCount)
+                break;
+
+            // look in base type
+            // todo: handle interfaces separately
+            symbol = symbol.BaseTypes.FirstOrDefault();
+        }
     }
 }

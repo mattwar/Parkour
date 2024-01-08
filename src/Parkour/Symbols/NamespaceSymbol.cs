@@ -1,4 +1,5 @@
 ﻿namespace Parkour.Symbols;
+using Utils;
 
 public class NamespaceSymbol : Symbol
 {
@@ -29,5 +30,26 @@ public class NamespaceSymbol : Symbol
         : base(name)
     {
         _members = members;
+    }
+
+    private Dictionary<TextKey, ImmutableList<Symbol>>? _keyMap;
+
+    public override void GetMembers(string name, int start, int length, Func<Symbol, bool>? fnMatch, List<Symbol> symbols)
+    {
+        if (_keyMap == null)
+        {
+            var map = new Dictionary<TextKey, ImmutableList<Symbol>>(
+                this.Members.GroupBy(m => m.Name).Select(g => KeyValuePair.Create((TextKey)g.Key, g.ToImmutableList()))
+                );
+            Interlocked.CompareExchange(ref _keyMap, map, null);
+        }
+
+        if (_keyMap.TryGetValue(new TextKey(name, start, length), out var syms))
+        {
+            if (fnMatch != null)
+                symbols.AddRange(syms.Where(fnMatch));
+            else
+                symbols.AddRange(syms);
+        }
     }
 }

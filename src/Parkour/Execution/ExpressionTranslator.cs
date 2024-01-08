@@ -15,14 +15,12 @@ public sealed class ExpressionTranslator
     {
     }
 
-    public L.LambdaExpression TranslateToLambda(Expression expression, Type? delegateType = null)
+    public L.LambdaExpression TranslateToLambda(FunctionExpression expression, Type? delegateType = null)
     {
-        if (expression is not FunctionExpression function)
-            function = ExpressionFactory.Function(expression);
-        return (L.LambdaExpression)Translate(function);
+        return (L.LambdaExpression)Translate(expression);
     }
 
-    public L.Expression<TDelegate> TranslateToLambda<TDelegate>(Expression expression)
+    public L.Expression<TDelegate> TranslateToLambda<TDelegate>(FunctionExpression expression)
         where TDelegate : Delegate
     {
         return (L.Expression<TDelegate>)TranslateToLambda(expression, typeof(TDelegate));
@@ -68,6 +66,15 @@ public sealed class ExpressionTranslator
     {
         if (type.RuntimeType != null)
             return type.RuntimeType;
+
+        if (type is FunctionSymbol fs)
+        {
+            var list = new List<Type>();
+            list.AddRange(fs.Parameters.Select(p => Translate(p.ParameterType)));
+            list.Add(Translate(fs.ReturnType));
+            return L.Expression.GetDelegateType(list.ToArray());
+        };
+
         throw new InvalidOperationException($"Unhandled type '{type.Name}' in {nameof(ExpressionTranslator)}.GetType");
     }
 
@@ -115,6 +122,8 @@ public sealed class ExpressionTranslator
                     return L.Expression.New(ci, arguments);
                 }
                 break;
+            case OperatorSymbol opsym:
+                return TranslateOperatorCall(call, opsym);
             case FunctionSymbol function:
                 {
                     var fn = Translate(call.Expression);
@@ -132,7 +141,7 @@ public sealed class ExpressionTranslator
         if (label == null)
             throw new InvalidOperationException($"No branch target defined for '{branch.TargetName}'");
 
-        if (branch.Expression == null || branch.Expression.ResultType == SymbolModel.Void)
+        if (branch.Expression == null || branch.Expression.ResultType == CommonSymbols.Void)
         {
             if (branch.IsBreak)
                 return L.Expression.Break(label);
@@ -190,7 +199,8 @@ public sealed class ExpressionTranslator
 
         L.Expression lambdaBody;
 
-        if (function.ResultType == SymbolModel.Void)
+        if (function.ReturnType == CommonSymbols.Void
+            || function.ReturnType == null)
         {
             var returnTarget = L.Expression.Label("return");
             SetCurrentBranchTarget("return", returnTarget);
@@ -199,7 +209,7 @@ public sealed class ExpressionTranslator
         }
         else
         {
-            var returnType = Translate(function.ResultType);
+            var returnType = Translate(function.ReturnType);
             var returnTarget = L.Expression.Label(returnType, "return");
             SetCurrentBranchTarget("return", returnTarget);
 
@@ -232,7 +242,7 @@ public sealed class ExpressionTranslator
     {
         switch (path.Reference.ReferencedSymbol)
         {
-            case Property prop when prop.RuntimeProperty is PropertyInfo pi:
+            case PropertySymbol prop when prop.RuntimeProperty is PropertyInfo pi:
                 if (prop.IsStatic)
                 {
                     return L.Expression.Property(null, pi);
@@ -335,55 +345,52 @@ public sealed class ExpressionTranslator
         throw new InvalidOperationException($"cannot find variable for symbol '{symbol.Name}'");
     }
 
-    private L.Expression? TranslateIntrinsic(CallExpression c)
+    private L.Expression TranslateOperatorCall(CallExpression c, OperatorSymbol opsym)
     {
-        if (c.CalledSymbol is IntrinsicSymbol intrinsic)
+        switch (opsym.Kind)
         {
-            switch (intrinsic.RelatedFunction.Name)
-            {
-                case nameof(Operators.Add):
-                    return L.Expression.Add(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.Subtract):
-                    return L.Expression.Subtract(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.Multiply):
-                    return L.Expression.Multiply(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.Divide):
-                    return L.Expression.Divide(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.Remainder):
-                    return L.Expression.Modulo(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.Negate):
-                    return L.Expression.Negate(Translate(c.Arguments[0]));
-                case nameof(Operators.BitwiseAnd):
-                    return L.Expression.And(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.BitwiseOr):
-                    return L.Expression.Or(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.BitwiseNot):
-                    return L.Expression.Not(Translate(c.Arguments[0]));
-                case nameof(Operators.Equal):
-                    return L.Expression.Equal(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.NotEqual):
-                    return L.Expression.NotEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.LessThan):
-                    return L.Expression.LessThan(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.LessThanOrEqual):
-                    return L.Expression.LessThanOrEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.GreaterThan):
-                    return L.Expression.GreaterThan(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.GreaterThanOrEqual):
-                    return L.Expression.GreaterThanOrEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.LogicalAnd):
-                    return L.Expression.And(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.LogicalAndAlso):
-                    return L.Expression.AndAlso(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.LogicalOr):
-                    return L.Expression.Or(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.LogicalOrElse):
-                    return L.Expression.OrElse(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-                case nameof(Operators.LogicalNot):
-                    return L.Expression.Not(Translate(c.Arguments[0]));
-            }
+            case OperatorKinds.Add:
+                return L.Expression.Add(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.Subtract:
+                return L.Expression.Subtract(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.Multiply:
+                return L.Expression.Multiply(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.Divide:
+                return L.Expression.Divide(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.Remainder:
+                return L.Expression.Modulo(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.Negate:
+                return L.Expression.Negate(Translate(c.Arguments[0]));
+            case OperatorKinds.BitwiseAnd:
+                return L.Expression.And(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.BitwiseOr:
+                return L.Expression.Or(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.BitwiseNot:
+                return L.Expression.Not(Translate(c.Arguments[0]));
+            case OperatorKinds.Equal:
+                return L.Expression.Equal(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.NotEqual:
+                return L.Expression.NotEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.LessThan:
+                return L.Expression.LessThan(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.LessThanOrEqual:
+                return L.Expression.LessThanOrEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.GreaterThan:
+                return L.Expression.GreaterThan(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.GreaterThanOrEqual:
+                return L.Expression.GreaterThanOrEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.LogicalAnd:
+                return L.Expression.And(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.LogicalAndAlso:
+                return L.Expression.AndAlso(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.LogicalOr:
+                return L.Expression.Or(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.LogicalOrElse:
+                return L.Expression.OrElse(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
+            case OperatorKinds.LogicalNot:
+                return L.Expression.Not(Translate(c.Arguments[0]));
         }
 
-        return null;
+        throw new InvalidOperationException($"Unhandled operator kind '{opsym.Kind}'");
     }
 }

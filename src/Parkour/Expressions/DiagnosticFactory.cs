@@ -6,6 +6,9 @@ internal static class DiagnosticFactory
     public static Diagnostic UnknownName(string name) =>
         new Diagnostic($"The name '{name}' does not match anything in this context.");
 
+    public static Diagnostic UnknownOperator(string kind) =>
+        new Diagnostic($"The name '{kind}' does not match a known operator.");
+
     public static Diagnostic UnknownFunction(string name) =>
         new Diagnostic($"The name '{name}' does not match a function in this context.");
 

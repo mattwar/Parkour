@@ -56,8 +56,11 @@ public static class ExpressionExtensions
     /// Walks the expression tree calling the action callback for each expression
     /// including the root.
     /// </summary>
-    public static void Walk(Expression expr, Func<Expression, bool> walkChildren, Action<Expression> action)
+    public static void Walk(Expression? expr, Func<Expression, bool> walkChildren, Action<Expression> action)
     {
+        if (expr == null)
+            return;
+
         action(expr);
 
         if (!walkChildren(expr))
@@ -89,12 +92,13 @@ public static class ExpressionExtensions
                 Walk(convert.Expression, walkChildren, action);
                 break;
 
-            case FunctionExpression function:
-                Walk(function.Body, walkChildren, action);
-                break;
-
             case DeclarationExpression declaration:
                 Walk(declaration.Initializer, walkChildren, action);
+                break;
+
+            case FunctionExpression function:
+                Walk(function.Parameters, walkChildren, action);
+                Walk(function.Body, walkChildren, action);
                 break;
 
             case PathExpression path:
@@ -102,9 +106,36 @@ public static class ExpressionExtensions
                 Walk(path.Reference, walkChildren, action);
                 break;
 
+            case ClassDeclaration cd:
+                Walk(cd.BaseTypes, walkChildren, action);
+                Walk(cd.Declarations, walkChildren, action);
+                break;
+
+            case MethodDeclaration md:
+                Walk(md.Parameters, walkChildren, action);
+                Walk(md.Body, walkChildren, action);
+                Walk(md.ReturnType, walkChildren, action);
+                break;
+
+            case ParameterDeclaration pd:
+                Walk(pd.ParameterType, walkChildren, action);
+                break;
+
+            case FieldDeclaration fd:
+                Walk(fd.FieldType, walkChildren, action);
+                break;
+
+            case PropertyDeclaration prd:
+                Walk(prd.PropertyType, walkChildren, action);
+                Walk(prd.GetMethod, walkChildren, action);
+                Walk(prd.SetMethod, walkChildren, action);
+                break;
+
+            case OperatorExpression _:
             case ConstantExpression _:
             case ReferenceExpression _:
             case VoidExpression _:
+            case LabelExpression _:
                 break;
 
             default:
@@ -115,7 +146,8 @@ public static class ExpressionExtensions
     /// <summary>
     /// Walks the 
     /// </summary>
-    public static void Walk(ImmutableList<Expression> expressions, Func<Expression, bool> walkChildren, Action<Expression> action)
+    public static void Walk<T>(ImmutableList<T> expressions, Func<Expression, bool> walkChildren, Action<Expression> action)
+        where T : Expression
     {
         foreach (var expr in expressions)
         {
@@ -123,15 +155,17 @@ public static class ExpressionExtensions
         }
     }
 
-    public static ImmutableList<Expression> Rewrite(this ImmutableList<Expression> list, Func<Expression, Expression> rewriter) =>
-        Rewrite<object?>(list, null, (e, a) => (rewriter(e), a)).list;
+    public static ImmutableList<TExpr> Rewrite<TExpr>(this ImmutableList<TExpr> list, Func<TExpr, TExpr> rewriter)
+        where TExpr : Expression =>
+        Rewrite<TExpr, object?>(list, null, (e, a) => (rewriter(e), a)).list;
 
-    public static (ImmutableList<Expression> list, TArg final) Rewrite<TArg>(
-        this ImmutableList<Expression> list, 
+    public static (ImmutableList<TExpr> list, TArg final) Rewrite<TExpr, TArg>(
+        this ImmutableList<TExpr> list, 
         TArg arg, 
-        Func<Expression, TArg, (Expression expr, TArg arg)> rewriter)
+        Func<TExpr, TArg, (TExpr expr, TArg arg)> rewriter)
+        where TExpr : Expression
     {
-        Expression[] newList = null!;
+        TExpr[] newList = null!;
 
         for (int i = 0; i < list.Count; i++)
         {
@@ -142,7 +176,7 @@ public static class ExpressionExtensions
             {
                 if (newList == null)
                 {
-                    newList = new Expression[list.Count];
+                    newList = new TExpr[list.Count];
                     if (i > 0)
                         list.CopyTo(0, newList.AsSpan().Slice(0, i + 1));
                 }
@@ -155,7 +189,7 @@ public static class ExpressionExtensions
         }
 
         if (newList != null)
-            return (ImmutableList<Expression>.Empty.AppendRange(newList), arg);
+            return (ImmutableList<TExpr>.Empty.AppendRange(newList), arg);
 
         return (list, arg);
     }

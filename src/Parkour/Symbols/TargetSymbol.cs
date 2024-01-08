@@ -8,6 +8,6 @@ public sealed class TargetSymbol : Symbol
     public TargetSymbol(string name, TypeSymbol? type)
         : base(name)
     {
-        Type = type ?? SymbolModel.Void;
+        Type = type ?? CommonSymbols.Void;
     }
 }

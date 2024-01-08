@@ -13,7 +13,7 @@ public class ConstructorSymbol : MemberSymbol
         : base("", container, access, modifier)
     {
         Parameters = parameters;
-        ReturnType = returnType ?? SymbolModel.Unknown;
+        ReturnType = returnType ?? CommonSymbols.Unknown;
         RuntimeMethod = runtimeMethod;
     }
 }

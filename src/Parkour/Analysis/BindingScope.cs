@@ -1,44 +1,32 @@
-﻿namespace Parkour.Expressions;
+﻿namespace Parkour.Analysis;
 using Symbols;
 
-public interface IBindingScope<TScope>
+public record struct BindingScope(ImmutableList<NamespaceSymbol> Namespaces, ImmutableList<Symbol> AmbientSymbols, Symbol? PathSymbol)
 {
-    abstract static TScope Default { get; }
+    public ImmutableList<NamespaceSymbol> Namespaces { get; init; } = Namespaces ?? ImmutableList<NamespaceSymbol>.Empty;
+    public ImmutableList<Symbol> AmbientSymbols { get; init; } = AmbientSymbols ?? ImmutableList<Symbol>.Empty;
 
-    TScope AddAmbientSymbols(IEnumerable<Symbol> symbols);
-    TScope AddAmbientSymbols(params Symbol[] symbols) => AddAmbientSymbols((IEnumerable<Symbol>)symbols);
-    TScope AddAmbientSymbol(Symbol symbol) => AddAmbientSymbols(symbol);
-    TScope WithPathSymbol(Symbol symbol);
+    public static BindingScope Default =>
+        new BindingScope(ImmutableList<NamespaceSymbol>.Empty, ImmutableList<Symbol>.Empty, null);
 
-    void FindSymbols<TSymbol>(Func<TSymbol, bool> fnMatch, List<TSymbol> list) 
-        where TSymbol : Symbol;
+    public BindingScope AddNamespaces(IEnumerable<NamespaceSymbol> namespaces) =>
+        this with { Namespaces = this.Namespaces.AppendRange(namespaces) };
 
-    void FindSymbols(Func<Symbol, bool> fnMatch, List<Symbol> list) =>
-        FindSymbols<Symbol>(fnMatch, list);
+    public BindingScope AddNamespaces(params NamespaceSymbol[] symbols) => 
+        AddNamespaces((IEnumerable<NamespaceSymbol>)symbols);
 
-    TSymbol? FindSymbol<TSymbol>(Func<TSymbol, bool> fnMatch) 
-        where TSymbol : Symbol;
+    public BindingScope AddNamespace(NamespaceSymbol symbol) => AddNamespaces(symbol);
 
-    Symbol? FindSymbol(Func<Symbol, bool> fnMatch) =>
-        FindSymbol<Symbol>(fnMatch);
-
-    Symbol? FindSymbol(string name) =>
-        FindSymbol(s => s.Name == name);
-}
-
-public record struct SimpleBindingScope(ImmutableList<Symbol> AmbientSymbols, Symbol? PathSymbol)
-    : IBindingScope<SimpleBindingScope>
-{
-    public static SimpleBindingScope Default =>
-        new SimpleBindingScope(ImmutableList<Symbol>.Empty, null);
-
-    public SimpleBindingScope AddAmbientSymbol(Symbol symbol) =>
-        this with { AmbientSymbols = this.AmbientSymbols.Append(symbol), PathSymbol = null };
-
-    public SimpleBindingScope AddAmbientSymbols(IEnumerable<Symbol> symbols) =>
+    public BindingScope AddAmbientSymbols(IEnumerable<Symbol> symbols) =>
         this with { AmbientSymbols = this.AmbientSymbols.AppendRange(symbols), PathSymbol = null };
 
-    public SimpleBindingScope WithPathSymbol(Symbol symbol) =>
+    public BindingScope AddAmbientSymbols(params Symbol[] symbols) =>
+        AddAmbientSymbols((IEnumerable<Symbol>)symbols);
+
+    public BindingScope AddAmbientSymbol(Symbol symbol) =>
+        this with { AmbientSymbols = this.AmbientSymbols.Append(symbol), PathSymbol = null };
+
+    public BindingScope WithPathSymbol(Symbol symbol) =>
         this with { PathSymbol = symbol, AmbientSymbols = ImmutableList<Symbol>.Empty };
 
     /// <summary>
@@ -56,6 +44,17 @@ public record struct SimpleBindingScope(ImmutableList<Symbol> AmbientSymbols, Sy
         }
         else
         {
+            // look in namespaces
+            foreach (var ns in this.Namespaces)
+            {
+                foreach (var nsMember in ns.Members)
+                {
+                    if (nsMember is TSymbol tsymbol && fnMatch(tsymbol))
+                        list.Add(tsymbol);
+                }
+            }
+
+            // look in ambient symbols
             for(int i = this.AmbientSymbols.Count - 1; i >= 0; i--)
             {
                 var symbol = this.AmbientSymbols[i];
@@ -81,6 +80,15 @@ public record struct SimpleBindingScope(ImmutableList<Symbol> AmbientSymbols, Sy
         }
         else
         {
+            foreach (var ns in this.Namespaces)
+            {
+                foreach (var nsMember in ns.Members)
+                {
+                    if (nsMember is TSymbol tsymbol && fnMatch(tsymbol))
+                        return tsymbol;
+                }
+            }
+
             for (int i = this.AmbientSymbols.Count - 1; i >= 0; i--)
             {
                 var symbol = this.AmbientSymbols[i];

@@ -4,15 +4,15 @@ using Analysis;
 
 public sealed class ClassDeclaration : Declaration
 {
+    public ImmutableList<Expression> BaseTypes { get; }
     public ImmutableList<Declaration> Declarations { get; }
-    public TypeSymbol Symbol { get; }
 
     public ClassDeclaration(
         string name,
         SymbolAccess access,
         SymbolModifier modifiers,
+        ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
-        FunctionSymbol? symbol,
         ImmutableList<Diagnostic>? diagnostics = null)
     : base(
           declarations != null ? CombineState(declarations) : ContainsState.None,
@@ -21,8 +21,8 @@ public sealed class ClassDeclaration : Declaration
           modifiers,
           diagnostics)
     {
+        this.BaseTypes = baseTypes;
         this.Declarations = declarations ?? ImmutableList<Declaration>.Empty;
-        this.Symbol = symbol ?? SymbolModel.Unknown;
     }
 }
 

@@ -3,15 +3,15 @@ using Symbols;
 
 public sealed class FieldDeclaration : Declaration
 {
+    public Expression FieldType { get; }
     public Expression? Initializer { get; }
-    public TypeSymbol? FieldType { get; }
 
     public FieldDeclaration(
         string name,
         SymbolAccess access,
         SymbolModifier modifiers,
+        Expression fieldType,
         Expression? initializer,
-        TypeSymbol? fieldType,
         ImmutableList<Diagnostic>? diagnostics = null)
     : base(
           initializer != null ? initializer.State : ContainsState.None,
@@ -20,8 +20,8 @@ public sealed class FieldDeclaration : Declaration
           modifiers,
           diagnostics)
     {
-        this.Initializer = initializer;
         this.FieldType = fieldType;
+        this.Initializer = initializer;
     }
 }
 

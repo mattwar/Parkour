@@ -1,9 +1,9 @@
 ﻿namespace Parkour.Expressions;
-using Analysis;
+using Symbols;
 
 public sealed class VoidExpression : Expression
 {
-    private VoidExpression() : base(ContainsState.None, SymbolModel.Void, null) { }
+    private VoidExpression() : base(ContainsState.None, CommonSymbols.Void, null) { }
     public static VoidExpression Instance = new VoidExpression();
 }
 
