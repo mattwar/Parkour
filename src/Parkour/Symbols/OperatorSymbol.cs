@@ -7,9 +7,13 @@ public class OperatorSymbol : FunctionSymbol
     public OperatorSymbol(
         string name, 
         string kind, 
-        ImmutableList<ParameterSymbol> parameters, 
-        TypeSymbol? returnType)
-        : base(name, parameters, returnType)
+        Func<FunctionSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
+        Func<TypeSymbol> fnReturnType)
+        : base(
+            name, 
+            fnParameters,
+            fnReturnType,
+            null)
     {
         this.Kind = kind;
     }

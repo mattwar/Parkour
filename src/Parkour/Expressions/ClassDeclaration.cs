@@ -1,6 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
-using Analysis;
+using Syntax;
 
 public sealed class ClassDeclaration : Declaration
 {
@@ -13,13 +13,15 @@ public sealed class ClassDeclaration : Declaration
         SymbolModifier modifiers,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
-        ImmutableList<Diagnostic>? diagnostics = null)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
     : base(
           declarations != null ? CombineState(declarations) : ContainsState.None,
           name,
           access,
           modifiers,
-          diagnostics)
+          diagnostics,
+          syntax)
     {
         this.BaseTypes = baseTypes;
         this.Declarations = declarations ?? ImmutableList<Declaration>.Empty;

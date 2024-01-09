@@ -1,4 +1,5 @@
 ﻿namespace Parkour.Expressions;
+using Syntax;
 
 public sealed class AssignExpression : Expression
 {
@@ -8,8 +9,13 @@ public sealed class AssignExpression : Expression
     public AssignExpression(
         Expression target,
         Expression expression,
-        ImmutableList<Diagnostic>? diagnostics = null)
-        : base(target.State | expression.State, target.ResultType, diagnostics)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
+        : base(
+            target.State | expression.State, 
+            target.ResultType, 
+            diagnostics,
+            syntax)
     {
         this.Target = target;
         this.Expression = expression;

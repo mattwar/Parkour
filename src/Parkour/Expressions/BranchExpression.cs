@@ -1,6 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
-using Analysis;
+using Syntax;
 
 public sealed class BranchExpression : Expression
 {
@@ -12,11 +12,13 @@ public sealed class BranchExpression : Expression
         string targetName,
         Expression? expression,
         TargetSymbol? target,
-        ImmutableList<Diagnostic>? diagnostics = null)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
         : base(
               expression != null ? expression.State : ContainsState.None,
               expression != null ? expression.ResultType : CommonSymbols.Void,
-              diagnostics)
+              diagnostics,
+              syntax)
     {
         this.TargetName = targetName;
         this.Target = target;
@@ -28,13 +30,13 @@ public sealed class BranchExpression : Expression
     public bool IsReturn => this.TargetName == "return";
     public bool IsGoto => !IsBreak && !IsContinue && !IsReturn;
 
-    public static BranchExpression CreateBreak(Expression? expression = null) =>
-        new BranchExpression("break", expression, null);
+    public static BranchExpression CreateBreak(Expression? expression, TargetSymbol? target, ImmutableList<Diagnostic>? diagnostics, SyntaxElement? syntax) =>
+        new BranchExpression("break", expression, target, diagnostics, syntax);
 
-    public static BranchExpression CreateContinue() =>
-        new BranchExpression("continue", null, null);
+    public static BranchExpression CreateContinue(TargetSymbol? target, ImmutableList<Diagnostic>? diagnostics, SyntaxElement? syntax) =>
+        new BranchExpression("continue", null, target, diagnostics, syntax);
 
-    public static BranchExpression CreateReturn(Expression? expression = null) =>
-        new BranchExpression("return", expression, null);
+    public static BranchExpression CreateReturn(Expression? expression, TargetSymbol? target, ImmutableList<Diagnostic>? diagnostics, SyntaxElement? syntax) =>
+        new BranchExpression("return", expression, target, diagnostics, syntax);
 }
 

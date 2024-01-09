@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public sealed class ConditionExpression : Expression
 {
@@ -12,11 +13,13 @@ public sealed class ConditionExpression : Expression
         Expression whenTrue,
         Expression whenFalse,
         TypeSymbol? resultType,
-        ImmutableList<Diagnostic>? diagnostics = null)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
         : base(
               test.State | whenTrue.State | whenFalse.State,
               resultType,
-              diagnostics)
+              diagnostics,
+              syntax)
     {
         this.Test = test;
         this.WhenTrue = whenTrue;

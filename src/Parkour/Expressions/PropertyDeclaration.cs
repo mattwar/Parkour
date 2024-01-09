@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public sealed class PropertyDeclaration : Declaration
 {
@@ -16,13 +17,15 @@ public sealed class PropertyDeclaration : Declaration
         MethodDeclaration? setMethod,
         FieldDeclaration? underlyingField,
         Expression propertyType,
-        ImmutableList<Diagnostic>? diagnostics = null)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
     : base(
           getMethod.State | (setMethod != null ? setMethod.State : ContainsState.None),
           name,
           access,
           modifiers,
-          diagnostics)
+          diagnostics,
+          syntax)
     {
         this.GetMethod = getMethod;
         this.SetMethod = setMethod;

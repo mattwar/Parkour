@@ -4,7 +4,8 @@ public sealed class ArraySymbol : TypeSymbol
 {
     public TypeSymbol ElementType { get; }
 
-    public ArraySymbol(TypeSymbol elementType) : base($"Array({elementType.Name})")
+    public ArraySymbol(TypeSymbol elementType) 
+        : base($"Array({elementType.Name})")
     {
         ElementType = elementType;
     }

@@ -1,18 +1,35 @@
 ﻿namespace Parkour.Symbols;
 
-public class MemberSymbol : Symbol
+public abstract class MemberSymbol : Symbol
 {
-    public Symbol? Container { get; }
-    public SymbolAccess Access { get; }
-    public SymbolModifier Modifiers { get; }
+    public abstract MemberSymbol? Container { get; }
+    public virtual SymbolAccess Access => SymbolAccess.Public;
+    public virtual SymbolModifier Modifiers => SymbolModifier.None;
 
     public bool IsStatic => (Modifiers & SymbolModifier.Static) != 0;
 
-    public MemberSymbol(string name, Symbol? container, SymbolAccess access, SymbolModifier modifier)
+    public MemberSymbol(string name)
         : base(name)
     {
-        Container = container;
-        Access = access;
-        Modifiers = modifier;
+    }
+
+    public string Namespace => this.Container != null ? this.Container.Namespace : "";
+
+    private string? _fullName;
+    public string FullName
+    {
+        get
+        {
+            if (_fullName == null)
+            {
+                var fn =
+                    this.Container != null ? this.Container.FullName + "." + this.Name
+                    : this.Namespace.Length > 0 ? this.Namespace + "." + Name
+                    : Name;
+                Interlocked.CompareExchange(ref _fullName, fn, null);
+            }
+
+            return _fullName;
+        }
     }
 }

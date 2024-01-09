@@ -14,6 +14,7 @@ public class ExpressionBinderTests
 
     public ExpressionBinderTests()
     {
+        
         _symbols = RuntimeSymbols.GetOrCreateCommonSymbols();
         _defaultTestScope = CreateBindingScope(_symbols);
     }
@@ -85,7 +86,7 @@ public class ExpressionBinderTests
 
     private void TestBinding(Expression expression, TypeSymbol? expectedResultType = null, Symbol? expectedReferencedSymbol = null, BindingScope? scope = null)
     {
-        var binder = new ExpressionBinder(_symbols, scope ?? this._defaultTestScope);
+        var binder = new ExpressionBinder(_symbols.GlobalNamespace, scope ?? this._defaultTestScope);
         var bound = binder.Bind(expression);
 
         Assert.IsFalse(bound.ContainsUnknowns, "expression contains unknowns after binding");

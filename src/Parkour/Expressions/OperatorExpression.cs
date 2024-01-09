@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public class OperatorExpression : Expression
 {
@@ -10,8 +11,13 @@ public class OperatorExpression : Expression
         string kind, 
         Symbol? referencedSymbol, 
         TypeSymbol? resultType, 
-        ImmutableList<Diagnostic>? diagnostics = null)
-        : base(ContainsState.None, resultType, diagnostics)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
+        : base(
+            ContainsState.None, 
+            resultType, 
+            diagnostics,
+            syntax)
     {
         this.Kind = kind;
         this.ReferencedSymbol = referencedSymbol;

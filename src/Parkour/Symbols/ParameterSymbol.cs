@@ -5,6 +5,8 @@ using Analysis;
 
 public sealed class ParameterSymbol : Symbol
 {
+    public Symbol? DeclaringSymbol { get; }
+
     private Func<TypeSymbol>? _fnParameterType;
     private TypeSymbol? _parameterType;
 
@@ -12,7 +14,7 @@ public sealed class ParameterSymbol : Symbol
     {
         get
         {
-            if (_parameterType == null && _fnParameterType is Func<TypeSymbol> fn)
+            if (_parameterType == null && _fnParameterType is { } fn)
             {
                 _fnParameterType = null;
                 var tmp = fn();
@@ -25,16 +27,28 @@ public sealed class ParameterSymbol : Symbol
 
     public ParameterInfo? RuntimeParameter { get; }
 
-    public ParameterSymbol(string name, Func<TypeSymbol> fnParameterType, ParameterInfo? runtimeParameter = null)
+    public ParameterSymbol(
+        string name, 
+        Symbol? declaringSymbol,
+        Func<TypeSymbol> fnParameterType, 
+        ParameterInfo? runtimeParameter)
         : base(name)
     {
+        DeclaringSymbol = declaringSymbol;
         _fnParameterType = fnParameterType;
+        RuntimeParameter = runtimeParameter;
     }
 
-    public ParameterSymbol(string name, TypeSymbol parameterType, ParameterInfo? runtimeParameter = null)
-        : base(name)
+    public ParameterSymbol(
+        string name, 
+        Symbol? declaringSymbol,
+        TypeSymbol parameterType, 
+        ParameterInfo? runtimeParameter)
+        : this(
+              name,
+              declaringSymbol,
+              () => parameterType,
+              runtimeParameter)
     {
-        _parameterType = parameterType;
-        RuntimeParameter = runtimeParameter;
     }
 }

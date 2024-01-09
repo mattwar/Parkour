@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public sealed class ConstantExpression : Expression
 {
@@ -8,8 +9,13 @@ public sealed class ConstantExpression : Expression
     public ConstantExpression(
         object? value,
         TypeSymbol? resultType,
-        ImmutableList<Diagnostic>? diagnostics = null)
-        : base(ContainsState.None, resultType, diagnostics)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
+        : base(
+            ContainsState.None, 
+            resultType, 
+            diagnostics,
+            syntax)
     {
         this.Value = value;
     }

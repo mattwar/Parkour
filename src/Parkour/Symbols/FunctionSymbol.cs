@@ -5,22 +5,53 @@ using Analysis;
 
 public class FunctionSymbol : TypeSymbol
 {
-    public ImmutableList<ParameterSymbol> Parameters { get; }
-    public TypeSymbol ReturnType { get; }
-    public MethodBase? RuntimeMethod { get; }
+    private Func<FunctionSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
+    private ImmutableList<ParameterSymbol>? _parameters;
 
-    public FunctionSymbol(string name, ImmutableList<ParameterSymbol> parameters, TypeSymbol? returnType, MethodBase? runtimeMethod = null)
-        : base(name)
+    public ImmutableList<ParameterSymbol> Parameters
     {
-        Parameters = parameters;
-        ReturnType = returnType ?? CommonSymbols.Unknown;
-        RuntimeMethod = runtimeMethod;
+        get
+        {
+            if (_parameters == null && _fnParameters is { } fn)
+            {
+                _fnParameters = null;
+                var tmp = fn(this);
+                Interlocked.CompareExchange(ref _parameters, tmp, null);
+            }
+
+            return _parameters ?? ImmutableList<ParameterSymbol>.Empty;
+        }
     }
 
-    public FunctionSymbol WithName(string name)
+    private Func<TypeSymbol>? _fnReturnType;
+    private TypeSymbol? _returnType;
+
+    public TypeSymbol ReturnType
     {
-        if (Name == null)
-            return this;
-        return new FunctionSymbol(name, Parameters, ReturnType, RuntimeMethod);
+        get
+        {
+            if (_returnType == null && _fnReturnType is { } fn)
+            {
+                _fnReturnType = null;
+                var tmp = fn();
+                Interlocked.CompareExchange(ref _returnType, tmp, null);
+            }
+
+            return _returnType ?? CommonSymbols.Unknown;
+        }
+    }
+
+    public MethodBase? RuntimeMethod { get; }
+
+    public FunctionSymbol(
+        string name, 
+        Func<FunctionSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
+        Func<TypeSymbol> fnReturnType, 
+        MethodBase? runtimeMethod)
+        : base(name)
+    {
+        _fnParameters = fnParameters;
+        _fnReturnType = fnReturnType;
+        RuntimeMethod = runtimeMethod;
     }
 }

@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public sealed class WhileExpression : Expression
 {
@@ -14,8 +15,13 @@ public sealed class WhileExpression : Expression
         TypeSymbol? resultType,
         TargetSymbol? breakTarget,
         TargetSymbol? continueTarget,
-        ImmutableList<Diagnostic>? diagnostics = null)
-        : base(test.State | body.State, resultType, diagnostics)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
+        : base(
+            test.State | body.State, 
+            resultType, 
+            diagnostics,
+            syntax)
     {
         this.Test = test;
         this.Body = body;

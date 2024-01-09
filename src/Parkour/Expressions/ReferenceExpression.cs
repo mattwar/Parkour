@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public sealed class ReferenceExpression : Expression
 {
@@ -10,11 +11,13 @@ public sealed class ReferenceExpression : Expression
         string name,
         Symbol? referencedSymbol,
         TypeSymbol? resultType,
-        ImmutableList<Diagnostic>? diagnostics = null)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
         : base(
             ContainsState.None,
             resultType,
-            diagnostics)
+            diagnostics,
+            syntax)
     {
         this.Name = name;
         this.ReferencedSymbol = referencedSymbol;

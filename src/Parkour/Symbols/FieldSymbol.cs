@@ -5,6 +5,11 @@ using Analysis;
 
 public sealed class FieldSymbol : MemberSymbol
 {
+    public TypeSymbol? DeclaringType { get; }
+    public override MemberSymbol? Container => this.DeclaringType;
+    public override SymbolAccess Access { get; }
+    public override SymbolModifier Modifiers { get; }
+
     private Func<TypeSymbol>? _fnFieldType;
     private TypeSymbol? _fieldType;
 
@@ -12,7 +17,7 @@ public sealed class FieldSymbol : MemberSymbol
     { 
         get
         {
-            if (_fieldType == null && _fnFieldType is Func<TypeSymbol> fn)
+            if (_fieldType == null && _fnFieldType is { } fn)
             {
                 _fnFieldType = null;
                 var tmp = fn();
@@ -27,27 +32,28 @@ public sealed class FieldSymbol : MemberSymbol
 
     public FieldSymbol(
         string name, 
-        Symbol? container, 
+        TypeSymbol? declaringType, 
         SymbolAccess access, 
-        SymbolModifier modifier, 
+        SymbolModifier modifiers, 
         Func<TypeSymbol> fnFieldType, 
-        FieldInfo? runtimeField = null)
-        : base(name, container, access, modifier)
+        FieldInfo? runtimeField)
+        : base(name)
     {
+        DeclaringType = declaringType;
+        Access = access;
+        Modifiers = modifiers;
         _fnFieldType = fnFieldType;
         RuntimeField = runtimeField;
     }
 
     public FieldSymbol(
         string name,
-        Symbol? container,
+        TypeSymbol? declaringType,
         SymbolAccess access,
-        SymbolModifier modifier,
+        SymbolModifier modifiers,
         TypeSymbol fieldType,
-        FieldInfo? runtimeField = null)
-        : base(name, container, access, modifier)
+        FieldInfo? runtimeField)
+        : this(name, declaringType, access, modifiers, () => fieldType, runtimeField)
     {
-        _fieldType = fieldType;
-        RuntimeField = runtimeField;
     }
 }

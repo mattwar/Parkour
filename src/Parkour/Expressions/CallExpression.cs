@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public sealed class CallExpression : Expression
 {
@@ -12,11 +13,13 @@ public sealed class CallExpression : Expression
         ImmutableList<Expression> arguments,
         Symbol? symbol,
         TypeSymbol? resultType,
-        ImmutableList<Diagnostic>? diagnostics = null)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
         : base(
               expression.State | arguments.Aggregate(ContainsState.None, (s, e) => e.State | s),
               resultType,
-              diagnostics)
+              diagnostics,
+              syntax)
     {
         this.Expression = expression;
         this.Arguments = arguments.ToImmutableList();

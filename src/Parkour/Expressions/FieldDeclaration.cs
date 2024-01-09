@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public sealed class FieldDeclaration : Declaration
 {
@@ -12,13 +13,15 @@ public sealed class FieldDeclaration : Declaration
         SymbolModifier modifiers,
         Expression fieldType,
         Expression? initializer,
-        ImmutableList<Diagnostic>? diagnostics = null)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
     : base(
           initializer != null ? initializer.State : ContainsState.None,
           name,
           access,
           modifiers,
-          diagnostics)
+          diagnostics,
+          syntax)
     {
         this.FieldType = fieldType;
         this.Initializer = initializer;

@@ -1,19 +1,46 @@
 ﻿using System.Reflection;
 
 namespace Parkour.Symbols;
-using Analysis;
 
 public class ConstructorSymbol : MemberSymbol
 {
-    public ImmutableList<ParameterSymbol> Parameters { get; }
-    public TypeSymbol ReturnType { get; }
+    public TypeSymbol? DeclaringType { get; }
+    public override MemberSymbol? Container => this.DeclaringType;
+    public override SymbolAccess Access { get; }
+    public override SymbolModifier Modifiers { get; }
+    public TypeSymbol ReturnType => this.DeclaringType ?? CommonSymbols.Unknown;
     public MethodBase? RuntimeMethod { get; }
 
-    public ConstructorSymbol(Symbol? container, SymbolAccess access, SymbolModifier modifier, ImmutableList<ParameterSymbol> parameters, TypeSymbol? returnType = null, MethodBase? runtimeMethod = null)
-        : base("", container, access, modifier)
+    private Func<ConstructorSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
+    private ImmutableList<ParameterSymbol>? _parameters;
+
+    public ImmutableList<ParameterSymbol> Parameters
     {
-        Parameters = parameters;
-        ReturnType = returnType ?? CommonSymbols.Unknown;
+        get
+        {
+            if (_parameters == null && _fnParameters is { } fn)
+            {
+                _fnParameters = null;
+                var tmp = fn(this);
+                Interlocked.CompareExchange(ref _parameters, tmp, null);
+            }
+
+            return _parameters ?? ImmutableList<ParameterSymbol>.Empty;
+        }
+    }
+
+    public ConstructorSymbol(
+        TypeSymbol? declaringType,
+        SymbolAccess access, 
+        SymbolModifier modifiers, 
+        Func<ConstructorSymbol, ImmutableList<ParameterSymbol>> fnParameters,
+        MethodBase? runtimeMethod)
+        : base("")
+    {
+        DeclaringType = declaringType;
+        Access = access;
+        Modifiers = modifiers;
+        _fnParameters = fnParameters;
         RuntimeMethod = runtimeMethod;
     }
 }

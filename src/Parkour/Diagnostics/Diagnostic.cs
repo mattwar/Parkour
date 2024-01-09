@@ -37,6 +37,6 @@ public class Diagnostic
         return new Diagnostic(Code, Severity, Message, start, length);
     }
 
-    public Diagnostic WithLocation(SyntaxElement element) =>
-        WithLocation(element.TextStart, element.TextLength);
+    public Diagnostic WithLocation(SyntaxElement? element) =>
+        element != null ? WithLocation(element.TextStart, element.TextLength) : this;
 }

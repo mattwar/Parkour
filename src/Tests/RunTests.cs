@@ -60,7 +60,7 @@ public class RunTests
         if (!(expression is FunctionExpression))
             expression = Function(expression);
 
-        var binder = new ExpressionBinder(_symbols, scope ?? _defaultTestScope);
+        var binder = new ExpressionBinder(_symbols.GlobalNamespace, scope ?? _defaultTestScope);
         var bound = (FunctionExpression)binder.Bind(expression);
 
         if (bound.ContainsDiagnostics)

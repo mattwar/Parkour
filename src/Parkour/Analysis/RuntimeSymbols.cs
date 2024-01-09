@@ -6,113 +6,273 @@ using Symbols;
 
 public class RuntimeSymbols
 {
-    private ConditionalWeakTable<object, Symbol> _runtimeToSymbolMap =
-        new ConditionalWeakTable<object, Symbol>();
+    private NamespaceSymbol _globalNamespace;
 
-    private RuntimeSymbols()
+    private RuntimeSymbols(NamespaceSymbol globalNamespace)
     {
+        _globalNamespace = globalNamespace;
     }
 
-    private static readonly ConditionalWeakTable<ImmutableList<Assembly>, SymbolTree> _map =
-        new ConditionalWeakTable<ImmutableList<Assembly>, SymbolTree>();
+    private static readonly ConditionalWeakTable<ImmutableList<Assembly>, NamespaceSymbol> _map =
+        new ConditionalWeakTable<ImmutableList<Assembly>, NamespaceSymbol>();
+
+    private static ImmutableList<Assembly> _defaultAssemblies =
+        ImmutableList.Create(typeof(int).Assembly);
+
+    public static NamespaceSymbol GetOrCreateGlobalNamespace(ImmutableList<Assembly>? assemblies = null)
+    {
+        assemblies ??= _defaultAssemblies;
+
+        if (!_map.TryGetValue(assemblies, out var ns))
+        {
+            ns = _map.GetValue(assemblies, CreateGlobalNamespace);
+        }
+
+        return ns;
+    }
 
     public static CommonSymbols GetOrCreateCommonSymbols(ImmutableList<Assembly>? assemblies = null)
     {
         return CommonSymbols.From(GetOrCreateGlobalNamespace(assemblies));
     }
 
-    public static NamespaceSymbol GetOrCreateGlobalNamespace(ImmutableList<Assembly>? assemblies = null)
-    {
-        assemblies ??= _defaultAssemblies;
-
-        if (!_map.TryGetValue(assemblies, out var symbolTree))
-        {
-            symbolTree = _map.GetValue(assemblies, _assemblies => 
-                new SymbolTree(tree => 
-                    CreateGlobalNamespace(tree, _assemblies)));
-        }
-
-        return symbolTree.GlobalNamespace;
-    }
-
-    private static NamespaceSymbol CreateGlobalNamespace(SymbolTree tree, ImmutableList<Assembly>? assemblies)
+    private static NamespaceSymbol CreateGlobalNamespace(ImmutableList<Assembly>? assemblies)
     {
         assemblies = assemblies ?? _defaultAssemblies;
         var types = assemblies.SelectMany(a => a.GetTypes()).ToList();
-        var gns = new RuntimeSymbols().CreateNamespace("", "", types);
-        return gns;
-    }
 
-    private static ImmutableList<Assembly> _defaultAssemblies =
-        ImmutableList.Create(typeof(int).Assembly);
-
-    /// <summary>
-    /// Gets a namespace symbol containing the types and namespaces as members.
-    /// </summary>
-    private NamespaceSymbol CreateNamespace(
-        string containingNamespace, 
-        string name, 
-        IReadOnlyList<Type> types)
-    {
-        if (name == "" && containingNamespace != "")
-            throw new InvalidOperationException($"Name missing from nested namespace");
-
-        return new NamespaceSymbol(name, () =>
+        return new NamespaceSymbol("", null, _ns =>
         {
-            var list = new List<Symbol>();
-
-            var namespaceFullName = containingNamespace.Length > 0 && name.Length > 0
-                ? containingNamespace + "." + name
-                : name;
-            var namespaceFullNameWithDot = namespaceFullName.Length > 0 ? namespaceFullName + "." : namespaceFullName;
-
-            var typesInNamespace = types
-                .Where(t => t.Namespace == namespaceFullName)
-                .ToList();
-
-            list.AddRange(typesInNamespace.Select(t => GetType(t)));
-
-            var nestedTypes = types
-                .Where(t => t.Namespace != null && t.Namespace.Contains(namespaceFullNameWithDot))
-                .ToList();
-
-            var nsGroups = nestedTypes
-                .Where(t => t.Namespace != null && t.Namespace.Length > 0)
-                .GroupBy(t => GetNextNamespaceName(t.Namespace!, namespaceFullName))
-                .Where(g => g.Key.Length > 0) // remove non-namespaces
-                .ToList();
-
-            var nestedNamespaces = nsGroups.Select(ng => CreateNamespace(namespaceFullName, ng.Key, ng.ToList())).ToList();
-
-            list.AddRange(nestedNamespaces);
-
-            return list.ToImmutableList();
+            return new RuntimeSymbols(_ns).GetNamespaceMembers(_ns, "", "", types);
         });
-
-        static string GetNextNamespaceName(string fullName, string containingNamespace)
-        {
-            var start = containingNamespace.Length == 0 ? 0 : containingNamespace.Length + 1;
-            var nextDot = fullName.IndexOf('.', start);
-            if (nextDot > 0)
-                return fullName.Substring(start, nextDot - start);
-            return fullName.Substring(start);
-        }
     }
 
-    public TypeSymbol GetType(Type type) =>
-        (TypeSymbol)GetOrCreateSymbol(type);
-
-    private Symbol GetOrCreateSymbol(object runtimeSymbol)
+    private ImmutableList<Symbol> GetNamespaceMembers(
+        NamespaceSymbol? declaringNamespace, 
+        string containingNamespace, 
+        string namespaceName, 
+        IEnumerable<Type> types)
     {
-        if (runtimeSymbol == (object)typeof(void))
-            return CommonSymbols.Void;
+        var list = new List<Symbol>();
 
-        if (!_runtimeToSymbolMap.TryGetValue(runtimeSymbol, out var symbol))
+        var namespaceFullName = containingNamespace.Length > 0 && namespaceName.Length > 0
+            ? containingNamespace + "." + namespaceName
+            : namespaceName;
+
+        var namespaceFullNameWithDot = namespaceFullName.Length > 0 ? namespaceFullName + "." : namespaceFullName;
+
+        var typesInNamespace = types
+            .OfType<Type>()
+            .Where(t => t.Namespace == namespaceFullName)
+            .ToList();
+
+        var symbolsInNamespace = typesInNamespace
+            .Select(t => CreateSymbol(t, declaringNamespace) is Symbol s ? s : null)
+            .OfType<Symbol>()
+            .ToList();
+
+        list.AddRange(symbolsInNamespace);
+
+        var nestedTypes = types
+            .OfType<Type>()
+            .Where(t => t.Namespace != null && t.Namespace.Contains(namespaceFullNameWithDot))
+            .ToList();
+
+        var nsGroups = nestedTypes
+            .Where(t => t.Namespace != null && t.Namespace.Length > 0)
+            .GroupBy(t => GetNextNamespaceName(t.Namespace!, namespaceFullName))
+            .Where(g => g.Key.Length > 0) // remove non-namespaces
+            .ToList();
+
+        var nestedNamespaces = nsGroups.Select(ng =>
+            new NamespaceSymbol(
+                ng.Key,
+                declaringNamespace,
+                _ns => GetNamespaceMembers(_ns, namespaceFullName, ng.Key, ng)));
+
+        list.AddRange(nestedNamespaces);
+
+        return list.ToImmutableList();
+    }
+
+    private static string GetNextNamespaceName(string fullName, string containingNamespace)
+    {
+        var start = containingNamespace.Length == 0 ? 0 : containingNamespace.Length + 1;
+        var nextDot = fullName.IndexOf('.', start);
+        if (nextDot > 0)
+            return fullName.Substring(start, nextDot - start);
+        return fullName.Substring(start);
+    }
+
+    private readonly ConditionalWeakTable<object, Symbol> _symbolMap =
+        new ConditionalWeakTable<object, Symbol>();
+
+    private Symbol GetOrCreateSymbol(object runtimeSymbol, MemberSymbol? container)
+    {
+        return GetSymbol(runtimeSymbol)
+            ?? CreateSymbol(runtimeSymbol, container)
+            ?? CommonSymbols.Unknown;
+    }
+
+    private Symbol? GetSymbol(object runtimeSymbol)
+    {
+        _symbolMap.TryGetValue(runtimeSymbol, out var symbol);
+        return symbol;
+    }
+
+    private Symbol? CreateSymbol(object runtimeSymbol, MemberSymbol? container)
+    {
+        Symbol? symbol = null;
+
+        if (container == null)
         {
-            TryCreateSymbol(runtimeSymbol, out symbol);
+            if (runtimeSymbol is Type type)
+            {
+                container ??=
+                    (type.DeclaringType != null) ? GetOrCreateSymbol(type.DeclaringType, null) as MemberSymbol
+                    : (type.Namespace != null) ? _globalNamespace.GetFirstSymbolFromPath<NamespaceSymbol>(type.Name)
+                    : null;
+            }
+            else if (runtimeSymbol is MemberInfo member)
+            {
+                container ??= (member.DeclaringType != null)
+                    ? GetOrCreateSymbol(member.DeclaringType, null) as MemberSymbol
+                    : null;
+            }
         }
 
-        return symbol;
+        switch (runtimeSymbol)
+        {
+            case FieldInfo field:
+                symbol = new FieldSymbol(
+                    field.Name,
+                    container as TypeSymbol,
+                    GetAccess(field),
+                    GetModifiers(field),
+                    () => GetType(field.FieldType),
+                    field);
+                break;
+
+            case PropertyInfo property:
+                symbol = new PropertySymbol(
+                    property.Name,
+                    container as TypeSymbol,
+                    GetAccess(property),
+                    GetModifiers(property),
+                    () => GetType(property.PropertyType),
+                    me => (MethodSymbol)CreateSymbol(property.GetGetMethod()!, me)!,
+                    me => property.GetSetMethod() != null   
+                        ? (MethodSymbol)CreateSymbol(property.GetSetMethod()!, me)!
+                        : null,
+                    property);
+                break;
+
+            case MethodInfo method:
+                symbol = new MethodSymbol(
+                    method.Name,
+                    container,
+                    GetAccess(method),
+                    GetModifiers(method),
+                    () => GetTypes(method.GetGenericArguments()),
+                    me => CreateParameters(me, method),
+                    () => GetType(method.ReturnType),
+                    method.IsConstructedGenericMethod 
+                        ? () => (MethodSymbol)CreateSymbol(
+                            method.GetGenericMethodDefinition(), 
+                            GetType(method.GetGenericMethodDefinition().DeclaringType!))!
+                        : null,
+                    method);
+                break;
+
+            case ConstructorInfo constructor:
+                symbol = new ConstructorSymbol(
+                    container as TypeSymbol,
+                    GetAccess(constructor),
+                    GetModifiers(constructor),
+                    me => CreateParameters(me, constructor),
+                    constructor);
+                break;
+
+            case ParameterInfo parameter:
+                symbol = new ParameterSymbol(
+                    parameter.Name ?? "",
+                    container,
+                    () => GetType(parameter.ParameterType),
+                    parameter);
+                break;
+
+            case Type type:
+                var name = type.Name;
+                if (type.IsConstructedGenericType)
+                {
+                    var typeDef = GetType(type.GetGenericTypeDefinition());
+                    symbol = new TypeSymbol(
+                        type.Name,
+                        container,
+                        GetAccess(type),
+                        GetModifiers(type),
+                        () => GetTypes(type.GenericTypeArguments),
+                        () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
+                        _type => CreateMembers(type, (MemberSymbol)_type),
+                        typeDef,
+                        type);
+                }
+                else if (type.IsArray)
+                {
+                    var elementType = GetType(type.GetElementType()!);
+                    symbol = new ArraySymbol(elementType);
+                }
+                else if (type.IsGenericTypeParameter)
+                {
+                    symbol = new TypeParameterSymbol(type.Name, type);
+                }
+                else
+                {
+                    symbol = new TypeSymbol(
+                        type.Name,
+                        container,
+                        GetAccess(type),
+                        GetModifiers(type),
+                        () => GetTypes(type.GenericTypeArguments),
+                        () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
+                        me => CreateMembers(type, me),
+                        null,
+                        type);
+                }
+                break;
+        }
+
+        if (symbol != null)
+            return _symbolMap.GetValue(runtimeSymbol, _ => symbol);
+
+        return null;
+    }
+
+    private ImmutableList<Symbol> CreateMembers(Type runtimeType, MemberSymbol? container) =>
+        runtimeType.GetMembers(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly)
+            .Select(m => CreateSymbol(m, container) is Symbol s ? s : null)
+            .Where(s => s != null)
+            .ToImmutableList()!;
+
+    private ImmutableList<ParameterSymbol> CreateParameters(MemberSymbol? declaringSymbol, MethodBase method) =>
+        method.GetParameters().Select(p => (ParameterSymbol)CreateSymbol(p, declaringSymbol)!).ToImmutableList();
+
+    private ImmutableList<TypeSymbol> GetBaseTypes(Type? baseType, Type[] interfaces)
+    {
+        if (baseType != null)
+        {
+            if (interfaces == null || interfaces.Length == 0)
+                return ImmutableList.Create(GetType(baseType));
+            return GetTypes(new[] { baseType }.Concat(interfaces));
+        }
+        else if (interfaces.Length > 0)
+        {
+            return GetTypes(interfaces);
+        }
+        else
+        {
+            return ImmutableList<TypeSymbol>.Empty;
+        }
     }
 
     public static SymbolAccess GetAccess(MemberInfo info) =>
@@ -166,114 +326,43 @@ public class RuntimeSymbols
             _ => SymbolModifier.None
         };
 
-    private ImmutableList<ParameterSymbol> GetParameters(MethodBase method) =>
-        method.GetParameters().Select(p => GetParameter(p)).ToImmutableList();
-
-    private ParameterSymbol GetParameter(ParameterInfo p) =>
-        new ParameterSymbol(
-            p.Name ?? "",
-            () => GetType(p.ParameterType)
-            );
-
-    private bool TryCreateSymbol(object runtimeSymbol, out Symbol symbol)
+    public TypeSymbol GetType(Type type)
     {
-        symbol = null!;
+        if (type == typeof(void))
+            return CommonSymbols.Void;
 
-        switch (runtimeSymbol)
-        {
-            case FieldInfo field:
-                symbol = new FieldSymbol(
-                    field.Name,
-                    field.DeclaringType != null ? GetType(field.DeclaringType) : null,
-                    GetAccess(field),
-                    GetModifiers(field),
-                    GetType(field.FieldType),
-                    field);
-                break;
+        if (GetSymbol(type) is TypeSymbol cached)
+            return cached;
 
-            case PropertyInfo property:
-                symbol = new PropertySymbol(
-                    property.Name,
-                    property.DeclaringType != null ? GetType(property.DeclaringType) : null,
-                    GetAccess(property),
-                    GetModifiers(property),
-                    GetType(property.PropertyType),
-                    property);
-                break;
+        if (FindSymbol(type) is TypeSymbol found)
+            return found;
 
-            case MethodInfo method:
-                symbol = new MethodSymbol(
-                    method.Name,
-                    method.DeclaringType != null ? GetType(method.DeclaringType) : null,
-                    GetAccess(method),
-                    GetModifiers(method),
-                    GetParameters(method),
-                    GetType(method.ReturnType),
-                    method);
-                break;
-
-            case ConstructorInfo constructor:
-                symbol = new ConstructorSymbol(
-                    constructor.DeclaringType != null ? GetType(constructor.DeclaringType) : null,
-                    GetAccess(constructor),
-                    GetModifiers(constructor),
-                    GetParameters(constructor),
-                    constructor.DeclaringType != null ? GetType(constructor.DeclaringType) : null,
-                    constructor);
-                break;
-
-            case System.Type type:
-                if (type.IsClass || type.IsValueType || type.IsInterface)
-                {
-                    symbol = new TypeSymbol(
-                        type.Name,
-                        type.DeclaringType != null ? GetType(type.DeclaringType) : null,
-                        GetAccess(type),
-                        GetModifiers(type),
-                        () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
-                        _ => CreateMembers(type),
-                        type);
-                }
-                else if (type.IsArray && type.GetElementType() is System.Type elementType)
-                {
-                    symbol = new ArraySymbol(GetType(elementType));
-                }
-                break;
-        }
-
-        if (symbol != null)
-        {
-            var tmp = symbol;
-            symbol = _runtimeToSymbolMap.GetValue(runtimeSymbol, _ => tmp);
-        }
-
-        return symbol != null;
+        return (TypeSymbol)GetOrCreateSymbol(type, null);
     }
 
-    private ImmutableList<TypeSymbol> GetBaseTypes(Type? baseType, Type[] interfaces)
+    private Symbol? FindSymbol(object runtimeSymbol)
     {
-        if (baseType != null)
+        if (runtimeSymbol is Type type)
         {
-            if (interfaces == null || interfaces.Length == 0)
-                return ImmutableList.Create(GetType(baseType));
-            return GetTypes(new[] { baseType }.Concat(interfaces));
+            var foundType = _globalNamespace.GetFirstSymbolFromPath<TypeSymbol>(type.FullName!);
+            if (foundType != null)
+                return _symbolMap.GetValue(runtimeSymbol, _ => foundType);
         }
-        else if (interfaces.Length > 0)
+        else if (runtimeSymbol is MemberInfo member && member.DeclaringType != null)
         {
-            return GetTypes(interfaces);
+            var dottedName = member.DeclaringType.FullName + "." + member.Name;
+            var foundMember = _globalNamespace.GetFirstSymbolFromPath(dottedName);
+            if (foundMember != null)
+                return _symbolMap.GetValue(runtimeSymbol, _ => foundMember);
         }
-        else
-        {
+
+        return null;
+    }
+
+    private ImmutableList<TypeSymbol> GetTypes(IEnumerable<Type> types)
+    {
+        if (!types.Any())
             return ImmutableList<TypeSymbol>.Empty;
-        }
+        return types.Select(GetType).ToImmutableList();
     }
-
-    private ImmutableList<TypeSymbol> GetTypes(IEnumerable<Type> types) =>
-        types.Select(t => GetType(t)).ToImmutableList();
-
-    private ImmutableList<Symbol> CreateMembers(System.Type runtimeType) =>
-        runtimeType.GetMembers(BindingFlags.Instance|BindingFlags.Static|BindingFlags.Public|BindingFlags.DeclaredOnly)
-            .Select(m => TryCreateSymbol(m, out var s) ? s : null)
-            .Where(s => s != null)
-            .ToImmutableList()!;
 }

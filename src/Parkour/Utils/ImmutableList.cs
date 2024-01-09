@@ -106,6 +106,18 @@ public abstract class ImmutableList<T> : IReadOnlyList<T>
         }
     }
 
+    public int IndexOf(T value)
+    {
+        var comparer = EqualityComparer<T>.Default;
+        for (int i = 0; i < this.Count; i++)
+        {
+            if (comparer.Equals(this[i], value))
+                return i;
+        }
+
+        return -1;
+    }
+
     #region IReadOnlyList
     int IReadOnlyCollection<T>.Count => this.Count;
     T IReadOnlyList<T>.this[int index] => this[index];
@@ -166,6 +178,9 @@ public abstract class ImmutableList<T> : IReadOnlyList<T>
 
     public static ImmutableList<T> Concat(params ImmutableList<T>[] lists) =>
         Concat((IEnumerable<ImmutableList<T>>)lists);
+
+
+
 
     private sealed class EmptyList : ImmutableList<T>
     {

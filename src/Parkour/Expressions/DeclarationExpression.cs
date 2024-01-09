@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public sealed class DeclarationExpression : Expression
 {
@@ -12,8 +13,13 @@ public sealed class DeclarationExpression : Expression
         Expression initializer,
         VariableSymbol? variable,
         TypeSymbol? resultType,
-        ImmutableList<Diagnostic>? diagnostics = null)
-        : base(initializer.State, resultType, diagnostics)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
+        : base(
+            initializer.State, 
+            resultType, 
+            diagnostics,
+            syntax)
     {
         this.Name = name;
         this.Initializer = initializer;

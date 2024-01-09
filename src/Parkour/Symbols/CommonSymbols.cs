@@ -34,7 +34,8 @@ public class CommonSymbols
     public static readonly TypeSymbol Void = new TypeSymbol("Void", typeof(void));
 
     public NamespaceSymbol? _systemNs;
-    public NamespaceSymbol System => _systemNs ??= (NamespaceSymbol)GetFirstSymbol("System")!;
+    public NamespaceSymbol System => _systemNs ??= 
+        this.GlobalNamespace.GetFirstSymbolFromPath<NamespaceSymbol>("System")!;
 
     public TypeSymbol? _typeType;
     public TypeSymbol Type => _typeType ??= GetOrCreateType(typeof(System.Type));
@@ -76,7 +77,7 @@ public class CommonSymbols
     /// Gets the <see cref="TypeSymbol"/> based on equivalent runtime type.
     /// </summary>
     public virtual TypeSymbol? GetType(Type type) =>
-        GetFirstSymbol<TypeSymbol>(type.FullName!)!;
+       this.GlobalNamespace.GetFirstSymbolFromPath<TypeSymbol>(type.FullName!)!;
 
     /// <summary>
     /// Gets or creates the <see cref="TypeSymbol"/> associated with the runtime type.
@@ -84,93 +85,6 @@ public class CommonSymbols
     /// </summary>
     private TypeSymbol GetOrCreateType(Type type) =>
         GetType(type) ?? new TypeSymbol(type);
-
-    /// <summary>
-    /// Gets the symbol corresponding the symbol's full dotted name. (ie System.Int32)
-    /// Returns the first symbol if more than one symbol with the same name and type exists.
-    /// Returns null if no symbols with the name and type exists.
-    /// </summary>
-    public virtual TSymbol? GetFirstSymbol<TSymbol>(string dottedName)
-        where TSymbol : Symbol
-    {
-        var symbols = _symbolListPool.AllocateFromPool();
-        try
-        {
-            GetSymbols(dottedName, symbols);
-            return symbols.OfType<TSymbol>().FirstOrDefault();
-        }
-        finally
-        {
-            _symbolListPool.ReturnToPool(symbols);
-        }
-    }
-
-    /// <summary>
-    /// Gets the symbol corresponding the symbol's full dotted name. (ie System.Int32)
-    /// Returns the first symbol if more than one symbol with the same name exists.
-    /// Returns null if no symbols with the name exists.
-    /// </summary>
-    public Symbol? GetFirstSymbol(string dottedName) =>
-        GetFirstSymbol<Symbol>(dottedName);
-
-    private static readonly char[] _namePathSplitChars = new[] { '.', '+' };
-
-    /// <summary>
-    /// Gets all the symbols that can be reached with the specified dotted name.
-    /// Typically this returns 1 or 0, but may return more if there are multiple symbols with the same name.
-    /// </summary>
-    public virtual void GetSymbols(string dottedName, List<Symbol> symbols)
-    {
-        var containers = _symbolListPool.AllocateFromPool();
-        var results = _symbolListPool.AllocateFromPool();
-        try
-        {
-            // containers start as just the global namespace, but may include more if multiple same named symbols exist
-            containers.Add(this.GlobalNamespace);
-            var nameStart = 0;
-
-            while (nameStart < dottedName.Length)
-            {
-                var nextSplit = dottedName.IndexOfAny(_namePathSplitChars, nameStart);
-                var nameLength = nextSplit > nameStart ? nextSplit - nameStart : dottedName.Length - nameStart;
-
-                if (nameStart + nameLength == dottedName.Length)
-                {
-                    // put final matches into final output list
-                    GetSymbolsInContainers(dottedName, nameStart, nameLength, containers, symbols);
-                    return;
-                }
-                else
-                {
-                    results.Clear();
-                    GetSymbolsInContainers(dottedName, nameStart, nameLength, containers, results);
-                    nameStart += nameLength + 1; // skip over ./+ too
-                    containers.Clear();
-                    containers.AddRange(results);
-                }
-            }
-
-            // we might get here if dotted path ends in a dot (so just return last set of results)
-            symbols.AddRange(results);
-        }
-        finally
-        {
-            _symbolListPool.ReturnToPool(containers);
-            _symbolListPool.ReturnToPool(results);
-        }
-
-        static void GetSymbolsInContainers(string dottedName, int start, int length, List<Symbol> containers, List<Symbol> result)
-        {
-            foreach (var container in containers)
-            {
-                // find all items with matching name from all containers
-                container.GetMembers(dottedName, start, length, result);
-            }
-        }
-    }
-
-    private readonly ObjectPool<List<Symbol>> _symbolListPool =
-        new ObjectPool<List<Symbol>>(() => new List<Symbol>(), list => list.Clear());
 
     private readonly ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol> _listToGroupMap =
         new ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol>();

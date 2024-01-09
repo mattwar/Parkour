@@ -1,6 +1,6 @@
 ﻿namespace Parkour.Expressions;
-using Analysis;
 using Symbols;
+using Syntax;
 
 public abstract class Declaration : Expression
 {
@@ -13,8 +13,13 @@ public abstract class Declaration : Expression
         string name,
         SymbolAccess access,
         SymbolModifier modifiers,
-        ImmutableList<Diagnostic>? diagnostics)
-        : base(state, CommonSymbols.Void, diagnostics)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
+        : base(
+            state, 
+            CommonSymbols.Void, 
+            diagnostics,
+            syntax)
     {
         this.Name = name;
         this.Access = access;

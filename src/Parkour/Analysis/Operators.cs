@@ -55,13 +55,26 @@ public sealed class Operators
             : ImmutableList<FunctionSymbol>.Empty;
 
     public static FunctionSymbol UnaryOp(string name, string kind, TypeSymbol operandType, TypeSymbol resultType) =>
-        SymbolFactory.Operator(name, kind, resultType, SymbolFactory.Parameter("operand", operandType));
+        new OperatorSymbol(
+            name, 
+            kind, 
+            me => ImmutableList.Create(new ParameterSymbol("operand", me, operandType, null)),
+            () => resultType
+            );
 
     public static FunctionSymbol UnaryOp(string name, string kind, TypeSymbol operand) =>
         UnaryOp(name, kind, operand, operand);
 
     public static FunctionSymbol BinaryOp(string name, string kind, TypeSymbol leftType, TypeSymbol rightType, TypeSymbol resultType) =>
-        SymbolFactory.Operator(name, kind, resultType, SymbolFactory.Parameter("left", leftType), SymbolFactory.Parameter("right", rightType));
+        new OperatorSymbol(
+            name,
+            kind,
+            me => ImmutableList.Create(
+                new ParameterSymbol("left", me, leftType, null),
+                new ParameterSymbol("right", me, rightType, null)
+                ),
+            () => resultType
+            );
 
     public static FunctionSymbol BinaryOp(string name, string kind, TypeSymbol argsType, TypeSymbol resultType) =>
         BinaryOp(name, kind, argsType, argsType, resultType);

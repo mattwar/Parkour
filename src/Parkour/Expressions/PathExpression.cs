@@ -1,4 +1,5 @@
 ﻿namespace Parkour.Expressions;
+using Syntax;
 
 public sealed class PathExpression : Expression
 {
@@ -8,8 +9,13 @@ public sealed class PathExpression : Expression
     public PathExpression(
         Expression expression,
         ReferenceExpression reference,
-        ImmutableList<Diagnostic>? diagnostics = null)
-        : base(expression.State | reference.State, reference.ResultType, diagnostics)
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
+        : base(
+            expression.State | reference.State, 
+            reference.ResultType, 
+            diagnostics,
+            syntax)
     {
         this.Expression = expression;
         this.Reference = reference;

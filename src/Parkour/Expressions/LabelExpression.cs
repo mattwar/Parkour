@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
+using Syntax;
 
 public class LabelExpression : Expression
 {
@@ -9,8 +10,14 @@ public class LabelExpression : Expression
     public LabelExpression(
         string name,
         TargetSymbol? target,
-        TypeSymbol? resultType)
-        : base(ContainsState.None, resultType ?? target?.Type, null)
+        TypeSymbol? resultType,
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
+        : base(
+            ContainsState.None, 
+            resultType ?? target?.Type, 
+            diagnostics,
+            syntax)
     {
         this.Name = name;
         this.Target = target;

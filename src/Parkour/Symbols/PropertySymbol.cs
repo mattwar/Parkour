@@ -4,6 +4,11 @@ namespace Parkour.Symbols;
 
 public sealed class PropertySymbol : MemberSymbol
 {
+    public TypeSymbol? DeclaringType { get; }
+    public override MemberSymbol? Container => DeclaringType;
+    public override SymbolAccess Access { get; }
+    public override SymbolModifier Modifiers { get; }
+
     private Func<TypeSymbol>? _fnPropertyType;
     private TypeSymbol? _propertyType;
 
@@ -11,7 +16,7 @@ public sealed class PropertySymbol : MemberSymbol
     { 
         get
         {
-            if (_propertyType == null && _fnPropertyType is Func<TypeSymbol> fn)
+            if (_propertyType == null && _fnPropertyType is { } fn)
             {
                 _fnPropertyType = null;
                 var tmp = fn();
@@ -22,14 +27,14 @@ public sealed class PropertySymbol : MemberSymbol
         }
     }
 
-    private Func<Symbol, MethodSymbol>? _fnGetMethod;
+    private Func<PropertySymbol, MethodSymbol>? _fnGetMethod;
     private MethodSymbol? _getMethod;
 
     public MethodSymbol GetMethod
     {
         get
         {
-            if (_getMethod == null && _fnGetMethod is Func<Symbol, MethodSymbol> fn)
+            if (_getMethod == null && _fnGetMethod is { } fn)
             {
                 var tmp = fn(this);
                 Interlocked.CompareExchange(ref _getMethod, tmp, null);
@@ -40,14 +45,14 @@ public sealed class PropertySymbol : MemberSymbol
         }
     }
 
-    private Func<Symbol, MethodSymbol?>? _fnSetMethod;
+    private Func<PropertySymbol, MethodSymbol?>? _fnSetMethod;
     private MethodSymbol? _setMethod;
 
     public MethodSymbol? SetMethod
     {
         get
         {
-            if (_setMethod == null && _fnSetMethod is Func<Symbol, MethodSymbol?> fn)
+            if (_setMethod == null && _fnSetMethod is { } fn)
             {
                 _fnSetMethod = null;
                 var tmp = fn(this);
@@ -62,15 +67,18 @@ public sealed class PropertySymbol : MemberSymbol
 
     public PropertySymbol(
         string name, 
-        Symbol? container, 
+        TypeSymbol? declaringType, 
         SymbolAccess access, 
         SymbolModifier modifiers, 
         Func<TypeSymbol> fnPropertyType, 
-        Func<Symbol, MethodSymbol> fnGetMethod,
-        Func<Symbol, MethodSymbol?> fnSetMethod,
-        PropertyInfo? runtimeProperty = null)
-        : base(name, container, access, modifiers)
+        Func<PropertySymbol, MethodSymbol> fnGetMethod,
+        Func<PropertySymbol, MethodSymbol?> fnSetMethod,
+        PropertyInfo? runtimeProperty)
+        : base(name)
     {
+        DeclaringType = declaringType;
+        Access = access;
+        Modifiers = modifiers;
         _fnPropertyType = fnPropertyType;
         _fnGetMethod = fnGetMethod;
         _fnSetMethod = fnSetMethod;
@@ -79,14 +87,23 @@ public sealed class PropertySymbol : MemberSymbol
 
     public PropertySymbol(
         string name,
-        Symbol? container,
+        TypeSymbol? declaringType,
         SymbolAccess access,
         SymbolModifier modifiers,
         TypeSymbol propertyType,
-        PropertyInfo? runtimeProperty = null)
-        : base(name, container, access, modifiers)
+        MethodSymbol getMethod,
+        MethodSymbol? setMethod,
+        PropertyInfo? runtimeProperty)
+        : this(
+              name,
+              declaringType,
+              access,
+              modifiers,
+              () => propertyType,
+              me => getMethod,
+              me => setMethod,
+              runtimeProperty
+              )
     {
-        _propertyType = propertyType;
-        RuntimeProperty = runtimeProperty;
     }
 }

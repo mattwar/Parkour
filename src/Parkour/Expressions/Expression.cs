@@ -1,13 +1,15 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
-using Analysis;
+using Syntax;
 
 public abstract class Expression
 {
     public TypeSymbol ResultType { get; }
     public ImmutableList<Diagnostic> Diagnostics { get; }
-    public virtual Symbol? ReferencedSymbol => null;
+    public SyntaxElement? Syntax { get; }
     internal ContainsState State { get; }
+
+    public virtual Symbol? ReferencedSymbol => null;
 
     /// <summary>
     /// This semantic or child semantics contains unknown/unbound elements.
@@ -24,11 +26,16 @@ public abstract class Expression
     /// </summary>
     public bool HasDiagnostics => this.Diagnostics.Count > 0;
 
-    private protected Expression(ContainsState state, TypeSymbol? resultType, ImmutableList<Diagnostic>? diagnostics)
+    private protected Expression(
+        ContainsState state, 
+        TypeSymbol? resultType, 
+        ImmutableList<Diagnostic>? diagnostics,
+        SyntaxElement? syntax)
     {
         this.State = state;
         this.ResultType = resultType ?? CommonSymbols.Unknown;
         this.Diagnostics = diagnostics ?? ImmutableList<Diagnostic>.Empty;
+        this.Syntax = syntax;
 
         if (this.ResultType == CommonSymbols.Unknown)
             this.State |= ContainsState.Unknowns;

@@ -19,9 +19,9 @@ public class ExpressionBinder
     private readonly ObjectPool<List<Diagnostic>> _diagnosticListPool =
         new ObjectPool<List<Diagnostic>>(() => new List<Diagnostic>(), list => list.Clear());
 
-    public ExpressionBinder(CommonSymbols symbols, BindingScope scope)
+    public ExpressionBinder(NamespaceSymbol globalNamespace, BindingScope scope)
     {
-        _symbols = symbols;
+        _symbols = CommonSymbols.From(globalNamespace);
         _operators = Operators.From(_symbols);
         _scope = scope;
     }
@@ -134,7 +134,7 @@ public class ExpressionBinder
         if (newList == block.Expressions)
             return block;
 
-        return new BlockExpression(newList);
+        return new BlockExpression(newList, null, block.Syntax);
     }
 
     protected virtual Expression BindBranch(BranchExpression branch)
@@ -144,15 +144,15 @@ public class ExpressionBinder
             : null;
 
         var targetSymbol = _scope.FindSymbol<TargetSymbol>(s => s.Name == branch.TargetName);
-        var diagnostics =
-            targetSymbol == null ? ImmutableList.Create(DiagnosticFactory.NoMatchingTarget(branch.TargetName))
+        var diagnostics = targetSymbol == null 
+            ? ImmutableList.Create(DiagnosticFactory.NoMatchingTarget(branch.TargetName).WithLocation(branch.Syntax))
             : null;
 
         if (expression == branch.Expression
             && targetSymbol == branch.Target)
             return branch;
 
-        return new BranchExpression(branch.TargetName, expression, targetSymbol, diagnostics);
+        return new BranchExpression(branch.TargetName, expression, targetSymbol, diagnostics, branch.Syntax);
     }
 
     protected virtual Expression BindCall(CallExpression call)
@@ -195,10 +195,11 @@ public class ExpressionBinder
             }
 
             Symbol? calledSymbol = null;
+            var location = expression is PathExpression ep ? ep.Reference.Syntax : expression.Syntax;
 
             if (candidates.Count == 0)
             {
-                diagnostics.Add(DiagnosticFactory.NoCallableSymbol());
+                diagnostics.Add(DiagnosticFactory.NoCallableSymbol().WithLocation(location));
             }
             else
             {
@@ -207,11 +208,11 @@ public class ExpressionBinder
                 if (calledSymbol == null || calledSymbol == CommonSymbols.Unknown)
                 {
                     if (candidates.Count > 1)
-                        diagnostics.Add(DiagnosticFactory.CallIsAmbiguous());
+                        diagnostics.Add(DiagnosticFactory.CallIsAmbiguous().WithLocation(location));
                 }
                 else if (!IsCallableSymbol(calledSymbol))
                 {
-                    diagnostics.Add(DiagnosticFactory.SymbolNotCallable(calledSymbol.Name));
+                    diagnostics.Add(DiagnosticFactory.SymbolNotCallable(calledSymbol.Name).WithLocation(location));
                 }
             }
 
@@ -223,7 +224,13 @@ public class ExpressionBinder
                 && call.ResultType == resultType)
                 return call;
             
-            return new CallExpression(expression, arguments, calledSymbol, resultType, diagnostics.ToImmutableList());
+            return new CallExpression(
+                expression, 
+                arguments, 
+                calledSymbol, 
+                resultType, 
+                diagnostics.ToImmutableList(),
+                call.Syntax);
         }
         finally
         {
@@ -246,7 +253,7 @@ public class ExpressionBinder
             && resultType == condition.ResultType)
             return condition;
 
-        return new ConditionExpression(test, whenTrue, whenFalse, resultType);
+        return new ConditionExpression(test, whenTrue, whenFalse, resultType, null, condition.Syntax);
     }
 
     protected virtual Expression BindConstant(ConstantExpression constant)
@@ -258,7 +265,7 @@ public class ExpressionBinder
         if (resultType == constant.ResultType)
             return constant;
 
-        return new ConstantExpression(constant.Value, resultType);
+        return new ConstantExpression(constant.Value, resultType, null, constant.Syntax);
     }
 
     protected virtual Expression BindConvert(ConvertExpression convert)
@@ -270,6 +277,10 @@ public class ExpressionBinder
             var expression = Bind(convert.Expression);
 
             var canConvert = CanConvert(convert.Kind, expression.ResultType, convert.ConvertedType);
+            if (!canConvert)
+            {
+                diagnostics.Add(DiagnosticFactory.CannotConvert(expression.ResultType, convert.ConvertedType).WithLocation(convert.Syntax));
+            }
 
             GetConversionOperatorCandidates(convert.Kind, expression.ResultType, convert.ConvertedType, candidates);
 
@@ -279,11 +290,17 @@ public class ExpressionBinder
                 return convert;
             }
 
+            // todo: pick best symbol
+            var conversionSymbol = candidates.FirstOrDefault();
+
             return new ConvertExpression(
                 convert.Kind,
                 expression,
                 convert.ConvertedType,
-                diagnostics: !canConvert ? ImmutableList.Create(DiagnosticFactory.CannotConvert(expression.ResultType, convert.ConvertedType)) : null);
+                conversionSymbol,
+                convert.ConvertedType,
+                diagnostics.ToImmutableList(),
+                convert.Syntax);
         }
         finally
         {
@@ -311,7 +328,7 @@ public class ExpressionBinder
             ? declaration.Variable
             : new VariableSymbol(declaration.Name, initializer.ResultType);
 
-        return new DeclarationExpression(declaration.Name, initializer, variable, resultType);
+        return new DeclarationExpression(declaration.Name, initializer, variable, resultType, null, declaration.Syntax);
     }
 
     public virtual TypeSymbol? BindType(Expression typeExpression, List<Diagnostic>? diagnostics)
@@ -328,7 +345,10 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual ImmutableList<ParameterSymbol> BindParameters(ImmutableList<ParameterDeclaration> parameters, List<Diagnostic> diagnostics)
+    protected virtual ImmutableList<ParameterSymbol> BindParameters(
+        Symbol? declaringSymbol,
+        ImmutableList<ParameterDeclaration> parameters, 
+        List<Diagnostic> diagnostics)
     {
         if (parameters.Count == 0)
             return ImmutableList<ParameterSymbol>.Empty;
@@ -341,7 +361,7 @@ public class ExpressionBinder
                 ? BindType(p.ParameterType, diagnostics) ?? CommonSymbols.Unknown
                 : CommonSymbols.Any;
 
-            list.Add(new ParameterSymbol(p.Name, type));
+            list.Add(new ParameterSymbol(p.Name, declaringSymbol, type, runtimeParameter: null));
         }
 
         return list.ToImmutableList();
@@ -352,36 +372,54 @@ public class ExpressionBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var parameters = function.Symbol != null
-                ? function.Symbol.Parameters
-                : BindParameters(function.Parameters, diagnostics);
+            FunctionSymbol? symbol = function.Symbol;
+            TargetSymbol? returnTarget = function.ReturnTarget;
+            Expression body = function.Body;
+            TypeSymbol? returnType = null;
+            var rebind = false;
 
-            var parameterScope = this.CurrentScope.AddAmbientSymbols(parameters);
+            while (symbol == null 
+                || symbol.ReturnType != body.ResultType
+                || returnTarget == null
+                || returnTarget.Type != body.ResultType)
+            {
+                if (returnTarget == null
+                    || returnTarget.Type != body.ResultType)
+                {
+                    returnTarget = new TargetSymbol("return", body.ResultType);
+                }
 
-            var returnTarget = function.ReturnTarget ?? new TargetSymbol("return", CommonSymbols.Unknown);
-            var bodyScope = parameterScope.AddAmbientSymbol(returnTarget);
-
-            var body = BindInScope(function.Body, bodyScope);
-
-            var returnType = GetFunctionResultType(body);
+                if (symbol != null)
+                {
+                    // bind using existing parameter info
+                    BindFunction(symbol.Parameters, rebind);
+                }
+                else
+                {
+                    // bind and evalute new function symbol at the same time
+                    symbol = new FunctionSymbol(
+                        function.Name,
+                        me =>
+                        {
+                            var pms = BindParameters(me, function.Parameters, diagnostics);
+                            BindFunction(pms, rebind);
+                            return pms;
+                        },
+                        () => returnType!,
+                        null);
+                    // force eval of deferred parameters and return type
+                    // for side-effect assignment to locals  (Erik Meijer said it was okay.)
+                    var _ = symbol.Parameters;
+                    returnType = symbol.ReturnType;
+                }
+            }
 
             if (body == function.Body
                 && function.Symbol != null
-                && function.ResultType == function.Symbol
+                && function.Symbol.ReturnType == body.ResultType
                 && function.ReturnType == returnType
                 && diagnostics.Count == 0)
                 return function;
-
-            if (returnTarget.Type != body.ResultType)
-            {
-                returnTarget = new TargetSymbol(returnTarget.Name, returnType);
-                bodyScope = parameterScope.AddAmbientSymbol(returnTarget);
-                body = RebindInScope(body, bodyScope);
-            }
-
-            var symbol = (function.Symbol == null || function.ReturnType != returnType)
-                ? new FunctionSymbol(function.Name, parameters, returnType)
-                : function.Symbol;
 
             return new FunctionExpression(
                 function.Name,
@@ -390,7 +428,19 @@ public class ExpressionBinder
                 returnType,
                 symbol,
                 returnTarget,
-                diagnostics.ToImmutableList());
+                diagnostics.ToImmutableList(),
+                function.Syntax);
+
+            void BindFunction(ImmutableList<ParameterSymbol> parameters, bool rebind)
+            {
+                var bodyScope = this.CurrentScope
+                    .AddAmbientSymbols(parameters)
+                    .AddAmbientSymbol(returnTarget);
+                body = rebind
+                    ? RebindInScope(function.Body, bodyScope)
+                    : BindInScope(function.Body, bodyScope);
+                returnType = GetFunctionResultType(body);
+            }
         }
         finally
         {
@@ -421,27 +471,30 @@ public class ExpressionBinder
 
     protected virtual Expression BindOperator(OperatorExpression opex)
     {
-        var ops = _operators.GetOperators(opex.Kind);
-        var referencedSymbol = _symbols.GetGroup(ops);
-
-        if (referencedSymbol != null && referencedSymbol == opex.ReferencedSymbol)
-            return opex;
-
-        if (referencedSymbol == null)
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
         {
-            return new OperatorExpression(
-                opex.Kind,
-                CommonSymbols.Unknown,
-                CommonSymbols.Unknown,
-                ImmutableList.Create(DiagnosticFactory.UnknownOperator(opex.Kind)));
-        }
-        else
-        {
+            var ops = _operators.GetOperators(opex.Kind);
+            var referencedSymbol = _symbols.GetGroup(ops);
+
+            if (referencedSymbol != null && referencedSymbol == opex.ReferencedSymbol)
+                return opex;
+
+            if (referencedSymbol == null)
+                diagnostics.Add(DiagnosticFactory.UnknownOperator(opex.Kind).WithLocation(opex.Syntax));
+
             var resultType = GetReferenceResultType(referencedSymbol);
+
             return new OperatorExpression(
                 opex.Kind,
                 referencedSymbol,
-                resultType);
+                resultType,
+                diagnostics.ToImmutableList(),
+                opex.Syntax);
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
         }
     }
 
@@ -455,7 +508,7 @@ public class ExpressionBinder
             var expression = Bind(path.Expression);
 
             if (expression.ResultType is GroupSymbol)
-                diagnostics.Add(DiagnosticFactory.UnknownName(path.Reference.Name));
+                diagnostics.Add(DiagnosticFactory.UnknownName(path.Reference.Name).WithLocation(path.Reference.Syntax));
 
             var reference = BindPathReference(expression, path.Reference);
 
@@ -466,7 +519,8 @@ public class ExpressionBinder
             return new PathExpression(
                 expression, 
                 reference,
-                diagnostics: diagnostics.Count > 0 ? diagnostics.ToImmutableList() : null);
+                diagnostics.ToImmutableList(),
+                path.Syntax);
         }
         finally
         {
@@ -516,14 +570,28 @@ public class ExpressionBinder
 
     protected virtual ReferenceExpression UpdateReference(ReferenceExpression reference, Symbol? referencedSymbol)
     {
-        if (referencedSymbol != null && referencedSymbol == reference.ReferencedSymbol)
-            return reference;
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            if (referencedSymbol != null && referencedSymbol == reference.ReferencedSymbol)
+                return reference;
 
-        if (referencedSymbol == null)
-            return new ReferenceExpression(reference.Name, CommonSymbols.Unknown, CommonSymbols.Unknown, ImmutableList.Create(DiagnosticFactory.UnknownName(reference.Name)));
+            if (referencedSymbol == null)
+                diagnostics.Add(DiagnosticFactory.UnknownName(reference.Name).WithLocation(reference.Syntax));
 
-        var resultType = GetReferenceResultType(referencedSymbol);
-        return new ReferenceExpression(reference.Name, referencedSymbol, resultType);
+            var resultType = GetReferenceResultType(referencedSymbol);
+            return new ReferenceExpression(
+                reference.Name, 
+                referencedSymbol, 
+                resultType,
+                diagnostics.ToImmutableList(),
+                reference.Syntax);
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+
     }
 
     /// <summary>
@@ -545,33 +613,43 @@ public class ExpressionBinder
 
     private Expression BindWhile(WhileExpression loop)
     {
-        var test = Bind(loop.Test);
-
-        var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", CommonSymbols.Void);
-        var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", CommonSymbols.Void);
-
-        var bodyContext = this.CurrentScope.AddAmbientSymbols(breakTarget, continueTarget);
-        var body = BindInScope(loop.Body, bodyContext);
-
-        if (test == loop.Test
-            && body == loop.Body
-            && breakTarget == loop.BreakTarget
-            && continueTarget == loop.ContinueTarget)
-            return loop;
-
-        if (breakTarget.Type != body.ResultType && !body.ContainsUnknowns)
+        var diagostics = _diagnosticListPool.AllocateFromPool();
+        try
         {
-            breakTarget = new TargetSymbol(breakTarget.Name, body.ResultType);
-            bodyContext = this.CurrentScope.AddAmbientSymbols(breakTarget, continueTarget);
-            body = RebindInScope(loop.Body, bodyContext);
-        }
+            var test = Bind(loop.Test);
 
-        return new WhileExpression(
-            test, 
-            body, 
-            body.ResultType,
-            breakTarget, 
-            continueTarget);
+            var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", CommonSymbols.Void);
+            var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", CommonSymbols.Void);
+
+            var bodyContext = this.CurrentScope.AddAmbientSymbols(breakTarget, continueTarget);
+            var body = BindInScope(loop.Body, bodyContext);
+
+            if (test == loop.Test
+                && body == loop.Body
+                && breakTarget == loop.BreakTarget
+                && continueTarget == loop.ContinueTarget)
+                return loop;
+
+            if (breakTarget.Type != body.ResultType && !body.ContainsUnknowns)
+            {
+                breakTarget = new TargetSymbol(breakTarget.Name, body.ResultType);
+                bodyContext = this.CurrentScope.AddAmbientSymbols(breakTarget, continueTarget);
+                body = RebindInScope(loop.Body, bodyContext);
+            }
+
+            return new WhileExpression(
+                test,
+                body,
+                body.ResultType,
+                breakTarget,
+                continueTarget,
+                diagostics.ToImmutableList(),
+                loop.Syntax);
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagostics);
+        }
     }
 
     protected virtual ImmutableList<Expression> BindList(ImmutableList<Expression> expressions)
@@ -657,9 +735,9 @@ public class ExpressionBinder
             return expression;
         
         if (CanConvert(kind, expression.ResultType, convertedType))
-            return new ConvertExpression(kind, expression, convertedType);
+            return Bind(new ConvertExpression(kind, expression, convertedType, null, null, null, expression.Syntax));
 
-        return new ConvertExpression(kind, expression, convertedType, diagnostics: ImmutableList.Create(DiagnosticFactory.CannotConvert(expression.ResultType, convertedType)));
+        return expression;
     }
 
     protected virtual bool CanConvert(ConversionKind conversion, TypeSymbol source, TypeSymbol target)
