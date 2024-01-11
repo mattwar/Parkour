@@ -45,16 +45,15 @@ public class DeclarationBinding
         return new DeclarationBinder().Bind(declarations, imports);
     }
 
-    private Dictionary<Declaration, Declaration> _unboundToBoundMap =
-        new Dictionary<Declaration, Declaration>();
+    private ImmutableDictionary<Declaration, Declaration> _unboundToBoundMap =
+        ImmutableDictionary<Declaration, Declaration>.Empty;
 
     public Declaration GetBound(Declaration unboundDeclaration)
     {
-        // TODO: use immutable
         if (!_unboundToBoundMap.TryGetValue(unboundDeclaration, out var boundDeclaration))
         {
-            boundDeclaration = _binder.BindDeclaration(unboundDeclaration, _defaultScope);
-            _unboundToBoundMap[unboundDeclaration] = boundDeclaration;
+            var tmp = _binder.BindDeclaration(unboundDeclaration, _defaultScope);
+            boundDeclaration = ImmutableInterlocked.GetOrAdd(ref _unboundToBoundMap, unboundDeclaration, tmp);
         }
 
         return boundDeclaration;
