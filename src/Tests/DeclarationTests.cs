@@ -9,27 +9,50 @@ namespace Tests;
 [TestClass]
 public class DeclarationTests
 {
-    private readonly CommonSymbols _symbols;
-    private readonly BindingScope _defaultTestScope;
+    private readonly NamespaceSymbol _runtimeGlobalNamespace;
 
     public DeclarationTests()
     {
-        _symbols = RuntimeSymbols.GetOrCreateCommonSymbols();
-        _defaultTestScope = ExpressionTests.CreateBindingScope(_symbols);
+        _runtimeGlobalNamespace = RuntimeSymbols.GetOrCreateGlobalNamespace();
+    }   
+
+    [TestMethod]
+    public void TestBindClass()
+    {
+        TestBind(
+            [Class("C")],
+            ["C"]);
     }
 
     [TestMethod]
-    public void TestBinding()
+    public void TestBindClassInNamespace()
     {
-        TestBind(Class("C", SymbolAccess.Public, SymbolModifier.None));
+        TestBind(
+            [Namespace("N", Class("C"))],
+            ["N", "N.C"]);
     }
 
-    private void TestBind(Declaration declaration)
+    [TestMethod]
+    public void TestBindMethodInClass()
+    {
+        TestBind(
+            [Class("C",
+                [Method("M", [], Path(Reference("System"), "Int32"), Void())])],
+            ["C", "C.M"]);
+    }
+
+    private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
         var binding = DeclarationBinding.Create(
-            new[] { declaration }, 
-            new[] { _symbols.GlobalNamespace });
+            declarations, 
+            new[] { _runtimeGlobalNamespace });
 
-        var bound = binding.Bound;
+        Assert.AreEqual(declarations.Length, binding.Bound.Count, "bound declarations count");
+
+        foreach (var path in expectedSymbols)
+        {
+            var symbol = binding.GlobalNamespace.GetFirstSymbolFromPath(path);
+            Assert.IsNotNull(symbol, $"symbol '{path}' not found");
+        }
     }
 }

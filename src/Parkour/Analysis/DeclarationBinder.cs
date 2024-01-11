@@ -5,7 +5,7 @@ using Symbols;
 
 public class DeclarationBinder
 {
-    private NamespaceSymbol? _globals;
+    //private NamespaceSymbol? _globals;
     private ExpressionBinder? _binder;
     private BindingScope _scope;
 
@@ -23,10 +23,6 @@ public class DeclarationBinder
         var combinedGlobalNamespace = CombinedSymbols.CreateCombinedGlobalNamespace(
             globals =>
             {
-                _globals = globals;
-                _scope = new BindingScope().AddSymbolMembers(globals);
-                _binder = new ExpressionBinder(globals, _scope);
-
                 declarationNamespace = new NamespaceSymbol("", null,
                 me =>
                 {
@@ -47,6 +43,10 @@ public class DeclarationBinder
 
                 return imports.Append(declarationNamespace).ToImmutableList();
             });
+
+        //_globals = globals;
+        _scope = new BindingScope().AddSymbolMembers(combinedGlobalNamespace);
+        _binder = new ExpressionBinder(combinedGlobalNamespace, _scope);
 
         // force evaluation of declarationNamespace
         var globalMembers = combinedGlobalNamespace.Members;

@@ -142,14 +142,23 @@ public static class SemanticFactory
     public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, SyntaxElement? syntax = null) =>
         new ParameterDeclaration(name, parameterType, null, syntax, null);
 
-    public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, Expression returnType, SyntaxElement? syntax = null) =>
+    public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, SyntaxElement? syntax = null) =>
         new MethodDeclaration(name, access, modifiers, parameters, body, returnType, null, syntax, null);
+
+    public static MethodDeclaration Method(string name, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, SyntaxElement? syntax = null) =>
+        Method(name, SymbolAccess.Public, SymbolModifier.None, parameters, body, returnType, syntax);
 
     public static ConstructorDeclaration Constructor(SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, SyntaxElement? syntax = null) =>
         new ConstructorDeclaration(access, modifiers, parameters, body, null, syntax, null);
 
-    public static FieldDeclaration Field(string name, SymbolAccess access, SymbolModifier modifiers, Expression fieldType, Expression? initalizer, SyntaxElement? syntax = null) =>
+    public static ConstructorDeclaration Constructor(ImmutableList<ParameterDeclaration> parameters, Expression body, SyntaxElement? syntax = null) =>
+        Constructor(SymbolAccess.Public, SymbolModifier.None, parameters, body, syntax);
+
+    public static FieldDeclaration Field(string name, SymbolAccess access, SymbolModifier modifiers, Expression fieldType, Expression? initalizer = null, SyntaxElement? syntax = null) =>
         new FieldDeclaration(name, access, modifiers, fieldType, initalizer, null, syntax, null);
+
+    public static FieldDeclaration Field(string name, Expression fieldType, Expression? initalizer = null, SyntaxElement? syntax = null) =>
+        Field(name, SymbolAccess.Public, SymbolModifier.None, fieldType, initalizer, syntax);
 
     public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, MethodDeclaration getMethod, MethodDeclaration? setMethod, FieldDeclaration? backingField, Expression propertyType, SyntaxElement? syntax = null) =>
         new PropertyDeclaration(name, access, modifiers, propertyType, backingField, getMethod, setMethod, null, syntax, null);
@@ -170,11 +179,14 @@ public static class SemanticFactory
             propertyType,
             syntax);
 
+    public static PropertyDeclaration Property(string name, Expression propertyType, SyntaxElement? syntax = null) =>
+        Property(name, SymbolAccess.Public, SymbolModifier.None, propertyType, syntax);
+
     public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, SyntaxElement? syntax = null) =>
         new ClassDeclaration(name, access, modifiers, baseTypes, declarations, null, syntax, null);
 
-    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, params Declaration[] declarations) =>
-        Class(name, access, modifiers, ImmutableList<Expression>.Empty, declarations.ToImmutableList());
+    public static ClassDeclaration Class(string name, params Declaration[] declarations) =>
+        Class(name, SymbolAccess.Public, SymbolModifier.None, ImmutableList<Expression>.Empty, declarations.ToImmutableList());
 
     public static NamespaceDeclaration Namespace(string name, ImmutableList<Declaration> declarations, SyntaxElement? syntax = null) =>
         new NamespaceDeclaration(name, declarations, null, syntax, null);
