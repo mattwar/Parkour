@@ -1,8 +1,12 @@
 ﻿namespace Parkour.Expressions;
 
-public static class ExpressionExtensions
+public static class SemanticExtensions
 {
-    public static IReadOnlyList<TResult> SelectWhere<TResult>(this Expression root, Func<Expression, bool> walkChildren, Func<Expression, bool> predicate, Func<Expression, TResult> selector)
+    public static IReadOnlyList<TResult> SelectWhere<TResult>(
+        this SemanticElement root, 
+        Func<SemanticElement, bool> walkChildren, 
+        Func<SemanticElement, bool> predicate,
+        Func<SemanticElement, TResult> selector)
     {
         var list = new List<TResult>();
 
@@ -18,21 +22,21 @@ public static class ExpressionExtensions
         return list;
     }
 
-    public static IReadOnlyList<TResult> SelectWhere<TResult>(this Expression root, Func<Expression, bool> predicate, Func<Expression, TResult> selector) =>
+    public static IReadOnlyList<TResult> SelectWhere<TResult>(this SemanticElement root, Func<SemanticElement, bool> predicate, Func<SemanticElement, TResult> selector) =>
         SelectWhere(root, s => true, predicate, selector);
 
-    public static IReadOnlyList<Expression> Where(this Expression root, Func<Expression, bool> walkChildren, Func<Expression, bool> predicate) =>
+    public static IReadOnlyList<SemanticElement> Where(this SemanticElement root, Func<SemanticElement, bool> walkChildren, Func<SemanticElement, bool> predicate) =>
         SelectWhere(root, walkChildren, predicate, e => e);
 
-    public static IReadOnlyList<Expression> Where(this Expression root, Func<Expression, bool> predicate) =>
+    public static IReadOnlyList<SemanticElement> Where(this SemanticElement root, Func<SemanticElement, bool> predicate) =>
         Where(root, s => true, predicate);
 
-    public static IReadOnlyList<TResult> SelectWhere<TResult>(this ImmutableList<Expression> expressions, Func<Expression, bool> walkChildren, Func<Expression, bool> predicate, Func<Expression, TResult> selector)
+    public static IReadOnlyList<TResult> SelectWhere<TResult>(this ImmutableList<SemanticElement> elements, Func<SemanticElement, bool> walkChildren, Func<SemanticElement, bool> predicate, Func<SemanticElement, TResult> selector)
     {
         var list = new List<TResult>();
 
         Walk(
-            expressions,
+            elements,
             walkChildren,
             action: e =>
             {
@@ -43,20 +47,20 @@ public static class ExpressionExtensions
         return list;
     }
 
-    public static IReadOnlyList<TResult> SelectWhere<TResult>(this ImmutableList<Expression> expressions, Func<Expression, bool> predicate, Func<Expression, TResult> selector) =>
+    public static IReadOnlyList<TResult> SelectWhere<TResult>(this ImmutableList<SemanticElement> expressions, Func<SemanticElement, bool> predicate, Func<SemanticElement, TResult> selector) =>
         SelectWhere(expressions, s => true, predicate, selector);
 
-    public static IReadOnlyList<Expression> Where(this ImmutableList<Expression> expressions, Func<Expression, bool> walkChildren, Func<Expression, bool> predicate) =>
+    public static IReadOnlyList<SemanticElement> Where(this ImmutableList<SemanticElement> expressions, Func<SemanticElement, bool> walkChildren, Func<SemanticElement, bool> predicate) =>
         SelectWhere(expressions, walkChildren, predicate, e => e);
 
-    public static IReadOnlyList<Expression> Where(this ImmutableList<Expression> expressions, Func<Expression, bool> predicate) =>
+    public static IReadOnlyList<SemanticElement> Where(this ImmutableList<SemanticElement> expressions, Func<SemanticElement, bool> predicate) =>
         Where(expressions, s => true, predicate);
 
     /// <summary>
     /// Walks the expression tree calling the action callback for each expression
     /// including the root.
     /// </summary>
-    public static void Walk(Expression? expr, Func<Expression, bool> walkChildren, Action<Expression> action)
+    public static void Walk(SemanticElement? expr, Func<SemanticElement, bool> walkChildren, Action<SemanticElement> action)
     {
         if (expr == null)
             return;
@@ -73,8 +77,7 @@ public static class ExpressionExtensions
                 break;
 
             case BranchExpression branch:
-                if (branch.Expression != null)
-                    Walk(branch.Expression, walkChildren, action);
+                Walk(branch.Expression, walkChildren, action);
                 break;
 
             case CallExpression call:
@@ -88,6 +91,11 @@ public static class ExpressionExtensions
                 Walk(condition.WhenFalse, walkChildren, action);
                 break;
 
+            case ConstructorDeclaration constructor:
+                Walk(constructor.Parameters, walkChildren, action);
+                Walk(constructor.Body, walkChildren, action);
+                break;
+
             case ConvertExpression convert:
                 Walk(convert.Expression, walkChildren, action);
                 break;
@@ -96,9 +104,9 @@ public static class ExpressionExtensions
                 Walk(declaration.Initializer, walkChildren, action);
                 break;
 
-            case FunctionExpression function:
-                Walk(function.Parameters, walkChildren, action);
-                Walk(function.Body, walkChildren, action);
+            case LambdaExpression lambda:
+                Walk(lambda.Parameters, walkChildren, action);
+                Walk(lambda.Body, walkChildren, action);
                 break;
 
             case PathExpression path:
@@ -139,15 +147,18 @@ public static class ExpressionExtensions
                 break;
 
             default:
-                throw new InvalidOperationException($"Unhandled expression kind '{expr.GetType().Name}' in Expression.Walk");
+                throw new InvalidOperationException($"Unhandled expression kind '{expr.GetType().Name}' in Semantic.Walk");
         }
     }
 
     /// <summary>
-    /// Walks the 
+    /// Walks the Semantic's sub-expressions recursively.
     /// </summary>
-    public static void Walk<T>(ImmutableList<T> expressions, Func<Expression, bool> walkChildren, Action<Expression> action)
-        where T : Expression
+    public static void Walk<TSemantic>(
+        ImmutableList<TSemantic> expressions, 
+        Func<SemanticElement, bool> walkChildren, 
+        Action<SemanticElement> action)
+        where TSemantic : SemanticElement
     {
         foreach (var expr in expressions)
         {
@@ -155,17 +166,19 @@ public static class ExpressionExtensions
         }
     }
 
-    public static ImmutableList<TExpr> Rewrite<TExpr>(this ImmutableList<TExpr> list, Func<TExpr, TExpr> rewriter)
-        where TExpr : Expression =>
-        Rewrite<TExpr, object?>(list, null, (e, a) => (rewriter(e), a)).list;
+    public static ImmutableList<TSemantic> Rewrite<TSemantic>(
+        this ImmutableList<TSemantic> list, 
+        Func<TSemantic, TSemantic> rewriter)
+        where TSemantic : SemanticElement =>
+        Rewrite<TSemantic, object?>(list, null, (e, a) => (rewriter(e), a)).list;
 
-    public static (ImmutableList<TExpr> list, TArg final) Rewrite<TExpr, TArg>(
-        this ImmutableList<TExpr> list, 
+    public static (ImmutableList<TSemantic> list, TArg final) Rewrite<TSemantic, TArg>(
+        this ImmutableList<TSemantic> list, 
         TArg arg, 
-        Func<TExpr, TArg, (TExpr expr, TArg arg)> rewriter)
-        where TExpr : Expression
+        Func<TSemantic, TArg, (TSemantic expr, TArg arg)> rewriter)
+        where TSemantic : SemanticElement
     {
-        TExpr[] newList = null!;
+        TSemantic[] newList = null!;
 
         for (int i = 0; i < list.Count; i++)
         {
@@ -176,7 +189,7 @@ public static class ExpressionExtensions
             {
                 if (newList == null)
                 {
-                    newList = new TExpr[list.Count];
+                    newList = new TSemantic[list.Count];
                     if (i > 0)
                         list.CopyTo(0, newList.AsSpan().Slice(0, i + 1));
                 }
@@ -189,7 +202,7 @@ public static class ExpressionExtensions
         }
 
         if (newList != null)
-            return (ImmutableList<TExpr>.Empty.AppendRange(newList), arg);
+            return (ImmutableList<TSemantic>.Empty.AppendRange(newList), arg);
 
         return (list, arg);
     }

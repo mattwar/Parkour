@@ -3,7 +3,7 @@ using Analysis;
 using Symbols;
 using Syntax;
 
-public static class ExpressionFactory
+public static class SemanticFactory
 {
     public static AssignExpression Assign(Expression target, Expression expression, SyntaxElement? syntax = null) =>
         new AssignExpression(target, expression, null, syntax);
@@ -53,16 +53,16 @@ public static class ExpressionFactory
     public static PathExpression Path(Expression expression, string name, SyntaxElement? syntax = null) =>
         Path(expression, Reference(name), syntax);
 
-    public static FunctionExpression Function(ImmutableList<ParameterDeclaration> parameters, Expression body, SyntaxElement? syntax = null) =>
-        new FunctionExpression("", parameters, body, null, null, null, null, syntax);
+    public static LambdaExpression Function(ImmutableList<ParameterDeclaration> parameters, Expression body, SyntaxElement? syntax = null) =>
+        new LambdaExpression("", parameters, body, null, null, null, null, syntax);
 
-    public static FunctionExpression Function(IEnumerable<ParameterDeclaration> parameters, Expression body, SyntaxElement? syntax = null) =>
+    public static LambdaExpression Function(IEnumerable<ParameterDeclaration> parameters, Expression body, SyntaxElement? syntax = null) =>
         Function(parameters.ToImmutableList(), body, syntax);
 
-    public static FunctionExpression Function(IEnumerable<string> parameterNames, Expression body, SyntaxElement? syntax = null) =>
+    public static LambdaExpression Function(IEnumerable<string> parameterNames, Expression body, SyntaxElement? syntax = null) =>
         Function(parameterNames.Select(n => Parameter(n)), body, syntax);
 
-    public static FunctionExpression Function(Expression body, SyntaxElement? syntax = null) =>
+    public static LambdaExpression Function(Expression body, SyntaxElement? syntax = null) =>
         Function(ImmutableList<ParameterDeclaration>.Empty, body, syntax);
 
     public static OperatorExpression Operator(string name, SyntaxElement? syntax = null) =>
@@ -140,16 +140,19 @@ public static class ExpressionFactory
         Call(Operator(OperatorKinds.LogicalNot), ImmutableList.Create(operand), syntax);
 
     public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, SyntaxElement? syntax = null) =>
-        new ParameterDeclaration(name, parameterType, null, syntax);
+        new ParameterDeclaration(name, parameterType, null, syntax, null);
 
     public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, Expression returnType, SyntaxElement? syntax = null) =>
-        new MethodDeclaration(name, access, modifiers, parameters, body, returnType, null, syntax);
+        new MethodDeclaration(name, access, modifiers, parameters, body, returnType, null, syntax, null);
+
+    public static ConstructorDeclaration Constructor(SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, SyntaxElement? syntax = null) =>
+        new ConstructorDeclaration(access, modifiers, parameters, body, null, syntax, null);
 
     public static FieldDeclaration Field(string name, SymbolAccess access, SymbolModifier modifiers, Expression fieldType, Expression? initalizer, SyntaxElement? syntax = null) =>
-        new FieldDeclaration(name, access, modifiers, fieldType, initalizer, null, syntax);
+        new FieldDeclaration(name, access, modifiers, fieldType, initalizer, null, syntax, null);
 
-    public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, MethodDeclaration getMethod, MethodDeclaration? setMethod, FieldDeclaration? underlyingField, Expression propertyType, SyntaxElement? syntax = null) =>
-        new PropertyDeclaration(name, access, modifiers, getMethod, setMethod, underlyingField, propertyType, null, syntax);
+    public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, MethodDeclaration getMethod, MethodDeclaration? setMethod, FieldDeclaration? backingField, Expression propertyType, SyntaxElement? syntax = null) =>
+        new PropertyDeclaration(name, access, modifiers, propertyType, backingField, getMethod, setMethod, null, syntax, null);
 
     public static PropertyDeclaration Property(string name, MethodDeclaration getMethod, MethodDeclaration? setMethod = null, SyntaxElement? syntax = null) =>
         Property(name, getMethod.Access, getMethod.Modifiers, getMethod, setMethod, null, getMethod.ReturnType, syntax);
@@ -168,13 +171,13 @@ public static class ExpressionFactory
             syntax);
 
     public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, SyntaxElement? syntax = null) =>
-        new ClassDeclaration(name, access, modifiers, baseTypes, declarations, null, syntax);
+        new ClassDeclaration(name, access, modifiers, baseTypes, declarations, null, syntax, null);
 
     public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, params Declaration[] declarations) =>
         Class(name, access, modifiers, ImmutableList<Expression>.Empty, declarations.ToImmutableList());
 
     public static NamespaceDeclaration Namespace(string name, ImmutableList<Declaration> declarations, SyntaxElement? syntax = null) =>
-        new NamespaceDeclaration(name, declarations, null, syntax);
+        new NamespaceDeclaration(name, declarations, null, syntax, null);
 
     public static NamespaceDeclaration Namespace(string name, params Declaration[] declarations) =>
         Namespace(name, declarations.ToImmutableList());

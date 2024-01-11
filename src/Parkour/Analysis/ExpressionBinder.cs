@@ -40,7 +40,7 @@ public class ExpressionBinder
         return rebound;
     }
 
-    protected Expression RebindInScope(Expression expression, BindingScope scope)
+    public Expression RebindInScope(Expression expression, BindingScope scope)
     {
         var oldScope = _scope;
         _scope = scope;
@@ -49,13 +49,31 @@ public class ExpressionBinder
         return rebound;
     }
 
-    protected Expression BindInScope(Expression expression, BindingScope scope)
+    public Expression BindInScope(Expression expression, BindingScope scope)
     {
         var oldScope = _scope;
         _scope = scope;
         var bound = Bind(expression);
         _scope = oldScope;
         return bound;
+    }
+
+    public virtual ImmutableList<TExpression> BindList<TExpression>(ImmutableList<TExpression> expressions)
+        where TExpression : Expression
+    {
+        if (expressions.Count == 0)
+            return expressions;
+
+        return expressions.Rewrite(e => (TExpression)Bind(e));
+    }
+
+    public virtual ImmutableList<TExpression> BindListInScope<TExpression>(ImmutableList<TExpression> expressions, BindingScope scope)
+        where TExpression : Expression
+    {
+        if (expressions.Count == 0)
+            return expressions;
+
+        return expressions.Rewrite(e => (TExpression)BindInScope(e, scope));
     }
 
     /// <summary>
@@ -89,7 +107,7 @@ public class ExpressionBinder
             case DeclarationExpression declaration:
                 return BindDeclaration(declaration);
 
-            case FunctionExpression function:
+            case LambdaExpression function:
                 return BindFunction(function);
 
             case OperatorExpression opex:
@@ -123,7 +141,7 @@ public class ExpressionBinder
                 // if the declaration changes then the variable is now different 
                 // so the rest of the block needs to be rebound in case it references the old variable
                 rebind = rebind || boundExpression != expression;
-                scope = scope.AddAmbientSymbol(decl.Variable);
+                scope = scope.AddSymbol(decl.Variable);
             }
 
             return (boundExpression, scope);
@@ -367,7 +385,7 @@ public class ExpressionBinder
         return list.ToImmutableList();
     }
 
-    protected virtual Expression BindFunction(FunctionExpression function)
+    protected virtual Expression BindFunction(LambdaExpression function)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
@@ -421,7 +439,7 @@ public class ExpressionBinder
                 && diagnostics.Count == 0)
                 return function;
 
-            return new FunctionExpression(
+            return new LambdaExpression(
                 function.Name,
                 function.Parameters,
                 body,
@@ -434,8 +452,8 @@ public class ExpressionBinder
             void BindFunction(ImmutableList<ParameterSymbol> parameters, bool rebind)
             {
                 var bodyScope = this.CurrentScope
-                    .AddAmbientSymbols(parameters)
-                    .AddAmbientSymbol(returnTarget);
+                    .AddSymbols(parameters)
+                    .AddSymbol(returnTarget);
                 body = rebind
                     ? RebindInScope(function.Body, bodyScope)
                     : BindInScope(function.Body, bodyScope);
@@ -460,13 +478,8 @@ public class ExpressionBinder
 
         return _symbols.GetUnion(returns.Select(r => r.ResultType).Concat(new[] { body.ResultType }));
 
-        static bool HasOwnBody(Expression expression) =>
-            expression switch
-            {
-                FunctionExpression f => true,
-                ClassDeclaration m => true,
-                _ => false,
-            };
+        static bool HasOwnBody(SemanticElement expression) =>
+            expression is LambdaExpression;
     }
 
     protected virtual Expression BindOperator(OperatorExpression opex)
@@ -621,7 +634,7 @@ public class ExpressionBinder
             var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", CommonSymbols.Void);
             var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", CommonSymbols.Void);
 
-            var bodyContext = this.CurrentScope.AddAmbientSymbols(breakTarget, continueTarget);
+            var bodyContext = this.CurrentScope.AddSymbols(new[] { breakTarget, continueTarget });
             var body = BindInScope(loop.Body, bodyContext);
 
             if (test == loop.Test
@@ -633,7 +646,7 @@ public class ExpressionBinder
             if (breakTarget.Type != body.ResultType && !body.ContainsUnknowns)
             {
                 breakTarget = new TargetSymbol(breakTarget.Name, body.ResultType);
-                bodyContext = this.CurrentScope.AddAmbientSymbols(breakTarget, continueTarget);
+                bodyContext = this.CurrentScope.AddSymbols(new[] { breakTarget, continueTarget });
                 body = RebindInScope(loop.Body, bodyContext);
             }
 
@@ -650,14 +663,6 @@ public class ExpressionBinder
         {
             _diagnosticListPool.ReturnToPool(diagostics);
         }
-    }
-
-    protected virtual ImmutableList<Expression> BindList(ImmutableList<Expression> expressions)
-    {
-        if (expressions.Count == 0)
-            return expressions;
-
-        return expressions.Rewrite(e => Bind(e));
     }
 
     /// <summary>

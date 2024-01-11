@@ -2,7 +2,7 @@
 using Parkour.Expressions;
 using Parkour.Analysis;
 using Parkour.Symbols;
-using static Parkour.Expressions.ExpressionFactory;
+using static Parkour.Expressions.SemanticFactory;
 
 namespace Tests;
 

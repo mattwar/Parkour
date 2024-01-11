@@ -1,50 +1,57 @@
 ﻿namespace Parkour.Analysis;
 using Symbols;
 
-public record struct BindingScope(ImmutableList<NamespaceSymbol> Namespaces, ImmutableList<Symbol> AmbientSymbols)
+public record struct BindingScope(ImmutableList<Symbol> Containers, ImmutableList<Symbol> Symbols)
 {
-    public ImmutableList<NamespaceSymbol> Namespaces { get; init; } = Namespaces ?? ImmutableList<NamespaceSymbol>.Empty;
-    public ImmutableList<Symbol> AmbientSymbols { get; init; } = AmbientSymbols ?? ImmutableList<Symbol>.Empty;
+    public ImmutableList<Symbol> Containers { get; init; } = Containers ?? ImmutableList<Symbol>.Empty;
+    public ImmutableList<Symbol> Symbols { get; init; } = Symbols ?? ImmutableList<Symbol>.Empty;
 
     public static BindingScope Default =>
-        new BindingScope(ImmutableList<NamespaceSymbol>.Empty, ImmutableList<Symbol>.Empty);
+        new BindingScope(ImmutableList<Symbol>.Empty, ImmutableList<Symbol>.Empty);
 
-    public BindingScope AddNamespaces(IEnumerable<NamespaceSymbol> namespaces) =>
-        this with { Namespaces = (this.Namespaces ?? ImmutableList<NamespaceSymbol>.Empty).AppendRange(namespaces) };
+    /// <summary>
+    /// Add symbol's members
+    /// </summary>
+    public BindingScope AddSymbolMembers(IEnumerable<Symbol> containers) =>
+        this with { Containers = (this.Containers ?? ImmutableList<Symbol>.Empty).AppendRange(containers) };
 
-    public BindingScope AddNamespaces(params NamespaceSymbol[] symbols) => 
-        AddNamespaces((IEnumerable<NamespaceSymbol>)symbols);
+    /// <summary>
+    /// Add symbol members
+    /// </summary>
+    public BindingScope AddSymbolMembers(Symbol symbol) =>
+        AddSymbolMembers(new[] { symbol });
 
-    public BindingScope AddNamespace(NamespaceSymbol symbol) => AddNamespaces(symbol);
+    /// <summary>
+    /// Add symbols
+    /// </summary>
+    public BindingScope AddSymbols(IEnumerable<Symbol> symbols) =>
+        this with { Symbols = (this.Symbols ?? ImmutableList<Symbol>.Empty).AppendRange(symbols) };
 
-    public BindingScope AddAmbientSymbols(IEnumerable<Symbol> symbols) =>
-        this with { AmbientSymbols = (this.AmbientSymbols ?? ImmutableList<Symbol>.Empty).AppendRange(symbols) };
-
-    public BindingScope AddAmbientSymbols(params Symbol[] symbols) =>
-        AddAmbientSymbols((IEnumerable<Symbol>)symbols);
-
-    public BindingScope AddAmbientSymbol(Symbol symbol) =>
-        this with { AmbientSymbols = this.AmbientSymbols.Append(symbol) };
+    /// <summary>
+    /// Add symbol
+    /// </summary>
+    public BindingScope AddSymbol(Symbol symbol) =>
+        AddSymbols(new[] { symbol });
 
     /// <summary>
     /// returns all the matching symbols
     /// </summary>
     public void FindSymbols<TSymbol>(Func<TSymbol, bool> fnMatch, List<TSymbol> list) where TSymbol : Symbol
     {
-        // look in namespaces
-        foreach (var ns in this.Namespaces)
+        // look at container members
+        foreach (var container in this.Containers)
         {
-            foreach (var nsMember in ns.Members)
+            foreach (var members in container.Members)
             {
-                if (nsMember is TSymbol tsymbol && fnMatch(tsymbol))
+                if (members is TSymbol tsymbol && fnMatch(tsymbol))
                     list.Add(tsymbol);
             }
         }
 
-        // look in ambient symbols
-        for(int i = this.AmbientSymbols.Count - 1; i >= 0; i--)
+        // look at symbols
+        for(int i = this.Symbols.Count - 1; i >= 0; i--)
         {
-            var symbol = this.AmbientSymbols[i];
+            var symbol = this.Symbols[i];
             if (symbol is TSymbol tsymbol && fnMatch(tsymbol))
                 list.Add(tsymbol);
         }
@@ -56,18 +63,18 @@ public record struct BindingScope(ImmutableList<NamespaceSymbol> Namespaces, Imm
     public TSymbol? FindSymbol<TSymbol>(Func<TSymbol, bool> fnMatch) 
         where TSymbol : Symbol
     {
-        foreach (var ns in this.Namespaces)
+        foreach (var container in this.Containers)
         {
-            foreach (var nsMember in ns.Members)
+            foreach (var member in container.Members)
             {
-                if (nsMember is TSymbol tsymbol && fnMatch(tsymbol))
+                if (member is TSymbol tsymbol && fnMatch(tsymbol))
                     return tsymbol;
             }
         }
 
-        for (int i = this.AmbientSymbols.Count - 1; i >= 0; i--)
+        for (int i = this.Symbols.Count - 1; i >= 0; i--)
         {
-            var symbol = this.AmbientSymbols[i];
+            var symbol = this.Symbols[i];
             if (symbol is TSymbol tsymbol && fnMatch(tsymbol))
                 return tsymbol;
         }

@@ -2,10 +2,11 @@
 using Symbols;
 using Syntax;
 
-public sealed class FieldDeclaration : Declaration
+public sealed class FieldDeclaration : MemberDeclaration
 {
     public Expression FieldType { get; }
     public Expression? Initializer { get; }
+    public FieldSymbol? Symbol { get; }
 
     public FieldDeclaration(
         string name,
@@ -14,7 +15,8 @@ public sealed class FieldDeclaration : Declaration
         Expression fieldType,
         Expression? initializer,
         ImmutableList<Diagnostic>? diagnostics,
-        SyntaxElement? syntax)
+        SyntaxElement? syntax,
+        FieldSymbol? symbol)
     : base(
           initializer != null ? initializer.State : ContainsState.None,
           name,
@@ -25,6 +27,7 @@ public sealed class FieldDeclaration : Declaration
     {
         this.FieldType = fieldType;
         this.Initializer = initializer;
+        this.Symbol = symbol;
     }
 }
 

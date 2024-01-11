@@ -2,28 +2,30 @@
 using Parkour.Expressions;
 using Parkour.Analysis;
 using Parkour.Symbols;
-using static Parkour.Expressions.ExpressionFactory;
+using static Parkour.Expressions.SemanticFactory;
 
 namespace Tests;
 
 [TestClass]
-public class ExpressionBinderTests
+public class ExpressionTests
 {
     private readonly CommonSymbols _symbols;
     private readonly BindingScope _defaultTestScope;
 
-    public ExpressionBinderTests()
-    {
-        
+    public ExpressionTests()
+    {       
         _symbols = RuntimeSymbols.GetOrCreateCommonSymbols();
         _defaultTestScope = CreateBindingScope(_symbols);
     }
 
     public static BindingScope CreateBindingScope(CommonSymbols symbols)
     {
-        return BindingScope.Default.AddNamespaces(
-            symbols.GlobalNamespace,
-            symbols.System);
+        return BindingScope.Default.AddSymbolMembers(
+            new[]
+            {
+                symbols.GlobalNamespace,
+                symbols.System
+            });
     }
 
     [TestMethod]

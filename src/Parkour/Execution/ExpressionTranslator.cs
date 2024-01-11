@@ -15,12 +15,12 @@ public sealed class ExpressionTranslator
     {
     }
 
-    public L.LambdaExpression TranslateToLambda(FunctionExpression expression, Type? delegateType = null)
+    public L.LambdaExpression TranslateToLambda(LambdaExpression expression, Type? delegateType = null)
     {
         return (L.LambdaExpression)Translate(expression);
     }
 
-    public L.Expression<TDelegate> TranslateToLambda<TDelegate>(FunctionExpression expression)
+    public L.Expression<TDelegate> TranslateToLambda<TDelegate>(LambdaExpression expression)
         where TDelegate : Delegate
     {
         return (L.Expression<TDelegate>)TranslateToLambda(expression, typeof(TDelegate));
@@ -47,7 +47,7 @@ public sealed class ExpressionTranslator
                 return TranslateConvert(convert);
             case DeclarationExpression declaration:
                 return TranslateDeclaration(declaration);
-            case FunctionExpression function:
+            case LambdaExpression function:
                 return TranslateFunction(function);
             case LabelExpression label:
                 return TranslateLabel(label);
@@ -80,7 +80,7 @@ public sealed class ExpressionTranslator
 
     private L.Expression TranslateBlock(BlockExpression block)
     {
-        var declarations = block.SelectWhere(e => e is not BlockExpression && e is not FunctionExpression, e => e is DeclarationExpression, e => (DeclarationExpression)e).ToList();
+        var declarations = block.SelectWhere(e => e is not BlockExpression && e is not LambdaExpression, e => e is DeclarationExpression, e => (DeclarationExpression)e).ToList();
         if (declarations.Count > 0)
         {
             return L.Expression.Block(
@@ -189,7 +189,7 @@ public sealed class ExpressionTranslator
             variable);
     }
 
-    private L.Expression TranslateFunction(FunctionExpression function)
+    private L.Expression TranslateFunction(LambdaExpression function)
     {
         var oldReturnTarget = GetCurrentBranchTarget("return");
         var oldDelegateType = _currentFunctionDelegateType;

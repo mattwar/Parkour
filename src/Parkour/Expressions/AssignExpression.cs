@@ -4,7 +4,7 @@ using Syntax;
 public sealed class AssignExpression : Expression
 {
     public Expression Target { get; }
-    public Expression Expression { get; }
+    public Expression Semantic { get; }
 
     public AssignExpression(
         Expression target,
@@ -18,6 +18,6 @@ public sealed class AssignExpression : Expression
             syntax)
     {
         this.Target = target;
-        this.Expression = expression;
+        this.Semantic = expression;
     }
 }

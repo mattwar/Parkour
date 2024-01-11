@@ -2,7 +2,7 @@
 using Symbols;
 using Syntax;
 
-public sealed class FunctionExpression : Expression
+public sealed class LambdaExpression : Expression
 {
     public string Name { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
@@ -11,7 +11,7 @@ public sealed class FunctionExpression : Expression
     public TypeSymbol? ReturnType { get; }
     public TargetSymbol? ReturnTarget { get; }
 
-    public FunctionExpression(
+    public LambdaExpression(
         string name,
         ImmutableList<ParameterDeclaration> parameters,
         Expression body,

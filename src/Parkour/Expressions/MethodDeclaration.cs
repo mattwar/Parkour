@@ -2,11 +2,12 @@
 using Symbols;
 using Syntax;
 
-public class MethodDeclaration : Declaration
+public class MethodDeclaration : MemberDeclaration
 {
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
     public Expression ReturnType { get; }
+    public MethodSymbol? Symbol { get; }
 
     public MethodDeclaration(
         string name, 
@@ -16,7 +17,8 @@ public class MethodDeclaration : Declaration
         Expression body, 
         Expression returnType, 
         ImmutableList<Diagnostic>? diagnostics,
-        SyntaxElement? syntax)
+        SyntaxElement? syntax,
+        MethodSymbol? symbol)
         : base(
             CombineState(parameters) | body.State, 
             name, 
@@ -28,5 +30,6 @@ public class MethodDeclaration : Declaration
         this.Parameters = parameters;
         this.Body = body;
         this.ReturnType = returnType;
+        this.Symbol = symbol;
     }
 }

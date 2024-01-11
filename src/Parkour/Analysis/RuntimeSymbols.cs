@@ -160,9 +160,10 @@ public class RuntimeSymbols
                     GetAccess(property),
                     GetModifiers(property),
                     () => GetType(property.PropertyType),
+                    fnBackingField: null,
                     me => (MethodSymbol)CreateSymbol(property.GetGetMethod()!, me)!,
-                    me => property.GetSetMethod() != null   
-                        ? (MethodSymbol)CreateSymbol(property.GetSetMethod()!, me)!
+                    property.GetSetMethod() != null
+                        ? me => (MethodSymbol)CreateSymbol(property.GetSetMethod()!, me)!
                         : null,
                     property);
                 break;

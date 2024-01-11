@@ -5,20 +5,21 @@ using Syntax;
 public sealed class ParameterDeclaration : Declaration
 {
     public Expression? ParameterType { get; }
+    public ParameterSymbol? Symbol { get; }
 
     public ParameterDeclaration(
         string name, 
         Expression? parameterType,
         ImmutableList<Diagnostic>? diagnostics,
-        SyntaxElement? syntax)
+        SyntaxElement? syntax,
+        ParameterSymbol? symbol)
         : base(
             ContainsState.None, 
             name, 
-            SymbolAccess.Public, 
-            SymbolModifier.None, 
             diagnostics,
             syntax)
     {
         this.ParameterType = parameterType;
+        this.Symbol = symbol;
     }
 }

@@ -3,7 +3,7 @@ using Parkour.Analysis;
 using Parkour.Symbols;
 using Parkour.Expressions;
 using Parkour.Execution;
-using static Parkour.Expressions.ExpressionFactory;
+using static Parkour.Expressions.SemanticFactory;
 
 namespace Tests;
 
@@ -16,7 +16,7 @@ public class RunTests
     public RunTests()
     {
         _symbols = RuntimeSymbols.GetOrCreateCommonSymbols();
-        _defaultTestScope = ExpressionBinderTests.CreateBindingScope(_symbols);
+        _defaultTestScope = ExpressionTests.CreateBindingScope(_symbols);
     }
 
     [TestMethod]
@@ -57,11 +57,11 @@ public class RunTests
 
     private void TestRun(Expression expression, object expectedResult, BindingScope? scope, object[] args)
     {
-        if (!(expression is FunctionExpression))
+        if (!(expression is LambdaExpression))
             expression = Function(expression);
 
         var binder = new ExpressionBinder(_symbols.GlobalNamespace, scope ?? _defaultTestScope);
-        var bound = (FunctionExpression)binder.Bind(expression);
+        var bound = (LambdaExpression)binder.Bind(expression);
 
         if (bound.ContainsDiagnostics)
         {

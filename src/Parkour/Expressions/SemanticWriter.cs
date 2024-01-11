@@ -1,14 +1,14 @@
 ﻿namespace Parkour.Expressions;
 using Symbols;
 
-public class ExpressionWriter
+public class SemanticWriter
 {
     private TextWriter _writer;
     private readonly string _indentation;
     private string _currentIndentation;
     private bool _needsIndentation;
 
-    public ExpressionWriter(TextWriter writer, string? indentation = null)
+    public SemanticWriter(TextWriter writer, string? indentation = null)
     {
         _writer = writer;
         _indentation = indentation ?? "  ";
@@ -16,14 +16,14 @@ public class ExpressionWriter
         _needsIndentation = false;
     }
 
-    public ExpressionWriter(string? indentation = null)
+    public SemanticWriter(string? indentation = null)
         : this(new StringWriter(), indentation)
     {
     }
 
-    public string WriteExpression(Expression expression)
+    public string WriteToString(SemanticElement semantic)
     {
-        Write(expression);
+        Write(semantic);
         return _writer.ToString() ?? "";
     }
 
@@ -71,29 +71,35 @@ public class ExpressionWriter
         _currentIndentation = oldIndentation;
     }
 
-    private void WriteIndented(Expression expression)
+    private void WriteIndented(SemanticElement semantic)
     {
         var oldIndentation = _currentIndentation;
         _currentIndentation += _indentation;
-        Write(expression);
+        Write(semantic);
         _currentIndentation = oldIndentation;
     }
 
-    private void WriteBlockOrIndented(Expression expression)
+    private void WriteBlockOrIndented(SemanticElement semantic)
     {
-        if (expression is BlockExpression block)
+        if (semantic is BlockExpression block)
         {
-            Write(expression);
+            Write(semantic);
         }
         else
         {
-            WriteIndented(expression);
+            WriteIndented(semantic);
         }
     }
 
-    private void Write(Expression expression)
+    private void WriteLine(SemanticElement semantic)
     {
-        switch (expression)
+        Write(semantic);
+        WriteLine();
+    }
+
+    private void Write(SemanticElement semantic)
+    {
+        switch (semantic)
         {
             case BlockExpression block:
                 WriteLine();
@@ -163,7 +169,7 @@ public class ExpressionWriter
                 {
                     if (i > 0)
                         Write(", ");
-                    WriteExpression(call.Arguments[i]);
+                    Write(call.Arguments[i]);
                 }
                 Write(")");
                 break;
@@ -195,7 +201,7 @@ public class ExpressionWriter
                 Write(")");
                 break;
 
-            case FunctionExpression function:
+            case LambdaExpression function:
                 if (function.Body is BlockExpression)
                     Write("function ");
                 Write("(");
@@ -236,8 +242,140 @@ public class ExpressionWriter
                 WriteBlockOrIndented(whilst.Body);
                 break;
 
+            case NamespaceDeclaration nd:
+                Write("namespace ");
+                WriteLine(nd.Name);
+                WriteIndented(() =>
+                {
+                    foreach (var decl in nd.Declarations)
+                    {
+                        WriteLine(decl);
+                    }
+                });
+                break;
+
+            case ClassDeclaration cd:
+                WriteAccessAndModifiers(cd.Access, cd.Modifiers);
+                Write("class ");
+                WriteLine(cd.Name);
+                WriteIndented(() =>
+                {
+                    foreach (var decl in cd.Declarations)
+                    {
+                        WriteLine(decl);
+                    }
+                });
+                break;
+
+            case ConstructorDeclaration cd:
+                WriteAccessAndModifiers(cd.Access, cd.Modifiers);
+                Write("constructor ");
+                Write("(");
+                for (int i = 0; i < cd.Parameters.Count; i++)
+                {
+                    if (i > 0)
+                        Write(", ");
+                    Write(cd.Parameters[i]);
+                }
+                WriteLine(")");
+                WriteIndented(cd.Body);
+                break;
+
+            case MethodDeclaration md:
+                WriteAccessAndModifiers(md.Access, md.Modifiers);
+                Write("method ");
+                Write(md.Name);
+                Write("(");
+                for (int i = 0; i < md.Parameters.Count; i++)
+                {
+                    if (i > 0)
+                        Write(", ");
+                    Write(md.Parameters[i]);
+                }
+                Write("): ");
+                Write(md.ReturnType);
+                WriteLine();
+                WriteIndented(md.Body);
+                break;
+
+            case ParameterDeclaration pd:
+                Write(pd.Name);
+                if (pd.ParameterType != null)
+                {
+                    Write(": ");
+                    Write(pd.ParameterType);
+                }
+                break;
+            case FieldDeclaration fd:
+                WriteAccessAndModifiers(fd.Access, fd.Modifiers);
+                Write("field ");
+                Write(fd.Name);
+                Write(" : ");
+                Write(fd.FieldType);
+                if (fd.Initializer != null)
+                {
+                    Write(" = ");
+                    Write(fd.Initializer);
+                }
+                break;
+
+            case PropertyDeclaration pd:
+                WriteAccessAndModifiers(pd.Access, pd.Modifiers);
+                Write("property ");
+                Write(pd.Name);
+                Write(" : ");
+                WriteLine(pd.PropertyType);
+                WriteIndented(() =>
+                {
+                    Write("get ");
+                    Write(pd.GetMethod);
+                    if (pd.SetMethod != null)
+                    {
+                        Write("set ");
+                        Write(pd.SetMethod);
+                    }
+                });
+                break;
+
             default:
-                throw new InvalidOperationException($"Unhandled expression kind '{expression.GetType().Name}' in {nameof(ExpressionWriter)}.Write");
+                throw new InvalidOperationException($"Unhandled semantic type '{semantic.GetType().Name}' in {nameof(SemanticWriter)}.Write");
+        }
+    }
+
+    private void WriteAccessAndModifiers(SymbolAccess access, SymbolModifier modifiers)
+    {
+        Write(access switch
+        {
+            SymbolAccess.Public => "public ",
+            SymbolAccess.Internal => "internal ",
+            SymbolAccess.Protected => "protected ",
+            SymbolAccess.ProtectedAndInternal => "protectedAndInternal ",
+            SymbolAccess.ProtectedOrInternal => "protectedOrInternal ",
+            _ => ""
+        });
+
+        if (modifiers != SymbolModifier.None)
+        {
+            if ((modifiers & SymbolModifier.Static) != 0)
+                Write("static ");
+
+            if ((modifiers & SymbolModifier.Abstract) != 0)
+                Write("abstract ");
+
+            if ((modifiers & SymbolModifier.Virtual) != 0)
+                Write("virtual ");
+
+            if ((modifiers & SymbolModifier.Sealed) != 0)
+                Write("sealed ");
+
+            if ((modifiers & SymbolModifier.ReadOnly) != 0)
+                Write("readonly ");
+
+            if ((modifiers & SymbolModifier.Special) != 0)
+                Write("special ");
+
+            if ((modifiers & SymbolModifier.HideBySig) != 0)
+                Write("hidden ");
         }
     }
 }

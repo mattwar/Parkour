@@ -2,10 +2,11 @@
 using Symbols;
 using Syntax;
 
-public sealed class ClassDeclaration : Declaration
+public sealed class ClassDeclaration : MemberDeclaration
 {
     public ImmutableList<Expression> BaseTypes { get; }
     public ImmutableList<Declaration> Declarations { get; }
+    public TypeSymbol? Symbol { get; }
 
     public ClassDeclaration(
         string name,
@@ -14,7 +15,8 @@ public sealed class ClassDeclaration : Declaration
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
         ImmutableList<Diagnostic>? diagnostics,
-        SyntaxElement? syntax)
+        SyntaxElement? syntax,
+        TypeSymbol? symbol)
     : base(
           declarations != null ? CombineState(declarations) : ContainsState.None,
           name,
@@ -25,6 +27,7 @@ public sealed class ClassDeclaration : Declaration
     {
         this.BaseTypes = baseTypes;
         this.Declarations = declarations ?? ImmutableList<Declaration>.Empty;
+        this.Symbol = symbol;
     }
 }
 

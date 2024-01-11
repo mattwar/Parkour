@@ -27,6 +27,24 @@ public sealed class PropertySymbol : MemberSymbol
         }
     }
 
+    private Func<PropertySymbol, FieldSymbol>? _fnBackingField;
+    private FieldSymbol? _backingField;
+
+    public FieldSymbol? BackingField
+    {
+        get
+        {
+            if (_backingField == null && _fnBackingField is { } fn)
+            {
+                _fnBackingField = null;
+                var tmp = fn(this);
+                Interlocked.CompareExchange(ref _backingField, tmp, null);
+            }
+
+            return _backingField;
+        }
+    }
+
     private Func<PropertySymbol, MethodSymbol>? _fnGetMethod;
     private MethodSymbol? _getMethod;
 
@@ -45,7 +63,7 @@ public sealed class PropertySymbol : MemberSymbol
         }
     }
 
-    private Func<PropertySymbol, MethodSymbol?>? _fnSetMethod;
+    private Func<PropertySymbol, MethodSymbol>? _fnSetMethod;
     private MethodSymbol? _setMethod;
 
     public MethodSymbol? SetMethod
@@ -66,44 +84,24 @@ public sealed class PropertySymbol : MemberSymbol
     public PropertyInfo? RuntimeProperty { get; }
 
     public PropertySymbol(
-        string name, 
-        TypeSymbol? declaringType, 
-        SymbolAccess access, 
-        SymbolModifier modifiers, 
-        Func<TypeSymbol> fnPropertyType, 
+        string name,
+        TypeSymbol? declaringType,
+        SymbolAccess access,
+        SymbolModifier modifiers,
+        Func<TypeSymbol> fnPropertyType,
+        Func<PropertySymbol, FieldSymbol>? fnBackingField,
         Func<PropertySymbol, MethodSymbol> fnGetMethod,
-        Func<PropertySymbol, MethodSymbol?> fnSetMethod,
+        Func<PropertySymbol, MethodSymbol>? fnSetMethod,
         PropertyInfo? runtimeProperty)
         : base(name)
     {
         DeclaringType = declaringType;
         Access = access;
         Modifiers = modifiers;
+        _fnBackingField = fnBackingField;
         _fnPropertyType = fnPropertyType;
         _fnGetMethod = fnGetMethod;
         _fnSetMethod = fnSetMethod;
         RuntimeProperty = runtimeProperty;
-    }
-
-    public PropertySymbol(
-        string name,
-        TypeSymbol? declaringType,
-        SymbolAccess access,
-        SymbolModifier modifiers,
-        TypeSymbol propertyType,
-        MethodSymbol getMethod,
-        MethodSymbol? setMethod,
-        PropertyInfo? runtimeProperty)
-        : this(
-              name,
-              declaringType,
-              access,
-              modifiers,
-              () => propertyType,
-              me => getMethod,
-              me => setMethod,
-              runtimeProperty
-              )
-    {
     }
 }
