@@ -1,4 +1,4 @@
-﻿namespace Parkour.Analysis;
+﻿namespace Parkour.Binding;
 using Symbols;
 
 public record struct BindingScope(ImmutableList<Symbol> Containers, ImmutableList<Symbol> Symbols)

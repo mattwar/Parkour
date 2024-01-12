@@ -38,6 +38,15 @@ public static class ParserFactory<TInput> where TInput : notnull
         Func<Func<TOutput>, Parser<TInput, TOutput>> fnRightParser) =>
         new LeftReduceParser<TInput, TOutput>(leftParser, fnRightParser, once: false);
 
+    public static Parser<TInput, TResult> Map<TOutput, TResult>(
+        Parser<TInput, TOutput> parser,
+        Func<TOutput, TResult> fnMapper,
+        string? term = null) =>
+        new SequenceParser<TInput, TResult>(
+            new Parser<TInput>[] { parser },
+            list => fnMapper((TOutput)list[0]),
+            term);
+
     public static Parser<TInput, TResult> Map<TOutput1, TOutput2, TResult>(
         Parser<TInput, TOutput1> parser1,
         Parser<TInput, TOutput2> parser2,

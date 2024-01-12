@@ -20,35 +20,39 @@ namespace Tiny
 
         public TinyParser()
         {
-            Parser<LexicalToken, SyntaxElement> ToToken(Parser<LexicalToken, LexicalToken> parser) =>
-                parser.Select(lt => (SyntaxElement)new SyntaxToken(lt));
+            Parser<LexicalToken, SyntaxToken> ToToken(Parser<LexicalToken, LexicalToken> parser) =>
+                parser.Select(lt => (SyntaxToken)new SyntaxToken(lt));
 
-            Parser<LexicalToken, SyntaxElement> Token(string text) =>
+            Parser<LexicalToken, SyntaxToken> Token(string text) =>
                 ToToken(Match(t => t.Text == text, $"'{text}'"));
 
-            Parser<LexicalToken, SyntaxElement> TokenKind(string kind) =>
+            Parser<LexicalToken, SyntaxToken> TokenKind(string kind) =>
                 ToToken(Match(t => t.Kind == kind, $"<{kind}>"));
 
-            var Identifier = TokenKind(TokenKinds.IdentifierToken);
-            var Number = TokenKind(TokenKinds.NumberToken);
-            var String = TokenKind(TokenKinds.StringToken);
+            var IdentifierToken = TokenKind(TinyTokenKinds.IdentifierToken);
+            var NumberToken = TokenKind(TinyTokenKinds.NumberToken);
+            var StringToken = TokenKind(TinyTokenKinds.StringToken);
 
-            Parser<LexicalToken, SyntaxElement>? expressionCore = null;
+            var Identifier = Map(IdentifierToken, token => (TinyExpression)new TinyIdentifier(token));
+            var StringLiteral = Map(StringToken, token => (TinyExpression)new TinyLiteralString(token));
+            var NumberLiteral = Map(NumberToken, token => (TinyExpression)new TinyLiteralNumber(token));
+
+            Parser<LexicalToken, TinyExpression>? expressionCore = null;
             var Expression =
                 Forward(() => expressionCore!, "<Expression>");
 
-            var RequiredCloseParen = Required(Token(TokenTexts.CloseParen), TinyFactory.MissingCloseParen);
+            var RequiredCloseParen = Required(Token(TinyTokenTexts.CloseParen), TinyFactory.MissingCloseParen);
 
             var ParenthesizeExpression =
                 Map(
-                    Token(TokenTexts.OpenParen), Expression, RequiredCloseParen,
+                    Token(TinyTokenTexts.OpenParen), Expression, RequiredCloseParen,
                     (open, expr, close) => TinyFactory.ParenthesizedExpression(open, expr, close));
 
             var Primitive =
                 First(
                     Identifier,
-                    Number,
-                    String,
+                    NumberLiteral,
+                    StringLiteral,
                     ParenthesizeExpression);
 
             var RequiredPrimitive =
@@ -56,7 +60,7 @@ namespace Tiny
 
             var Negative =
                 RightReduce(
-                    Token(TokenTexts.Dash), RequiredPrimitive,
+                    Token(TinyTokenTexts.Dash), RequiredPrimitive,
                     (dash, expr) => TinyFactory.Negate(dash, expr));
 
             var RequiredNegative =
@@ -65,9 +69,9 @@ namespace Tiny
             var Multiplicative =
                 Negative.LeftReduce(fnLeft =>
                     First(
-                        Map(Token(TokenTexts.Asterisk), RequiredNegative,
+                        Map(Token(TinyTokenTexts.Asterisk), RequiredNegative,
                             (op, right) => TinyFactory.Multiply(fnLeft(), op, right)),
-                        Map(Token(TokenTexts.Slash), RequiredNegative,
+                        Map(Token(TinyTokenTexts.Slash), RequiredNegative,
                             (op, right) => TinyFactory.Divide(fnLeft(), op, right))
                         ));
 
@@ -77,9 +81,9 @@ namespace Tiny
             var Additive =
                 Multiplicative.LeftReduce(fnLeft =>
                     First(
-                        Map(Token(TokenTexts.Plus), RequiredMultiplicative,
+                        Map(Token(TinyTokenTexts.Plus), RequiredMultiplicative,
                             (op, right) => TinyFactory.Add(fnLeft(), op, right)),
-                        Map(Token(TokenTexts.Dash), RequiredMultiplicative,
+                        Map(Token(TinyTokenTexts.Dash), RequiredMultiplicative,
                             (op, right) => TinyFactory.Subtract(fnLeft(), op, right))
                         ));
 
@@ -89,13 +93,13 @@ namespace Tiny
             var Inequality =
                 Additive.LeftReduce(fnLeft =>
                     First(
-                        Map(Token(TokenTexts.GreaterThan), RequiredAdditive,
+                        Map(Token(TinyTokenTexts.GreaterThan), RequiredAdditive,
                             (op, right) => TinyFactory.GreaterThan(fnLeft(), op, right)),
-                        Map(Token(TokenTexts.GreaterThanEqual), RequiredAdditive,
+                        Map(Token(TinyTokenTexts.GreaterThanEqual), RequiredAdditive,
                             (op, right) => TinyFactory.GreaterThanOrEqual(fnLeft(), op, right)),
-                        Map(Token(TokenTexts.LessThan), RequiredAdditive,
+                        Map(Token(TinyTokenTexts.LessThan), RequiredAdditive,
                             (op, right) => TinyFactory.LessThan(fnLeft(), op, right)),
-                        Map(Token(TokenTexts.LessThanEqual), RequiredAdditive,
+                        Map(Token(TinyTokenTexts.LessThanEqual), RequiredAdditive,
                             (op, right) => TinyFactory.LessThanOrEqual(fnLeft(), op, right))
                         ));
 
@@ -105,9 +109,9 @@ namespace Tiny
             var Equality =
                 Inequality.LeftReduce(fnLeft =>
                     First(
-                        Map(Token(TokenTexts.EqualEqual), RequiredInequality,
+                        Map(Token(TinyTokenTexts.EqualEqual), RequiredInequality,
                             (op, right) => TinyFactory.Equal(fnLeft(), op, right)),
-                        Map(Token(TokenTexts.NotEqual), RequiredInequality,
+                        Map(Token(TinyTokenTexts.NotEqual), RequiredInequality,
                             (op, right) => TinyFactory.NotEqual(fnLeft(), op, right))
                         ));
 
@@ -116,7 +120,7 @@ namespace Tiny
 
             var LogicalNot =
                 RightReduce(
-                    Token(TokenTexts.Not), RequiredEquality,
+                    Token(TinyTokenTexts.Not), RequiredEquality,
                     (not, exp) => TinyFactory.Not(not, exp));
 
             var RequiredLogicalNot =
@@ -125,9 +129,9 @@ namespace Tiny
             var Logical =
                 LogicalNot.LeftReduce(fnLeft =>
                     First(
-                        Map(Token(TokenTexts.And), RequiredLogicalNot,
+                        Map(Token(TinyTokenTexts.And), RequiredLogicalNot,
                             (op, right) => TinyFactory.And(fnLeft(), op, right)),
-                        Map(Token(TokenTexts.Or), RequiredLogicalNot,
+                        Map(Token(TinyTokenTexts.Or), RequiredLogicalNot,
                             (op, right) => TinyFactory.Or(fnLeft(), op, right))
                         ));
 
@@ -138,7 +142,7 @@ namespace Tiny
 
             var Root =
                 Map(Expression, Skipped,
-                    (expr, remainder) => TinyFactory.Root(expr, remainder));
+                    (expr, remainder) => (SyntaxElement)TinyFactory.Root(expr, remainder));
 
             _parser = Root;
         }

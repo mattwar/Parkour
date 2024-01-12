@@ -1,4 +1,4 @@
-﻿namespace Parkour.Diagnostics;
+﻿namespace Parkour;
 
 public class Diagnostic
 {
@@ -38,10 +38,12 @@ public class Diagnostic
 
         if (this.Location != null)
         {
-            message = $"({this.Location.LinePosition}, {this.Location.LinePosition.Offset}): ";
+            var linePosition = this.Location.Document.Text.GetLinePosition(this.Location.Start);
 
-            if (this.Location.Name.Length > 0)
-                message = $"{this.Location.Name}: {message}";
+            message = $"{linePosition}: ";
+
+            if (this.Location.Document.Name.Length > 0)
+                message = $"{this.Location.Document.Name}: {message}";
         }
 
         return message;

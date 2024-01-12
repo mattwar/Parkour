@@ -1,4 +1,4 @@
-﻿namespace Parkour.Diagnostics;
+﻿namespace Parkour;
 
 public readonly struct TextSpan
 {

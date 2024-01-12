@@ -1,11 +1,11 @@
 ﻿using System.Text;
-using Parkour.Analysis;
+using Parkour.Binding;
 
 namespace Parkour.Syntax;
 
 [System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class SyntaxElement
-    : ISourceLocation
+    : ISyntaxElement, ISourceLocation
 {
     /// <summary>
     /// The text displayed in the debugger for this element.
@@ -1011,16 +1011,14 @@ public abstract class SyntaxElement
     }
     #endregion
 
-    #region ISyntaxLocation
-    string ISourceLocation.Name => 
-        this.Tree?.Name ?? "";
+    #region ISourceLocation
+    ISourceDocument ISourceLocation.Document => 
+        ((ISyntaxTree)this).Document;
 
-    int ISourceLocation.Start => this.TextStart;
-    int ISourceLocation.Length => this.TextLength;
+    int ISourceLocation.Start => 
+        this.TextStart;
 
-    LinePosition ISourceLocation.LinePosition =>
-        this.Tree != null
-            ? this.Tree.Text.GetLinePosition(this.TextStart)
-            : default(LinePosition);
+    int ISourceLocation.Length => 
+        this.TextLength;
     #endregion
 }

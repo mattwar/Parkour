@@ -1,11 +1,11 @@
-﻿namespace Parkour.Diagnostics;
+﻿namespace Parkour;
 
 public interface ISourceLocation
 {
     /// <summary>
-    /// The name of the source (file name or other)
+    /// The source document
     /// </summary>
-    public string Name { get; }
+    public ISourceDocument Document { get; }
 
     /// <summary>
     /// The starting text position of the source location.
@@ -16,9 +16,4 @@ public interface ISourceLocation
     /// The length of the source location.
     /// </summary>
     public int Length { get; }
-
-    /// <summary>
-    /// The starting <see cref="Diagnostics.LinePosition"/>
-    /// </summary>
-    public LinePosition LinePosition { get; }
 }

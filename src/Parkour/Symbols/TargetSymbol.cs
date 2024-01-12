@@ -1,5 +1,5 @@
 ﻿namespace Parkour.Symbols;
-using Analysis;
+using Binding;
 
 public sealed class TargetSymbol : Symbol
 {

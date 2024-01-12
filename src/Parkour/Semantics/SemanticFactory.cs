@@ -1,5 +1,5 @@
 ﻿namespace Parkour.Semantics;
-using Analysis;
+using Binding;
 using Symbols;
 using Syntax;
 

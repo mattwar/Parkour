@@ -13,24 +13,24 @@ public class TinyTests
     public void TestLexer()
     {
         TestLexer("",
-            new LexicalToken(TokenKinds.EndOfTextToken, "", ""));
+            new LexicalToken(TinyTokenKinds.EndOfTextToken, "", ""));
 
         TestLexer("  ",
-            new LexicalToken(TokenKinds.EndOfTextToken, "  ", ""));
+            new LexicalToken(TinyTokenKinds.EndOfTextToken, "  ", ""));
 
         TestLexer("ABC",
-            new LexicalToken(TokenKinds.IdentifierToken, "", "ABC"),
-            new LexicalToken(TokenKinds.EndOfTextToken, "", ""));
+            new LexicalToken(TinyTokenKinds.IdentifierToken, "", "ABC"),
+            new LexicalToken(TinyTokenKinds.EndOfTextToken, "", ""));
 
         TestLexer("  ABC ",
-            new LexicalToken(TokenKinds.IdentifierToken, "  ", "ABC"),
-            new LexicalToken(TokenKinds.EndOfTextToken, " ", ""));
+            new LexicalToken(TinyTokenKinds.IdentifierToken, "  ", "ABC"),
+            new LexicalToken(TinyTokenKinds.EndOfTextToken, " ", ""));
 
         TestLexer("ABC + 123",
-            new LexicalToken(TokenKinds.IdentifierToken, "", "ABC"),
-            new LexicalToken(TokenKinds.PlusToken, " ", "+"),
-            new LexicalToken(TokenKinds.NumberToken, " ", "123"),
-            new LexicalToken(TokenKinds.EndOfTextToken, "", ""));
+            new LexicalToken(TinyTokenKinds.IdentifierToken, "", "ABC"),
+            new LexicalToken(TinyTokenKinds.PlusToken, " ", "+"),
+            new LexicalToken(TinyTokenKinds.NumberToken, " ", "123"),
+            new LexicalToken(TinyTokenKinds.EndOfTextToken, "", ""));
     }
 
     public void TestLexer(string tiny, params LexicalToken[] expectedTokens)
@@ -50,9 +50,9 @@ public class TinyTests
     [TestMethod]
     public void TestSyntax()
     {
-        TestSyntax("ABC", Root(IdentifierToken("ABC")));
-        TestSyntax("A + B", Root(Add(IdentifierToken("A"), PlusToken(), IdentifierToken("B"))));
-        TestSyntax("A * B + C", Root(Add(Multiply(IdentifierToken("A"), AsteriskToken(), IdentifierToken("B")), PlusToken(), IdentifierToken("C"))));
+        TestSyntax("ABC", Root(Identifier("ABC")));
+        TestSyntax("A + B", Root(Add(Identifier("A"), PlusToken(), Identifier("B"))));
+        TestSyntax("A * B + C", Root(Add(Multiply(Identifier("A"), AsteriskToken(), Identifier("B")), PlusToken(), Identifier("C"))));
     }
 
     public void TestSyntax(string text, SyntaxElement expected, bool trivia = false)

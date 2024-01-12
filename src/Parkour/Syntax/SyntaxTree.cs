@@ -1,9 +1,10 @@
-﻿using Parkour.Analysis;
+﻿using Parkour.Binding;
 
 namespace Parkour.Syntax;
 using Parsing;
 
 public partial class SyntaxTree
+    : ISyntaxTree, ISourceDocument
 {
     public string Name { get; }
     public string Text { get; }
@@ -52,9 +53,11 @@ public partial class SyntaxTree
             }
 
             var input = _tokens.AsSpan();
-            var nextParsers = _parser.GetNextParsers(
+            var nextParsers = new List<Parser<LexicalToken>>();
+            _parser.GetNextParsers(
                 input, tokenIndex,
-                (parser, afterMissing) => parser.Term != null && !afterMissing);
+                (parser, afterMissing) => parser.Term != null && !afterMissing,
+                nextParsers);
             terms.AddRange(nextParsers.Select(p => p.Term).ToHashSet()!);
         }
 
@@ -121,5 +124,10 @@ public partial class SyntaxTree
 
         return _diagnostics;
     }
+
+    #region ISyntaxTree
+    ISourceDocument ISyntaxTree.Document => this;
+    ISyntaxElement ISyntaxTree.Root => this.Root;
+    #endregion
 }
 

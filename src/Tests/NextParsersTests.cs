@@ -207,8 +207,13 @@ public class NextParsersTests
     private void Test(Parser<char> parser, string textWithMarker, string expectedNextTerms)
     {
         var (textWithoutMarker, position) = StripMarker(textWithMarker);
-        var parsers = parser.GetNextParsers(textWithoutMarker.AsSpan(), position, (p, afterMissing) => p.Term != null && !afterMissing);
-        var nextTerms = parsers.Select(p => p.Term ?? "").ToHashSet();
+        var nextParsers = new List<Parser<char>>();
+        parser.GetNextParsers(
+            textWithoutMarker.AsSpan(), 
+            position, 
+            (p, afterMissing) => p.Term != null && !afterMissing,
+            nextParsers);
+        var nextTerms = nextParsers.Select(p => p.Term ?? "").ToHashSet();
         var actualNextTerms = string.Join(", ", nextTerms.Select(t => $"'{t}'"));
         Assert.AreEqual(expectedNextTerms, actualNextTerms, "next terms");
     }

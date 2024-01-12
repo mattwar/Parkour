@@ -18,7 +18,7 @@ namespace Tiny
             var result = _parser.ParseInto(text, list);
 
             var remainingText = text.Substring(result.Length);
-            list.Add(new LexicalToken(TokenKinds.EndOfTextToken, remainingText, ""));
+            list.Add(new LexicalToken(TinyTokenKinds.EndOfTextToken, remainingText, ""));
 
             return list.ToArray();
         }
@@ -45,34 +45,34 @@ namespace Tiny
             var token =
                 trivia.Apply(fnTrivia =>
                     Best(
-                        numericLiteral.Select(num => new LexicalToken(TokenKinds.NumberToken, fnTrivia(), num)),
-                        identifier.Select(id => new LexicalToken(TokenKinds.IdentifierToken, fnTrivia(), id)),
-                        stringLiteral.Select(str => new LexicalToken(TokenKinds.StringToken, fnTrivia(), str)),
+                        numericLiteral.Select(num => new LexicalToken(TinyTokenKinds.NumberToken, fnTrivia(), num)),
+                        identifier.Select(id => new LexicalToken(TinyTokenKinds.IdentifierToken, fnTrivia(), id)),
+                        stringLiteral.Select(str => new LexicalToken(TinyTokenKinds.StringToken, fnTrivia(), str)),
 
                         Switch(builder => builder
-                            .Case(TokenTexts.OpenParen, tx => new LexicalToken(TokenKinds.OpenParenToken, fnTrivia(), tx))
-                            .Case(TokenTexts.CloseParen, tx => new LexicalToken(TokenKinds.CloseParenToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Plus, tx => new LexicalToken(TokenKinds.PlusToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Dash, tx => new LexicalToken(TokenKinds.DashToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Asterisk, tx => new LexicalToken(TokenKinds.AsteriskToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Slash, tx => new LexicalToken(TokenKinds.SlashToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Equal, tx => new LexicalToken(TokenKinds.EqualToken, fnTrivia(), tx))
-                            .Case(TokenTexts.EqualEqual, tx => new LexicalToken(TokenKinds.EqualEqualToken, fnTrivia(), tx))
-                            .Case(TokenTexts.NotEqual, tx => new LexicalToken(TokenKinds.NotEqualToken, fnTrivia(), tx))
-                            .Case(TokenTexts.GreaterThan, tx => new LexicalToken(TokenKinds.GreaterThanToken, fnTrivia(), tx))
-                            .Case(TokenTexts.GreaterThanEqual, tx => new LexicalToken(TokenKinds.GreaterThanEqualToken, fnTrivia(), tx))
-                            .Case(TokenTexts.LessThan, tx => new LexicalToken(TokenKinds.LessThanToken, fnTrivia(), tx))
-                            .Case(TokenTexts.LessThanEqual, tx => new LexicalToken(TokenKinds.LessThanEqualToken, fnTrivia(), tx))
-                            .Case(TokenTexts.And, tx => new LexicalToken(TokenKinds.AndToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Not, tx => new LexicalToken(TokenKinds.NotToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Or, tx => new LexicalToken(TokenKinds.OrToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Let, tx => new LexicalToken(TokenKinds.LetToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Colon, tx => new LexicalToken(TokenKinds.ColonToken, fnTrivia(), tx))
-                            .Case(TokenTexts.Comma, tx => new LexicalToken(TokenKinds.CommaToken, fnTrivia(), tx))
-                            .Case(TokenTexts.QuestionMark, tx => new LexicalToken(TokenKinds.QuestionMarkToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.OpenParen, tx => new LexicalToken(TinyTokenKinds.OpenParenToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.CloseParen, tx => new LexicalToken(TinyTokenKinds.CloseParenToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Plus, tx => new LexicalToken(TinyTokenKinds.PlusToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Dash, tx => new LexicalToken(TinyTokenKinds.DashToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Asterisk, tx => new LexicalToken(TinyTokenKinds.AsteriskToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Slash, tx => new LexicalToken(TinyTokenKinds.SlashToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Equal, tx => new LexicalToken(TinyTokenKinds.EqualToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.EqualEqual, tx => new LexicalToken(TinyTokenKinds.EqualEqualToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.NotEqual, tx => new LexicalToken(TinyTokenKinds.NotEqualToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.GreaterThan, tx => new LexicalToken(TinyTokenKinds.GreaterThanToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.GreaterThanEqual, tx => new LexicalToken(TinyTokenKinds.GreaterThanEqualToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.LessThan, tx => new LexicalToken(TinyTokenKinds.LessThanToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.LessThanEqual, tx => new LexicalToken(TinyTokenKinds.LessThanEqualToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.And, tx => new LexicalToken(TinyTokenKinds.AndToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Not, tx => new LexicalToken(TinyTokenKinds.NotToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Or, tx => new LexicalToken(TinyTokenKinds.OrToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Let, tx => new LexicalToken(TinyTokenKinds.LetToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Colon, tx => new LexicalToken(TinyTokenKinds.ColonToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.Comma, tx => new LexicalToken(TinyTokenKinds.CommaToken, fnTrivia(), tx))
+                            .Case(TinyTokenTexts.QuestionMark, tx => new LexicalToken(TinyTokenKinds.QuestionMarkToken, fnTrivia(), tx))
                             ),
 
-                        Any.Select(ch => new LexicalToken(TokenKinds.UnknownToken, fnTrivia(), ch.ToString()))
+                        Any.Select(ch => new LexicalToken(TinyTokenKinds.UnknownToken, fnTrivia(), ch.ToString()))
                         ));
 
             _parser = token.ZeroOrMore();

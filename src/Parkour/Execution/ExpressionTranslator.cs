@@ -2,7 +2,7 @@
 using System.Reflection;
 
 namespace Parkour.Execution;
-using Analysis;
+using Binding;
 using Semantics;
 using Symbols;
 

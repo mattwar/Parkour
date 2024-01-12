@@ -1,4 +1,4 @@
-﻿namespace Parkour.Diagnostics;
+﻿namespace Parkour;
 
 public readonly struct LinePosition
 {
@@ -22,4 +22,7 @@ public readonly struct LinePosition
         this.Line = line;
         this.Offset = offset;
     }
+
+    public override string ToString() =>
+        $"({Line}, {Offset})";
 }

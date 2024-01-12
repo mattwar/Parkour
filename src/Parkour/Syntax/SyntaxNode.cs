@@ -3,69 +3,16 @@
 /// <summary>
 /// A non-terminal synatx element that contains zero or more child elements.
 /// </summary>
-public abstract class SyntaxNode : SyntaxElement 
+public abstract class SyntaxNode 
+    : SyntaxElement, ISyntaxNode
 {
     protected SyntaxNode(string kind, Diagnostic? diagnostic)
         : base(kind, diagnostic)
     {
     }
-}
 
-/// <summary>
-/// A <see cref="SyntaxNode"/> that represents an arbitrary list of <see cref="SyntaxElement"/>
-/// </summary>
-public class SyntaxList : SyntaxNode
-{
-    public IReadOnlyList<SyntaxElement?> Elements { get; }
-    public override int Length { get; }
-
-    public SyntaxList(string kind, IReadOnlyList<SyntaxElement?> elements, Diagnostic? diagnostic = null)
-        : base(kind, diagnostic)
-    {
-        int offsetInParent = 0;
-
-        var newElements = new List<SyntaxElement?>(elements.Count);
-        var length = 0;
-
-        for (int index = 0; index < elements.Count; index++)
-        {
-            var element = elements[index];
-            if (element != null)
-            {
-                element.SetParent(this, offsetInParent, index);
-                offsetInParent += element.Length;
-                newElements.Add(element);
-                length += element.Length;
-            }
-            else
-            {
-                newElements.Add(null);
-            }
-        }
-
-        this.Length = length;
-        this.Elements = newElements.AsReadOnly();
-    }
-
-    public SyntaxList(string kind, IEnumerable<SyntaxElement?> elements)
-        : this(kind, elements.ToArray())
-    {
-    }
-
-    public SyntaxList(string kind, params SyntaxElement?[] elements)
-        : this(kind, (IReadOnlyList<SyntaxElement?>)elements)
-    {
-    }
-
-    public override int ChildCount => this.Elements.Count;
-    public override SyntaxElement? GetChild(int index) => this.Elements[index];
-
-    /// <summary>
-    /// Creates a new <see cref="SyntaxList"/> with the specified elements if they are different
-    /// than the this list's elements.
-    /// </summary>
-    public SyntaxList Update(IReadOnlyList<SyntaxElement?> elements)
-    {
-        return Elements == elements ? this : new SyntaxList(Kind, elements);
-    }
+    #region ISyntaxNode
+    ISyntaxElement? ISyntaxNode.GetChild(int index) =>
+        GetChild(index);
+    #endregion
 }

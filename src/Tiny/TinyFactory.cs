@@ -1,168 +1,189 @@
 ﻿using Parkour;
-using Parkour.Diagnostics;
 using Parkour.Syntax;
 
 namespace Tiny
 {
     public static class TinyFactory
     {
-        public static SyntaxElement IdentifierToken(string trivia, string text) =>
-            new SyntaxToken(TokenKinds.IdentifierToken, trivia, text);
+        public static SyntaxToken IdentifierToken(string trivia, string text) =>
+            new SyntaxToken(TinyTokenKinds.IdentifierToken, trivia, text);
 
-        public static SyntaxElement IdentifierToken(string text) =>
+        public static SyntaxToken IdentifierToken(string text) =>
             IdentifierToken("", text);
 
-        public static SyntaxElement NumberToken(string trivia, string text) =>
-            new SyntaxToken(TokenKinds.NumberToken, trivia, text);
+        public static SyntaxToken NumberToken(string trivia, string text) =>
+            new SyntaxToken(TinyTokenKinds.NumberToken, trivia, text);
 
-        public static SyntaxElement NumberToken(string text) =>
+        public static SyntaxToken NumberToken(string text) =>
             NumberToken("", text);
 
-        public static SyntaxElement StringToken(string trivia, string text) =>
-            new SyntaxToken(TokenKinds.StringToken, trivia, text);
+        public static SyntaxToken StringToken(string trivia, string text) =>
+            new SyntaxToken(TinyTokenKinds.StringToken, trivia, text);
 
-        public static SyntaxElement StringToken(string text) =>
+        public static SyntaxToken StringToken(string text) =>
             StringToken("", text);
 
-        public static SyntaxElement PlusToken(string trivia, string text = TokenTexts.Plus) =>
-            new SyntaxToken(TokenKinds.PlusToken, trivia, text);
+        public static SyntaxToken PlusToken(string trivia, string text = TinyTokenTexts.Plus) =>
+            new SyntaxToken(TinyTokenKinds.PlusToken, trivia, text);
 
-        public static SyntaxElement PlusToken(string text = TokenTexts.Plus) =>
+        public static SyntaxToken PlusToken(string text = TinyTokenTexts.Plus) =>
             PlusToken("", text);
 
-        public static SyntaxElement DashToken(string trivia, string text = TokenTexts.Dash) =>
-            new SyntaxToken(TokenKinds.DashToken, trivia, text);
+        public static SyntaxToken DashToken(string trivia, string text = TinyTokenTexts.Dash) =>
+            new SyntaxToken(TinyTokenKinds.DashToken, trivia, text);
 
-        public static SyntaxElement DashToken(string text = TokenTexts.Dash) =>
+        public static SyntaxToken DashToken(string text = TinyTokenTexts.Dash) =>
             DashToken("", text);
 
-        public static SyntaxElement AsteriskToken(string trivia, string text = TokenTexts.Asterisk) =>
-            new SyntaxToken(TokenKinds.AsteriskToken, trivia, text);
+        public static SyntaxToken AsteriskToken(string trivia, string text = TinyTokenTexts.Asterisk) =>
+            new SyntaxToken(TinyTokenKinds.AsteriskToken, trivia, text);
 
-        public static SyntaxElement AsteriskToken(string text = TokenTexts.Asterisk) =>
+        public static SyntaxToken AsteriskToken(string text = TinyTokenTexts.Asterisk) =>
             AsteriskToken("", text);
 
-        public static SyntaxElement SlashToken(string trivia, string text = TokenTexts.Slash) =>
-            new SyntaxToken(TokenKinds.SlashToken, trivia, text);
+        public static SyntaxToken SlashToken(string trivia, string text = TinyTokenTexts.Slash) =>
+            new SyntaxToken(TinyTokenKinds.SlashToken, trivia, text);
 
-        public static SyntaxElement SlashToken(string text = TokenTexts.Slash) =>
+        public static SyntaxToken SlashToken(string text = TinyTokenTexts.Slash) =>
             SlashToken("", text);
 
-        public static SyntaxElement EqualEqualToken(string trivia, string text = TokenTexts.EqualEqual) =>
-            new SyntaxToken(TokenKinds.EqualEqualToken, trivia, text);
+        public static SyntaxToken EqualEqualToken(string trivia, string text = TinyTokenTexts.EqualEqual) =>
+            new SyntaxToken(TinyTokenKinds.EqualEqualToken, trivia, text);
 
-        public static SyntaxElement EqualEqualToken(string text = TokenTexts.EqualEqual) =>
+        public static SyntaxToken EqualEqualToken(string text = TinyTokenTexts.EqualEqual) =>
             EqualEqualToken("", text);
 
-        public static SyntaxElement NotEqualToken(string trivia, string text = TokenTexts.NotEqual) =>
-            new SyntaxToken(TokenKinds.NotEqualToken, trivia, text);
+        public static SyntaxToken NotEqualToken(string trivia, string text = TinyTokenTexts.NotEqual) =>
+            new SyntaxToken(TinyTokenKinds.NotEqualToken, trivia, text);
 
-        public static SyntaxElement NotEqualToken(string text = TokenTexts.NotEqual) =>
+        public static SyntaxToken NotEqualToken(string text = TinyTokenTexts.NotEqual) =>
             NotEqualToken("", text);
 
-        public static SyntaxElement LessThanToken(string trivia, string text = TokenTexts.LessThan) =>
-            new SyntaxToken(TokenKinds.LessThanToken, trivia, text);
+        public static SyntaxToken LessThanToken(string trivia, string text = TinyTokenTexts.LessThan) =>
+            new SyntaxToken(TinyTokenKinds.LessThanToken, trivia, text);
 
-        public static SyntaxElement LessThanToken(string text = TokenTexts.LessThan) =>
+        public static SyntaxToken LessThanToken(string text = TinyTokenTexts.LessThan) =>
             LessThanToken("", text);
 
-        public static SyntaxElement LessThanOrEqualToken(string trivia, string text = TokenTexts.LessThanEqual) =>
-            new SyntaxToken(TokenKinds.LessThanEqualToken, trivia, text);
+        public static SyntaxToken LessThanOrEqualToken(string trivia, string text = TinyTokenTexts.LessThanEqual) =>
+            new SyntaxToken(TinyTokenKinds.LessThanEqualToken, trivia, text);
 
-        public static SyntaxElement LessThanOrEqualToken(string text = TokenTexts.LessThanEqual) =>
+        public static SyntaxToken LessThanOrEqualToken(string text = TinyTokenTexts.LessThanEqual) =>
             LessThanToken("", text);
 
-        public static SyntaxElement GreaterThanToken(string trivia, string text = TokenTexts.GreaterThan) =>
-            new SyntaxToken(TokenKinds.GreaterThanToken, trivia, text);
+        public static SyntaxToken GreaterThanToken(string trivia, string text = TinyTokenTexts.GreaterThan) =>
+            new SyntaxToken(TinyTokenKinds.GreaterThanToken, trivia, text);
 
-        public static SyntaxElement GreaterThanToken(string text = TokenTexts.LessThan) =>
+        public static SyntaxToken GreaterThanToken(string text = TinyTokenTexts.LessThan) =>
             GreaterThanToken("", text);
 
-        public static SyntaxElement GreaterThanOrEqualToken(string trivia, string text = TokenTexts.GreaterThanEqual) =>
-            new SyntaxToken(TokenKinds.GreaterThanEqualToken, trivia, text);
+        public static SyntaxToken GreaterThanOrEqualToken(string trivia, string text = TinyTokenTexts.GreaterThanEqual) =>
+            new SyntaxToken(TinyTokenKinds.GreaterThanEqualToken, trivia, text);
 
-        public static SyntaxElement GreaterThanOrEqualToken(string text = TokenTexts.GreaterThanEqual) =>
+        public static SyntaxToken GreaterThanOrEqualToken(string text = TinyTokenTexts.GreaterThanEqual) =>
             GreaterThanToken("", text);
 
-        public static SyntaxElement AndToken(string trivia, string text = TokenTexts.And) =>
-            new SyntaxToken(TokenKinds.AndToken, trivia, text);
+        public static SyntaxToken AndToken(string trivia, string text = TinyTokenTexts.And) =>
+            new SyntaxToken(TinyTokenKinds.AndToken, trivia, text);
 
-        public static SyntaxElement AndToken(string text = TokenTexts.And) =>
+        public static SyntaxToken AndToken(string text = TinyTokenTexts.And) =>
             AndToken("", text);
 
-        public static SyntaxElement OrToken(string trivia, string text = TokenTexts.Or) =>
-            new SyntaxToken(TokenKinds.OrToken, trivia, text);
+        public static SyntaxToken OrToken(string trivia, string text = TinyTokenTexts.Or) =>
+            new SyntaxToken(TinyTokenKinds.OrToken, trivia, text);
 
-        public static SyntaxElement OrToken(string text = TokenTexts.Or) =>
+        public static SyntaxToken OrToken(string text = TinyTokenTexts.Or) =>
             OrToken("", text);
 
-        public static SyntaxElement NotToken(string trivia, string text = TokenTexts.Not) =>
-            new SyntaxToken(TokenKinds.NotToken, trivia, text);
+        public static SyntaxToken NotToken(string trivia, string text = TinyTokenTexts.Not) =>
+            new SyntaxToken(TinyTokenKinds.NotToken, trivia, text);
 
-        public static SyntaxElement NotToken(string text = TokenTexts.Not) =>
+        public static SyntaxToken NotToken(string text = TinyTokenTexts.Not) =>
             NotToken("", text);
 
-        public static SyntaxElement EndOfTextToken(string trivia = "") =>
-            new SyntaxToken(TokenKinds.EndOfTextToken, trivia, "");
+        public static SyntaxToken EndOfTextToken(string trivia = "") =>
+            new SyntaxToken(TinyTokenKinds.EndOfTextToken, trivia, "");
 
-        public static SyntaxElement Add(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.Add, new[] { left, op, right });
 
-        public static SyntaxElement Subtract(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.Subtract, new[] { left, op, right });
 
-        public static SyntaxElement Multiply(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.Multiply, new[] { left, op, right });
+        public static TinyExpression Identifier(SyntaxToken token) =>
+            new TinyIdentifier(token);
 
-        public static SyntaxElement Divide(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.Divide, new[] { left, op, right });
+        public static TinyExpression Identifier(string name) =>
+            Identifier(IdentifierToken(name));
 
-        public static SyntaxElement Equal(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.Equal, new[] { left, op, right });
+        public static TinyExpression LiteralString(SyntaxToken token) =>
+            new TinyLiteralString(token);
 
-        public static SyntaxElement NotEqual(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.NotEqual, new[] { left, op, right });
+        public static TinyExpression LiteralString(string text) =>
+            LiteralString(StringToken(text));
 
-        public static SyntaxElement LessThan(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.LessThan, new[] { left, op, right });
+        public static TinyExpression LiteralNumber(SyntaxToken token) =>
+            new TinyLiteralNumber(token);
 
-        public static SyntaxElement LessThanOrEqual(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.LessThanOrEqual, new[] { left, op, right });
+        public static TinyExpression LiteralNumber(string text) =>
+            LiteralNumber(NumberToken(text));
 
-        public static SyntaxElement GreaterThan(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.GreaterThan, new[] { left, op, right });
+        public static TinyExpression Add(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.Add, left, op, right);
 
-        public static SyntaxElement GreaterThanOrEqual(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.GreaterThanOrEqual, new[] { left, op, right });
+        public static TinyExpression Subtract(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.Subtract, left, op, right);
 
-        public static SyntaxElement And(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.And, new[] { left, op, right });
+        public static TinyExpression Multiply(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.Multiply, left, op, right);
 
-        public static SyntaxElement Or(SyntaxElement left, SyntaxElement op, SyntaxElement right) =>
-            new SyntaxList(NodeKinds.Or, new[] { left, op, right });
+        public static TinyExpression Divide(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.Divide, left, op, right);
 
-        public static SyntaxElement Not(SyntaxElement not, SyntaxElement operand) =>
-            new SyntaxList(NodeKinds.Not, new[] { not, operand });
+        public static TinyExpression Equal(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.Equal, left, op, right);
 
-        public static SyntaxElement Negate(SyntaxElement negation, SyntaxElement operand) =>
-            new SyntaxList(NodeKinds.Negate, new[] { negation, operand });
+        public static TinyExpression NotEqual(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.NotEqual, left, op, right);
 
-        public static SyntaxElement ParenthesizedExpression(SyntaxElement open, SyntaxElement expression, SyntaxElement close) =>
-            new SyntaxList(NodeKinds.ParenthesizedExpression, new[] { open, expression, close });
+        public static TinyExpression LessThan(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.LessThan, left, op, right);
 
-        public static SyntaxElement Skipped(IEnumerable<SyntaxElement> skipped) =>
-            new SyntaxList(NodeKinds.Skipped, skipped);
+        public static TinyExpression LessThanOrEqual(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.LessThanOrEqual, left, op, right);
 
-        public static SyntaxElement Skipped(params SyntaxElement[] skipped) =>
-            Skipped((IEnumerable<SyntaxElement>)skipped);
+        public static TinyExpression GreaterThan(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.GreaterThan, left, op, right);
 
-        public static SyntaxElement Root(SyntaxElement expression, SyntaxElement? remainder = null) =>
-            new SyntaxList(NodeKinds.Root, expression, remainder ?? Skipped(EndOfTextToken("")));
+        public static TinyExpression GreaterThanOrEqual(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.GreaterThanOrEqual, left, op, right);
 
-        public static SyntaxElement MissingExpression() =>
-            new SyntaxToken(TokenKinds.IdentifierToken, "", "", new Diagnostic("Expression expected"));
+        public static TinyExpression And(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.And, left, op, right);
 
-        public static SyntaxElement MissingCloseParen() =>
-            new SyntaxToken(TokenKinds.CloseParenToken, "", "", new Diagnostic("Missing )"));
+        public static TinyExpression Or(TinyExpression left, SyntaxToken op, TinyExpression right) =>
+            new TinyBinary(TinyNodeKinds.Or, left, op, right);
+
+        public static TinyExpression Not(SyntaxToken not, TinyExpression operand) =>
+            new TinyPrefixUnary(TinyNodeKinds.Not, not, operand);
+
+        public static TinyExpression Negate(SyntaxToken negation, TinyExpression operand) =>
+            new TinyPrefixUnary(TinyNodeKinds.Negate, negation, operand);
+
+        public static TinyExpression ParenthesizedExpression(SyntaxToken open, TinyExpression expression, SyntaxToken close) =>
+            new TinyParentheses(open, expression, close);
+
+        public static TinySkipped Skipped(IReadOnlyList<SyntaxElement> skipped) =>
+            new TinySkipped(skipped);
+
+        public static TinySkipped Skipped(params SyntaxElement[] skipped) =>
+            Skipped((IReadOnlyList<SyntaxElement>)skipped);
+
+        public static TinyRoot Root(TinyExpression expression, TinySkipped? skipped = null) =>
+            new TinyRoot(expression, skipped ?? Skipped(EndOfTextToken("")));
+
+        public static TinyExpression MissingExpression() =>
+            new TinyIdentifier(
+                new SyntaxToken(TinyTokenKinds.IdentifierToken, "", ""), 
+                new Diagnostic("Expression expected"));
+
+        public static SyntaxToken MissingCloseParen() =>
+            new SyntaxToken(TinyTokenKinds.CloseParenToken, "", "", new Diagnostic("Missing )"));
     }
 }

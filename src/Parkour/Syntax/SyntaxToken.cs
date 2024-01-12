@@ -3,7 +3,8 @@
 /// <summary>
 /// A <see cref="SyntaxElement"/> that represents a single/terminal lexigraphical element.
 /// </summary>
-public class SyntaxToken : SyntaxElement
+public class SyntaxToken 
+    : SyntaxElement, ISyntaxToken
 {
     /// <summary>
     /// The trivia text between the previous token and this token.

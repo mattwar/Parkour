@@ -1,6 +1,6 @@
 ﻿using Parkour;
 using Parkour.Semantics;
-using Parkour.Analysis;
+using Parkour.Binding;
 using Parkour.Symbols;
 using static Parkour.Semantics.SemanticFactory;
 

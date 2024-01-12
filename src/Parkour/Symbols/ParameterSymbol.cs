@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 
 namespace Parkour.Symbols;
-using Analysis;
+using Binding;
 
 public sealed class ParameterSymbol : Symbol
 {

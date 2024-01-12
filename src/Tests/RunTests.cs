@@ -1,5 +1,5 @@
 using Parkour;
-using Parkour.Analysis;
+using Parkour.Binding;
 using Parkour.Symbols;
 using Parkour.Semantics;
 using Parkour.Execution;

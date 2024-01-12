@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace Parkour.Analysis;
+namespace Parkour.Binding;
 using Symbols;
 
 public class RuntimeSymbols

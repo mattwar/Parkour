@@ -1,4 +1,4 @@
-﻿namespace Parkour.Analysis;
+﻿namespace Parkour.Binding;
 using Symbols;
 using System.Runtime.CompilerServices;
 

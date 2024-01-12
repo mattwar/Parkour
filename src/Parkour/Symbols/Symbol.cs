@@ -2,6 +2,7 @@
 
 [System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class Symbol
+    : ISymbol
 {
     private string DebugText => $"{GetType().Name}: {Name}";
 
@@ -36,7 +37,6 @@ public abstract class Symbol
 
     public virtual void GetMembers(string name, List<Symbol> symbols) =>
         GetMembers(name, 0, name.Length, null, symbols);
-
 
     public virtual TSymbol? GetFirstMember<TSymbol>(Func<TSymbol, bool> fnMatch)
         where TSymbol : Symbol
