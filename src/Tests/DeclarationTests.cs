@@ -1,8 +1,8 @@
 ﻿using Parkour;
-using Parkour.Expressions;
+using Parkour.Semantics;
 using Parkour.Analysis;
 using Parkour.Symbols;
-using static Parkour.Expressions.SemanticFactory;
+using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;
 
@@ -37,8 +37,29 @@ public class DeclarationTests
     {
         TestBind(
             [Class("C",
-                [Method("M", [], Path(Reference("System"), "Int32"), Void())])],
+                [Method("M", [], Reference("System.Int32"), Void())])],
             ["C", "C.M"]);
+    }
+
+    [TestMethod]
+    public void TestBindFieldInClass()
+    {
+        TestBind([
+            Class("C", [
+                Method("M", [], Reference("System.Int32"), Void())
+                ])
+            ],
+            ["C", "C.M"]);
+    }
+
+    [TestMethod]
+    public void TestBindPropertyInClass()
+    {
+        TestBind(
+            [Class("C",
+                [Property("P", Reference("System.Int32"))])
+                ],
+            ["C", "C.P"]);
     }
 
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)

@@ -3,9 +3,15 @@ using Parkour.Analysis;
 
 namespace Parkour.Syntax;
 
-//[System.Diagnostics.DebuggerDisplay("{Kind}: {DebugText}")]
+[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class SyntaxElement
+    : ISourceLocation
 {
+    /// <summary>
+    /// The text displayed in the debugger for this element.
+    /// </summary>
+    private string DebugText => $"{GetType().Name}: {Kind}: {ToString(0, 20)}";
+
     /// <summary>
     /// Either the parent <see cref="SyntaxNode"/> or containing <see cref="SyntaxTree"/>
     /// </summary>
@@ -247,11 +253,6 @@ public abstract class SyntaxElement
 
         return builder.ToString();
     }
-
-    /// <summary>
-    /// The text displayed in the debugger for this element.
-    /// </summary>
-    private string DebugText => ToString(TriviaLength, 80);
 
     #region Navigation
 
@@ -1008,6 +1009,18 @@ public abstract class SyntaxElement
 
         return parent;
     }
+    #endregion
 
+    #region ISyntaxLocation
+    string ISourceLocation.Name => 
+        this.Tree?.Name ?? "";
+
+    int ISourceLocation.Start => this.TextStart;
+    int ISourceLocation.Length => this.TextLength;
+
+    LinePosition ISourceLocation.LinePosition =>
+        this.Tree != null
+            ? this.Tree.Text.GetLinePosition(this.TextStart)
+            : default(LinePosition);
     #endregion
 }

@@ -1,7 +1,10 @@
 ﻿namespace Parkour.Symbols;
 
+[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class Symbol
 {
+    private string DebugText => $"{GetType().Name}: {Name}";
+
     public string Name { get; }
     public virtual ImmutableList<Symbol> Members => ImmutableList<Symbol>.Empty;
 

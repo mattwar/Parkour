@@ -1,8 +1,8 @@
 ﻿using Parkour;
-using Parkour.Expressions;
+using Parkour.Semantics;
 using Parkour.Analysis;
 using Parkour.Symbols;
-using static Parkour.Expressions.SemanticFactory;
+using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;
 

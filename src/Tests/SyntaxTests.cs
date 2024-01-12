@@ -51,7 +51,7 @@ public class SyntaxTests
     {
         var (textWithoutMarker, markerPosition) = StripMarker(textWithMarker);
         var parser = new TinyParser();
-        var syntax = parser.Parse(textWithoutMarker);
+        var syntax = parser.Parse("test", textWithoutMarker);
         var actualTerms = syntax.GetNextTermsAt(markerPosition);
 
         var expectedList = string.Join(", ", expectedTerms);

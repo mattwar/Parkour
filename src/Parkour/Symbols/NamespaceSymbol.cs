@@ -85,6 +85,9 @@ public class NamespaceSymbol : MemberSymbol
 
     private static readonly char[] _namePathSplitChars = new[] { '.', '+' };
 
+    public static bool IsDottedPath(string path) =>
+        path.IndexOfAny(_namePathSplitChars) > 0;
+
     /// <summary>
     /// Gets all the symbols that can be reached with the specified dotted name.
     /// Typically this returns 1 or 0, but may return more if there are multiple symbols with the same name.

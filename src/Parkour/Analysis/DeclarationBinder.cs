@@ -1,6 +1,6 @@
 ﻿namespace Parkour.Analysis;
 
-using Expressions;
+using Semantics;
 using Symbols;
 
 public class DeclarationBinder
@@ -53,37 +53,13 @@ public class DeclarationBinder
         var declarationNamespaceMembers = declarationNamespace!.Members;
 
         // resolve all declared symbols which creates symbol<->declaration maps
-        ResolveDeclarationSymbols(declarationNamespace);
+        declarationNamespace.Walk(s => { });
 
         return new DeclarationBinding(
             this,
             _scope,
             combinedGlobalNamespace,
             declarations.ToImmutableList());
-    }
-
-    /// <summary>
-    /// Walk symbol members/children to force constructon map table of declaration-to-symbol map
-    /// </summary>
-    private void ResolveDeclarationSymbols(Symbol? symbol)
-    {
-        if (symbol == null)
-            return;
-
-        switch (symbol)
-        {
-            case PropertySymbol p:
-                ResolveDeclarationSymbols(p.GetMethod);
-                ResolveDeclarationSymbols(p.SetMethod);
-                break;
-
-            default:
-                foreach (var member in symbol.Members)
-                {
-                    ResolveDeclarationSymbols(member);
-                }
-                break;
-        }
     }
 
     private Dictionary<Declaration, Symbol> _declToSymbolMap = 
@@ -318,9 +294,9 @@ public class DeclarationBinder
             fd.Modifiers,
             fieldType,
             initializer,
-            fd.Diagnostics,
-            fd.Syntax,
-            symbol
+            fd.Location,
+            symbol,
+            fd.Diagnostics
             );
     }
 
@@ -352,9 +328,9 @@ public class DeclarationBinder
             backingField,
             getMethod,
             setMethod,
-            pd.Diagnostics,
-            pd.Syntax,
-            symbol
+            pd.Location,
+            symbol,
+            pd.Diagnostics
             );
     }
 
@@ -367,9 +343,9 @@ public class DeclarationBinder
         return new ParameterDeclaration(
             pd.Name,
             parameterType,
-            pd.Diagnostics,
-            pd.Syntax,
-            symbol
+            pd.Location,
+            symbol,
+            pd.Diagnostics
             );
     }
 
@@ -391,9 +367,9 @@ public class DeclarationBinder
             parameters,
             body,
             returnType,
-            md.Diagnostics,
-            md.Syntax,
-            symbol
+            md.Location,
+            symbol,
+            md.Diagnostics
             );
     }
 
@@ -414,9 +390,9 @@ public class DeclarationBinder
             cd.Modifiers,
             baseTypes,
             declarations,
-            cd.Diagnostics,
-            cd.Syntax,
-            symbol
+            cd.Location,
+            symbol,
+            cd.Diagnostics
             );
     }
 
@@ -431,9 +407,9 @@ public class DeclarationBinder
         return new NamespaceDeclaration(
             nd.Name,
             declarations,
-            nd.Diagnostics,
-            nd.Syntax,
-            symbol
+            nd.Location,
+            symbol,
+            nd.Diagnostics
             );
     }
 }

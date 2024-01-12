@@ -57,7 +57,7 @@ public class TinyTests
 
     public void TestSyntax(string text, SyntaxElement expected, bool trivia = false)
     {
-        var syntax = new TinyParser().Parse(text);
+        var syntax = new TinyParser().Parse("test", text);
         var root = syntax.Root;
         var kind = root.Kind;
 

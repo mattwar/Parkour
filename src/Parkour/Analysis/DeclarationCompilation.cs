@@ -1,6 +1,6 @@
 ﻿namespace Parkour.Analysis;
 
-using Expressions;
+using Semantics;
 using Symbols;
 
 public class DeclarationCompilation : Compilation

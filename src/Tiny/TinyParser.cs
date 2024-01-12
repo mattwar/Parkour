@@ -10,12 +10,12 @@ namespace Tiny
     {
         private readonly Parser<LexicalToken, SyntaxElement> _parser;
 
-        public SyntaxTree Parse(string text)
+        public SyntaxTree Parse(string name, string text)
         {
             var lexer = new TinyLexer();
             var tokens = lexer.Parse(text);
             var result = _parser.Parse(tokens.AsSpan());
-            return new SyntaxTree(text, _parser, tokens, result.Output);
+            return new SyntaxTree(name, text, _parser, tokens, result.Output);
         }
 
         public TinyParser()

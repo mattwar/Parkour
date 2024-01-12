@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace Parkour.Execution;
 using Analysis;
-using Expressions;
+using Semantics;
 using Symbols;
 
 /// <summary>
@@ -178,7 +178,7 @@ public sealed class ExpressionTranslator
     private L.Expression TranslateConvert(ConvertExpression convert) =>
         L.Expression.Convert(
             Translate(convert.Expression),
-            Translate(convert.ConvertedType));
+            Translate((TypeSymbol)convert.ConvertedType.ReferencedSymbol!));
 
     private L.Expression TranslateDeclaration(DeclarationExpression declaration)
     {

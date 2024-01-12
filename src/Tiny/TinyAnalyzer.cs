@@ -1,5 +1,6 @@
 ﻿using Parkour;
 using Parkour.Analysis;
+using Parkour.Diagnostics;
 using Parkour.Symbols;
 using Parkour.Syntax;
 

@@ -5,18 +5,22 @@ using Parsing;
 
 public partial class SyntaxTree
 {
-    private readonly string _text;
+    public string Name { get; }
+    public string Text { get; }
+
     private readonly Parser<LexicalToken> _parser;
     private readonly LexicalToken[] _tokens;
     private readonly SyntaxElement _root;
 
     public SyntaxTree(
+        string name,
         string text,
         Parser<LexicalToken> parser,
         LexicalToken[] tokens,
         SyntaxElement root)
     {
-        _text = text;
+        Name = name;
+        Text = text;
         _parser = parser;
         _tokens = tokens;
         _root = root;
@@ -24,7 +28,6 @@ public partial class SyntaxTree
         _root.SetTree(this);
     }
 
-    public string Text => _text;
     public SyntaxElement Root => _root;
 
     /// <summary>
@@ -72,7 +75,7 @@ public partial class SyntaxTree
     /// </summary>
     public int GetTokenIndex(int textPosition, out int textOffsetInToken)
     {
-        if (textPosition < _text.Length)
+        if (textPosition < Text.Length)
         {
             for (int i = 0; i < _tokens.Length; i++)
             {
@@ -86,7 +89,7 @@ public partial class SyntaxTree
                 textPosition -= token.Length;
             }
         }
-        else if (textPosition == _text.Length && _tokens.Length > 0)
+        else if (textPosition == Text.Length && _tokens.Length > 0)
         {
             textOffsetInToken = _tokens[^1].Length;
             return _tokens.Length - 1;

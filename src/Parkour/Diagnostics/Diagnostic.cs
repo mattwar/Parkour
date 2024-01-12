@@ -1,42 +1,49 @@
-﻿using Parkour.Syntax;
-
-namespace Parkour;
+﻿namespace Parkour.Diagnostics;
 
 public class Diagnostic
 {
     public string Code { get; }
     public string Severity { get; }
     public string Message { get; }
+    public ISourceLocation? Location { get; }
 
-    private readonly int _start;
-    public bool HasLocation => _start >= 0;
-    public int Start => HasLocation ? _start : 0;
-    public int Length { get; }
-
-    private Diagnostic(string code, string severity, string message, int start, int length)
+    private Diagnostic(string code, string severity, string message, ISourceLocation? location = null)
     {
         Code = code;
         Severity = severity;
         Message = message;
-        _start = start;
-        Length = length;
-    }
-
-    public Diagnostic(string code, string severity, string message)
-        : this(code, severity, message, -1, 0)
-    {
+        Location = location;
     }
 
     public Diagnostic(string message)
-        : this("", "Error", message, -1, 0)
+        : this("", "Error", message, null)
     {
     }
 
-    public Diagnostic WithLocation(int start, int length)
+    public Diagnostic WithLocation(ISourceLocation? location)
     {
-        return new Diagnostic(Code, Severity, Message, start, length);
+        if (location == this.Location)
+            return this;
+        return new Diagnostic(this.Code, this.Severity, this.Message, location);
     }
 
-    public Diagnostic WithLocation(SyntaxElement? element) =>
-        element != null ? WithLocation(element.TextStart, element.TextLength) : this;
+    public override string ToString()
+    {
+        var message = this.Message;
+
+        if (this.Code != null)
+            message = $"[{Code}] {message}";
+
+        message = $"{Severity}: {message}";
+
+        if (this.Location != null)
+        {
+            message = $"({this.Location.LinePosition}, {this.Location.LinePosition.Offset}): ";
+
+            if (this.Location.Name.Length > 0)
+                message = $"{this.Location.Name}: {message}";
+        }
+
+        return message;
+    }
 }

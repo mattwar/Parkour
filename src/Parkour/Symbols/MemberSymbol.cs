@@ -22,11 +22,29 @@ public abstract class MemberSymbol : Symbol
         {
             if (_fullName == null)
             {
-                var fn =
-                    this.Container != null ? this.Container.FullName + "." + this.Name
-                    : this.Namespace.Length > 0 ? this.Namespace + "." + Name
-                    : Name;
-                Interlocked.CompareExchange(ref _fullName, fn, null);
+                string? fname = null;
+
+                if (this.Container != null)
+                {
+                    if (this.Container.FullName.Length > 0)
+                    {
+                        fname = this.Container.FullName + "." + this.Name;
+                    }
+                    else
+                    {
+                        fname = this.Name;
+                    }
+                }
+                else if (this.Namespace.Length > 0)
+                {
+                    fname = this.Namespace + "." + this.Name;
+                }
+                else
+                {
+                    fname = this.Name;
+                }
+
+                Interlocked.CompareExchange(ref _fullName, fname, null);
             }
 
             return _fullName;
