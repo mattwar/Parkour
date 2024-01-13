@@ -24,7 +24,7 @@ public sealed class FieldSymbol : MemberSymbol
                 Interlocked.CompareExchange(ref _fieldType, tmp, null);
             }
 
-            return _fieldType ?? CommonSymbols.Unknown;
+            return _fieldType ?? SpecialSymbols.Unknown;
         }
     }
 

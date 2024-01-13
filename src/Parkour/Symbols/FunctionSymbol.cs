@@ -37,7 +37,7 @@ public class FunctionSymbol : TypeSymbol
                 Interlocked.CompareExchange(ref _returnType, tmp, null);
             }
 
-            return _returnType ?? CommonSymbols.Unknown;
+            return _returnType ?? SpecialSymbols.Unknown;
         }
     }
 

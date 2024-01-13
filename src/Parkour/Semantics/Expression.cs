@@ -18,11 +18,11 @@ public abstract class Expression : SemanticElement
         ImmutableList<Diagnostic>? diagnostics)
         : base(state | GetResultState(resultType), location, diagnostics)
     {
-        this.ResultType = resultType ?? CommonSymbols.Unknown;
+        this.ResultType = resultType ?? SpecialSymbols.Unknown;
     }
 
     private static ContainsState GetResultState(TypeSymbol? resultType) =>
-        (resultType == null || resultType == CommonSymbols.Unknown)
+        (resultType == null || resultType == SpecialSymbols.Unknown)
             ? ContainsState.Unknowns
             : ContainsState.None;
 }

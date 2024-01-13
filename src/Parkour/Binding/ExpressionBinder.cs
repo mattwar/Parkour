@@ -5,7 +5,7 @@ using System;
 
 public class ExpressionBinder
 {
-    private readonly CommonSymbols _symbols;
+    private readonly SymbolCache _symbols;
     private readonly Operators _operators;
     private bool _rebind;
     private BindingScope _scope;
@@ -21,7 +21,7 @@ public class ExpressionBinder
 
     public ExpressionBinder(NamespaceSymbol globalNamespace, BindingScope scope)
     {
-        _symbols = CommonSymbols.From(globalNamespace);
+        _symbols = SymbolCache.From(globalNamespace);
         _operators = Operators.From(_symbols);
         _scope = scope;
     }
@@ -196,7 +196,7 @@ public class ExpressionBinder
 
         var resultType = expressions.Count > 0
             ? expressions[^1].ResultType
-            : CommonSymbols.Void;
+            : SpecialSymbols.Void;
 
         if (expressions == block.Expressions
             && block.ResultType == resultType)
@@ -282,7 +282,7 @@ public class ExpressionBinder
             {
                 calledSymbol = GetBestCalledSymbol(instance, arguments, candidates);
 
-                if (calledSymbol == null || calledSymbol == CommonSymbols.Unknown)
+                if (calledSymbol == null || calledSymbol == _symbols.Unknown)
                 {
                     if (candidates.Count > 1)
                         diagnostics.Add(BindingDiagnostics.CallIsAmbiguous().WithLocation(location));
@@ -342,7 +342,7 @@ public class ExpressionBinder
     protected virtual Expression BindConstant(ConstantExpression constant)
     {
         var resultType = constant.Value == null
-            ? CommonSymbols.Null
+            ? _symbols.Null
             : _symbols.GetType(constant.Value.GetType());
 
         if (resultType == constant.ResultType)
@@ -369,14 +369,14 @@ public class ExpressionBinder
 
             if (type == null)
             {
-                diagnostics.Add(BindingDiagnostics.CannotConvert(expression.ResultType, CommonSymbols.Unknown).WithLocation(convert.Location));
+                diagnostics.Add(BindingDiagnostics.CannotConvert(expression.ResultType, _symbols.Unknown).WithLocation(convert.Location));
             }
             else
             {
                 var canConvert = CanConvert(convert.Kind, expression.ResultType, type);
                 if (!canConvert)
                 {
-                    diagnostics.Add(BindingDiagnostics.CannotConvert(expression.ResultType, type ?? CommonSymbols.Unknown).WithLocation(convert.Location));
+                    diagnostics.Add(BindingDiagnostics.CannotConvert(expression.ResultType, type ?? _symbols.Unknown).WithLocation(convert.Location));
                 }
                 else if (type != null)
                 {
@@ -464,8 +464,8 @@ public class ExpressionBinder
         foreach (var p in parameters)
         {
             var type = p.ParameterType != null
-                ? BindType(p.ParameterType, diagnostics) ?? CommonSymbols.Unknown
-                : CommonSymbols.Any;
+                ? BindType(p.ParameterType, diagnostics) ?? _symbols.Unknown
+                : _symbols.Any;
 
             list.Add(new ParameterSymbol(p.Name, declaringSymbol, type, runtimeParameter: null));
         }
@@ -717,9 +717,9 @@ public class ExpressionBinder
             PropertySymbol p => p.PropertyType,
             FunctionSymbol f => f,
             GroupSymbol g => g,
-            MethodSymbol => CommonSymbols.Void,
+            MethodSymbol => _symbols.Void,
             TypeSymbol => _symbols.Type,
-            _ => CommonSymbols.Unknown
+            _ => _symbols.Unknown
         };
 
     private Expression BindWhile(WhileExpression loop)
@@ -729,8 +729,8 @@ public class ExpressionBinder
         {
             var test = Bind(loop.Test);
 
-            var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", CommonSymbols.Void);
-            var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", CommonSymbols.Void);
+            var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", _symbols.Void);
+            var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", _symbols.Void);
 
             var bodyContext = this.CurrentScope.AddSymbols(new[] { breakTarget, continueTarget });
             var body = BindInScope(loop.Body, bodyContext);
@@ -825,16 +825,16 @@ public class ExpressionBinder
 
     protected virtual bool MatchesParameter(ParameterSymbol parameter, Expression argument)
     {
-        return parameter.ParameterType == CommonSymbols.Any
-            || argument.ResultType == CommonSymbols.Unknown
+        return parameter.ParameterType == _symbols.Any
+            || argument.ResultType == _symbols.Unknown
             || parameter.ParameterType == argument.ResultType;
     }
 
     protected virtual Expression ConvertTo(Expression expression, TypeSymbol type, ConversionKind kind)
     {
         if (expression.ResultType == type
-            || type == CommonSymbols.Void
-            || type == CommonSymbols.Unknown)
+            || type == _symbols.Void
+            || type == _symbols.Unknown)
             return expression;
 
         var convert = SemanticFactory.Convert(

@@ -1,37 +1,37 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace Parkour.Symbols;
+namespace Parkour.Binding;
+using Symbols;
 
 /// <summary>
-/// A class for searching the global namespace for known types,
-/// storing some of them for quick access.
+/// A class for caching symbols found in the global namespace.
 /// </summary>
-public class CommonSymbols
+public class SymbolCache
 {
     public NamespaceSymbol GlobalNamespace { get; }
 
-    private CommonSymbols(NamespaceSymbol globalNamespace)
+    private SymbolCache(NamespaceSymbol globalNamespace)
     {
         this.GlobalNamespace = globalNamespace;
     }
 
-    private static readonly ConditionalWeakTable<NamespaceSymbol, CommonSymbols> _namespaceMap =
-        new ConditionalWeakTable<NamespaceSymbol, CommonSymbols>();
+    private static readonly ConditionalWeakTable<NamespaceSymbol, SymbolCache> _namespaceMap =
+        new ConditionalWeakTable<NamespaceSymbol, SymbolCache>();
 
-    public static CommonSymbols From(NamespaceSymbol globalNamespace)
+    public static SymbolCache From(NamespaceSymbol globalNamespace)
     {
         if (!_namespaceMap.TryGetValue(globalNamespace, out var commonSymbols))
         {
-            commonSymbols = _namespaceMap.GetValue(globalNamespace, s => new CommonSymbols(s));
+            commonSymbols = _namespaceMap.GetValue(globalNamespace, s => new SymbolCache(s));
         }
 
         return commonSymbols;
     }
 
-    public static readonly TypeSymbol Unknown = new TypeSymbol("Unknown", typeof(object));
-    public static readonly TypeSymbol Null = new TypeSymbol("Null", typeof(object));
-    public static readonly TypeSymbol Any = new TypeSymbol("Any", typeof(object));
-    public static readonly TypeSymbol Void = new TypeSymbol("Void", typeof(void));
+    public TypeSymbol Unknown => SpecialSymbols.Unknown;
+    public TypeSymbol Null => SpecialSymbols.Null;
+    public TypeSymbol Any => SpecialSymbols.Any;
+    public TypeSymbol Void = SpecialSymbols.Void;
 
     public NamespaceSymbol? _systemNs;
     public NamespaceSymbol System => _systemNs ??= 
@@ -110,7 +110,7 @@ public class CommonSymbols
     public virtual TypeSymbol GetUnion(IEnumerable<TypeSymbol> types)
     {
         if (!types.Any())
-            return CommonSymbols.Void;
+            return Void;
 
         if (types is IReadOnlyList<TypeSymbol> roTypes
             && roTypes.Count == 1)
@@ -127,17 +127,17 @@ public class CommonSymbols
 
         types = FlattenUnions(types).ToList();
 
-        var hasUnknown = types.Any(t => t == CommonSymbols.Unknown);
-        var hasAny = types.Any(t => t == CommonSymbols.Any);
-        var hasVoid = types.Any(t => t == CommonSymbols.Void);
-        var hasNull = types.Any(t => t == CommonSymbols.Null);
+        var hasUnknown = types.Any(t => t == Unknown);
+        var hasAny = types.Any(t => t == Any);
+        var hasVoid = types.Any(t => t == Void);
+        var hasNull = types.Any(t => t == Null);
 
         var canonicalTypes = types
             .Where(t =>
-                t == CommonSymbols.Unknown
-                || t == CommonSymbols.Any && !hasUnknown
-                || t == CommonSymbols.Null && !hasUnknown
-                || t == CommonSymbols.Void && !hasUnknown
+                t == Unknown
+                || t == Any && !hasUnknown
+                || t == Null && !hasUnknown
+                || t == Void && !hasUnknown
                 || (!hasUnknown || !hasAny))
             .DistinctBy(t => t, TypeEqualityComparer.Instance)
             .OrderBy(t => t.Name)
@@ -183,7 +183,7 @@ public class CommonSymbols
     public virtual Symbol GetGroup(IEnumerable<Symbol> symbols)
     {
         if (!symbols.Any())
-            return CommonSymbols.Void;
+            return Void;
 
         if (symbols is IReadOnlyList<Symbol> roSymbols
             && roSymbols.Count == 1)

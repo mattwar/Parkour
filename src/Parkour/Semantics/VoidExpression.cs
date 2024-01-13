@@ -8,12 +8,12 @@ public sealed class VoidExpression : Expression
         : base(
             ContainsState.None, 
             location,
-            CommonSymbols.Void, 
+            SpecialSymbols.Void, 
             null) 
     { 
     }
 
-    public override Symbol? ReferencedSymbol => CommonSymbols.Void;
+    public override Symbol? ReferencedSymbol => SpecialSymbols.Void;
 
     public static VoidExpression Default = new VoidExpression(null);
 }

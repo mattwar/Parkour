@@ -31,9 +31,9 @@ public class RuntimeSymbols
         return ns;
     }
 
-    public static CommonSymbols GetOrCreateCommonSymbols(ImmutableList<Assembly>? assemblies = null)
+    public static SymbolCache GetOrCreateCommonSymbols(ImmutableList<Assembly>? assemblies = null)
     {
-        return CommonSymbols.From(GetOrCreateGlobalNamespace(assemblies));
+        return SymbolCache.From(GetOrCreateGlobalNamespace(assemblies));
     }
 
     private static NamespaceSymbol CreateGlobalNamespace(ImmutableList<Assembly>? assemblies)
@@ -111,7 +111,7 @@ public class RuntimeSymbols
     {
         return GetSymbol(runtimeSymbol)
             ?? CreateSymbol(runtimeSymbol, container)
-            ?? CommonSymbols.Unknown;
+            ?? SpecialSymbols.Unknown;
     }
 
     private Symbol? GetSymbol(object runtimeSymbol)
@@ -330,7 +330,7 @@ public class RuntimeSymbols
     public TypeSymbol GetType(Type type)
     {
         if (type == typeof(void))
-            return CommonSymbols.Void;
+            return SpecialSymbols.Void;
 
         if (GetSymbol(type) is TypeSymbol cached)
             return cached;

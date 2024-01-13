@@ -10,7 +10,7 @@ namespace Tests;
 [TestClass]
 public class RunTests
 {
-    private readonly CommonSymbols _symbols;
+    private readonly SymbolCache _symbols;
     private readonly BindingScope _defaultTestScope;
 
     public RunTests()

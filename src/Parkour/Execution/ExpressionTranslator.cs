@@ -141,7 +141,7 @@ public sealed class ExpressionTranslator
         if (label == null)
             throw new InvalidOperationException($"No branch target defined for '{branch.TargetName}'");
 
-        if (branch.Expression == null || branch.Expression.ResultType == CommonSymbols.Void)
+        if (branch.Expression == null || branch.Expression.ResultType == SpecialSymbols.Void)
         {
             if (branch.IsBreak)
                 return L.Expression.Break(label);
@@ -199,7 +199,7 @@ public sealed class ExpressionTranslator
 
         L.Expression lambdaBody;
 
-        if (function.ReturnType == CommonSymbols.Void
+        if (function.ReturnType == SpecialSymbols.Void
             || function.ReturnType == null)
         {
             var returnTarget = L.Expression.Label("return");

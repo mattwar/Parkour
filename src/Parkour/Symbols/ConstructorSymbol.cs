@@ -8,7 +8,7 @@ public class ConstructorSymbol : MemberSymbol
     public override MemberSymbol? Container => this.DeclaringType;
     public override SymbolAccess Access { get; }
     public override SymbolModifier Modifiers { get; }
-    public TypeSymbol ReturnType => this.DeclaringType ?? CommonSymbols.Unknown;
+    public TypeSymbol ReturnType => this.DeclaringType ?? SpecialSymbols.Unknown;
     public MethodBase? RuntimeMethod { get; }
 
     private Func<ConstructorSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;

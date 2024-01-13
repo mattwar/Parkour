@@ -14,7 +14,7 @@ namespace Tests
             TestCommonSymbols(symbols);
         }
 
-        private void TestCommonSymbols(CommonSymbols symbols)
+        private void TestCommonSymbols(SymbolCache symbols)
         {
             Assert.AreEqual("System", symbols.System.Name);
             Assert.AreEqual("Object", symbols.Object.Name);

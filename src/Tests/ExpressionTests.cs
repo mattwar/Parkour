@@ -9,7 +9,7 @@ namespace Tests;
 [TestClass]
 public class ExpressionTests
 {
-    private readonly CommonSymbols _symbols;
+    private readonly SymbolCache _symbols;
     private readonly BindingScope _defaultTestScope;
 
     public ExpressionTests()
@@ -18,7 +18,7 @@ public class ExpressionTests
         _defaultTestScope = CreateBindingScope(_symbols);
     }
 
-    public static BindingScope CreateBindingScope(CommonSymbols symbols)
+    public static BindingScope CreateBindingScope(SymbolCache symbols)
     {
         return BindingScope.Default.AddSymbolMembers(
             new[]

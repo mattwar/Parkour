@@ -34,10 +34,10 @@ public static class OperatorKinds
 
 public sealed class Operators
 {
-    private static readonly ConditionalWeakTable<CommonSymbols, Operators> _map =
-        new ConditionalWeakTable<CommonSymbols, Operators>();
+    private static readonly ConditionalWeakTable<SymbolCache, Operators> _map =
+        new ConditionalWeakTable<SymbolCache, Operators>();
 
-    public static Operators From(CommonSymbols symbols)
+    public static Operators From(SymbolCache symbols)
     {
         if (!_map.TryGetValue(symbols, out var intrinsics))
         {
@@ -118,7 +118,7 @@ public sealed class Operators
     public FunctionSymbol LogicalOrElseBoolean { get; }
     public FunctionSymbol LogicalOrBoolean { get; }
 
-    private Operators(CommonSymbols symbols)
+    private Operators(SymbolCache symbols)
     {
         this.AddInt32 = BinaryOp(nameof(AddInt32), OperatorKinds.Add, symbols.Int32);
         this.SubtractInt32 = BinaryOp(nameof(SubtractInt32), OperatorKinds.Subtract, symbols.Int32);

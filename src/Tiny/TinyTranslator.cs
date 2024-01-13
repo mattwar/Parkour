@@ -5,6 +5,9 @@ using static Parkour.Semantics.SemanticFactory;
 
 namespace Tiny;
 
+/// <summary>
+/// Translates tiny syntax into expressions
+/// </summary>
 public class TinyTranslator
 {
     public TinyTranslator()
@@ -60,8 +63,6 @@ public class TinyTranslator
                     Translate(element.GetChild(0)!),
                 TinyNodeKinds.Root =>
                     Translate(element.GetChild(0)!),
-               
-
                 _ => throw new InvalidOperationException($"Unhandled node kind: '{element.Kind}'")
             };
         }

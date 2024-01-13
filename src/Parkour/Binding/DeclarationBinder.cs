@@ -174,7 +174,7 @@ public class DeclarationBinder
                 symbol = new ParameterSymbol(
                     pd.Name,
                     container,
-                    () => pd.ParameterType != null ? GetType(pd.ParameterType) : CommonSymbols.Any,
+                    () => pd.ParameterType != null ? GetType(pd.ParameterType) : SpecialSymbols.Any,
                     runtimeParameter: null
                     );
                 break;
@@ -218,7 +218,7 @@ public class DeclarationBinder
     }
 
     private TypeSymbol GetType(Expression typeExpression) =>
-        _binder!.BindType(typeExpression, null) ?? CommonSymbols.Unknown;
+        _binder!.BindType(typeExpression, null) ?? SpecialSymbols.Unknown;
 
     private Expression BindExpression(Expression expr, BindingScope scope)
     {

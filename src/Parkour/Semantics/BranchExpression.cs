@@ -17,7 +17,7 @@ public sealed class BranchExpression : Expression
         : base(
               expression != null ? expression.State : ContainsState.None,
               location,
-              expression != null ? expression.ResultType : CommonSymbols.Void,
+              expression != null ? expression.ResultType : SpecialSymbols.Void,
               diagnostics)
     {
         this.TargetName = targetName;

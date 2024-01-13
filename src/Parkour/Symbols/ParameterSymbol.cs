@@ -21,7 +21,7 @@ public sealed class ParameterSymbol : Symbol
                 Interlocked.CompareExchange(ref _parameterType, tmp, null);
             }
 
-            return _parameterType ?? CommonSymbols.Unknown;
+            return _parameterType ?? SpecialSymbols.Unknown;
         }
     }
 
