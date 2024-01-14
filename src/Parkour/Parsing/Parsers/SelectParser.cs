@@ -1,20 +1,21 @@
-﻿namespace Parkour.Parsing.Parsers;
+﻿
+namespace Parkour.Parsing.Parsers;
 
 public sealed class SelectParser<TInput, TOutput, TOutput2> : Parser<TInput, TOutput2>
 {
     private readonly Parser<TInput, TOutput> _parser;
     private readonly Func<TOutput, TOutput2> _selector;
-    private readonly string? _term;
 
-    public SelectParser(Parser<TInput, TOutput> parser, Func<TOutput, TOutput2> selector, string? term = null)
+    public override ImmutableList<object> Annotations { get; }
+
+    public SelectParser(Parser<TInput, TOutput> parser, Func<TOutput, TOutput2> selector, ImmutableList<object>? annotations = null)
     {
         _parser = parser;
         _selector = selector;
-        _term = term;
+        Annotations = annotations ?? ImmutableList<object>.Empty;
     }
 
-    public override string? Term => _term;
-    public override string DebugContent => _term != null ? _term : _parser.DebugContent;
+    public override string DebugContent => Term ?? _parser.DebugContent;
 
     public override ParseResult<TOutput2> Parse(ReadOnlySpan<TInput> input)
     {

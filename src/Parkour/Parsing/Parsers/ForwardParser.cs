@@ -1,17 +1,19 @@
-﻿namespace Parkour.Parsing.Parsers;
+﻿
+namespace Parkour.Parsing.Parsers;
 
 public sealed class ForwardParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly Func<Parser<TInput, TOutput>> _fnParser;
-    private readonly string? _term;
 
-    public ForwardParser(Func<Parser<TInput, TOutput>> fnParser, string? term = null)
+    public override ImmutableList<object> Annotations { get; }
+
+    public ForwardParser(Func<Parser<TInput, TOutput>> fnParser, ImmutableList<object>? annotations = null)
     {
         _fnParser = fnParser;
-        _term = term;
+        Annotations = annotations ?? ImmutableList<object>.Empty;
     }
 
-    public override string? Term => _term ?? _fnParser().Term ?? "...";
+    public override string? Term => base.Term ?? _fnParser().Term;
 
     public override ParseResult<TOutput> Parse(ReadOnlySpan<TInput> input)
     {

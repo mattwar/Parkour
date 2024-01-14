@@ -88,8 +88,8 @@ public class ExpressionTests
 
     private void TestBinding(Expression expression, TypeSymbol? expectedResultType = null, Symbol? expectedReferencedSymbol = null, BindingScope? scope = null)
     {
-        var binder = new ExpressionBinder(_symbols.GlobalNamespace, scope ?? this._defaultTestScope);
-        var bound = binder.Bind(expression);
+        var binder = new ExpressionBinder(_symbols.GlobalNamespace);
+        var bound = binder.BindInScope(expression, scope ?? _defaultTestScope);
 
         Assert.IsFalse(bound.ContainsUnknowns, "expression contains unknowns after binding");
 

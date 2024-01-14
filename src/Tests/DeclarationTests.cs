@@ -64,15 +64,13 @@ public class DeclarationTests
 
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
-        var binding = DeclarationBinding.Create(
-            declarations, 
-            new[] { _runtimeGlobalNamespace });
+        var binding = new DeclarationBinder().Bind(declarations, _runtimeGlobalNamespace);
 
-        Assert.AreEqual(declarations.Length, binding.Bound.Count, "bound declarations count");
+        Assert.AreEqual(declarations.Length, binding.BoundDeclarations.Count, "bound declarations count");
 
         foreach (var path in expectedSymbols)
         {
-            var symbol = binding.GlobalNamespace.GetFirstSymbolFromPath(path);
+            var symbol = binding.CombindedSymbols.GetFirstSymbolFromPath(path);
             Assert.IsNotNull(symbol, $"symbol '{path}' not found");
         }
     }

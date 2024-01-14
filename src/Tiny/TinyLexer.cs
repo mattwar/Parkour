@@ -1,4 +1,5 @@
-﻿using Parkour;
+﻿using System.Collections.Immutable;
+using Parkour;
 using Parkour.Parsing;
 using Parkour.Syntax;
 
@@ -11,7 +12,7 @@ namespace Tiny
     {
         private readonly Parser<char, IReadOnlyList<LexicalToken>> _parser;
 
-        public LexicalToken[] Parse(string text)
+        public ImmutableArray<LexicalToken> Parse(string text)
         {
             var list = new List<LexicalToken>();
 
@@ -20,7 +21,7 @@ namespace Tiny
             var remainingText = text.Substring(result.Length);
             list.Add(new LexicalToken(TinyTokenKinds.EndOfTextToken, remainingText, ""));
 
-            return list.ToArray();
+            return list.ToImmutableArray();
         }
 
         public TinyLexer()

@@ -15,7 +15,8 @@ namespace Tiny
             var lexer = new TinyLexer();
             var tokens = lexer.Parse(text);
             var result = _parser.Parse(tokens.AsSpan());
-            return new SyntaxTree(name, text, _parser, tokens, result.Output);
+            var annotations = new AnnotationSource(_parser, text, tokens);
+            return new SyntaxTree(name, text, result.Output, annotations);
         }
 
         public TinyParser()

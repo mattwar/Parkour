@@ -24,8 +24,11 @@ public static class ParserFactory<TInput> where TInput : notnull
     public static Parser<TInput, IReadOnlyList<TOutput>> First<TOutput>(params Parser<TInput, IReadOnlyList<TOutput>>[] parsers) =>
         new FirstMultiParser<TInput, TOutput>(parsers);
 
-    public static Parser<TInput, TOutput> Forward<TOutput>(Func<Parser<TInput, TOutput>> fnParser, string? term = null) =>
-        new ForwardParser<TInput, TOutput>(fnParser, term);
+    public static Parser<TInput, TOutput> Forward<TOutput>(Func<Parser<TInput, TOutput>> fnParser, ImmutableList<object>? annotations = null) =>
+        new ForwardParser<TInput, TOutput>(fnParser, annotations);
+
+    public static Parser<TInput, TOutput> Forward<TOutput>(Func<Parser<TInput, TOutput>> fnParser, string term) =>
+        Forward(fnParser, [term]);
 
     public static Parser<TInput, TOutput> If<TOutput>(Parser<TInput> conditionParser, Parser<TInput, TOutput> parser) =>
         new IfParser<TInput, TOutput>(conditionParser, parser);
@@ -80,24 +83,38 @@ public static class ParserFactory<TInput> where TInput : notnull
             list => fnMapper((TOutput1)list[0], (TOutput2)list[1], (TOutput3)list[2], (TOutput4)list[3]),
             term);
 
-    public static Parser<TInput, TInput> Match(Func<TInput, bool> predicate, string? term = null) =>
-        new MatchParser<TInput, TInput>(span => span.Length > 0 && predicate(span[0]) ? 1 : -1, span => span[0], term);
+    public static Parser<TInput, TInput> Match(Func<TInput, bool> predicate, ImmutableList<object>? annotations = null) =>
+        new MatchParser<TInput, TInput>(span => span.Length > 0 && predicate(span[0]) ? 1 : -1, span => span[0], annotations);
 
-    public static Parser<TInput, TInput> Match(Matcher<TInput> matcher, string? term = null) =>
-        new MatchParser<TInput, TInput>(matcher, span => span[0], term);
+    public static Parser<TInput, TInput> Match(Func<TInput, bool> predicate, string term) =>
+        Match(predicate, [term]);
 
-    public static Parser<TInput, TOutput> Match<TOutput>(Matcher<TInput> matcher, Converter<TInput, TOutput> converter, string? term = null) =>
-        new MatchParser<TInput, TOutput>(matcher, converter, term);
+    public static Parser<TInput, TInput> Match(Matcher<TInput> matcher, ImmutableList<object>? annotations = null) =>
+        new MatchParser<TInput, TInput>(matcher, span => span[0], annotations);
+
+    public static Parser<TInput, TInput> Match(Matcher<TInput> matcher, string term) =>
+        Match(matcher, [term]);
+
+    public static Parser<TInput, TOutput> Match<TOutput>(Matcher<TInput> matcher, Converter<TInput, TOutput> converter, ImmutableList<object>? annotations = null) =>
+        new MatchParser<TInput, TOutput>(matcher, converter, annotations);
+
+    public static Parser<TInput, TOutput> Match<TOutput>(Matcher<TInput> matcher, Converter<TInput, TOutput> converter, string term) =>
+        Match(matcher, converter, [term]);
 
     public static Parser<TInput, IReadOnlyList<TInput>> MatchAll(
         Matcher<TInput> matcher,
-        string? term = null) =>
-        new MatchMultiParser<TInput>(matcher, term);
+        ImmutableList<object>? annotations = null) =>
+        new MatchMultiParser<TInput>(matcher, annotations);
+
+    public static Parser<TInput, IReadOnlyList<TInput>> MatchAll(
+        Matcher<TInput> matcher,
+        string term) =>
+        MatchAll(matcher, [term]);
 
     public static Parser<TInput, IReadOnlyList<TInput>> MatchAll(
         IReadOnlyList<TInput> items,
         EqualityComparer<TInput> comparer,
-        string? term = null)
+        ImmutableList<object>? annotations = null)
     {
         return MatchAll(input =>
         {
@@ -116,8 +133,14 @@ public static class ParserFactory<TInput> where TInput : notnull
 
             return 0;
         },
-        term);
+        annotations);
     }
+
+    public static Parser<TInput, IReadOnlyList<TInput>> MatchAll(
+        IReadOnlyList<TInput> items,
+        EqualityComparer<TInput> comparer,
+        string term) =>
+        MatchAll(items, comparer, [term]);
 
     public static Parser<TInput, TInput> Not(Parser<TInput> parser) =>
         new NotParser<TInput>(parser);

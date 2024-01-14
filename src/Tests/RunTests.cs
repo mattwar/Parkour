@@ -1,6 +1,5 @@
 using Parkour;
 using Parkour.Binding;
-using Parkour.Symbols;
 using Parkour.Semantics;
 using Parkour.Execution;
 using static Parkour.Semantics.SemanticFactory;
@@ -55,17 +54,19 @@ public class RunTests
             "1");
     }
 
-    private void TestRun(Expression expression, object expectedResult, BindingScope? scope, object[] args)
+    private void TestRun(Expression expression, object expectedResult, BindingScope scope, params object[] args)
     {
         if (!(expression is LambdaExpression))
             expression = Function(expression);
 
-        var binder = new ExpressionBinder(_symbols.GlobalNamespace, scope ?? _defaultTestScope);
-        var bound = (LambdaExpression)binder.Bind(expression);
+        var binder = new ExpressionBinder(_symbols.GlobalNamespace);
+        var bound = (LambdaExpression)binder.BindInScope(expression, scope);
 
         if (bound.ContainsDiagnostics)
         {
-            var dx = bound.GetContainedDiagnostics()[0];
+            var diagnostics = new List<Diagnostic>();
+            bound.GetContainedDiagnostics(diagnostics);
+            var dx = diagnostics[0];
             Assert.Fail($"The expression contains diagnostics: {dx.Message}");
         }
 
@@ -80,5 +81,6 @@ public class RunTests
     }
 
     private void TestRun(Expression expression, object expectedResult, params object[] args) =>
-        TestRun(expression, expectedResult, default, args);
+        TestRun(expression, expectedResult, _defaultTestScope, args);
+
 }

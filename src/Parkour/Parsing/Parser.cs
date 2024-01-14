@@ -23,7 +23,11 @@ public abstract class Parser<TInput>
 
     public virtual bool IsRequired => false;
 
-    public virtual string? Term => null;
+    public virtual ImmutableList<object> Annotations =>
+        ImmutableList<object>.Empty;
+
+    public virtual string? Term =>
+        this.Annotations.OfType<string>().FirstOrDefault();
 
     [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public virtual string DebugText => $"{DebugParserName}: {DebugContent}";

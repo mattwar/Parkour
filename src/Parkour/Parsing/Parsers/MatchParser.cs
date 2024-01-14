@@ -1,17 +1,18 @@
-﻿namespace Parkour.Parsing.Parsers;
+﻿
+namespace Parkour.Parsing.Parsers;
 
 public sealed class MatchParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly Matcher<TInput> _matcher;
     private readonly Converter<TInput, TOutput> _converter;
 
-    public override string? Term { get; }
+    public override ImmutableList<object> Annotations { get; }
 
-    public MatchParser(Matcher<TInput> matcher, Converter<TInput, TOutput> converter, string? term)
+    public MatchParser(Matcher<TInput> matcher, Converter<TInput, TOutput> converter, ImmutableList<object>? annotations = null)
     {
         _matcher = matcher;
         _converter = converter;
-        this.Term = term;
+        Annotations = annotations ?? ImmutableList<object>.Empty;
     }
 
     public override ParseResult<TOutput> Parse(ReadOnlySpan<TInput> input)

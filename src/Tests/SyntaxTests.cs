@@ -1,4 +1,6 @@
 using Parkour;
+using Parkour.Parsing;
+
 using Tiny;
 
 namespace Tests;
@@ -51,8 +53,10 @@ public class SyntaxTests
     {
         var (textWithoutMarker, markerPosition) = StripMarker(textWithMarker);
         var parser = new TinyParser();
-        var syntax = parser.Parse("test", textWithoutMarker);
-        var actualTerms = syntax.GetNextTermsAt(markerPosition);
+        var tree = parser.Parse("test", textWithoutMarker);
+
+        var actualTerms = new List<string>();
+        tree.Annotations.GetAnnotations(markerPosition, null, actualTerms);
 
         var expectedList = string.Join(", ", expectedTerms);
         var actualList = string.Join(", ", actualTerms);

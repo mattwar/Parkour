@@ -1,17 +1,17 @@
-﻿namespace Parkour.Parsing.Parsers;
+﻿
+namespace Parkour.Parsing.Parsers;
 
 public sealed class MatchMultiParser<TInput> : MultiParser<TInput, TInput>
 {
     private readonly Matcher<TInput> _matcher;
-    private string? _term;
 
-    public MatchMultiParser(Matcher<TInput> matcher, string? term)
+    public override ImmutableList<object> Annotations { get; }
+
+    public MatchMultiParser(Matcher<TInput> matcher, ImmutableList<object>? annotations = null)
     {
         _matcher = matcher;
-        _term = term;
+        Annotations = annotations ?? ImmutableList<object>.Empty;
     }
-
-    public override string? Term => _term;
 
     public override ParseIntoResult ParseInto(ReadOnlySpan<TInput> input, List<TInput> outputList)
     {

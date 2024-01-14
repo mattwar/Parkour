@@ -13,11 +13,15 @@ public class RuntimeSymbols
         _globalNamespace = globalNamespace;
     }
 
+    private static NamespaceSymbol? _defaultNamespace;
+    public static NamespaceSymbol DefaultGlobalNamespace =>
+        _defaultNamespace ??= GetOrCreateGlobalNamespace();
+
     private static readonly ConditionalWeakTable<ImmutableList<Assembly>, NamespaceSymbol> _map =
         new ConditionalWeakTable<ImmutableList<Assembly>, NamespaceSymbol>();
 
     private static ImmutableList<Assembly> _defaultAssemblies =
-        ImmutableList.Create(typeof(int).Assembly);
+        [typeof(int).Assembly];
 
     public static NamespaceSymbol GetOrCreateGlobalNamespace(ImmutableList<Assembly>? assemblies = null)
     {

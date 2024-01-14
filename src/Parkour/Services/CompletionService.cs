@@ -2,7 +2,7 @@
 
 public class CompletionService
 {
-    public virtual CompletionList GetCompletions(int position, char? lastKey = null) =>
+    public virtual CompletionList GetCompletions(string text, int position, char? lastKey = null) =>
         CompletionList.Empty;
 
     public static readonly CompletionService NotSupported =

@@ -78,8 +78,17 @@ public static partial class ParserExtensions
     public static Parser<TInput, TOutput> Convert<TInput, TOutput>(
         this Parser<TInput> parser,
         Converter<TInput, TOutput> converter,
-        string? term = null) =>
-        new ConvertParser<TInput, TOutput>(parser, converter, term);
+        ImmutableList<object>? annotations = null) =>
+        new ConvertParser<TInput, TOutput>(parser, converter, annotations);
+
+    /// <summary>
+    /// A parser that converts the input items that would be parsed by this parser into a value.
+    /// </summary>
+    public static Parser<TInput, TOutput> Convert<TInput, TOutput>(
+        this Parser<TInput> parser,
+        Converter<TInput, TOutput> converter,
+        string term) =>
+        Convert(parser, converter, [term]);
 
     /// <summary>
     /// A parser the returns the output of the first parser to succeed.

@@ -49,10 +49,12 @@ public abstract class SemanticElement
     /// <summary>
     /// Get all contained diagnostics
     /// </summary>
-    public ImmutableList<Diagnostic> GetContainedDiagnostics() =>
-        this.SelectWhere(s => s.HasDiagnostics, s => s.Diagnostics)
-            .SelectMany(dx => dx)
-            .ToImmutableList();
+    public void GetContainedDiagnostics(List<Diagnostic> diagnostics)
+    {
+        diagnostics.AddRange(
+            this.SelectWhere(s => s.HasDiagnostics, s => s.Diagnostics)
+            .SelectMany(dx => dx));
+    }
 
     internal static ContainsState CombineState<TSemantic>(IEnumerable<TSemantic> items)
         where TSemantic : SemanticElement =>

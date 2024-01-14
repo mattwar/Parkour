@@ -19,11 +19,11 @@ public class ExpressionBinder
     private readonly ObjectPool<List<Diagnostic>> _diagnosticListPool =
         new ObjectPool<List<Diagnostic>>(() => new List<Diagnostic>(), list => list.Clear());
 
-    public ExpressionBinder(NamespaceSymbol globalNamespace, BindingScope scope)
+    public ExpressionBinder(NamespaceSymbol globalNamespace)
     {
         _symbols = SymbolCache.From(globalNamespace);
         _operators = Operators.From(_symbols);
-        _scope = scope;
+        _scope = BindingScope.Default.AddSymbolMembers(globalNamespace);
     }
 
     protected BindingScope CurrentScope => _scope;

@@ -1,20 +1,21 @@
-﻿namespace Parkour.Parsing.Parsers;
+﻿
+namespace Parkour.Parsing.Parsers;
 
 public sealed class ConvertParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly Parser<TInput> _parser;
     private readonly Converter<TInput, TOutput> _converter;
 
-    public override string? Term { get; }
+    public override ImmutableList<object> Annotations { get; }
 
-    public ConvertParser(Parser<TInput> parser, Converter<TInput, TOutput> converter, string? term = null)
+    public ConvertParser(Parser<TInput> parser, Converter<TInput, TOutput> converter, ImmutableList<object>? annotations = null)
     {
         _parser = parser;
         _converter = converter;
-        this.Term = term;
+        Annotations = annotations ?? ImmutableList<object>.Empty;
     }
 
-    public override string DebugContent => _parser.DebugContent;
+    public override string DebugContent => Term ?? _parser.DebugContent;
 
     public override ParseResult<TOutput> Parse(ReadOnlySpan<TInput> input)
     {

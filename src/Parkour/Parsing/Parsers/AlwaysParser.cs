@@ -3,16 +3,16 @@
 public sealed class AlwaysParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly Func<TOutput> _selector;
-    private readonly string? _term;
 
-    public AlwaysParser(Func<TOutput> selector, string? term = null)
+    public override ImmutableList<object> Annotations { get; }
+
+    public AlwaysParser(Func<TOutput> selector, ImmutableList<object>? annotations = null)
     {
         _selector = selector;
-        _term = term;
+        Annotations = annotations ?? ImmutableList<object>.Empty;
     }
 
-    public override string? Term => _term;
-    public override string DebugContent => _term != null ? _term : "<always>";
+    public override string DebugContent => Term ?? "<always>";
 
     public override ParseResult<TOutput> Parse(ReadOnlySpan<TInput> input)
     {

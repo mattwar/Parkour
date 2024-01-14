@@ -5,7 +5,6 @@ using Symbols;
 
 public class DeclarationBinder
 {
-    //private NamespaceSymbol? _globals;
     private ExpressionBinder? _binder;
     private BindingScope _scope;
 
@@ -15,7 +14,7 @@ public class DeclarationBinder
 
     public DeclarationBinding Bind(
         IEnumerable<Declaration> declarations,
-        IEnumerable<NamespaceSymbol> imports)
+        NamespaceSymbol importsNamespace)
     {
         NamespaceSymbol? declarationNamespace = null;
 
@@ -41,12 +40,12 @@ public class DeclarationBinder
                     return CombineMembers(me, globalNamespaceMembers, _scope);
                 });
 
-                return imports.Append(declarationNamespace).ToImmutableList();
+                return [importsNamespace, declarationNamespace];
             });
 
         //_globals = globals;
         _scope = new BindingScope().AddSymbolMembers(combinedGlobalNamespace);
-        _binder = new ExpressionBinder(combinedGlobalNamespace, _scope);
+        _binder = new ExpressionBinder(combinedGlobalNamespace);
 
         // force evaluation of declarationNamespace
         var globalMembers = combinedGlobalNamespace.Members;
@@ -55,12 +54,68 @@ public class DeclarationBinder
         // resolve all declared symbols which creates symbol<->declaration maps
         declarationNamespace.Walk(s => { });
 
-        return new DeclarationBinding(
+        return new DeferredBinding(
             this,
             _scope,
             combinedGlobalNamespace,
             declarations.ToImmutableList());
     }
+
+    #region Deferred Binding
+    private class DeferredBinding : DeclarationBinding
+    {
+        public override ImmutableList<Declaration> UnboundDeclarations { get; }
+        public override NamespaceSymbol CombindedSymbols { get; }
+
+        private readonly DeclarationBinder _binder;
+        private readonly BindingScope _scope;
+
+        public DeferredBinding(
+            DeclarationBinder binder,
+            BindingScope scope,
+            NamespaceSymbol combinedSymbols,
+            ImmutableList<Declaration> unboundDeclarations)
+        {
+            _binder = binder;
+            _scope = scope;
+            CombindedSymbols = combinedSymbols;
+            UnboundDeclarations = unboundDeclarations;
+        }
+
+        private ImmutableList<Declaration>? _boundDeclarations;
+
+        public override ImmutableList<Declaration> BoundDeclarations
+        {
+            get
+            {
+                if (_boundDeclarations == null)
+                {
+                    var tmp = UnboundDeclarations
+                        .Select(u => GetBoundDeclaration(u))
+                        .OfType<Declaration>()
+                        .ToImmutableList();
+                    Interlocked.CompareExchange(ref _boundDeclarations, tmp, null);
+                }
+
+                return _boundDeclarations ?? ImmutableList<Declaration>.Empty;
+            }
+        }
+
+        private ImmutableDictionary<Declaration, Declaration> _unboundToBoundMap =
+            ImmutableDictionary<Declaration, Declaration>.Empty;
+
+        public override Declaration? GetBoundDeclaration(Declaration unboundDeclaration)
+        {
+            if (!_unboundToBoundMap.TryGetValue(unboundDeclaration, out var boundDeclaration))
+            {
+                var tmp = _binder.BindDeclaration(unboundDeclaration, _scope);
+                boundDeclaration = ImmutableInterlocked.GetOrAdd(ref _unboundToBoundMap, unboundDeclaration, tmp);
+            }
+
+            return boundDeclaration;
+        }
+    }
+    #endregion
 
     private Dictionary<Declaration, Symbol> _declToSymbolMap = 
         new Dictionary<Declaration, Symbol>();
