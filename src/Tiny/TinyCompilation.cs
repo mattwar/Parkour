@@ -23,11 +23,11 @@ public class TinyCompilation : ExpressionCompilation
         return new TinyParser().Parse("", tinyText);
     }
 
-    private static ExpressionBinding Bind(ISyntaxTree tree, NamespaceSymbol globalNs)
+    private static ExpressionBinding Bind(ISyntaxTree tree, NamespaceSymbol externalSymbols)
     {
         var tinyTree = (SyntaxTree)tree;
         var unbound = new TinyTranslator().Translate(tinyTree.Root);
-        var bound = new ExpressionBinder(globalNs).Bind(unbound);
-        return new ExpressionBinding(unbound, bound);
+        var bound = new ExpressionBinder(externalSymbols).Bind(unbound);
+        return new ExpressionBinding(unbound, bound, externalSymbols);
     }
 }

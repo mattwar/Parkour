@@ -47,14 +47,22 @@ public abstract class SemanticElement
         new SemanticWriter().WriteToString(this);
 
     /// <summary>
-    /// Get all contained diagnostics
+    /// Get all contained diagnostics that match the filter
     /// </summary>
-    public void GetContainedDiagnostics(List<Diagnostic> diagnostics)
+    public void GetContainedDiagnostics(Func<Diagnostic, bool>? filter, List<Diagnostic> diagnostics)
     {
         diagnostics.AddRange(
             this.SelectWhere(s => s.HasDiagnostics, s => s.Diagnostics)
-            .SelectMany(dx => dx));
+            .SelectMany(dx => dx)
+            .Where(d => filter == null || filter(d))
+            );
     }
+
+    /// <summary>
+    /// Get all contained diagnostics.
+    /// </summary>
+    public void GetContainedDiagnostics(List<Diagnostic> diagnostics) =>
+        GetContainedDiagnostics(null, diagnostics);
 
     internal static ContainsState CombineState<TSemantic>(IEnumerable<TSemantic> items)
         where TSemantic : SemanticElement =>

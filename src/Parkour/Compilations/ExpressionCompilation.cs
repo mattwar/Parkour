@@ -20,6 +20,13 @@ public class ExpressionCompilation : Compilation
         this.Documents = [syntaxTree.Document];
     }
 
+    public ExpressionCompilation(
+        ISyntaxTree tree,
+        ExpressionBinding binding)
+        : this(tree, binding.ExternalSymbols, (_tree, _externals) => binding)
+    {
+    }
+
     public ExpressionBinding? _binding;
 
     private ExpressionBinding GetBinding()
@@ -46,12 +53,13 @@ public class ExpressionCompilation : Compilation
         }
     }
 
-    public override void GetDiagnostics(ISourceDocument document, List<Diagnostic> diagnostics)
+    public override void GetDiagnostics(ISourceDocument document, Func<Diagnostic, bool>? filter, List<Diagnostic> diagnostics)
     {
         if (document == _syntaxTree.Document)
         {
+            diagnostics.AddRange(_syntaxTree.Diagnostics.Where(d => filter == null || filter(d)));
             var binding = GetBinding();
-            binding.BoundExpression.GetContainedDiagnostics(diagnostics);
+            binding.BoundExpression.GetContainedDiagnostics(filter, diagnostics);
         }
     }
 

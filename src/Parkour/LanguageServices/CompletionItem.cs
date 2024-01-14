@@ -1,27 +1,5 @@
 ﻿namespace Parkour.Services;
 
-public class CompletionService
-{
-    public virtual CompletionList GetCompletions(string text, int position, char? lastKey = null) =>
-        CompletionList.Empty;
-
-    public static readonly CompletionService NotSupported =
-        new CompletionService();
-}
-
-public class CompletionList
-{
-    public ImmutableList<CompletionItem> Items { get; }
-
-    public CompletionList(ImmutableList<CompletionItem> items)
-    {
-        this.Items = items;
-    }
-
-    public static readonly CompletionList Empty =
-        new CompletionList(ImmutableList<CompletionItem>.Empty);
-}
-
 public class CompletionItem
 {
     /// <summary>

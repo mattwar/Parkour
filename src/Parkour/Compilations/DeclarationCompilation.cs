@@ -25,6 +25,13 @@ public class DeclarationCompilation : Compilation
             .ToImmutableList();
     }
 
+    public DeclarationCompilation(
+        ImmutableList<ISyntaxTree> syntaxTrees,
+        DeclarationBinding binding)
+        : this(syntaxTrees, binding.ExternalSymbols, (_trees, _externals) => binding)
+    {
+    }
+
     private DeclarationBinding? _binding;
 
     private DeclarationBinding GetBinding()
@@ -72,13 +79,19 @@ public class DeclarationCompilation : Compilation
         }
     }
 
-    public override void GetDiagnostics(ISourceDocument document, List<Diagnostic> diagnostics)
+    public override void GetDiagnostics(ISourceDocument document, Func<Diagnostic, bool>? filter, List<Diagnostic> diagnostics)
     {
+        diagnostics.AddRange(
+            _syntaxTrees
+            .SelectMany(t => t.Diagnostics)
+            .Where(d => filter == null || filter(d))
+            );
+
         var binding = GetBinding();
         if (GetUnboundDeclaration(document) is { } unbound
             && binding.GetBoundDeclaration(unbound) is { } bound)
         {
-            bound.GetContainedDiagnostics(diagnostics);
+            bound.GetContainedDiagnostics(filter, diagnostics);
         }
     }
 }

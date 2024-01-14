@@ -1,26 +1,16 @@
 ﻿using Parkour;
 using Parkour.Binding;
-using Parkour.Compilations;
 using Parkour.Services;
 using Parkour.Symbols;
 
 namespace Tiny;
 
-public class TinyLanguageService : CompilationLanguageService
+public class TinyLanguageService
 {
-    private readonly string _text;
-    private readonly NamespaceSymbol _globalNamespace;
-
-    public TinyLanguageService(
-        string text,
-        NamespaceSymbol? globalNamespace = null)
+    public static LanguageService Create(string text, NamespaceSymbol externalSymbols)
     {
-        _text = text;
-        _globalNamespace = globalNamespace ?? RuntimeSymbols.DefaultGlobalNamespace;
-    }
-
-    protected override Compilation CreateCompilation()
-    {
-        return new TinyCompilation(_text, _globalNamespace);
+        var compilation = new TinyCompilation(text, externalSymbols);
+        var document = compilation.Documents[0];
+        return new CompilationLanguageService(document, () => compilation);
     }
 }

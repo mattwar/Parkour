@@ -25,6 +25,7 @@ public abstract class Compilation
     /// </summary>
     public virtual void GetDiagnostics(
         ISourceDocument document, 
+        Func<Diagnostic, bool>? filter,
         List<Diagnostic> diagnostics)
     {
     }

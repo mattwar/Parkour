@@ -16,4 +16,9 @@ public interface ISourceLocation
     /// The length of the source location.
     /// </summary>
     public int Length { get; }
+
+    /// <summary>
+    /// The position after the end of the source location.
+    /// </summary>
+    public int End => Start + Length;
 }

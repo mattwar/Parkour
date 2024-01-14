@@ -26,27 +26,30 @@ public partial class SyntaxTree
 
     public SyntaxElement Root => _root;
 
-    private IReadOnlyList<Diagnostic>? _diagnostics;
+    private ImmutableList<Diagnostic>? _diagnostics;
 
     /// <summary>
     /// Gets a list of all the diagnostics produced during parsing.
     /// </summary>
-    public IReadOnlyList<Diagnostic> GetDiagnostics()
+    public ImmutableList<Diagnostic> Diagnostics
     {
-        if (_diagnostics == null)
+        get
         {
-            var list = new List<Diagnostic>();
-
-            SyntaxElement.WalkElements(this.Root, fnAfter: (element) =>
+            if (_diagnostics == null)
             {
-                if (element.Diagnostic != null)
-                    list.Add(element.Diagnostic.WithLocation(element));
-            });
+                var list = new List<Diagnostic>();
 
-            _diagnostics = list;
+                SyntaxElement.WalkElements(this.Root, fnAfter: (element) =>
+                {
+                    if (element.Diagnostic != null)
+                        list.Add(element.Diagnostic.WithLocation(element));
+                });
+
+                Interlocked.CompareExchange(ref _diagnostics, list.ToImmutableList(), null);
+            }
+
+            return _diagnostics;
         }
-
-        return _diagnostics;
     }
 
     #region ISyntaxTree

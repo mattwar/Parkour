@@ -14,15 +14,15 @@ public class DeclarationBinder
 
     public DeclarationBinding Bind(
         IEnumerable<Declaration> declarations,
-        NamespaceSymbol importsNamespace)
+        NamespaceSymbol externalSymbols)
     {
-        NamespaceSymbol? declarationNamespace = null;
+        NamespaceSymbol? declarationSymbols = null;
 
         // create combined global namespace and construct declaration symbols
-        var combinedGlobalNamespace = CombinedSymbols.CreateCombinedGlobalNamespace(
+        var combinedSymbols = CombinedSymbols.CreateCombinedGlobalNamespace(
             globals =>
             {
-                declarationNamespace = new NamespaceSymbol("", null,
+                declarationSymbols = new NamespaceSymbol("", null,
                 me =>
                 {
                     var globalNamespaces = declarations.Where(d =>
@@ -40,24 +40,26 @@ public class DeclarationBinder
                     return CombineMembers(me, globalNamespaceMembers, _scope);
                 });
 
-                return [importsNamespace, declarationNamespace];
+                return [externalSymbols, declarationSymbols];
             });
 
         //_globals = globals;
-        _scope = new BindingScope().AddSymbolMembers(combinedGlobalNamespace);
-        _binder = new ExpressionBinder(combinedGlobalNamespace);
+        _scope = new BindingScope().AddSymbolMembers(combinedSymbols);
+        _binder = new ExpressionBinder(combinedSymbols);
 
         // force evaluation of declarationNamespace
-        var globalMembers = combinedGlobalNamespace.Members;
-        var declarationNamespaceMembers = declarationNamespace!.Members;
+        var globalMembers = combinedSymbols.Members;
+        var declarationNamespaceMembers = declarationSymbols!.Members;
 
         // resolve all declared symbols which creates symbol<->declaration maps
-        declarationNamespace.Walk(s => { });
+        declarationSymbols.Walk(s => { });
 
         return new DeferredBinding(
             this,
             _scope,
-            combinedGlobalNamespace,
+            externalSymbols,
+            declarationSymbols,
+            combinedSymbols,
             declarations.ToImmutableList());
     }
 
@@ -65,6 +67,8 @@ public class DeclarationBinder
     private class DeferredBinding : DeclarationBinding
     {
         public override ImmutableList<Declaration> UnboundDeclarations { get; }
+        public override NamespaceSymbol ExternalSymbols { get; }
+        public override NamespaceSymbol DeclarationSymbols { get; }
         public override NamespaceSymbol CombindedSymbols { get; }
 
         private readonly DeclarationBinder _binder;
@@ -73,11 +77,15 @@ public class DeclarationBinder
         public DeferredBinding(
             DeclarationBinder binder,
             BindingScope scope,
+            NamespaceSymbol externalSymbols,
+            NamespaceSymbol declarationSymbols,
             NamespaceSymbol combinedSymbols,
             ImmutableList<Declaration> unboundDeclarations)
         {
             _binder = binder;
             _scope = scope;
+            ExternalSymbols = externalSymbols;
+            DeclarationSymbols = declarationSymbols;
             CombindedSymbols = combinedSymbols;
             UnboundDeclarations = unboundDeclarations;
         }
