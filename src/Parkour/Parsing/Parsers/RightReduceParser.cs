@@ -1,10 +1,14 @@
 ﻿namespace Parkour.Parsing.Parsers;
 
+/// <summary>
+/// A parser that aggregates zero or more outputs of the first parser with the output of the second parser.
+/// This is typically used with prefix operators:  ++ ++ x
+/// </summary>
 public sealed class RightReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput, TOutput2>
 {
     private readonly Parser<TInput, TOutput1> _parser1;
     private readonly Parser<TInput, TOutput2> _parser2;
-    private readonly Func<TOutput1, TOutput2, TOutput2> _fnAggregator;
+    private readonly Func<TOutput1, TOutput2, TOutput2> _fnAggregate;
 
     public RightReduceParser(
         Parser<TInput, TOutput1> parser1,
@@ -13,7 +17,7 @@ public sealed class RightReduceParser<TInput, TOutput1, TOutput2> : Parser<TInpu
     {
         _parser1 = parser1;
         _parser2 = parser2;
-        _fnAggregator = fnAggregate;
+        _fnAggregate = fnAggregate;
     }
 
     public override string DebugContent => $"{{{_parser1.DebugContent}}} {_parser2.DebugContent})";
@@ -23,15 +27,17 @@ public sealed class RightReduceParser<TInput, TOutput1, TOutput2> : Parser<TInpu
         List<TOutput1>? list = null;
 
         var remainingInput = input;
+
+        // consume as many first parser outputs
         while (true)
         {
-            var result = _parser1.Parse(remainingInput);
-            if (!result.Success)
+            var result1 = _parser1.Parse(remainingInput);
+            if (!result1.Success)
                 break;
-            remainingInput = remainingInput.Slice(result.Length);
+            remainingInput = remainingInput.Slice(result1.Length);
             if (list == null)
                 list = new List<TOutput1>();
-            list.Add(result.Output);
+            list.Add(result1.Output);
         }
 
         var result2 = _parser2.Parse(remainingInput);
@@ -44,7 +50,7 @@ public sealed class RightReduceParser<TInput, TOutput1, TOutput2> : Parser<TInpu
             {
                 for (int i = list.Count - 1; i >= 0; i--)
                 {
-                    output = _fnAggregator(list[i], output);
+                    output = _fnAggregate(list[i], output);
                 }
             }
 

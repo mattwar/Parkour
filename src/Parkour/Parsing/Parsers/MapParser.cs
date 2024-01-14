@@ -1,17 +1,24 @@
 ﻿
 namespace Parkour.Parsing.Parsers;
 
-public sealed class SelectParser<TInput, TOutput, TOutput2> : Parser<TInput, TOutput2>
+/// <summary>
+/// A parser that maps the output of another parser.
+/// This is an single-parser optimized version of <see cref="SequenceParser"/>.
+/// </summary>
+public sealed class MapParser<TInput, TOutput1, TOutput2> : Parser<TInput, TOutput2>
 {
-    private readonly Parser<TInput, TOutput> _parser;
-    private readonly Func<TOutput, TOutput2> _selector;
+    private readonly Parser<TInput, TOutput1> _parser;
+    private readonly Func<TOutput1, TOutput2> _fnMap;
 
     public override ImmutableList<object> Annotations { get; }
 
-    public SelectParser(Parser<TInput, TOutput> parser, Func<TOutput, TOutput2> selector, ImmutableList<object>? annotations = null)
+    public MapParser(
+        Parser<TInput, TOutput1> parser, 
+        Func<TOutput1, TOutput2> fnMap, 
+        ImmutableList<object>? annotations = null)
     {
         _parser = parser;
-        _selector = selector;
+        _fnMap = fnMap;
         Annotations = annotations ?? ImmutableList<object>.Empty;
     }
 
@@ -22,7 +29,7 @@ public sealed class SelectParser<TInput, TOutput, TOutput2> : Parser<TInput, TOu
         var result = _parser.Parse(input);
         if (result.Success)
         {
-            var output = _selector(result.Output);
+            var output = _fnMap(result.Output);
             return new ParseResult<TOutput2>(true, result.Length, output);
         }
 

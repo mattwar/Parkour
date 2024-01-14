@@ -1,5 +1,8 @@
 ﻿namespace Parkour.Parsing.Parsers;
 
+/// <summary>
+/// Adapts a parser into a multi-parser.
+/// </summary>
 public class ParserMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {
     private readonly Parser<TInput> _parser;

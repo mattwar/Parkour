@@ -24,11 +24,6 @@ public class SyntaxToken
         Text = text;
     }
 
-    public SyntaxToken(LexicalToken token)
-        : this(token.Kind, token.Trivia, token.Text, token.Diagnostic)
-    {
-    }
-
     public override int Length => Trivia.Length + Text.Length;
     public override int TextStart => Start + Trivia.Length;
 

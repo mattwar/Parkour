@@ -1,28 +1,28 @@
 ﻿namespace Parkour.Parsing.Parsers;
 
-public sealed class ApplyParser<TInput, TOutput1, TOutput2, TOutput3> : Parser<TInput, TOutput3>
+/// <summary>
+/// Applies the output of parser one to parser2 and 
+/// </summary>
+public sealed class ApplyParser<TInput, TOutput1, TOutput2> : Parser<TInput, TOutput2>
 {
     private readonly Parser<TInput, TOutput1> _parser1;
     private readonly Parser<TInput, TOutput2> _parser2;
-    private readonly Func<TOutput1, TOutput2, TOutput3> _fnMapper;
 
     private TOutput1 _currentOutput1;
 
     public ApplyParser(
         Parser<TInput, TOutput1> parser1,
-        Func<Func<TOutput1>, Parser<TInput, TOutput2>> fnParser2,
-        Func<TOutput1, TOutput2, TOutput3> fnMapper)
+        Func<Func<TOutput1>, Parser<TInput, TOutput2>> fnParser2)
     {
         _parser1 = parser1;
         Func<TOutput1> fnOutput1 = () => _currentOutput1!;
         _parser2 = fnParser2(fnOutput1);
-        _fnMapper = fnMapper;
         _currentOutput1 = default!;
     }
 
     public override string DebugContent => $"{_parser1.DebugContent} {_parser2.DebugContent}";
 
-    public override ParseResult<TOutput3> Parse(ReadOnlySpan<TInput> input)
+    public override ParseResult<TOutput2> Parse(ReadOnlySpan<TInput> input)
     {
         var result1 = _parser1.Parse(input);
         if (result1.Success)
@@ -35,8 +35,7 @@ public sealed class ApplyParser<TInput, TOutput1, TOutput2, TOutput3> : Parser<T
             if (result2.Success)
             {
                 _currentOutput1 = prevOutput1;
-                var output = _fnMapper(result1.Output, result2.Output);
-                return new ParseResult<TOutput3>(true, result1.Length + result2.Length, output);
+                return new ParseResult<TOutput2>(true, result1.Length + result2.Length, result2.Output);
             }
 
             _currentOutput1 = prevOutput1;

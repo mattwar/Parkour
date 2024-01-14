@@ -1,21 +1,20 @@
 ﻿namespace Parkour.Parsing.Parsers;
 
+/// <summary>
+/// A parser that produces a range of outputs 
+/// from repeatedly applying the specified parser until it fails or exceeds the range.
+/// </summary>
 public sealed class RepeatMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {
     private readonly MultiParser<TInput, TOutput> _parser;
     private readonly int _minCount;
     private readonly int _maxCount;
 
-    public RepeatMultiParser(Parser<TInput, IReadOnlyList<TOutput>> parser, int minCount, int maxCount)
+    public RepeatMultiParser(Parser<TInput, IReadOnlyList<TOutput>> parser, int minCount, int maxCount = -1)
     {
         _parser = parser.ToMultiParser();
         _minCount = minCount;
-        _maxCount = maxCount;
-    }
-
-    public RepeatMultiParser(Parser<TInput, IReadOnlyList<TOutput>> parser, int minCount)
-        : this(parser, minCount, 0)
-    {
+        _maxCount = maxCount > 0 ? maxCount : Int32.MaxValue;
     }
 
     public override string DebugContent

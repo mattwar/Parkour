@@ -1,4 +1,4 @@
-﻿namespace Parkour.Syntax;
+﻿namespace Parkour.Parsing;
 
 [System.Diagnostics.DebuggerDisplay("{Kind}: {Text}")]
 public struct LexicalToken

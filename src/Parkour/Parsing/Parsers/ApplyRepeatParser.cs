@@ -2,39 +2,47 @@
 
 /// <summary>
 /// A parser that aggregates the output of the first parser with zero or more outputs of the second parser.
-/// This is typically used with postfix operators:  x ++ ++ 
+/// This is typically used with infix operators:  x and y and z
 /// </summary>
-public sealed class LeftReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput, TOutput1>
+public sealed class ApplyRepeatParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
-    private readonly Parser<TInput, TOutput1> _parser1;
-    private readonly Parser<TInput, TOutput2> _parser2;
-    private readonly Func<TOutput1, TOutput2, TOutput1> _fnAggregate;
+    private readonly Parser<TInput, TOutput> _parser1;
+    private readonly Parser<TInput, TOutput> _parser2;
+    private readonly int _minCount;
+    private readonly int _maxCount;
 
-    public LeftReduceParser(
-        Parser<TInput, TOutput1> parser1,
-        Parser<TInput, TOutput2> parser2,
-        Func<TOutput1, TOutput2, TOutput1> fnAggregate)
+    private TOutput _currentOutput;
+
+    public ApplyRepeatParser(
+        Parser<TInput, TOutput> parser1,
+        Func<Func<TOutput>, Parser<TInput, TOutput>> fnParser2,
+        int minCount,
+        int maxCount = -1)
     {
         _parser1 = parser1;
-        _parser2 = parser2;
-        _fnAggregate = fnAggregate;
+        Func<TOutput> fnOutput = () => _currentOutput!;
+        _parser2 = fnParser2(fnOutput);
+        _minCount = minCount;
+        _maxCount = maxCount > 0 ? maxCount : Int32.MaxValue;
+        _currentOutput = default!;
     }
 
     public override string DebugContent => $"{_parser1.DebugContent} {{{_parser2.DebugContent}}}";
 
-    public override ParseResult<TOutput1> Parse(ReadOnlySpan<TInput> input)
+    public override ParseResult<TOutput> Parse(ReadOnlySpan<TInput> input)
     {
         var consumed = 0;
+        var count = 0;
 
-        // first parser must succeed but not second parser
+        // first parser must succeed and second parser must succeed within min/max range.
         var result1 = _parser1.Parse(input);
-        if (result1.Success)       
+        if (result1.Success)
         {
-            var output1 = result1.Output;
             consumed += result1.Length;
             input = input.Slice(result1.Length);
+            _currentOutput = result1.Output;
 
-            while (true)
+            while (count < _maxCount)
             {
                 var result2 = _parser2.Parse(input);
                 if (!result2.Success)
@@ -42,10 +50,12 @@ public sealed class LeftReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput
 
                 consumed += result2.Length;
                 input = input.Slice(result2.Length);
-                output1 = _fnAggregate(output1, result2.Output);
+                _currentOutput = result2.Output;
+                count++;
             }
 
-            return new ParseResult<TOutput1>(true, consumed, output1);
+            if (count >= _minCount && count <= _maxCount)
+                return new ParseResult<TOutput>(true, consumed, _currentOutput);
         }
 
         return default;
@@ -54,6 +64,7 @@ public sealed class LeftReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput
     public override ScanResult Scan(ReadOnlySpan<TInput> input)
     {
         var consumed = 0;
+        var count = 0;
 
         // first parser must succeed but not second parser
         var result1 = _parser1.Scan(input);
@@ -62,7 +73,7 @@ public sealed class LeftReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput
             consumed += result1.Length;
             input = input.Slice(result1.Length);
 
-            while (true)
+            while (count < _maxCount)
             {
                 var result2 = _parser2.Scan(input);
                 if (!result2.Success)
@@ -70,9 +81,11 @@ public sealed class LeftReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput
 
                 consumed += result2.Length;
                 input = input.Slice(result2.Length);
+                count++;
             }
 
-            return new ScanResult(true, consumed);
+            if (count >= _minCount && count <= _maxCount)
+                return new ScanResult(true, consumed);
         }
 
         return default;
@@ -83,6 +96,7 @@ public sealed class LeftReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput
         fnCallback?.Invoke(this, input, afterMissing);
 
         var consumed = 0;
+        var count = 0;
 
         // first parser must succeed but not second parser
         var result1 = _parser1.Search(input, afterMissing, fnCallback);
@@ -101,9 +115,11 @@ public sealed class LeftReduceParser<TInput, TOutput1, TOutput2> : Parser<TInput
                 consumed += result2.Length;
                 input = input.Slice(result2.Length);
                 afterMissing = result2.AfterMissing;
+                count++;
             }
 
-            return new SearchResult(true, consumed, afterMissing);
+            if (count >= _minCount && count <= _maxCount)
+                return new SearchResult(true, consumed, afterMissing);
         }
 
         return default;

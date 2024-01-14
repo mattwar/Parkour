@@ -1,16 +1,19 @@
 ﻿namespace Parkour.Parsing.Parsers;
 
-public sealed class AndMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
+/// <summary>
+/// A parser that succeeds if all parsers succeed in succession.
+/// </summary>
+public sealed class SequenceMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {
-    private readonly IReadOnlyList<MultiParser<TInput, TOutput>> _parsers;
+    private readonly ImmutableList<MultiParser<TInput, TOutput>> _parsers;
 
-    public AndMultiParser(params Parser<TInput, IReadOnlyList<TOutput>>[] parsers)
+    public SequenceMultiParser(IEnumerable<Parser<TInput, IReadOnlyList<TOutput>>> parsers)
     {
         var allParsers = new List<MultiParser<TInput, TOutput>>();
 
         foreach (var parser in parsers)
         {
-            if (parser is AndMultiParser<TInput, TOutput> andParser)
+            if (parser is SequenceMultiParser<TInput, TOutput> andParser)
             {
                 allParsers.AddRange(andParser._parsers);
             }
@@ -20,7 +23,7 @@ public sealed class AndMultiParser<TInput, TOutput> : MultiParser<TInput, TOutpu
             }
         }
 
-        _parsers = allParsers;
+        _parsers = allParsers.ToImmutableList();
     }
 
     public override string DebugContent => $"{string.Join(" ", _parsers.Select(p => $"{p.DebugContent}"))}";

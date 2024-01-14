@@ -1,19 +1,25 @@
 ﻿namespace Parkour.Parsing.Parsers;
 
+/// <summary>
+/// A parser that maps the output of all parsers, if all parsers succeed in succession.
+/// </summary>
 public sealed class SequenceParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
-    private readonly IReadOnlyList<Parser<TInput>> _parsers;
+    private readonly ImmutableList<Parser<TInput>> _parsers;
     private readonly Func<IReadOnlyList<object>, TOutput> _fnMapper;
-    private readonly string? _term;
+    public override ImmutableList<object> Annotations { get;}
 
-    public SequenceParser(Parser<TInput>[] parsers, Func<IReadOnlyList<object>, TOutput> fnMapper, string? term = null)
+    public SequenceParser(
+        IEnumerable<Parser<TInput>> parsers, 
+        Func<IReadOnlyList<object>, TOutput> fnMapper, 
+        ImmutableList<object>? annotations = null)
     {
-        _parsers = parsers;
+        _parsers = parsers.ToImmutableList();
         _fnMapper = fnMapper;
-        _term = term;
+        Annotations = annotations ?? ImmutableList<object>.Empty;
     }
 
-    public override string DebugContent => $"{_term ?? string.Join(" ", _parsers.Select(p => $"{p.DebugContent}"))}";
+    public override string DebugContent => $"{Term ?? string.Join(" ", _parsers.Select(p => $"{p.DebugContent}"))}";
 
     public override ParseResult<TOutput> Parse(ReadOnlySpan<TInput> input)
     {

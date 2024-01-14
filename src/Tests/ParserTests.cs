@@ -259,6 +259,32 @@ namespace Tests
         }
 
         [TestMethod]
+        public void TestLeftReduce()
+        {
+            var parser = Match("A").LeftReduce(Match("B"), (a, b) => Concat(a, b));
+
+            Test(parser, "", succeeds: false);
+            Test(parser, "A", "A");
+            Test(parser, "AB", "AB");
+            Test(parser, "ABB", "ABB");
+            Test(parser, "ABBC", "ABB", "C");
+        }
+
+        [TestMethod]
+        public void TestRightReduce()
+        {
+            var parser = Match("A").RightReduce(Match("B"), (a, b) => Concat(a, b));
+
+            Test(parser, "", succeeds: false);
+            Test(parser, "A", "A", succeeds: false);
+            Test(parser, "B", "B");
+            Test(parser, "AB", "AB");
+            Test(parser, "AAB", "AAB");
+            Test(parser, "AAAB", "AAAB");
+            Test(parser, "ABB", "AB", "B");
+        }
+
+        [TestMethod]
         public void TestOperators()
         {
             var parser = Operators(

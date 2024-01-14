@@ -15,14 +15,14 @@ namespace Tiny
             var lexer = new TinyLexer();
             var tokens = lexer.Parse(text);
             var result = _parser.Parse(tokens.AsSpan());
-            var annotations = new AnnotationSource(_parser, text, tokens);
+            var annotations = new LexcialAnnotationSource(_parser, tokens);
             return new SyntaxTree(name, text, result.Output, annotations);
         }
 
         public TinyParser()
         {
             Parser<LexicalToken, SyntaxToken> ToToken(Parser<LexicalToken, LexicalToken> parser) =>
-                parser.Select(lt => (SyntaxToken)new SyntaxToken(lt));
+                parser.Select(lt => new SyntaxToken(lt.Kind, lt.Trivia, lt.Text, lt.Diagnostic));
 
             Parser<LexicalToken, SyntaxToken> Token(string text) =>
                 ToToken(Match(t => t.Text == text, $"'{text}'"));
@@ -68,7 +68,7 @@ namespace Tiny
                 Required(Negative, TinyFactory.MissingExpression);
 
             var Multiplicative =
-                Negative.LeftReduce(fnLeft =>
+                Negative.ApplyRepeat(fnLeft =>
                     First(
                         Map(Token(TinyTokenTexts.Asterisk), RequiredNegative,
                             (op, right) => TinyFactory.Multiply(fnLeft(), op, right)),
@@ -80,7 +80,7 @@ namespace Tiny
                 Required(Multiplicative, TinyFactory.MissingExpression);
 
             var Additive =
-                Multiplicative.LeftReduce(fnLeft =>
+                Multiplicative.ApplyRepeat(fnLeft =>
                     First(
                         Map(Token(TinyTokenTexts.Plus), RequiredMultiplicative,
                             (op, right) => TinyFactory.Add(fnLeft(), op, right)),
@@ -92,7 +92,7 @@ namespace Tiny
                 = Required(Additive, TinyFactory.MissingExpression);
 
             var Inequality =
-                Additive.LeftReduce(fnLeft =>
+                Additive.ApplyRepeat(fnLeft =>
                     First(
                         Map(Token(TinyTokenTexts.GreaterThan), RequiredAdditive,
                             (op, right) => TinyFactory.GreaterThan(fnLeft(), op, right)),
@@ -108,7 +108,7 @@ namespace Tiny
                 Required(Inequality, TinyFactory.MissingExpression);
 
             var Equality =
-                Inequality.LeftReduce(fnLeft =>
+                Inequality.ApplyRepeat(fnLeft =>
                     First(
                         Map(Token(TinyTokenTexts.EqualEqual), RequiredInequality,
                             (op, right) => TinyFactory.Equal(fnLeft(), op, right)),
@@ -128,7 +128,7 @@ namespace Tiny
                 Required(LogicalNot, TinyFactory.MissingExpression);
 
             var Logical =
-                LogicalNot.LeftReduce(fnLeft =>
+                LogicalNot.ApplyRepeat(fnLeft =>
                     First(
                         Map(Token(TinyTokenTexts.And), RequiredLogicalNot,
                             (op, right) => TinyFactory.And(fnLeft(), op, right)),

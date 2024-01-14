@@ -103,14 +103,25 @@ public class NextParsersTests
     }
 
     [TestMethod]
-    public void TestLeftReduce()
+    public void TestApplyRepeat()
     {
-        var p = LeftReduce(Match("A"), fnLeft => Map(Match("+"), Match("A"), (op, right) => Concat(fnLeft(), op, right)));
+        var p = Match("A").ApplyRepeat(fnLeft => Map(Match("+"), Match("A"), (op, right) => Concat(fnLeft(), op, right)));
         Test(p, "$", "'A'");
         Test(p, "A$", "'+'");
         Test(p, "A+$", "'A'");
         Test(p, "A+A$", "'+'");
         Test(p, "A+A+$", "'A'");
+    }
+
+    [TestMethod]
+    public void TestLeftReduce()
+    {
+        var p = Match("A").LeftReduce(Match("+"), (left, op) => Concat(left, op));
+        Test(p, "$", "'A'");
+        Test(p, "A$", "'+'");
+        Test(p, "A+$", "'+'");
+        Test(p, "A++$", "'+'");
+        Test(p, "A+++$", "'+'");
     }
 
     [TestMethod]
@@ -178,9 +189,12 @@ public class NextParsersTests
     }
 
     [TestMethod]
-    public void TestMissing_AfterLeftReduceApply()
+    public void TestMissing_AfterApplyRepeat()
     {
-        var p = Match("A").LeftReduce(fnLeft => Map(Match("+"), Required(Match("A")), (op, right) => Concat(fnLeft(), op, right))).And(Match("B"));
+        var p = Match("A")
+            .ApplyRepeat(fnLeft => Map(Match("+"), Required(Match("A")), (op, right) => Concat(fnLeft(), op, right)))
+            .And(Match("B"));
+
         Test(p, "$", "'A'");
         Test(p, "A$", "'+', 'B'");
         Test(p, "A+$", "'A'");

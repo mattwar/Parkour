@@ -1,25 +1,30 @@
 ﻿
 namespace Parkour.Parsing;
-using Syntax;
 
-public class AnnotationSource
+/// <summary>
+/// An annotation source that finds annotations in the parsing grammar
+/// by scanning to the position using the original input.
+/// </summary>
+public class LexcialAnnotationSource
     : IAnnotationSource
 {
     private readonly Parser<LexicalToken> _parser;
-    private readonly string _text;
     private readonly ImmutableArray<LexicalToken> _tokens;
+    private readonly int _textLength;
 
-    public AnnotationSource(
+    public LexcialAnnotationSource(
         Parser<LexicalToken> parser, 
-        string text,
         ImmutableArray<LexicalToken> tokens)
     {
         _parser = parser;
-        _text = text;
         _tokens = tokens;
+        _textLength = tokens.Sum(t => t.Length);
     }
 
-    public void GetAnnotations<TAnnotation>(int position, Func<TAnnotation, bool>? filter, List<TAnnotation> annotations)
+    public void GetAnnotations<TAnnotation>(
+        int position, 
+        Func<TAnnotation, bool>? filter, 
+        List<TAnnotation> annotations)
     {
         var tokenIndex = GetTokenIndex(position, out var textOffsetInToken);
         if (tokenIndex >= 0)
@@ -66,7 +71,7 @@ public class AnnotationSource
     /// </summary>
     public int GetTokenIndex(int textPosition, out int textOffsetInToken)
     {
-        if (textPosition < _text.Length)
+        if (textPosition < _textLength)
         {
             for (int i = 0; i < _tokens.Length; i++)
             {
@@ -80,7 +85,7 @@ public class AnnotationSource
                 textPosition -= token.Length;
             }
         }
-        else if (textPosition == _text.Length && _tokens.Length > 0)
+        else if (textPosition == _textLength && _tokens.Length > 0)
         {
             textOffsetInToken = _tokens[^1].Length;
             return _tokens.Length - 1;
