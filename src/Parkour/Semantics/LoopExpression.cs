@@ -1,29 +1,25 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
-public sealed class WhileExpression : Expression
+public sealed class LoopExpression : Expression
 {
-    public Expression Test { get; }
     public Expression Body { get; }
-    public TargetSymbol? BreakTarget { get; }
-    public TargetSymbol? ContinueTarget { get; }
+    public LabelSymbol? BreakTarget { get; }
+    public LabelSymbol? ContinueTarget { get; }
 
-    public WhileExpression(
-        Expression test,
+    public LoopExpression(
         Expression body,
         ISourceLocation? location,
         TypeSymbol? resultType,
-        TargetSymbol? breakTarget,
-        TargetSymbol? continueTarget,
+        LabelSymbol? breakTarget,
+        LabelSymbol? continueTarget,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            test.State | body.State, 
+            body.State, 
             location,
             resultType, 
             diagnostics)
     {
-        this.Test = test;
         this.Body = body;
         this.BreakTarget = breakTarget;
         this.ContinueTarget = continueTarget;

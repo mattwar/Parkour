@@ -28,10 +28,248 @@ public class ExpressionTests
             });
     }
 
+
+    [TestMethod]
+    public void TestBlock()
+    {
+        // block can contain just one expression
+        TestBinding(
+            Block(Constant(1)), 
+            _symbols.Int32);
+
+        // last expression determines block type
+        TestBinding(
+            Block(
+                Constant("zero"),
+                Constant(1)),
+            _symbols.Int32);
+
+
+        // declare in block
+        TestBinding(
+            Block(
+                Declare("x", Constant(1)),
+                Reference("x")),
+            _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestBranch()
+    {
+        // branch w/o expression to label w/o type
+        TestBinding(
+            Block(
+                Condition(
+                    Constant(true),
+                    Branch("label")),
+                Constant("3"),
+                Label("label")
+                ));
+
+        // branch with expression & label with matching type
+        TestBinding(
+            Block(
+                Condition(
+                    Constant(true),
+                    Branch("label", Constant(1))),
+                Constant(2),
+                Label("label", TypeReference(_symbols.Int32))
+                ));
+
+        // branch with expression & label with convertable type
+        TestBinding(
+            Block(
+                Condition(
+                    Constant(true),
+                    Branch("label", Constant(1))),
+                Constant(2),
+                Label("label", TypeReference(_symbols.Int64))
+                ));
+
+        // branch with expression & label with non-convertable type
+        TestBinding(
+            Block(
+                Condition(
+                    Constant(true),
+                    Branch("label", Constant(1))),
+                Constant(2),
+                Label("label", TypeReference(_symbols.String))
+                ),
+                containsDiagnostics: true);
+
+        // infinite loop
+        TestBinding(
+            Block(
+                Label("label"),
+                Condition(
+                    Constant(true),
+                    Branch("label")),
+                Constant("3")
+                ));
+
+        // branch alone?  this is error, but check result type
+        TestBinding(
+            Branch("label"),
+            _symbols.DoesNotReturn,
+            containsDiagnostics: true);
+
+        // branch at end of block to valid target
+        TestBinding(
+            Block(
+                Label("label"),
+                Branch("label")),
+            _symbols.DoesNotReturn);
+    }
+
+    [TestMethod]
+    public void TestCall()
+    {
+        TestBinding(Call(Path(Constant(1), Reference("ToString"))), _symbols.String);
+    }
+
+    [TestMethod]
+    public void TestCondition()
+    {
+        // whenTrue/whenFalse same types
+        TestBinding(
+            Condition(Constant(true), Constant(1), Constant(0)),
+            _symbols.Int32);
+
+        // whenTrue/whenFalse not same types, convertable
+        TestBinding(
+            Condition(Constant(true), Constant(1), Constant(1L)),
+            _symbols.Int64);
+
+        // whenTrue/whenFalse not same types, not convertable
+        TestBinding(
+            Condition(Constant(true), Constant(1), Constant("zero")),
+            _symbols.Int32,
+            containsDiagnostics: true);
+
+        // whenTrue is void
+        TestBinding(
+            Condition(Constant(true), Void(), Constant(2)),
+            _symbols.Void);
+
+        // whenFalse is void
+        TestBinding(
+            Condition(Constant(true), Constant(1), Void()),
+            _symbols.Void);
+    }
+
     [TestMethod]
     public void TestConstant()
     {
         TestBinding(Constant(1), _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestDeclaration()
+    {
+        // declaration with initializer
+        TestBinding(
+            Declare("x", Constant(1)),
+            _symbols.Int32);
+
+        // declare with type but no initializer
+        TestBinding(
+            Declare(TypeReference(_symbols.Int32), "x"),
+            _symbols.Int32);
+
+        // declare with type and initializer
+        TestBinding(
+            Declare(TypeReference(_symbols.Int32), "x", Constant(1)),
+            _symbols.Int32);
+
+        // declare with type and initializer with convertable types
+        TestBinding(
+            Declare(TypeReference(_symbols.Int64), "x", Constant(1)),
+            _symbols.Int64);
+
+        // declare with type and initializer with non-convertable types
+        TestBinding(
+            Declare(TypeReference(_symbols.Int64), "x", Constant("one")),
+            _symbols.Int64,
+            containsDiagnostics: true);
+
+        // declare with no type and no initializer
+        TestBinding(
+            Declare(null, "x", null),
+            _symbols.Object,
+            containsDiagnostics: true);
+    }
+
+    [TestMethod]
+    public void TestDefault()
+    {
+        // default w/ type expression
+        TestBinding(
+            Default(TypeReference(_symbols.Int32)),
+            _symbols.Int32);
+
+        // default w/o type expression
+        TestBinding(
+            Default(),
+            containsDiagnostics: true);
+
+        // default w/o type but with target type
+        TestBinding(
+            Declare(TypeReference(_symbols.Int32), "x", Default()),
+            _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestLabels()
+    {
+        // lone void label okay
+        TestBinding(
+            Label("x"),
+            expectedResultType: _symbols.Void);
+
+        // lone void label in block okay
+        TestBinding(
+            Block(Label("x")),
+            expectedResultType: _symbols.Void);
+
+        // void label with inflowing value okay (can be ignored)
+        TestBinding(
+            Block(
+                Constant(1),
+                Label("x")),
+            expectedResultType: _symbols.Void);
+
+        // can flow compatible value type into label expecting a type
+        TestBinding(
+            Block(
+                Constant(1),
+                Label("x", TypeReference(_symbols.Int32))
+                ),
+            expectedResultType: _symbols.Int32);
+
+        // can flow compatible value type into label expecting a type
+        TestBinding(
+            Block(
+                Constant(1),
+                Label("x", TypeReference(_symbols.Int64))
+                ),
+            expectedResultType: _symbols.Int64);
+
+        // cannot flow void into label expecting type
+        TestBinding(
+            Label("x", TypeReference(_symbols.Int32)),
+            expectedResultType: _symbols.Int32,
+            containsDiagnostics: true);
+
+        // cannot flow incompatible value type into label expecting a type
+        TestBinding(
+            Block(
+                Constant("one"),
+                Label("x", TypeReference(_symbols.Int32))
+                ),
+            expectedResultType: _symbols.Int32,
+            containsDiagnostics: true);
+
+        // TODO: should be able to branch with value to void label. though probably doing something wrong.
     }
 
     [TestMethod]
@@ -69,27 +307,178 @@ public class ExpressionTests
     }
 
     [TestMethod]
-    public void TestReference()
-    {
-        TestBinding(Reference("Int32"), _symbols.Type, _symbols.Int32);
-    }
-
-    [TestMethod]
     public void TestPath()
     {
-        TestBinding(Path(Reference("Int32"), Reference("MaxValue")), _symbols.Int32);
+        TestBinding(Path(TypeReference(_symbols.Int32), Reference("MaxValue")), _symbols.Int32);
     }
 
     [TestMethod]
-    public void TestCall()
+    public void TestReference()
     {
-        TestBinding(Call(Path(Constant(1), Reference("ToString"))), _symbols.String);
+        TestBinding(
+            Reference("Int32"), 
+            _symbols.Type, 
+            _symbols.Int32);
+
+        TestBinding(
+            Reference("System"),
+            _symbols.Namespace,
+            _symbols.System);
     }
 
-    private void TestBinding(Expression expression, TypeSymbol? expectedResultType = null, Symbol? expectedReferencedSymbol = null, BindingScope? scope = null)
+    [TestMethod]
+    public void TestTypeReference()
+    {
+        TestBinding(
+            TypeReference(_symbols.Int32), 
+            expectedResultType: _symbols.Type, 
+            expectedReferencedSymbol: _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestVoid()
+    {
+        TestBinding(Void(), _symbols.Void);
+    }
+
+    [TestMethod]
+    public void TestLoop()
+    {
+        // loop with no break
+        TestBinding(
+            Loop(Constant(1)),
+            expectedResultType: _symbols.Void);
+
+        // loop with block & no break
+        TestBinding(
+            Loop(Block(Constant(1))),
+            expectedResultType: _symbols.Void);
+
+        // loop with break
+        TestBinding(
+            Loop(Break()),
+            expectedResultType: _symbols.Void);
+
+        // loop with break in block
+        TestBinding(
+            Loop(Block(Break())),
+            expectedResultType: _symbols.Void);
+
+        // loop with break with value
+        TestBinding(
+            Loop(Break(Constant(1))),
+            expectedResultType: _symbols.Int32);
+
+        // loop with break with value in block
+        TestBinding(
+            Loop(Block(Break(Constant(1)))),
+            expectedResultType: _symbols.Int32);
+
+        // loop with conditional break
+        TestBinding(
+            Loop(
+                Condition(Constant(true), Constant(1), Break())),
+            expectedResultType: _symbols.Void);
+
+        // loop with conditional break returning value
+        TestBinding(
+            Loop(
+                Condition(Constant(true), Constant(1), Break(Constant(2)))),
+            expectedResultType: _symbols.Int32);
+
+        // loop with conditional break returning compatible values
+        TestBinding(
+            Loop(
+                Condition(Constant(true), Constant(1), Break(Constant(2L)))),
+            expectedResultType: _symbols.Int64);
+
+        // loop with multiple breaks, compatible breaks
+        TestBinding(
+            Loop(
+                Block(
+                    Break(),
+                    Break())),
+            expectedResultType: _symbols.Void);
+
+        TestBinding(
+            Loop(
+                Block(
+                    Break(Constant(1)),
+                    Break(Constant(2L)))),
+            expectedResultType: _symbols.Int64);
+
+        // loop with multiple breaks, incompatible break types
+        TestBinding(
+            Loop(
+                Block(
+                    Break(),
+                    Break(Constant(1)))),
+            expectedResultType: _symbols.Void,
+            containsDiagnostics: true);
+
+        TestBinding(
+            Loop(
+                Block(
+                    Break(Constant(1)),
+                    Break())),
+            expectedResultType: _symbols.Void,
+            containsDiagnostics: true);
+
+        // loop with continue
+        TestBinding(
+            Loop(Continue()),
+            expectedResultType: _symbols.Void);
+
+        // loop with continue in block
+        TestBinding(
+            Loop(Block(Continue())),
+            expectedResultType: _symbols.Void);
+
+        // loop with continue between other expressions
+        TestBinding(
+            Loop(Block(
+                Constant(1),
+                Continue(),
+                Constant(2))),
+            expectedResultType: _symbols.Void);
+
+        // loop with conditional continue.
+        TestBinding(
+            Loop(Condition(Constant(true), Continue())),
+            expectedResultType: _symbols.Void);
+
+        // loop with multiple continues
+        TestBinding(
+            Loop(Block(
+                Continue(),
+                Continue())),
+            expectedResultType: _symbols.Void);
+
+        // loop with continue and break
+        TestBinding(
+            Loop(Condition(Constant(true), Continue(), Break())),
+            expectedResultType: _symbols.Void);
+
+        // loop with continue and break with value
+        TestBinding(
+            Loop(Condition(Constant(true), Continue(), Break(Constant(1)))),
+            expectedResultType: _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestLambda()
+    {
+    }
+
+    private void TestBinding(
+        Expression expression, 
+        TypeSymbol? expectedResultType = null, 
+        Symbol? expectedReferencedSymbol = null, 
+        bool containsDiagnostics = false,
+        BindingScope? scope = null)
     {
         var binder = new ExpressionBinder(_symbols.GlobalNamespace);
-        var bound = binder.BindInScope(expression, scope ?? _defaultTestScope);
+        var bound = binder.Bind(expression, scope ?? _defaultTestScope);
 
         Assert.IsFalse(bound.ContainsUnknowns, "expression contains unknowns after binding");
 
@@ -103,6 +492,17 @@ public class ExpressionTests
         {
             var actualReferencedSymbol = bound.ReferencedSymbol;
             Assert.IsTrue(SymbolEqualityComparer.Instance.Equals(expectedReferencedSymbol, actualReferencedSymbol), $"referenced symbol expected: {expectedReferencedSymbol?.Name ?? "null"} actual: {actualReferencedSymbol?.Name ?? "null"}");
+        }
+
+        if (bound.ContainsDiagnostics && !containsDiagnostics)
+        {
+            var dxs = new List<Diagnostic>();
+            bound.GetContainedDiagnostics(dxs);
+            Assert.Fail($"Unexpected diagnostic: {dxs[0]}");
+        }
+        else if (!bound.ContainsDiagnostics && containsDiagnostics)
+        {
+            Assert.Fail("Expected diagnostics, but none found.");
         }
     }
 }

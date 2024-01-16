@@ -31,10 +31,11 @@ public class Diagnostic
     {
         var message = this.Message;
 
-        if (this.Code != null)
+        if (this.Code != null && this.Code.Length > 0)
             message = $"[{Code}] {message}";
 
-        message = $"{Severity}: {message}";
+        if (this.Severity != null && this.Severity.Length > 0)
+        message = $"{this.Severity}: {message}";
 
         if (this.Location != null)
         {

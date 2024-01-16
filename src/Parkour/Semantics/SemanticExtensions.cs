@@ -91,22 +91,30 @@ public static class SemanticExtensions
                 Walk(condition.WhenFalse, walkChildren, action);
                 break;
 
-            case ConstructorDeclaration constructor:
-                Walk(constructor.Parameters, walkChildren, action);
-                Walk(constructor.Body, walkChildren, action);
-                break;
-
             case ConvertExpression convert:
                 Walk(convert.Expression, walkChildren, action);
                 break;
 
             case DeclarationExpression declaration:
+                Walk(declaration.VariableType, walkChildren, action);
                 Walk(declaration.Initializer, walkChildren, action);
+                break;
+
+            case DefaultExpression def:
+                Walk(def.TypeExpression, walkChildren, action);
+                break;
+
+            case LabelExpression label:
+                Walk(label.ReceivingType, walkChildren, action);
                 break;
 
             case LambdaExpression lambda:
                 Walk(lambda.Parameters, walkChildren, action);
                 Walk(lambda.Body, walkChildren, action);
+                break;
+
+            case LoopExpression loop:
+                Walk(loop.Body, walkChildren, action);
                 break;
 
             case PathExpression path:
@@ -117,6 +125,11 @@ public static class SemanticExtensions
             case ClassDeclaration cd:
                 Walk(cd.BaseTypes, walkChildren, action);
                 Walk(cd.Declarations, walkChildren, action);
+                break;
+
+            case ConstructorDeclaration cd:
+                Walk(cd.Parameters, walkChildren, action);
+                Walk(cd.Body, walkChildren, action);
                 break;
 
             case MethodDeclaration md:
@@ -139,11 +152,10 @@ public static class SemanticExtensions
                 Walk(prd.SetMethod, walkChildren, action);
                 break;
 
+            case ReferenceExpression _:
             case OperatorExpression _:
             case ConstantExpression _:
-            case ReferenceExpression _:
             case VoidExpression _:
-            case LabelExpression _:
                 break;
 
             default:

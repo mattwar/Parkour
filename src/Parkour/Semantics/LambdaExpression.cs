@@ -9,7 +9,7 @@ public sealed class LambdaExpression : Expression
     public Expression Body { get; }
     public FunctionSymbol? Symbol { get; }
     public TypeSymbol? ReturnType { get; }
-    public TargetSymbol? ReturnTarget { get; }
+    public LabelSymbol? ReturnTarget { get; }
 
     public LambdaExpression(
         string name,
@@ -18,7 +18,7 @@ public sealed class LambdaExpression : Expression
         ISourceLocation? location,
         TypeSymbol? returnType,
         FunctionSymbol? symbol,
-        TargetSymbol? returnTarget,
+        LabelSymbol? returnTarget,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             body.State,

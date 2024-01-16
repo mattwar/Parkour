@@ -234,12 +234,10 @@ public class SemanticWriter
                 Write(rex.Name);
                 break;
 
-            case WhileExpression whilst:
-                Write("while (");
-                Write(whilst.Test);
-                Write(")");
+            case LoopExpression loop:
+                Write("loop");
                 WriteLine();
-                WriteBlockOrIndented(whilst.Body);
+                WriteBlockOrIndented(loop.Body);
                 break;
 
             case NamespaceDeclaration nd:

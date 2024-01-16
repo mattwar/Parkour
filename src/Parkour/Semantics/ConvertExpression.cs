@@ -1,6 +1,5 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public sealed class ConvertExpression : Expression
 {

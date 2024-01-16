@@ -18,7 +18,7 @@ public static class SemanticFactory
         Block(expressions.ToImmutableList());
 
     public static BranchExpression Branch(string target, Expression? expression = null, ISourceLocation? location = null) =>
-        new BranchExpression(target, expression, location, null, null);
+        new BranchExpression(target, expression, location, null, null, null);
 
     public static BranchExpression Break(Expression? expression = null, ISourceLocation? location = null) =>
         BranchExpression.CreateBreak(expression, location, null, null);
@@ -35,17 +35,35 @@ public static class SemanticFactory
     public static ConditionExpression Condition(Expression test, Expression whenTrue, Expression whenFalse, ISourceLocation? location = null) =>
         new ConditionExpression(test, whenTrue, whenFalse, location, null, null);
 
+    public static ConditionExpression Condition(Expression test, Expression whenTrue, ISourceLocation? location = null) =>
+        new ConditionExpression(test, whenTrue, Void(location), location, null, null);
+
     public static ConstantExpression Constant(object? value, ISourceLocation? location = null) =>
         new ConstantExpression(value, location, null, null);
 
     public static BranchExpression Continue(ISourceLocation? location = null) =>
         BranchExpression.CreateContinue(location, null, null);
 
-    public static ConvertExpression Convert(Expression expression, Expression convertedType, ISourceLocation? location = null) =>
-        new ConvertExpression(ConversionKind.Narrowing, expression, convertedType, location, null, null, null);
+    public static ConvertExpression Convert(ConversionKind kind, Expression expression, Expression convertedType, ISourceLocation? location = null) =>
+        new ConvertExpression(kind, expression, convertedType, location, null, null, null);
 
-    public static DeclarationExpression Declare(string name, Expression initializer, ISourceLocation? location = null) =>
-        new DeclarationExpression(name, initializer, location, null, null, null);
+    public static ConvertExpression Convert(Expression expression, Expression convertedType, ISourceLocation? location = null) =>
+        Convert(ConversionKind.Narrowing, expression, convertedType, location);
+
+    public static DeclarationExpression Declare(Expression? variableType, string name, Expression? initializer, ISourceLocation? location = null) =>
+        new DeclarationExpression(name, variableType, initializer, location, null, null, null);
+
+    public static DeclarationExpression Declare(Expression? variableType, string name, ISourceLocation? location = null) =>
+        Declare(variableType, name, null, location);
+
+    public static DeclarationExpression Declare(string name, Expression? initializer, ISourceLocation? location = null) =>
+        Declare(null, name, initializer, location);
+
+    public static DefaultExpression Default(Expression? type, ISourceLocation? location = null) =>
+        new DefaultExpression(type, location, null, null);
+
+    public static DefaultExpression Default(ISourceLocation? location = null) =>
+        Default(null, location);
 
     public static PathExpression Path(Expression expression, ReferenceExpression reference, ISourceLocation? location = null) =>
         new PathExpression(expression, reference, location, null);
@@ -53,17 +71,20 @@ public static class SemanticFactory
     public static PathExpression Path(Expression expression, string name, ISourceLocation? location = null) =>
         Path(expression, Reference(name), location);
 
-    public static LambdaExpression Function(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
+    public static LabelExpression Label(string name, Expression? recievingType = null, ISourceLocation? location = null) =>
+        new LabelExpression(name, recievingType, location, null, null, null);
+
+    public static LambdaExpression Lambda(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
         new LambdaExpression("", parameters, body, location, null, null, null, null);
 
-    public static LambdaExpression Function(IEnumerable<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
-        Function(parameters.ToImmutableList(), body, location);
+    public static LambdaExpression Lamda(IEnumerable<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
+        Lambda(parameters.ToImmutableList(), body, location);
 
-    public static LambdaExpression Function(IEnumerable<string> parameterNames, Expression body, ISourceLocation? location = null) =>
-        Function(parameterNames.Select(n => Parameter(n)), body, location);
+    public static LambdaExpression Lambda(IEnumerable<string> parameterNames, Expression body, ISourceLocation? location = null) =>
+        Lamda(parameterNames.Select(n => Parameter(n)), body, location);
 
-    public static LambdaExpression Function(Expression body, ISourceLocation? location = null) =>
-        Function(ImmutableList<ParameterDeclaration>.Empty, body, location);
+    public static LambdaExpression Lambda(Expression body, ISourceLocation? location = null) =>
+        Lambda(ImmutableList<ParameterDeclaration>.Empty, body, location);
 
     public static OperatorExpression Operator(string name, ISourceLocation? location = null) =>
         new OperatorExpression(name, location, null, null, null);
@@ -81,6 +102,12 @@ public static class SemanticFactory
         location == null 
             ? VoidExpression.Default
             : new VoidExpression(location);
+
+    public static LoopExpression Loop(Expression body, ISourceLocation? location = null) =>
+        new LoopExpression(body, location, null, null, null, null);
+
+    public static LoopExpression While(Expression test, Expression body, ISourceLocation? location = null) =>
+        Loop(Condition(test, body, Break()));
 
     public static CallExpression Add(Expression left, Expression right, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.Add), [left, right], location);

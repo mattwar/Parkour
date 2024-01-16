@@ -1,23 +1,23 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public sealed class BranchExpression : Expression
 {
     public string TargetName { get; }
-    public TargetSymbol? Target { get; }
+    public LabelSymbol? Target { get; }
     public Expression? Expression { get; }
 
     public BranchExpression(
         string targetName,
         Expression? expression,
         ISourceLocation? location,
-        TargetSymbol? target,
+        LabelSymbol? target,
+        TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-              expression != null ? expression.State : ContainsState.None,
+              (expression != null ? expression.State : ContainsState.None),
               location,
-              expression != null ? expression.ResultType : SpecialSymbols.Void,
+              resultType,
               diagnostics)
     {
         this.TargetName = targetName;
@@ -30,13 +30,13 @@ public sealed class BranchExpression : Expression
     public bool IsReturn => this.TargetName == "return";
     public bool IsGoto => !IsBreak && !IsContinue && !IsReturn;
 
-    public static BranchExpression CreateBreak(Expression? expression, ISourceLocation? location, TargetSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression("break", expression, location, target, diagnostics);
+    public static BranchExpression CreateBreak(Expression? expression, ISourceLocation? location, LabelSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
+        new BranchExpression("break", expression, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
 
-    public static BranchExpression CreateContinue(ISourceLocation? location, TargetSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression("continue", null, location, target, diagnostics);
+    public static BranchExpression CreateContinue(ISourceLocation? location, LabelSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
+        new BranchExpression("continue", null, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
 
-    public static BranchExpression CreateReturn(Expression? expression, ISourceLocation? location, TargetSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression("return", expression, location, target, diagnostics);
+    public static BranchExpression CreateReturn(Expression? expression, ISourceLocation? location, LabelSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
+        new BranchExpression("return", expression, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
 }
 

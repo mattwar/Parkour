@@ -347,9 +347,9 @@ public class RuntimeSymbols
 
     private Symbol? FindSymbol(object runtimeSymbol)
     {
-        if (runtimeSymbol is Type type)
+        if (runtimeSymbol is Type type && type.FullName != null)
         {
-            var foundType = _globalNamespace.GetFirstSymbolFromPath<TypeSymbol>(type.FullName!);
+            var foundType = _globalNamespace.GetFirstSymbolFromPath<TypeSymbol>(type.FullName);
             if (foundType != null)
                 return _symbolMap.GetValue(runtimeSymbol, _ => foundType);
         }

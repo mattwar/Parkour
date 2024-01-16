@@ -1,26 +1,36 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public class LabelExpression : Expression
 {
     public string Name { get; }
-    public TargetSymbol? Target { get; }
+
+    /// <summary>
+    /// The type that the label receives via branch or flow.
+    /// </summary>
+    public Expression? ReceivingType { get; }
+
+    /// <summary>
+    /// The <see cref="Symbols.LabelSymbol"/> associated with this label.
+    /// </summary>
+    public LabelSymbol? LabelSymbol { get; }
 
     public LabelExpression(
         string name,
+        Expression? receivingType,
         ISourceLocation? location,
-        TargetSymbol? target,
+        LabelSymbol? labelSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             ContainsState.None, 
             location,
-            resultType ?? target?.Type, 
+            resultType ?? labelSymbol?.Type, 
             diagnostics)
     {
         this.Name = name;
-        this.Target = target;
+        this.ReceivingType = receivingType;
+        this.LabelSymbol = labelSymbol;
     }
 }
 

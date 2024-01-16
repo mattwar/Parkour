@@ -10,14 +10,37 @@ public class SymbolCache
 {
     public NamespaceSymbol GlobalNamespace { get; }
 
+    public NamespaceSymbol? _systemNs;
+    public TypeSymbol? _typeType;
+    private TypeSymbol? _booleanType;
+    private TypeSymbol? _byteType;
+    private TypeSymbol? _int16Type;
+    private TypeSymbol? _int32Type;
+    private TypeSymbol? _int64Type;
+    private TypeSymbol? _singleType;
+    private TypeSymbol? _doubleType;
+    private TypeSymbol? _decimalType;
+    private TypeSymbol? _charType;
+    private TypeSymbol? _stringType;
+    private TypeSymbol? _objectType;
+
+    private static readonly ConditionalWeakTable<NamespaceSymbol, SymbolCache> _namespaceMap =
+        new ConditionalWeakTable<NamespaceSymbol, SymbolCache>();
+
+    private readonly ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol> _listToGroupMap =
+        new ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol>();
+
+    private readonly ConditionalWeakTable<ImmutableList<TypeSymbol>, UnionSymbol> _listToUnionMap =
+        new ConditionalWeakTable<ImmutableList<TypeSymbol>, UnionSymbol>();
+
     private SymbolCache(NamespaceSymbol globalNamespace)
     {
         this.GlobalNamespace = globalNamespace;
     }
 
-    private static readonly ConditionalWeakTable<NamespaceSymbol, SymbolCache> _namespaceMap =
-        new ConditionalWeakTable<NamespaceSymbol, SymbolCache>();
-
+    /// <summary>
+    /// Gets or creates the <see cref="SymbolCache"/> associated with the <see cref="NamespaceSymbol"/>
+    /// </summary>
     public static SymbolCache From(NamespaceSymbol globalNamespace)
     {
         if (!_namespaceMap.TryGetValue(globalNamespace, out var commonSymbols))
@@ -28,56 +51,141 @@ public class SymbolCache
         return commonSymbols;
     }
 
+    /// <summary>
+    /// The type is not yet known.
+    /// </summary>
     public TypeSymbol Unknown => SpecialSymbols.Unknown;
+
+    /// <summary>
+    /// The type of a namespace symbol.
+    /// </summary>
+    public TypeSymbol Namespace => SpecialSymbols.Namespace;
+
+    /// <summary>
+    /// The type of a null literal that has not infered another type.
+    /// </summary>
     public TypeSymbol Null => SpecialSymbols.Null;
+
+    /// <summary>
+    /// The any type is used for parameters to indicate it can receive and type.
+    /// </summary>
     public TypeSymbol Any => SpecialSymbols.Any;
-    public TypeSymbol Void = SpecialSymbols.Void;
 
-    public NamespaceSymbol? _systemNs;
-    public NamespaceSymbol System => _systemNs ??= 
-        this.GlobalNamespace.GetFirstSymbolFromPath<NamespaceSymbol>("System")!;
+    /// <summary>
+    /// Indicates no value is returned.
+    /// </summary>
+    public TypeSymbol Void => SpecialSymbols.Void;
 
-    public TypeSymbol? _typeType;
-    public TypeSymbol Type => _typeType ??= GetOrCreateType(typeof(System.Type));
+    /// <summary>
+    /// Inidicates the expression does not return.
+    /// Used for branches and throw expressions.
+    /// </summary>
+    public TypeSymbol DoesNotReturn => SpecialSymbols.DoesNotReturn;
 
-    private TypeSymbol? _booleanType;
-    public TypeSymbol Boolean => _booleanType ??= GetOrCreateType(typeof(System.Boolean));
+    /// <summary>
+    /// The System namespace.
+    /// </summary>
+    public NamespaceSymbol System => 
+        _systemNs ??= GetSymbol<NamespaceSymbol>("System")!;
 
-    private TypeSymbol? _byteType;
-    public TypeSymbol Byte => _byteType ??= GetOrCreateType(typeof(System.Byte));
+    /// <summary>
+    /// The <see cref="System.Type"/> type.
+    /// </summary>
+    public TypeSymbol Type => 
+        _typeType ??= GetOrCreateType(typeof(System.Type));
 
-    private TypeSymbol? _int16Type;
-    public TypeSymbol Int16 => _int16Type ??= GetOrCreateType(typeof(System.Int16));
+    /// <summary>
+    /// The <see cref="System.Boolean"/> type.
+    /// </summary>
+    public TypeSymbol Boolean => 
+        _booleanType ??= GetOrCreateType(typeof(System.Boolean));
 
-    private TypeSymbol? _int32Type;
-    public TypeSymbol Int32 => _int32Type ??= GetOrCreateType(typeof(System.Int32));
+    /// <summary>
+    /// The <see cref="System.Byte"/> type.
+    /// </summary>
+    public TypeSymbol Byte => 
+        _byteType ??= GetOrCreateType(typeof(System.Byte));
 
-    private TypeSymbol? _int64Type;
-    public TypeSymbol Int64 => _int64Type ??= GetOrCreateType(typeof(System.Int64));
+    /// <summary>
+    /// The <see cref="System.Int16"/> type.
+    /// </summary>
+    public TypeSymbol Int16 => 
+        _int16Type ??= GetOrCreateType(typeof(System.Int16));
 
-    private TypeSymbol? _singleType;
-    public TypeSymbol Single => _singleType ??= GetOrCreateType(typeof(System.Single));
+    /// <summary>
+    /// The <see cref="System.Int32"/> type.
+    /// </summary>
+    public TypeSymbol Int32 => 
+        _int32Type ??= GetOrCreateType(typeof(System.Int32));
 
-    private TypeSymbol? _doubleType;
-    public TypeSymbol Double => _doubleType ??= GetOrCreateType(typeof(System.Double));
+    /// <summary>
+    /// The <see cref="System.Int64"/> type.
+    /// </summary>
+    public TypeSymbol Int64 => 
+        _int64Type ??= GetOrCreateType(typeof(System.Int64));
 
-    private TypeSymbol? _decimalType;
-    public TypeSymbol Decimal => _decimalType ??= GetOrCreateType(typeof(System.Decimal));
+    /// <summary>
+    /// The <see cref="System.Single"/> type.
+    /// </summary>
+    public TypeSymbol Single => 
+        _singleType ??= GetOrCreateType(typeof(System.Single));
 
-    private TypeSymbol? _charType;
-    public TypeSymbol Char => _charType ??= GetOrCreateType(typeof(System.Char));
+    /// <summary>
+    /// The <see cref="System.Double"/> type.
+    /// </summary>
+    public TypeSymbol Double => 
+        _doubleType ??= GetOrCreateType(typeof(System.Double));
 
-    private TypeSymbol? _stringType;
-    public TypeSymbol String => _stringType ??= GetOrCreateType(typeof(System.String));
+    /// <summary>
+    /// The <see cref="System.Decimal"/> type.
+    /// </summary>
+    public TypeSymbol Decimal => 
+        _decimalType ??= GetOrCreateType(typeof(System.Decimal));
 
-    private TypeSymbol? _objectType;
-    public TypeSymbol Object => _objectType ??= GetOrCreateType(typeof(System.Object));
+    /// <summary>
+    /// The <see cref="System.Char"/> type.
+    /// </summary>
+    public TypeSymbol Char => 
+        _charType ??= GetOrCreateType(typeof(System.Char));
+
+    /// <summary>
+    /// The <see cref="System.String"/> type.
+    /// </summary>
+    public TypeSymbol String => 
+        _stringType ??= GetOrCreateType(typeof(System.String));
+
+    /// <summary>
+    /// The <see cref="System.Object"/> type.
+    /// </summary>
+    public TypeSymbol Object => 
+        _objectType ??= GetOrCreateType(typeof(System.Object));
 
     /// <summary>
     /// Gets the <see cref="TypeSymbol"/> based on equivalent runtime type.
     /// </summary>
     public virtual TypeSymbol? GetType(Type type) =>
-       this.GlobalNamespace.GetFirstSymbolFromPath<TypeSymbol>(type.FullName!)!;
+       GetType(type.FullName!)!;
+
+    /// <summary>
+    /// Gets the type given the dotted path name: "System.String". 
+    /// If multiple types with the same name are found, the first is returned.
+    /// </summary>
+    public virtual TypeSymbol? GetType(string dottedName) =>
+        GetSymbol<TypeSymbol>(dottedName) as TypeSymbol;
+
+    /// <summary>
+    /// Get the symbol associated with the dotted path name: "Namespace.MyType.Method"
+    /// If multiple symbols are found with the same name, the first is returned.
+    /// </summary>
+    public virtual TSymbol? GetSymbol<TSymbol>(string dottedName)
+        where TSymbol : Symbol =>
+        this.GlobalNamespace.GetFirstSymbolFromPath<TSymbol>(dottedName);
+
+    /// <summary>
+    /// Gets all the symbols associated with the dotted path name.
+    /// </summary>
+    public virtual void GetSymbols(string dottedName, List<Symbol> symbols) =>
+        this.GlobalNamespace.GetSymbolsFromPath(dottedName, symbols);
 
     /// <summary>
     /// Gets or creates the <see cref="TypeSymbol"/> associated with the runtime type.
@@ -85,12 +193,6 @@ public class SymbolCache
     /// </summary>
     private TypeSymbol GetOrCreateType(Type type) =>
         GetType(type) ?? new TypeSymbol(type);
-
-    private readonly ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol> _listToGroupMap =
-        new ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol>();
-
-    private readonly ConditionalWeakTable<ImmutableList<TypeSymbol>, UnionSymbol> _listToUnionMap =
-        new ConditionalWeakTable<ImmutableList<TypeSymbol>, UnionSymbol>();
 
     /// <summary>
     /// Gets an array of the specified element type.

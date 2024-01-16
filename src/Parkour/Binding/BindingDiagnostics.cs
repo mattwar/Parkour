@@ -30,9 +30,27 @@ internal static class BindingDiagnostics
     public static Diagnostic CallIsAmbiguous() =>
         new Diagnostic("The call refers to more than one invokable symbol, and a best symbol cannot be determined.");
 
+    public static Diagnostic CallHasIncorrectNumberOfArguments(string name) =>
+        new Diagnostic($"The call to '{name}' has an incorrect number of arguments");
+
     public static Diagnostic CannotConvert(TypeSymbol source, TypeSymbol target) =>
         new Diagnostic($"Cannot convert from type '{source.Name}' to type '{target.Name}'.");
 
     public static Diagnostic NotAValidAssignmentTarget() =>
         new Diagnostic($"The expression is not a valid assignment target.");
+
+    public static Diagnostic CannotPassValueToLabel(string label) =>
+        new Diagnostic($"Cannot pass value to label '{label}'");
+
+    public static Diagnostic DeclarationMustHaveTypeOrInitializer() =>
+        new Diagnostic($"The variable declaration must have either a type or initializer.");
+
+    public static Diagnostic DefaultTypeCannotBeInferred() =>
+        new Diagnostic($"A type for the default expression cannot be inferred in this context.");
+
+    public static Diagnostic NoCommonTypeFound() =>
+        new Diagnostic("No common type can be found for the result of this expression.");
+
+    public static Diagnostic FlowIntoLabelDoesNotMatchType() =>
+        new Diagnostic("The flow of logic does not provide the label's expected value or compatible type.");
 }

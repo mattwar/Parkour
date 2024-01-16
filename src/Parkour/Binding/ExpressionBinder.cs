@@ -2,138 +2,178 @@
 using Semantics;
 using Symbols;
 using System;
+using static System.Net.Mime.MediaTypeNames;
 
 public class ExpressionBinder
 {
     private readonly SymbolCache _symbols;
     private readonly Operators _operators;
-    private bool _rebind;
-    private BindingScope _scope;
+    private readonly BindingScope _defaultScope;
 
+    #region pools
     private readonly ObjectPool<List<Symbol>> _symbolListPool =
         new ObjectPool<List<Symbol>>(() => new List<Symbol>(), list => list.Clear());
+
+    private readonly ObjectPool<List<TypeSymbol>> _typeListPool =
+        new ObjectPool<List<TypeSymbol>>(() => new List<TypeSymbol>(), list => list.Clear());
 
     private readonly ObjectPool<List<MemberSymbol>> _memberListPool =
         new ObjectPool<List<MemberSymbol>>(() => new List<MemberSymbol>(), list => list.Clear());
 
+    private readonly ObjectPool<List<LabelExpression>> _labelListPool =
+        new ObjectPool<List<LabelExpression>>(() => new List<LabelExpression>(), list => list.Clear());
+
+    private readonly ObjectPool<List<BranchExpression>> _branchListPool =
+        new ObjectPool<List<BranchExpression>>(() => new List<BranchExpression>(), list => list.Clear());
+
     private readonly ObjectPool<List<Diagnostic>> _diagnosticListPool =
         new ObjectPool<List<Diagnostic>>(() => new List<Diagnostic>(), list => list.Clear());
+    #endregion
 
-    public ExpressionBinder(NamespaceSymbol globalNamespace)
+    public ExpressionBinder(NamespaceSymbol externalSymbols)
     {
-        _symbols = SymbolCache.From(globalNamespace);
+        _symbols = SymbolCache.From(externalSymbols);
         _operators = Operators.From(_symbols);
-        _scope = BindingScope.Default.AddSymbolMembers(globalNamespace);
-    }
-
-    protected BindingScope CurrentScope => _scope;
-
-    /// <summary>
-    /// Rebinds all expressions.
-    /// </summary>
-    public Expression Rebind(Expression expression)
-    {
-        var oldRebind = _rebind;
-        _rebind = true;
-        var rebound = Bind(expression);
-        _rebind = oldRebind;
-        return rebound;
-    }
-
-    public Expression RebindInScope(Expression expression, BindingScope scope)
-    {
-        var oldScope = _scope;
-        _scope = scope;
-        var rebound = Rebind(expression);
-        _scope = oldScope;
-        return rebound;
-    }
-
-    public Expression BindInScope(Expression expression, BindingScope scope)
-    {
-        var oldScope = _scope;
-        _scope = scope;
-        var bound = Bind(expression);
-        _scope = oldScope;
-        return bound;
-    }
-
-    public virtual ImmutableList<TExpression> BindList<TExpression>(ImmutableList<TExpression> expressions)
-        where TExpression : Expression
-    {
-        if (expressions.Count == 0)
-            return expressions;
-
-        return expressions.Rewrite(e => (TExpression)Bind(e));
-    }
-
-    public virtual ImmutableList<TExpression> BindListInScope<TExpression>(ImmutableList<TExpression> expressions, BindingScope scope)
-        where TExpression : Expression
-    {
-        if (expressions.Count == 0)
-            return expressions;
-
-        return expressions.Rewrite(e => (TExpression)BindInScope(e, scope));
+        _defaultScope = BindingScope.Default.AddSymbolMembers(externalSymbols);
     }
 
     /// <summary>
     /// Binds all unbound expressions.
     /// </summary>
-    public Expression Bind(Expression expression)
+    public Expression Bind(Expression expression, BindingScope? scope = null, bool rebind = false)
     {
-        if (!(_rebind || expression.ContainsUnknowns))
+        return BindExpression(expression, new BindingContext(scope ?? _defaultScope, rebind, null, _symbols.Void));
+    }
+
+    /// <summary>
+    /// Binds all the expressions in a list.
+    /// </summary>
+    public ImmutableList<TExpression> BindList<TExpression>(
+        ImmutableList<TExpression> expressions, BindingScope? scope = null, bool rebind = false)
+        where TExpression : Expression
+    {
+        var context = new BindingContext(scope ?? _defaultScope, rebind, null, _symbols.Void);
+        return BindExpressionList(expressions, context);
+    }
+
+    /// <summary>
+    /// Gets the type of a type expression.
+    /// </summary>
+    public virtual TypeSymbol? GetType(Expression typeExpression, BindingScope? scope = null, bool rebind = false)
+    {
+        var context = new BindingContext(scope ?? _defaultScope, rebind, null, _symbols.Void);
+        return BindType(typeExpression, context);
+    }
+
+    protected struct BindingContext
+    {
+        public BindingScope Scope { get; }
+        public bool Rebind { get; }
+        public TypeSymbol InflowType { get; }
+        public TypeSymbol? TargetType { get; }
+
+        public BindingContext(BindingScope scope, bool rebind, TypeSymbol? targetType, TypeSymbol inflowType)
+        {
+            this.Scope = scope;
+            this.Rebind = rebind;
+            this.TargetType = targetType;
+            this.InflowType = inflowType;
+        }
+
+        public BindingContext WithScope(BindingScope scope) =>
+            new BindingContext(scope, this.Rebind, this.TargetType, this.InflowType);
+
+        public BindingContext WithRebind(bool rebind) =>
+            new BindingContext(this.Scope, this.Rebind, this.TargetType, this.InflowType);
+
+        public BindingContext WithInflowType(TypeSymbol inflowType) =>
+            new BindingContext(this.Scope, this.Rebind, this.TargetType, inflowType);
+
+        public BindingContext WithTargetType(TypeSymbol? targetType) =>
+            new BindingContext(this.Scope, this.Rebind, targetType, this.InflowType);
+    };
+
+    /// <summary>
+    /// Binds all unbound expressions.
+    /// </summary>
+    private Expression BindExpression(Expression expression, BindingContext context)
+    {
+        if (!(context.Rebind || expression.ContainsUnknowns))
             return expression;
 
         switch (expression)
         {
             case AssignExpression assign:
-                return BindAssign(assign);
+                return BindAssign(assign, context);
 
             case BlockExpression block:
-                return BindBlock(block);
+                return BindBlock(block, context);
 
             case BranchExpression branch:
-                return BindBranch(branch);
+                return BindBranch(branch, context);
 
             case CallExpression call:
-                return BindCall(call);
+                return BindCall(call, context);
 
             case ConditionExpression condition:
-                return BindCondition(condition);
+                return BindCondition(condition, context);
 
             case ConstantExpression constant:
-                return BindConstant(constant);
+                return BindConstant(constant, context);
 
             case ConvertExpression convert:
-                return BindConvert(convert);
+                return BindConvert(convert, context);
 
             case DeclarationExpression declaration:
-                return BindDeclaration(declaration);
+                return BindDeclaration(declaration, context);
 
-            case LambdaExpression function:
-                return BindFunction(function);
+            case DefaultExpression dex:
+                return BindDefault(dex, context);
+
+            case LabelExpression label:
+                return BindLabel(label, context);
+
+            case LambdaExpression lambda:
+                return BindLambda(lambda, context);
+
+            case LoopExpression loop:
+                return BindLoop(loop, context);
 
             case OperatorExpression opex:
-                return BindOperator(opex);
+                return BindOperator(opex, context);
 
             case PathExpression path:
-                return BindPath(path);
+                return BindPath(path, context);
 
             case ReferenceExpression reference:
-                return BindReference(reference);
+                return BindReference(reference, context);
+
+            case VoidExpression vex:
+                return BindVoid(vex, context);
 
             default:
-                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(ExpressionBinder)} BindSymbols");
+                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(ExpressionBinder)}.BindExpression");
         }
     }
 
-    protected virtual Expression BindAssign(AssignExpression assign)
+    protected virtual ImmutableList<TExpression> BindExpressionList<TExpression>(
+        ImmutableList<TExpression> expressions, BindingContext context)
+        where TExpression : Expression
+    {
+        if (expressions.Count == 0)
+            return expressions;
+        return expressions.Rewrite(e => (TExpression)BindExpression(e, context));
+    }
+
+    protected virtual Expression BindAssign(AssignExpression assign, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var target = Bind(assign.Target);
-            var source = Bind(assign.Source);
+            var target = BindExpression(assign.Target, context.WithTargetType(null));
+            var assignType = GetReferenceResultType(target.ReferencedSymbol) ?? _symbols.Object;
+            var source = BindExpression(assign.Source, context.WithTargetType(assignType));
+            source = ConvertTo(source, assignType, context);
 
             if (IsValidTargetSymbol(assign.ReferencedSymbol))
             {
@@ -169,77 +209,201 @@ public class ExpressionBinder
             _ => false
         };
 
-    protected virtual Expression BindBlock(BlockExpression block)
+    private readonly Dictionary<LabelExpression, LabelSymbol> _labelToSymbolMap
+        = new Dictionary<LabelExpression, LabelSymbol>();
+
+    protected void AssociateLabelSymbol(LabelExpression label, LabelSymbol symbol)
     {
-        var rebind = false;
-        var oldScope = _scope;
+        _labelToSymbolMap[label] = symbol;
+    }
 
-        // rebind expressions 
-        var (expressions, _) = block.Expressions.Rewrite(_scope, (expression, scope) =>
+    protected LabelSymbol? GetAssociatedLabelSymbol(LabelExpression label)
+    {
+        _labelToSymbolMap.TryGetValue(label, out var target);
+        return target;
+    }
+
+    protected virtual Expression BindBlock(BlockExpression block, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        var labelSymbols = _symbolListPool.AllocateFromPool();
+        var types = _typeListPool.AllocateFromPool();
+
+        try
         {
-            _scope = scope;
-            var boundExpression = rebind ? Rebind(expression) : Bind(expression);
+            // look for labels and put their target symbols into scope
+            var labelContext = context.WithTargetType(null);
 
-            if (boundExpression is DeclarationExpression decl
-                && decl.Variable != null)
+            foreach (var expr in block.Expressions)
             {
-                // if the declaration changes then the variable is now different 
-                // so the rest of the block needs to be rebound in case it references the old variable
-                rebind = rebind || boundExpression != expression;
-                scope = scope.AddSymbol(decl.Variable);
+                if (expr is LabelExpression label)
+                {
+                    var type = label.ReceivingType != null ? BindType(label.ReceivingType, labelContext) : _symbols.Void;
+                    var labelSymbol = label.LabelSymbol ?? new LabelSymbol(label.Name, type);
+                    labelSymbols.Add(labelSymbol);
+                    AssociateLabelSymbol(label, labelSymbol);
+                }
             }
 
-            return (boundExpression, scope);
-        });
+            context = context.WithScope(context.Scope.AddSymbols(labelSymbols));
 
-        _scope = oldScope;
+            // bind expressions 
+            (var boundExpressions, _) = block.Expressions.Rewrite(context, (expression, _context) =>
+            {
+                var boundExpression = BindExpression(expression, _context);
 
-        var resultType = expressions.Count > 0
-            ? expressions[^1].ResultType
-            : SpecialSymbols.Void;
+                if (boundExpression is DeclarationExpression decl
+                    && decl.Variable != null)
+                {
+                    // if the declaration changes then the variable is now different 
+                    // so the rest of the block needs to be rebound in case it references the old variable
+                    _context = _context.WithRebind(context.Rebind || boundExpression != expression);
+                    _context = _context.WithScope(context.Scope.AddSymbol(decl.Variable));
+                }
 
-        if (expressions == block.Expressions
-            && block.ResultType == resultType)
-            return block;
+                _context = _context.WithInflowType(boundExpression.ResultType);
 
-        return new BlockExpression(
-            expressions,
-            block.Location,
-            resultType,
-            null);
+                return (boundExpression, _context);
+            });
+
+            var resultType = boundExpressions.Count > 0
+                ? boundExpressions[^1].ResultType
+                : SpecialSymbols.Void;
+
+            if (boundExpressions == block.Expressions
+                && block.ResultType == resultType
+                && diagnostics.Count == 0)
+                return block;
+
+            return new BlockExpression(
+                boundExpressions,
+                block.Location,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+            _typeListPool.ReturnToPool(types);
+        }
     }
 
-    protected virtual Expression BindBranch(BranchExpression branch)
+    /// <summary>
+    /// Gets all the branch expression types.
+    /// </summary>
+    protected virtual void GetBranchExpressionTypes(Expression body, LabelSymbol target, List<TypeSymbol> types)
     {
-        var expression = branch.Expression != null
-            ? Bind(branch.Expression)
-            : null;
-
-        var targetSymbol = _scope.FindSymbol<TargetSymbol>(s => s.Name == branch.TargetName);
-        var diagnostics = targetSymbol == null 
-            ? ImmutableList.Create(BindingDiagnostics.NoMatchingTarget(branch.TargetName).WithLocation(branch.Location))
-            : null;
-
-        if (expression == branch.Expression
-            && targetSymbol == branch.Target)
-            return branch;
-
-        return new BranchExpression(
-            branch.TargetName, 
-            expression,
-            branch.Location,
-            targetSymbol, 
-            diagnostics);
+        types.AddRange(
+            body.SelectWhere(
+                s => s is Expression e && !HasBody(e),
+                s => s is BranchExpression b && b.Target == target,
+                s => ((BranchExpression)s).Expression != null ? ((BranchExpression)s).Expression!.ResultType : SpecialSymbols.Void));
     }
 
-    protected virtual Expression BindCall(CallExpression call)
+    /// <summary>
+    /// Gets all the branch expression types.
+    /// </summary>
+    protected virtual void GetBranchExpressionTypes(ImmutableList<Expression> expressions, LabelSymbol target, List<TypeSymbol> types)
+    {
+        foreach (var expr in expressions)
+        {
+            GetBranchExpressionTypes(expr, target, types);
+        }
+    }
+
+    protected virtual bool HasBody(Expression expression) =>
+        expression is LambdaExpression;
+
+
+    protected virtual Expression BindBranch(BranchExpression branch, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var targetSymbol = context.Scope.FindSymbol<LabelSymbol>(s => s.Name == branch.TargetName);
+
+            var expression = branch.Expression != null
+                ? BindExpression(branch.Expression, context.WithTargetType(targetSymbol?.Type))
+                : null;
+
+            var expressionType = expression != null ? expression.ResultType : _symbols.Void;
+
+            if (targetSymbol == null)
+            {
+                diagnostics.Add(BindingDiagnostics.NoMatchingTarget(branch.TargetName).WithLocation(branch.Location));
+            }
+            else
+            {              
+                TryGetConversion(expressionType, targetSymbol.Type, ConversionKind.Widening, out _, branch.Location, diagnostics);
+            }
+
+            if (expression == branch.Expression
+                && targetSymbol == branch.Target
+                && diagnostics.Count == 0)
+                return branch;
+
+            return new BranchExpression(
+                branch.TargetName,
+                expression,
+                branch.Location,
+                targetSymbol,
+                _symbols.DoesNotReturn,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+
+    protected virtual Expression BindLabel(LabelExpression label, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var branchType = label.ReceivingType != null ? BindExpression(label.ReceivingType, context) : null;
+            var resultType = branchType != null ? branchType.ReferencedSymbol as TypeSymbol : _symbols.Void;
+            var targetSymbol = GetAssociatedLabelSymbol(label);
+
+            // check for inflow types into labels
+            if (resultType != _symbols.Void)
+            {
+                // if label is expecting to receive a value, then inflow type must match 
+                if (!TryGetConversion(context.InflowType, resultType, ConversionKind.Widening, out _, label.Location, null))
+                {
+                    diagnostics.Add(BindingDiagnostics.FlowIntoLabelDoesNotMatchType().WithLocation(label.Location));
+                }
+            }
+
+            if (label.ReceivingType == branchType
+                && label.LabelSymbol == targetSymbol
+                && label.ResultType == resultType)
+                return label;
+
+            return new LabelExpression(
+                label.Name, 
+                branchType, 
+                label.Location, 
+                targetSymbol, 
+                resultType, 
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+
+    protected virtual Expression BindCall(CallExpression call, BindingContext context)
     {
         var candidates = _symbolListPool.AllocateFromPool();
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = Bind(call.Expression);
-            var arguments = BindList(call.Arguments);
+            context = context.WithTargetType(null).WithInflowType(_symbols.Void);
+
+            var expression = BindExpression(call.Expression, context);
+            var arguments = BindExpressionList(call.Arguments, context);
 
             var instance = expression;
 
@@ -291,6 +455,18 @@ public class ExpressionBinder
                 {
                     diagnostics.Add(BindingDiagnostics.SymbolNotCallable(calledSymbol.Name).WithLocation(location));
                 }
+                else
+                {
+                    var parameters = GetCallableSymbolParameters(calledSymbol);
+                    if (parameters.Count != arguments.Count)
+                    {
+                        diagnostics.Add(BindingDiagnostics.CallHasIncorrectNumberOfArguments(calledSymbol.Name).WithLocation(location));
+                    }
+                    else 
+                    {
+                        arguments = ConvertArguments(parameters, arguments, context);
+                    }
+                }
             }
 
             var resultType = calledSymbol != null ? GetCalledSymbolReturnType(calledSymbol) : null;
@@ -316,30 +492,114 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual Expression BindCondition(ConditionExpression condition)
+    protected virtual ImmutableList<Expression> ConvertArguments(
+        ImmutableList<ParameterSymbol> parameters, 
+        ImmutableList<Expression> arguments,
+        BindingContext context)
     {
-        var test = Bind(condition.Test);
-        var whenTrue = Bind(condition.WhenTrue);
-        var whenFalse = Bind(condition.WhenFalse);
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            var parameter = parameters[i];
+            var argument = arguments[i];
+            var convertedArg = ConvertTo(argument, parameter.ParameterType, context);
+            arguments = arguments.SetItem(i, convertedArg);
+        }
 
-        var resultType = _symbols.GetUnion(whenTrue.ResultType, whenFalse.ResultType);
-
-        if (test == condition.Test
-            && whenTrue == condition.WhenTrue
-            && whenFalse == condition.WhenFalse
-            && resultType == condition.ResultType)
-            return condition;
-
-        return new ConditionExpression(
-            test, 
-            whenTrue, 
-            whenFalse, 
-            condition.Location,
-            resultType, 
-            null);
+        return arguments;
     }
 
-    protected virtual Expression BindConstant(ConstantExpression constant)
+    protected virtual Expression BindCondition(ConditionExpression condition, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            context = context.WithInflowType(_symbols.Void);
+
+            var test = BindExpression(condition.Test, context.WithTargetType(_symbols.Boolean));
+            test = ConvertTo(test, _symbols.Boolean, context);
+
+            var whenTrue = BindExpression(condition.WhenTrue, context);
+            var whenFalse = BindExpression(condition.WhenFalse, context);
+
+            var resultType = (whenTrue.ResultType == whenFalse.ResultType) ? whenTrue.ResultType
+                : (whenTrue.ResultType == _symbols.Void) ? _symbols.Void
+                : (whenFalse.ResultType == _symbols.Void) ? _symbols.Void
+                : null;
+
+            if (resultType == null && whenTrue.ResultType == _symbols.DoesNotReturn)
+                resultType = whenFalse.ResultType;
+
+            if (resultType == null && whenFalse.ResultType == _symbols.DoesNotReturn)
+                resultType = whenTrue.ResultType;
+
+            if (resultType == null)
+                resultType = GetBestCommonType(whenTrue.ResultType, whenFalse.ResultType, context.TargetType);
+
+            if (resultType == null)
+            {
+                diagnostics.Add(BindingDiagnostics.NoCommonTypeFound().WithLocation(condition.Location));
+                resultType = _symbols.Object;
+            }
+
+            whenTrue = ConvertTo(whenTrue, resultType, context);
+            whenFalse = ConvertTo(whenFalse, resultType, context);
+
+            if (test == condition.Test
+                && whenTrue == condition.WhenTrue
+                && whenFalse == condition.WhenFalse
+                && resultType == condition.ResultType
+                && diagnostics.Count == 0)
+                return condition;
+
+            return new ConditionExpression(
+                test,
+                whenTrue,
+                whenFalse,
+                condition.Location,
+                resultType,
+                null);
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+
+    protected virtual TypeSymbol? GetBestCommonType(params TypeSymbol?[] types) =>
+        GetBestCommonType((IReadOnlyList<TypeSymbol?>)types);
+
+    protected virtual TypeSymbol? GetBestCommonType(IReadOnlyList<TypeSymbol?> types)
+    {
+        var best = types[0];
+
+        for (int i = 1; i < types.Count; i++)
+        {
+            var type = types[i];
+            
+            if (type == _symbols.DoesNotReturn
+                || type == _symbols.Null
+                || type == _symbols.Unknown)
+                continue;
+
+            if (type == _symbols.Void)
+            {
+                best = type;
+                continue;
+            }
+
+            if (best == null
+                || (type != null && 
+                    !IsAssignableTo(type, best)
+                    && CanAutoConvert(ConversionKind.Widening, best, type)))
+            {
+                best = type;
+            }
+        }
+
+        return best;
+    }
+
+    protected virtual Expression BindConstant(ConstantExpression constant, BindingContext context)
     {
         var resultType = constant.Value == null
             ? _symbols.Null
@@ -355,48 +615,31 @@ public class ExpressionBinder
             null);
     }
 
-    protected virtual Expression BindConvert(ConvertExpression convert)
+    protected virtual Expression BindConvert(ConvertExpression convert, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var candidates = _symbolListPool.AllocateFromPool();
         try
         {
-            var expression = Bind(convert.Expression);
-            var convertedType = Bind(convert.ConvertedType);
+            context = context.WithInflowType(_symbols.Void);
 
+            var convertedType = BindExpression(convert.ConvertedType, context.WithTargetType(null));
             var type = convertedType.ReferencedSymbol as TypeSymbol;
-            Symbol? conversionSymbol = null;
+            var expression = BindExpression(convert.Expression, context.WithTargetType(type));
+            TryGetConversion(expression.ResultType, type, convert.Kind, out var conversionSymbol, expression.Location, diagnostics);
 
-            if (type == null)
+            if (convert.Expression == expression
+                && convert.ConvertedType == convertedType
+                && convert.ConversionSymbol == conversionSymbol
+                && diagnostics.Count == 0)
             {
-                diagnostics.Add(BindingDiagnostics.CannotConvert(expression.ResultType, _symbols.Unknown).WithLocation(convert.Location));
-            }
-            else
-            {
-                var canConvert = CanConvert(convert.Kind, expression.ResultType, type);
-                if (!canConvert)
-                {
-                    diagnostics.Add(BindingDiagnostics.CannotConvert(expression.ResultType, type ?? _symbols.Unknown).WithLocation(convert.Location));
-                }
-                else if (type != null)
-                {
-                    GetConversionOperatorCandidates(convert.Kind, expression.ResultType, type, candidates);
-
-                    // todo: pick best symbol
-                    conversionSymbol = candidates.FirstOrDefault();
-
-                    if (convert.Expression == expression
-                        && (canConvert || convert.HasDiagnostics))
-                    {
-                        return convert;
-                    }
-                }
+                return convert;
             }
 
             return new ConvertExpression(
                 convert.Kind,
                 expression,
-                convert.ConvertedType,
+                convertedType,
                 convert.Location,
                 conversionSymbol,
                 type,
@@ -409,80 +652,143 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual Expression BindDeclaration(DeclarationExpression declaration)
+    protected virtual Expression BindDeclaration(DeclarationExpression declaration, BindingContext context)
     {
-        var initializer = Bind(declaration.Initializer);
-
-        var resultType = initializer.ResultType;
-
-        if (initializer == declaration.Initializer
-            && declaration.Variable != null
-            && declaration.Variable.VariableType == initializer.ResultType
-            && declaration.ResultType == resultType)
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
         {
-            return declaration;
+            Expression? variableType = null;
+            TypeSymbol? vtype = null;
+            Expression? initializer = null;
+
+            context = context.WithInflowType(_symbols.Void);
+
+            if (declaration.VariableType != null)
+            {
+                variableType = BindExpression(declaration.VariableType, context.WithTargetType(null));
+                vtype = variableType?.ReferencedSymbol as TypeSymbol ?? _symbols.Object;
+                if (declaration.Initializer != null)
+                {
+                    initializer = BindExpression(declaration.Initializer, context.WithTargetType(vtype));
+                    initializer = ConvertTo(initializer, vtype, context);
+                }
+            }
+            else if (declaration.Initializer != null)
+            {
+                // target type can carry through declaration
+                initializer = BindExpression(declaration.Initializer, context);
+                vtype = initializer.ResultType;
+            }
+            else
+            {
+                diagnostics.Add(BindingDiagnostics.DeclarationMustHaveTypeOrInitializer().WithLocation(declaration.Location));
+                vtype = _symbols.Object;
+            }
+
+            if (variableType == declaration.VariableType
+                && initializer == declaration.Initializer
+                && declaration.Variable != null
+                && declaration.Variable.VariableType == vtype
+                && declaration.ResultType == vtype)
+            {
+                return declaration;
+            }
+
+            var variable = declaration.Variable != null
+                && declaration.Variable.VariableType == vtype
+                ? declaration.Variable
+                : new VariableSymbol(declaration.Name, vtype ?? _symbols.Any);
+
+            return new DeclarationExpression(
+                declaration.Name,
+                variableType,
+                initializer,
+                declaration.Location,
+                variable,
+                vtype,
+                diagnostics.ToImmutableList());
         }
-
-        var variable = declaration.Variable != null 
-            && declaration.Variable.VariableType == initializer.ResultType
-            ? declaration.Variable
-            : new VariableSymbol(declaration.Name, initializer.ResultType);
-
-        return new DeclarationExpression(
-            declaration.Name, 
-            initializer, 
-            declaration.Location,
-            variable, 
-            resultType, 
-            null);
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
 
-    public virtual TypeSymbol? BindType(Expression typeExpression, List<Diagnostic>? diagnostics)
+    protected virtual Expression BindDefault(DefaultExpression dex, BindingContext context)
     {
-        var expr = Bind(typeExpression);
-        if (expr.ReferencedSymbol is TypeSymbol type)
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
         {
-            return type;
+            Expression? typeExpr = null;
+            TypeSymbol? resultType = null;
+
+            if (dex.TypeExpression != null)
+            {
+                typeExpr = dex.TypeExpression != null ? BindExpression(dex.TypeExpression, context.WithTargetType(null)) : null;
+                resultType = typeExpr != null ? typeExpr.ReferencedSymbol as TypeSymbol : null;
+            }
+            else if (context.TargetType != null)
+            {
+                resultType = context.TargetType;
+            }
+            else
+            {
+                diagnostics.Add(BindingDiagnostics.DefaultTypeCannotBeInferred().WithLocation(dex.Location));
+                resultType = _symbols.Any;
+            }
+
+            if (typeExpr == dex.TypeExpression
+                && resultType == dex.ResultType
+                && diagnostics.Count == 0)
+                return dex;
+
+            return new DefaultExpression(typeExpr, dex.Location, resultType, diagnostics.ToImmutableList());
         }
-        else
+        finally
         {
-            // TODO: add diagnostic?
-            return null;
+            _diagnosticListPool.ReturnToPool(diagnostics);
         }
     }
 
-    protected virtual ImmutableList<ParameterSymbol> BindParameters(
+    protected virtual TypeSymbol? BindType(Expression typeExpression, BindingContext context)
+    {
+        var expr = BindExpression(typeExpression, context);
+        return expr.ReferencedSymbol as TypeSymbol;
+    }
+
+    protected virtual ImmutableList<ParameterSymbol> CreateParameterSymbols(
         Symbol? declaringSymbol,
-        ImmutableList<ParameterDeclaration> parameters, 
-        List<Diagnostic> diagnostics)
+        ImmutableList<ParameterDeclaration> parameters,
+        BindingContext context)
     {
         if (parameters.Count == 0)
             return ImmutableList<ParameterSymbol>.Empty;
 
         var list = new List<ParameterSymbol>();
 
+        context = context.WithTargetType(null);
+
         foreach (var p in parameters)
         {
-            var type = p.ParameterType != null
-                ? BindType(p.ParameterType, diagnostics) ?? _symbols.Unknown
-                : _symbols.Any;
-
-            list.Add(new ParameterSymbol(p.Name, declaringSymbol, type, runtimeParameter: null));
+            var type = p.ParameterType != null ? BindExpression(p.ParameterType, context) : null;
+            var ptype = type?.ReferencedSymbol as TypeSymbol ?? _symbols.Any;
+            list.Add(new ParameterSymbol(p.Name, declaringSymbol, ptype, runtimeParameter: null));
         }
 
         return list.ToImmutableList();
     }
 
-    protected virtual Expression BindFunction(LambdaExpression function)
+    protected virtual Expression BindLambda(LambdaExpression lambda, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            FunctionSymbol? symbol = function.Symbol;
-            TargetSymbol? returnTarget = function.ReturnTarget;
-            Expression body = function.Body;
+            FunctionSymbol? symbol = lambda.Symbol;
+            LabelSymbol? returnTarget = lambda.ReturnTarget;
+            Expression body = lambda.Body;
             TypeSymbol? returnType = null;
-            var rebind = false;
+
+            context = context.WithInflowType(_symbols.Void);
 
             while (symbol == null 
                 || symbol.ReturnType != body.ResultType
@@ -492,23 +798,23 @@ public class ExpressionBinder
                 if (returnTarget == null
                     || returnTarget.Type != body.ResultType)
                 {
-                    returnTarget = new TargetSymbol("return", body.ResultType);
+                    returnTarget = new LabelSymbol("return", body.ResultType);
                 }
 
                 if (symbol != null)
                 {
                     // bind using existing parameter info
-                    BindFunction(symbol.Parameters, rebind);
+                    BindBodyAndReturnType(symbol.Parameters);
                 }
                 else
                 {
                     // bind and evalute new function symbol at the same time
                     symbol = new FunctionSymbol(
-                        function.Name,
+                        lambda.Name,
                         me =>
                         {
-                            var pms = BindParameters(me, function.Parameters, diagnostics);
-                            BindFunction(pms, rebind);
+                            var pms = CreateParameterSymbols(me, lambda.Parameters, context);
+                            BindBodyAndReturnType(pms);
                             return pms;
                         },
                         () => returnType!,
@@ -520,32 +826,28 @@ public class ExpressionBinder
                 }
             }
 
-            if (body == function.Body
-                && function.Symbol != null
-                && function.Symbol.ReturnType == body.ResultType
-                && function.ReturnType == returnType
+            if (body == lambda.Body
+                && lambda.Symbol != null
+                && lambda.Symbol.ReturnType == body.ResultType
+                && lambda.ReturnType == returnType
                 && diagnostics.Count == 0)
-                return function;
+                return lambda;
 
             return new LambdaExpression(
-                function.Name,
-                function.Parameters,
+                lambda.Name,
+                lambda.Parameters,
                 body,
-                function.Location,
+                lambda.Location,
                 returnType,
                 symbol,
                 returnTarget,
                 diagnostics.ToImmutableList());
 
-            void BindFunction(ImmutableList<ParameterSymbol> parameters, bool rebind)
+            void BindBodyAndReturnType(ImmutableList<ParameterSymbol> parameters)
             {
-                var bodyScope = this.CurrentScope
-                    .AddSymbols(parameters)
-                    .AddSymbol(returnTarget);
-                body = rebind
-                    ? RebindInScope(function.Body, bodyScope)
-                    : BindInScope(function.Body, bodyScope);
-                returnType = GetFunctionResultType(body);
+                var bodyContext = context.WithScope(context.Scope.AddSymbols(parameters).AddSymbolMembers(returnTarget));
+                body = BindExpression(lambda.Body, bodyContext);
+                returnType = GetLambdaResultType(body, returnTarget);
             }
         }
         finally
@@ -554,23 +856,72 @@ public class ExpressionBinder
         }           
     }
 
-    protected virtual TypeSymbol GetFunctionResultType(Expression body)
+    protected virtual TypeSymbol GetLambdaResultType(Expression body, LabelSymbol returnTarget)
     {
-        var returns = body.SelectWhere(
-            s => !HasOwnBody(s),
-            s => s is BranchExpression b && b.IsReturn,
-            s => (BranchExpression)s);
-
-        if (returns.Count == 0)
-            return body.ResultType;
-
-        return _symbols.GetUnion(returns.Select(r => r.ResultType).Concat(new[] { body.ResultType }));
-
-        static bool HasOwnBody(SemanticElement expression) =>
-            expression is LambdaExpression;
+        var types = _typeListPool.AllocateFromPool();
+        try
+        {
+            GetBranchExpressionTypes(body, returnTarget, types);
+            types.Add(body.ResultType);
+            return _symbols.GetUnion(types);
+        }
+        finally
+        {
+            _typeListPool.ReturnToPool(types);
+        }
     }
 
-    protected virtual Expression BindOperator(OperatorExpression opex)
+    protected virtual Expression BindLoop(LoopExpression loop, BindingContext context)
+    {
+        var diagostics = _diagnosticListPool.AllocateFromPool();
+        var types = _typeListPool.AllocateFromPool();
+        try
+        {
+            var breakTarget = loop.BreakTarget ?? new LabelSymbol("break", _symbols.Any);
+            var continueTarget = loop.ContinueTarget ?? new LabelSymbol("continue", _symbols.Void);
+
+            var bodyContext = context.WithScope(
+                context.Scope.AddSymbols(new[] { breakTarget, continueTarget }));
+
+            context = context.WithInflowType(_symbols.Void);
+            var body = BindExpression(loop.Body, bodyContext);
+
+            // result type is the common type of all the break branches.
+            GetBranchExpressionTypes(body, breakTarget, types);
+            var resultType = types.Count == 0 ? _symbols.Void : GetBestCommonType(types);
+
+            if (breakTarget.Type != resultType)
+            {
+                breakTarget = new LabelSymbol(breakTarget.Name, resultType);
+                bodyContext = context
+                    .WithRebind(true)
+                    .WithScope(context.Scope.AddSymbols(new[] { breakTarget, continueTarget }));
+                body = BindExpression(loop.Body, bodyContext);
+            }
+
+            if (body == loop.Body
+                && resultType == loop.ResultType
+                && breakTarget == loop.BreakTarget
+                && continueTarget == loop.ContinueTarget
+                && diagostics.Count == 0)
+                return loop;
+
+            return new LoopExpression(
+                body,
+                loop.Location,
+                resultType,
+                breakTarget,
+                continueTarget,
+                diagostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagostics);
+            _typeListPool.ReturnToPool(types);
+        }
+    }
+
+    protected virtual Expression BindOperator(OperatorExpression opex, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
@@ -584,7 +935,7 @@ public class ExpressionBinder
             if (referencedSymbol == null)
                 diagnostics.Add(BindingDiagnostics.UnknownOperator(opex.Kind).WithLocation(opex.Location));
 
-            var resultType = GetReferenceResultType(referencedSymbol);
+            var resultType = GetReferenceResultType(referencedSymbol) ?? _symbols.Object;
 
             return new OperatorExpression(
                 opex.Kind,
@@ -599,19 +950,21 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual Expression BindPath(PathExpression path)
+    protected virtual Expression BindPath(PathExpression path, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var members = _memberListPool.AllocateFromPool();
 
         try
         {
-            var expression = Bind(path.Expression);
+            context = context.WithInflowType(_symbols.Void);
+
+            var expression = BindExpression(path.Expression, context.WithTargetType(null));
 
             if (expression.ResultType is GroupSymbol)
                 diagnostics.Add(BindingDiagnostics.UnknownName(path.Reference.Name).WithLocation(path.Reference.Location));
 
-            var reference = BindPathReference(expression, path.Reference);
+            var reference = BindPathReference(expression, path.Reference, context);
 
             if (path.Expression == expression
                 && path.Reference == reference)
@@ -630,7 +983,8 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual ReferenceExpression BindPathReference(Expression expression, ReferenceExpression reference)
+    protected virtual ReferenceExpression BindPathReference(
+        Expression expression, ReferenceExpression reference, BindingContext context)
     {
         var members = _symbolListPool.AllocateFromPool();
 
@@ -641,7 +995,7 @@ public class ExpressionBinder
                 GetMatchingTypeMembers(
                     type, 
                     reference.Name, 
-                    s => s is MemberSymbol m && m.IsStatic, 
+                    s => s is MemberSymbol m && m.IsStatic,
                     members);
             }
             else
@@ -649,7 +1003,7 @@ public class ExpressionBinder
                 GetMatchingTypeMembers(
                     expression.ResultType, 
                     reference.Name, 
-                    s => s is MemberSymbol m && !m.IsStatic, 
+                    s => s is MemberSymbol m && !m.IsStatic,
                     members);
             }
 
@@ -663,17 +1017,19 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual Expression BindReference(ReferenceExpression reference)
+    protected virtual Expression BindReference(ReferenceExpression reference, BindingContext context)
     {
         Symbol? symbol = null;
 
+        context = context.WithInflowType(_symbols.Void);
+
         if (NamespaceSymbol.IsDottedPath(reference.Name))
         {
-            symbol = _symbols.GlobalNamespace.GetFirstSymbolFromPath(reference.Name);
+            symbol = _symbols.GetSymbol<Symbol>(reference.Name);
         }
         else
         {
-            symbol = this.CurrentScope.FindSymbol<Symbol>(s => s.Name == reference.Name);
+            symbol = context.Scope.FindSymbol<Symbol>(s => s.Name == reference.Name);
         }
 
         return UpdateReference(reference, symbol);
@@ -690,7 +1046,8 @@ public class ExpressionBinder
             if (referencedSymbol == null)
                 diagnostics.Add(BindingDiagnostics.UnknownName(reference.Name).WithLocation(reference.Location));
 
-            var resultType = GetReferenceResultType(referencedSymbol);
+            var resultType = GetReferenceResultType(referencedSymbol) ?? _symbols.Object;
+
             return new ReferenceExpression(
                 reference.Name, 
                 reference.Location,
@@ -708,7 +1065,7 @@ public class ExpressionBinder
     /// <summary>
     /// Determines the result type of a <see cref="ReferenceExpression"/> given the referenced symbol.
     /// </summary>
-    protected virtual TypeSymbol GetReferenceResultType(Symbol? referencedSymbol) =>
+    protected virtual TypeSymbol? GetReferenceResultType(Symbol? referencedSymbol) =>
         referencedSymbol switch
         {
             VariableSymbol v => v.VariableType,
@@ -719,56 +1076,13 @@ public class ExpressionBinder
             GroupSymbol g => g,
             MethodSymbol => _symbols.Void,
             TypeSymbol => _symbols.Type,
-            _ => _symbols.Unknown
+            NamespaceSymbol => _symbols.Namespace,
+            _ => null
         };
 
-    private Expression BindWhile(WhileExpression loop)
+    protected virtual VoidExpression BindVoid(VoidExpression vex, BindingContext context)
     {
-        var diagostics = _diagnosticListPool.AllocateFromPool();
-        try
-        {
-            var test = Bind(loop.Test);
-
-            var breakTarget = loop.BreakTarget ?? new TargetSymbol("break", _symbols.Void);
-            var continueTarget = loop.ContinueTarget ?? new TargetSymbol("continue", _symbols.Void);
-
-            var bodyContext = this.CurrentScope.AddSymbols(new[] { breakTarget, continueTarget });
-            var body = BindInScope(loop.Body, bodyContext);
-
-            if (test == loop.Test
-                && body == loop.Body
-                && breakTarget == loop.BreakTarget
-                && continueTarget == loop.ContinueTarget)
-                return loop;
-
-            if (breakTarget.Type != body.ResultType && !body.ContainsUnknowns)
-            {
-                breakTarget = new TargetSymbol(breakTarget.Name, body.ResultType);
-                bodyContext = this.CurrentScope.AddSymbols(new[] { breakTarget, continueTarget });
-                body = RebindInScope(loop.Body, bodyContext);
-            }
-
-            return new WhileExpression(
-                test,
-                body,
-                loop.Location,
-                body.ResultType,
-                breakTarget,
-                continueTarget,
-                diagostics.ToImmutableList());
-        }
-        finally
-        {
-            _diagnosticListPool.ReturnToPool(diagostics);
-        }
-    }
-
-    /// <summary>
-    /// Apply additional rewrites that may fix invalid expressions
-    /// </summary>
-    protected virtual Expression Reduce(Expression expression)
-    {
-        return expression;
+        return vex;
     }
 
     protected virtual bool IsCallableSymbol(Symbol symbol) =>
@@ -798,16 +1112,22 @@ public class ExpressionBinder
     }
 
     /// <summary>
+    /// Get the <see cref="ParameterSymbol"/> declarations for the callable symbol
+    /// </summary>
+    protected virtual ImmutableList<ParameterSymbol> GetCallableSymbolParameters(Symbol callableSymbol) =>
+        callableSymbol switch
+        {
+            FunctionSymbol function => function.Parameters,
+            MethodSymbol method => method.Parameters,
+            ConstructorSymbol constructor => constructor.Parameters,
+            _ => ImmutableList<ParameterSymbol>.Empty
+        };
+
+    /// <summary>
     /// Returns true if the callable symbol has parameters that are compatible with the arguments
     /// </summary>
     protected virtual bool MatchesParameters(Symbol callableSymbol, ImmutableList<Expression> arguments) =>
-        callableSymbol switch
-        {
-            FunctionSymbol function => MatchesParameters(function.Parameters, arguments),
-            MethodSymbol method => MatchesParameters(method.Parameters, arguments),
-            ConstructorSymbol constructor => MatchesParameters(constructor.Parameters, arguments),
-            _ => false
-        };
+        MatchesParameters(GetCallableSymbolParameters(callableSymbol), arguments);
 
     protected virtual bool MatchesParameters(ImmutableList<ParameterSymbol> parameters, ImmutableList<Expression> arguments)
     {
@@ -830,22 +1150,71 @@ public class ExpressionBinder
             || parameter.ParameterType == argument.ResultType;
     }
 
-    protected virtual Expression ConvertTo(Expression expression, TypeSymbol type, ConversionKind kind)
+    protected virtual Expression ConvertTo(Expression expression, TypeSymbol type, BindingContext context)
     {
-        if (expression.ResultType == type
-            || type == _symbols.Void
-            || type == _symbols.Unknown)
+        // no conversion required?
+        if (type == SpecialSymbols.Void
+            || type == SpecialSymbols.Any
+            || type == SpecialSymbols.Unknown
+            || IsAssignableTo(expression.ResultType, type))
             return expression;
 
+        // wrap expression with widening conversion and bind it.
         var convert = SemanticFactory.Convert(
-            SemanticFactory.TypeReference(type),
+            ConversionKind.Widening,
             expression,
+            SemanticFactory.TypeReference(type),
             expression.Location);
 
-        return Bind(convert);
+        return BindExpression(convert, context);
     }
 
-    protected virtual bool CanConvert(ConversionKind conversion, TypeSymbol source, TypeSymbol target)
+    protected virtual bool TryGetConversion(
+        TypeSymbol sourceType, 
+        TypeSymbol? targetType, 
+        ConversionKind kind, 
+        out Symbol? conversionSymbol,
+        ISourceLocation? location,
+        List<Diagnostic>? diagnostics)
+    {
+        var candidates = _symbolListPool.AllocateFromPool();
+        try
+        {
+            if (targetType == null)
+            {
+                diagnostics?.Add(BindingDiagnostics.CannotConvert(sourceType, _symbols.Unknown).WithLocation(location));
+                conversionSymbol = null;
+                return false;
+            }
+            else if (CanAutoConvert(kind, sourceType, targetType))
+            {
+                conversionSymbol = null;
+                return true;
+            }
+            else
+            {
+                GetConversionOperatorCandidates(kind, sourceType, targetType, candidates);
+                conversionSymbol = GetBestConversionOperator(sourceType, targetType, candidates);
+
+                if (conversionSymbol == null)
+                {
+                    diagnostics?.Add(BindingDiagnostics.CannotConvert(sourceType, targetType ?? _symbols.Unknown).WithLocation(location));
+                    return false;
+                }
+
+                return true;
+            }
+        }
+        finally
+        {
+            _symbolListPool.ReturnToPool(candidates);
+        }
+    }
+
+    /// <summary>
+    /// Determines if the conversion is allowed through automatic means, numeric widening/narrowing or object up/down casting.
+    /// </summary>
+    protected virtual bool CanAutoConvert(ConversionKind conversion, TypeSymbol source, TypeSymbol target)
     {
         if (IsAssignableTo(source, target))
             return true;
@@ -859,8 +1228,8 @@ public class ExpressionBinder
                 || CanUpCast(source, target);
         }
 
-        // does an implicit conversion exist
-        return source == target; // other rule?
+        return source == target
+            || CanWiden(source, target);
     }
 
     protected virtual bool CanDownCast(TypeSymbol source, TypeSymbol target)
@@ -891,21 +1260,74 @@ public class ExpressionBinder
         return false;
     }
 
-    protected virtual bool IsAssignableTo(TypeSymbol source, TypeSymbol target)
+    protected virtual bool CanWiden(TypeSymbol source, TypeSymbol target)
     {
-        if (source == target)
+        if (target == _symbols.Int64)
+        {
+            return source == _symbols.Int32
+                || source == _symbols.Int16
+                || source == _symbols.Byte;
+        }
+        else if (target == _symbols.Int32)
+        {
+            return source == _symbols.Int16
+                || source == _symbols.Byte;
+        }
+        else if (target == _symbols.Int16)
+        {
+            return source == _symbols.Byte;
+        }
+        else if (target == _symbols.Double)
+        {
+            return source == _symbols.Single
+                || CanWiden(source, _symbols.Int64);
+        }
+        else if (target == _symbols.Single)
+        {
+            return CanWiden(source, _symbols.Int64);
+        }
+        else if (target == _symbols.Decimal)
+        {
+            return CanWiden(source, _symbols.Double);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// The source type is assignable to the target type without conversion.
+    /// </summary>
+    protected virtual bool IsAssignableTo(TypeSymbol sourceType, TypeSymbol targetType)
+    {
+        if (sourceType == targetType)
             return true;
 
-        if (source.RuntimeType != null && target.RuntimeType != null)
-            return source.RuntimeType.IsAssignableTo(target.RuntimeType);
+        if (sourceType == _symbols.DoesNotReturn)
+            return true;
+
+        if (targetType == _symbols.Any)
+            return true;
+
+        if (sourceType.RuntimeType != null 
+            && targetType.RuntimeType != null
+            && sourceType.RuntimeType.IsAssignableTo(targetType.RuntimeType))
+            return true;
+
+        if (CanDownCast(sourceType, targetType))
+            return true;
 
         return false;
     }
 
     protected virtual void GetConversionOperatorCandidates(ConversionKind kind, TypeSymbol source, TypeSymbol target, List<Symbol> operators)
     {
-        GetMatchingTypeMembers(source, null, s => IsMatchingConversionOperator(s, kind, source, target), operators);
-        GetMatchingTypeMembers(target, null, s => IsMatchingConversionOperator(s, kind, source, target), operators);
+        GetMatchingTypeMembers(source, "op_Implicit", s => IsMatchingConversionOperator(s, kind, source, target), operators);
+        GetMatchingTypeMembers(target, "op_Implicit", s => IsMatchingConversionOperator(s, kind, source, target), operators);
+
+        if (kind == ConversionKind.Narrowing)
+        {
+            GetMatchingTypeMembers(source, "op_Explicit", s => IsMatchingConversionOperator(s, kind, source, target), operators);
+            GetMatchingTypeMembers(target, "op_Explicit", s => IsMatchingConversionOperator(s, kind, source, target), operators);
+        }
     }
 
     protected virtual bool IsMatchingConversionOperator(Symbol symbol, ConversionKind kind, TypeSymbol source, TypeSymbol target) =>
@@ -914,16 +1336,16 @@ public class ExpressionBinder
             FunctionSymbol function =>
                 function.ReturnType == target
                 && function.Parameters.Count == 1
-                && CanConvert(ConversionKind.Widening, source, function.Parameters[0].ParameterType),
+                && CanAutoConvert(ConversionKind.Widening, source, function.Parameters[0].ParameterType),
             MethodSymbol method =>
                 method.IsStatic
                 && method.ReturnType == target
                 && method.Parameters.Count == 1
-                && CanConvert(ConversionKind.Widening, source, method.Parameters[0].ParameterType),
+                && CanAutoConvert(ConversionKind.Widening, source, method.Parameters[0].ParameterType),
             _ => false
         };
 
-    protected virtual Symbol? GetBestConversionOperator(Expression expression, TypeSymbol target, List<Symbol> candidates)
+    protected virtual Symbol? GetBestConversionOperator(TypeSymbol sourceType, TypeSymbol targetType, IReadOnlyList<Symbol> candidates)
     {
         // todo: do better
         return candidates.FirstOrDefault();

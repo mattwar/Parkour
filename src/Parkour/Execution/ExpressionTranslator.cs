@@ -55,8 +55,8 @@ public sealed class ExpressionTranslator
                 return TranslatePath(path);
             case ReferenceExpression rex:
                 return TranslateReference(rex);
-            case WhileExpression @while:
-                return TranslateWhile(@while);
+            case LoopExpression @while:
+                return TranslateLoop(@while);
             default:
                 throw new InvalidOperationException($"Unhandled semantic type '{expression.GetType().Name}' in {nameof(ExpressionTranslator)}.Translate");
         }
@@ -80,7 +80,12 @@ public sealed class ExpressionTranslator
 
     private L.Expression TranslateBlock(BlockExpression block)
     {
-        var declarations = block.SelectWhere(e => e is not BlockExpression && e is not LambdaExpression, e => e is DeclarationExpression, e => (DeclarationExpression)e).ToList();
+        var declarations = block.SelectWhere(e => 
+            e is not BlockExpression && e is not LambdaExpression, 
+            e => e is DeclarationExpression, 
+            e => (DeclarationExpression)e)
+            .ToList();
+
         if (declarations.Count > 0)
         {
             return L.Expression.Block(
@@ -182,11 +187,16 @@ public sealed class ExpressionTranslator
 
     private L.Expression TranslateDeclaration(DeclarationExpression declaration)
     {
-        var initializer = Translate(declaration.Initializer);
         var variable = GetVariable(declaration.Variable!);
-        return L.Expression.Block(
-            L.Expression.Assign(variable, initializer),
-            variable);
+        if (declaration.Initializer != null)
+        {
+            var initializer = Translate(declaration.Initializer);
+            return L.Expression.Assign(variable, initializer);
+        }
+        else
+        {
+            return variable;
+        }
     }
 
     private L.Expression TranslateFunction(LambdaExpression function)
@@ -283,12 +293,10 @@ public sealed class ExpressionTranslator
         }
     }
 
-    private L.Expression TranslateWhile(WhileExpression @while)
+    private L.Expression TranslateLoop(LoopExpression @while)
     {
         var outerLoopContinue = GetCurrentBranchTarget("continue");
         var outerLoopBreak = GetCurrentBranchTarget("break");
-
-        var test = Translate(@while.Test);
 
         var loopContinue = L.Expression.Label("continue");
         var loopBreak = L.Expression.Label("break");
@@ -300,7 +308,7 @@ public sealed class ExpressionTranslator
 
         var loop =
             L.Expression.Loop(
-                L.Expression.Condition(test, body, L.Expression.Goto(loopBreak)),
+                body,
                 loopBreak, loopContinue);
 
         SetCurrentBranchTarget("continue", outerLoopContinue);
@@ -313,7 +321,6 @@ public sealed class ExpressionTranslator
 
     private Dictionary<string, L.LabelTarget?> _currentBranchTargets =
         new Dictionary<string, L.LabelTarget?>();
-
 
     public L.LabelTarget? GetCurrentBranchTarget(string targetName)
     {

@@ -281,17 +281,17 @@ public class DeclarationBinder
     }
 
     private TypeSymbol GetType(Expression typeExpression) =>
-        _binder!.BindType(typeExpression, null) ?? SpecialSymbols.Unknown;
+        _binder!.GetType(typeExpression) ?? SpecialSymbols.Unknown;
 
     private Expression BindExpression(Expression expr, BindingScope scope)
     {
-        return _binder!.BindInScope(expr, scope);
+        return _binder!.Bind(expr, scope);
     }
 
     private ImmutableList<TExpression> BindExpressions<TExpression>(ImmutableList<TExpression> list, BindingScope scope)
         where TExpression : Expression
     {
-        return _binder!.BindListInScope(list, scope);
+        return _binder!.BindList(list, scope);
     }
 
     /// <summary>

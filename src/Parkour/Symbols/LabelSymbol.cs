@@ -1,11 +1,10 @@
 ﻿namespace Parkour.Symbols;
-using Binding;
 
-public sealed class TargetSymbol : Symbol
+public sealed class LabelSymbol : Symbol
 {
     public TypeSymbol Type { get; }
 
-    public TargetSymbol(string name, TypeSymbol? type)
+    public LabelSymbol(string name, TypeSymbol? type)
         : base(name)
     {
         Type = type ?? SpecialSymbols.Void;

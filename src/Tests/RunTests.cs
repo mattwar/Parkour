@@ -34,7 +34,7 @@ public class RunTests
     [TestMethod]
     public void TestParameters()
     {
-        TestRun(Function(new[] { Parameter("x", Reference("Int32")) }, Reference("x")), 1, 1);
+        TestRun(Lamda(new[] { Parameter("x", Reference("Int32")) }, Reference("x")), 1, 1);
         //TestRun(Function(new[] { Parameter("x", Reference("Int32")) }, Add(Reference("x"), Constant(1))), 2, 1);
     }
 
@@ -57,10 +57,10 @@ public class RunTests
     private void TestRun(Expression expression, object expectedResult, BindingScope scope, params object[] args)
     {
         if (!(expression is LambdaExpression))
-            expression = Function(expression);
+            expression = Lambda(expression);
 
         var binder = new ExpressionBinder(_symbols.GlobalNamespace);
-        var bound = (LambdaExpression)binder.BindInScope(expression, scope);
+        var bound = (LambdaExpression)binder.Bind(expression, scope);
 
         if (bound.ContainsDiagnostics)
         {
