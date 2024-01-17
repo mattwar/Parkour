@@ -25,18 +25,18 @@ public sealed class BranchExpression : Expression
         this.Expression = expression;
     }
 
-    public bool IsBreak => this.TargetName == "break";
-    public bool IsContinue => this.TargetName == "continue";
-    public bool IsReturn => this.TargetName == "return";
+    public bool IsBreak => this.TargetName == LabelSymbol.BreakLabelName;
+    public bool IsContinue => this.TargetName == LabelSymbol.ContinueLabelName;
+    public bool IsReturn => this.TargetName == LabelSymbol.ReturnLabelName;
     public bool IsGoto => !IsBreak && !IsContinue && !IsReturn;
 
     public static BranchExpression CreateBreak(Expression? expression, ISourceLocation? location, LabelSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression("break", expression, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
+        new BranchExpression(LabelSymbol.BreakLabelName, expression, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
 
     public static BranchExpression CreateContinue(ISourceLocation? location, LabelSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression("continue", null, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
+        new BranchExpression(LabelSymbol.ContinueLabelName, null, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
 
     public static BranchExpression CreateReturn(Expression? expression, ISourceLocation? location, LabelSymbol? target, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression("return", expression, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
+        new BranchExpression(LabelSymbol.ReturnLabelName, expression, location, target, target != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
 }
 

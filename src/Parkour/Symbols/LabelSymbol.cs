@@ -9,4 +9,8 @@ public sealed class LabelSymbol : Symbol
     {
         Type = type ?? SpecialSymbols.Void;
     }
+
+    public static string BreakLabelName = "break";
+    public static string ContinueLabelName = "continue";
+    public static string ReturnLabelName = "return";
 }

@@ -51,6 +51,9 @@ internal static class BindingDiagnostics
     public static Diagnostic NoCommonTypeFound() =>
         new Diagnostic("No common type can be found for the result of this expression.");
 
+    public static Diagnostic NoCommonReturnTypeFound() =>
+        new Diagnostic("No common return type can be found for the function.");
+
     public static Diagnostic FlowIntoLabelDoesNotMatchType() =>
         new Diagnostic("The flow of logic does not provide the label's expected value or compatible type.");
 }

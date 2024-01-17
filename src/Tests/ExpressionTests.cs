@@ -140,10 +140,10 @@ public class ExpressionTests
             Condition(Constant(true), Constant(1), Constant(1L)),
             _symbols.Int64);
 
-        // whenTrue/whenFalse not same types, not convertable
+        // whenTrue / whenFalse not same types, not convertable
         TestBinding(
             Condition(Constant(true), Constant(1), Constant("zero")),
-            _symbols.Int32,
+            _symbols.Object,
             containsDiagnostics: true);
 
         // whenTrue is void
@@ -342,6 +342,80 @@ public class ExpressionTests
     }
 
     [TestMethod]
+    public void TestLambda()
+    {
+        // lambda with no parameters and no returns
+        TestBinding(
+            Lambda(Constant(1)));
+
+        // called lambda with no parameters and no return
+        TestBinding(
+            Call(Lambda(Constant(1))),
+            expectedResultType: _symbols.Int32);
+
+        // called lambda with no parameters and no return
+        TestBinding(
+            Call(Lambda(Void())),
+            expectedResultType: _symbols.Void);
+
+        // lambda with parameter
+        TestBinding(
+            Lambda(
+                [Parameter("x", TypeReference(_symbols.String))],
+                Reference("x")));
+
+        // call lambda with parameter
+        TestBinding(
+            Call(
+                Lambda(
+                    [Parameter("x", TypeReference(_symbols.String))],
+                    Reference("x")),
+                Constant("string")),
+            _symbols.String);
+
+        // lambda with return
+        TestBinding(
+            Call(
+                Lambda(
+                    Return(Constant(1)))),
+            _symbols.Int32);
+
+        // lambda with return and value
+        TestBinding(
+            Call(
+                Lambda(
+                    Block(
+                        Return(Constant(1)),
+                        Constant(2L)
+                        ))),
+            _symbols.Int64);
+
+        // lambda with conditional true and value
+        TestBinding(
+            Call(
+                Lambda(
+                    Condition(Constant(true), Return(Constant(1)), Constant(2L))
+                    )),
+            _symbols.Int64);
+
+        // lambda with conditional returns
+        TestBinding(
+            Call(
+                Lambda(
+                    Condition(Constant(true), Return(Constant(1)), Return(Constant(2L)))
+                    )),
+            _symbols.Int64);
+
+        // lambda with non-convertable returns
+        TestBinding(
+            Call(
+                Lambda(
+                    Condition(Constant(true), Return(Constant(1)), Return(Constant("two")))
+                    )),
+            _symbols.Object);
+    }
+
+    [TestMethod]
     public void TestLoop()
     {
         // loop with no break
@@ -463,11 +537,6 @@ public class ExpressionTests
         TestBinding(
             Loop(Condition(Constant(true), Continue(), Break(Constant(1)))),
             expectedResultType: _symbols.Int32);
-    }
-
-    [TestMethod]
-    public void TestLambda()
-    {
     }
 
     private void TestBinding(

@@ -557,7 +557,7 @@ public class ExpressionBinder
                 whenFalse,
                 condition.Location,
                 resultType,
-                null);
+                diagnostics.ToImmutableList());
         }
         finally
         {
@@ -570,33 +570,64 @@ public class ExpressionBinder
 
     protected virtual TypeSymbol? GetBestCommonType(IReadOnlyList<TypeSymbol?> types)
     {
-        var best = types[0];
+        TypeSymbol? best = PickBest();
 
-        for (int i = 1; i < types.Count; i++)
+        if (best == _symbols.Void)
+            return best;
+
+        if (best != null && StillBest(best))
+            return best;
+
+        return null;
+
+        TypeSymbol? PickBest()
         {
-            var type = types[i];
-            
-            if (type == _symbols.DoesNotReturn
-                || type == _symbols.Null
-                || type == _symbols.Unknown)
-                continue;
+            TypeSymbol? best = null;
 
-            if (type == _symbols.Void)
+            for (int i = 0; i < types.Count; i++)
             {
-                best = type;
-                continue;
+                var type = types[i];
+
+                if (type == null || IgnoreType(type))
+                    continue;
+
+                if (best == null || type == _symbols.Void)
+                {
+                    best = type;
+                    continue;
+                }
+
+                // if type cannot be assigned to best
+                if (!CanAutoConvert(ConversionKind.Widening, type, best)
+                    && CanAutoConvert(ConversionKind.Widening, best, type))
+                {
+                    best = type;
+                }
             }
 
-            if (best == null
-                || (type != null && 
-                    !IsAssignableTo(type, best)
-                    && CanAutoConvert(ConversionKind.Widening, best, type)))
-            {
-                best = type;
-            }
+            return best;
         }
 
-        return best;
+        // check if all types can be auto converted to best type
+        bool StillBest(TypeSymbol best)
+        {
+            for (int i = 0; i < types.Count; i++)
+            {
+                var type = types[i];
+                if (type == null || IgnoreType(type))
+                    continue;
+
+                if (!CanAutoConvert(ConversionKind.Widening, type, best))
+                    return false;
+            }
+
+            return true;
+        }
+
+        bool IgnoreType(TypeSymbol type) =>
+            type == _symbols.DoesNotReturn
+            || type == _symbols.Null
+            || type == _symbols.Unknown;
     }
 
     protected virtual Expression BindConstant(ConstantExpression constant, BindingContext context)
@@ -781,51 +812,26 @@ public class ExpressionBinder
     protected virtual Expression BindLambda(LambdaExpression lambda, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
+        var types = _typeListPool.AllocateFromPool();
         try
         {
-            FunctionSymbol? symbol = lambda.Symbol;
-            LabelSymbol? returnTarget = lambda.ReturnTarget;
+            FunctionSymbol? lambdaSymbol = lambda.Symbol;
+            LabelSymbol? returnTarget = lambda.ReturnTarget 
+                ?? new LabelSymbol(LabelSymbol.ReturnLabelName, _symbols.Any);
             Expression body = lambda.Body;
             TypeSymbol? returnType = null;
 
             context = context.WithInflowType(_symbols.Void);
 
-            while (symbol == null 
-                || symbol.ReturnType != body.ResultType
-                || returnTarget == null
-                || returnTarget.Type != body.ResultType)
+            BindLambdaSymbol(context);
+
+            if (returnTarget.Type != returnType)
             {
-                if (returnTarget == null
-                    || returnTarget.Type != body.ResultType)
-                {
-                    returnTarget = new LabelSymbol("return", body.ResultType);
-                }
-
-                if (symbol != null)
-                {
-                    // bind using existing parameter info
-                    BindBodyAndReturnType(symbol.Parameters);
-                }
-                else
-                {
-                    // bind and evalute new function symbol at the same time
-                    symbol = new FunctionSymbol(
-                        lambda.Name,
-                        me =>
-                        {
-                            var pms = CreateParameterSymbols(me, lambda.Parameters, context);
-                            BindBodyAndReturnType(pms);
-                            return pms;
-                        },
-                        () => returnType!,
-                        null);
-                    // force eval of deferred parameters and return type
-                    // for side-effect assignment to locals  (Erik Meijer said it was okay.)
-                    var _ = symbol.Parameters;
-                    returnType = symbol.ReturnType;
-                }
+                context = context.WithRebind(true);
+                returnTarget = new LabelSymbol(LabelSymbol.ReturnLabelName, returnType);
+                BindLambdaSymbol(context);
             }
-
+           
             if (body == lambda.Body
                 && lambda.Symbol != null
                 && lambda.Symbol.ReturnType == body.ResultType
@@ -839,31 +845,67 @@ public class ExpressionBinder
                 body,
                 lambda.Location,
                 returnType,
-                symbol,
+                lambdaSymbol,
                 returnTarget,
                 diagnostics.ToImmutableList());
 
-            void BindBodyAndReturnType(ImmutableList<ParameterSymbol> parameters)
+            void BindLambdaSymbol(BindingContext context)
             {
-                var bodyContext = context.WithScope(context.Scope.AddSymbols(parameters).AddSymbolMembers(returnTarget));
+                // bind and evalute new function symbol at the same time
+                lambdaSymbol = new FunctionSymbol(
+                    lambda.Name,
+                    me =>
+                    {
+                        var pms = CreateParameterSymbols(me, lambda.Parameters, context);
+                        BindBodyAndReturnType(pms, context);
+                        return pms;
+                    },
+                    () => returnType!,
+                    null);
+                // force eval of deferred parameters and return type
+                // for side-effect assignment to locals  (Erik Meijer said it was okay.)
+                var _ = lambdaSymbol.Parameters;
+                returnType = lambdaSymbol.ReturnType;
+            }
+
+            void BindBodyAndReturnType(ImmutableList<ParameterSymbol> parameters, BindingContext context)
+            {
+                var bodyContext = context.WithScope(
+                    context.Scope
+                        .AddSymbols(parameters)
+                        .AddSymbol(returnTarget));
                 body = BindExpression(lambda.Body, bodyContext);
-                returnType = GetLambdaResultType(body, returnTarget);
+                returnType = GetLambdaResultType(body, returnTarget, diagnostics);
             }
         }
         finally
         {
             _diagnosticListPool.ReturnToPool(diagnostics);
+            _typeListPool.ReturnToPool(types);
         }           
     }
 
-    protected virtual TypeSymbol GetLambdaResultType(Expression body, LabelSymbol returnTarget)
+    protected virtual TypeSymbol GetLambdaResultType(Expression body, LabelSymbol returnTarget, List<Diagnostic> diagnostics)
     {
         var types = _typeListPool.AllocateFromPool();
         try
         {
             GetBranchExpressionTypes(body, returnTarget, types);
             types.Add(body.ResultType);
-            return _symbols.GetUnion(types);
+
+            var best = GetBestCommonType(types);
+            if (best == null)
+            {
+                types.Add(_symbols.Object);
+                best = GetBestCommonType(types);
+            }
+
+            if (best == null)
+            {
+                diagnostics.Add(BindingDiagnostics.NoCommonTypeFound().WithLocation(body.Location));
+            }
+
+            return best ?? _symbols.Object;
         }
         finally
         {
@@ -877,8 +919,8 @@ public class ExpressionBinder
         var types = _typeListPool.AllocateFromPool();
         try
         {
-            var breakTarget = loop.BreakTarget ?? new LabelSymbol("break", _symbols.Any);
-            var continueTarget = loop.ContinueTarget ?? new LabelSymbol("continue", _symbols.Void);
+            var breakTarget = loop.BreakTarget ?? new LabelSymbol(LabelSymbol.BreakLabelName, _symbols.Any);
+            var continueTarget = loop.ContinueTarget ?? new LabelSymbol(LabelSymbol.ContinueLabelName, _symbols.Void);
 
             var bodyContext = context.WithScope(
                 context.Scope.AddSymbols(new[] { breakTarget, continueTarget }));
@@ -888,7 +930,9 @@ public class ExpressionBinder
 
             // result type is the common type of all the break branches.
             GetBranchExpressionTypes(body, breakTarget, types);
-            var resultType = types.Count == 0 ? _symbols.Void : GetBestCommonType(types);
+            var resultType = types.Count == 0
+                ? _symbols.Void 
+                : GetBestCommonType(types);
 
             if (breakTarget.Type != resultType)
             {

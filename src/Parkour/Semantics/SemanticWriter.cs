@@ -220,8 +220,16 @@ public class SemanticWriter
             case DeclarationExpression declaration:
                 Write("var ");
                 Write(declaration.Name);
-                Write(" = ");
-                Write(declaration.Initializer);
+                if (declaration.VariableType != null)
+                {
+                    Write(": ");
+                    Write(declaration.VariableType);
+                }
+                if (declaration.Initializer != null)
+                {
+                    Write(" = ");
+                    Write(declaration.Initializer);
+                }
                 break;
 
             case PathExpression path:
