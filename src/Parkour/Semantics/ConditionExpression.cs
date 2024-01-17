@@ -16,10 +16,13 @@ public sealed class ConditionExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-              test.State | whenTrue.State | whenFalse.State,
-              location,
-              resultType,
-              diagnostics)
+            test.State 
+            | whenTrue.State 
+            | whenFalse.State
+            | NotNullState(resultType),
+            location,
+            resultType,
+            diagnostics)
     {
         this.Test = test;
         this.WhenTrue = whenTrue;

@@ -16,13 +16,12 @@ public abstract class Expression : SemanticElement
         ISourceLocation? location,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
-        : base(state | GetResultState(resultType), location, diagnostics)
+        : base(
+            state 
+            | NotNullState(resultType), 
+            location, 
+            diagnostics)
     {
         this.ResultType = resultType ?? SpecialSymbols.Unknown;
     }
-
-    private static ContainsState GetResultState(TypeSymbol? resultType) =>
-        (resultType == null || resultType == SpecialSymbols.Unknown)
-            ? ContainsState.Unknowns
-            : ContainsState.None;
 }

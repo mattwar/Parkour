@@ -5,16 +5,17 @@ using Syntax;
 public class NamespaceDeclaration : MemberDeclaration
 {
     public ImmutableList<Declaration> Declarations { get; }
-    public NamespaceSymbol? Symbol { get; }
+    public NamespaceSymbol? NamespaceSymbol { get; }
 
     public NamespaceDeclaration(
         string name, 
         ImmutableList<Declaration> declarations,
         ISourceLocation? location,
-        NamespaceSymbol? symbol,
+        NamespaceSymbol? namespaceSymbol,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            CombineState(declarations), 
+            CombineState(declarations)
+            | NotNullState(namespaceSymbol), 
             name, 
             SymbolAccess.Public, 
             SymbolModifier.None, 
@@ -22,6 +23,6 @@ public class NamespaceDeclaration : MemberDeclaration
             diagnostics)
     {
         this.Declarations = declarations;
-        this.Symbol = symbol;
+        this.NamespaceSymbol = namespaceSymbol;
     }
 }

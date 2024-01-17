@@ -4,7 +4,7 @@ using Symbols;
 public sealed class BranchExpression : Expression
 {
     public string TargetName { get; }
-    public LabelSymbol? Target { get; }
+    public LabelSymbol? TargetSymbol { get; }
     public Expression? Expression { get; }
 
     public BranchExpression(
@@ -15,13 +15,15 @@ public sealed class BranchExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-              (expression != null ? expression.State : ContainsState.None),
+              OptionalState(expression)
+              | NotNullOrDiagnosticState(target, diagnostics)
+              | NotNullState(resultType),
               location,
               resultType,
               diagnostics)
     {
         this.TargetName = targetName;
-        this.Target = target;
+        this.TargetSymbol = target;
         this.Expression = expression;
     }
 

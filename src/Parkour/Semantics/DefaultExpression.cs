@@ -11,7 +11,7 @@ public sealed class DefaultExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            ContainsState.None,
+            NotNullState(resultType),
             location,
             resultType,
             diagnostics)

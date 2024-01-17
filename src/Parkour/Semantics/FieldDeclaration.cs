@@ -6,7 +6,7 @@ public sealed class FieldDeclaration : MemberDeclaration
 {
     public Expression FieldType { get; }
     public Expression? Initializer { get; }
-    public FieldSymbol? Symbol { get; }
+    public FieldSymbol? FieldSymbol { get; }
 
     public FieldDeclaration(
         string name,
@@ -15,10 +15,11 @@ public sealed class FieldDeclaration : MemberDeclaration
         Expression fieldType,
         Expression? initializer,
         ISourceLocation? location,
-        FieldSymbol? symbol,
+        FieldSymbol? fieldSymbol,
         ImmutableList<Diagnostic>? diagnostics)
     : base(
-          initializer != null ? initializer.State : ContainsState.None,
+          OptionalState(initializer)
+          | NotNullState(fieldSymbol),
           name,
           access,
           modifiers,
@@ -27,7 +28,7 @@ public sealed class FieldDeclaration : MemberDeclaration
     {
         this.FieldType = fieldType;
         this.Initializer = initializer;
-        this.Symbol = symbol;
+        this.FieldSymbol = fieldSymbol;
     }
 }
 

@@ -77,11 +77,11 @@ public static class SemanticFactory
     public static LambdaExpression Lambda(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
         new LambdaExpression("", parameters, body, location, null, null, null, null);
 
-    public static LambdaExpression Lamda(IEnumerable<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
+    public static LambdaExpression Lambda(IEnumerable<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
         Lambda(parameters.ToImmutableList(), body, location);
 
     public static LambdaExpression Lambda(IEnumerable<string> parameterNames, Expression body, ISourceLocation? location = null) =>
-        Lamda(parameterNames.Select(n => Parameter(n)), body, location);
+        Lambda(parameterNames.Select(n => Parameter(n)), body, location);
 
     public static LambdaExpression Lambda(Expression body, ISourceLocation? location = null) =>
         Lambda(ImmutableList<ParameterDeclaration>.Empty, body, location);

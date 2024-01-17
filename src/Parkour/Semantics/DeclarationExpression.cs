@@ -18,8 +18,10 @@ public sealed class DeclarationExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            (variableType != null ? variableType.State : ContainsState.None)
-            | (initializer != null ? initializer.State : ContainsState.None), 
+            OptionalState(variableType)
+            | OptionalState(initializer)
+            | NotNullState(variable)
+            | NotNullState(resultType),
             location,
             resultType, 
             diagnostics)

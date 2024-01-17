@@ -48,7 +48,7 @@ public sealed class ExpressionTranslator
             case DeclarationExpression declaration:
                 return TranslateDeclaration(declaration);
             case LambdaExpression function:
-                return TranslateFunction(function);
+                return TranslateLambda(function);
             case LabelExpression label:
                 return TranslateLabel(label);
             case PathExpression path:
@@ -142,7 +142,7 @@ public sealed class ExpressionTranslator
 
     private L.Expression TranslateBranch(BranchExpression branch)
     {
-        var label = GetCurrentBranchTarget(branch.TargetName);
+        var label = GetCurrentBranchTarget(branch.TargetSymbol!);
         if (label == null)
             throw new InvalidOperationException($"No branch target defined for '{branch.TargetName}'");
 
@@ -199,53 +199,48 @@ public sealed class ExpressionTranslator
         }
     }
 
-    private L.Expression TranslateFunction(LambdaExpression function)
+    private L.Expression TranslateLabel(LabelExpression label)
     {
-        var oldReturnTarget = GetCurrentBranchTarget("return");
-        var oldDelegateType = _currentFunctionDelegateType;
-        _currentFunctionDelegateType = null;
+        if (label.LabelSymbol == null)
+            throw new InvalidOperationException($"No label symbol defined for '{label.Name}'");
+        var target = GetCurrentBranchTarget(label.LabelSymbol);
+        if (target == null)
+            throw new InvalidOperationException($"No branch label defined for '{label.Name}'");
+        return L.Expression.Label(target);
+    }
 
-        var parameters = function.Symbol!.Parameters.Select(p => DeclareVariable(p, p.ParameterType)).ToArray();
+    private L.Expression TranslateLambda(LambdaExpression lambda)
+    {
+        var parameters = lambda.LambdaSymbol!.Parameters
+            .Select(p => DeclareVariable(p, p.ParameterType))
+            .ToArray();
 
         L.Expression lambdaBody;
 
-        if (function.ReturnType == SpecialSymbols.Void
-            || function.ReturnType == null)
+        if (lambda.ReturnType == SpecialSymbols.Void
+            || lambda.ReturnType == null)
         {
-            var returnTarget = L.Expression.Label("return");
-            SetCurrentBranchTarget("return", returnTarget);
-            var body = Translate(function.Body);
+            var returnTarget = L.Expression.Label(lambda.ReturnTarget!.Name);
+            SetCurrentBranchTarget(lambda.ReturnTarget!, returnTarget);
+            var body = Translate(lambda.Body);
             lambdaBody = L.Expression.Block(body, L.Expression.Label(returnTarget));
         }
         else
         {
-            var returnType = Translate(function.ReturnType);
-            var returnTarget = L.Expression.Label(returnType, "return");
-            SetCurrentBranchTarget("return", returnTarget);
+            var returnType = Translate(lambda.ReturnType);
+            var returnTarget = L.Expression.Label(returnType, lambda.ReturnTarget!.Name);
+            SetCurrentBranchTarget(lambda.ReturnTarget, returnTarget);
 
-            var body = Translate(function.Body);
+            var body = Translate(lambda.Body);
 
             lambdaBody = L.Expression.Block(
-                returnType, 
+                returnType,
                 body,
                 L.Expression.Return(returnTarget, body),
                 L.Expression.Label(returnTarget, L.Expression.Default(returnType)));
         }
 
-        SetCurrentBranchTarget("return", oldReturnTarget);
-        _currentFunctionDelegateType = oldDelegateType;
-
-        if (_currentFunctionDelegateType != null)
-            return L.Expression.Lambda(_currentFunctionDelegateType, lambdaBody, parameters);
         return L.Expression.Lambda(lambdaBody, parameters);
-    }
-
-    private L.Expression TranslateLabel(LabelExpression label)
-    {
-        var target = GetCurrentBranchTarget(label.Name);
-        if (target == null)
-            throw new InvalidOperationException($"No branch label defined for '{label.Name}'");
-        return L.Expression.Label(target);
     }
 
     private L.Expression TranslatePath(PathExpression path)
@@ -293,45 +288,36 @@ public sealed class ExpressionTranslator
         }
     }
 
-    private L.Expression TranslateLoop(LoopExpression @while)
+    private L.Expression TranslateLoop(LoopExpression loop)
     {
-        var outerLoopContinue = GetCurrentBranchTarget("continue");
-        var outerLoopBreak = GetCurrentBranchTarget("break");
+        var loopContinue = L.Expression.Label(loop.ContinueTarget!.Name);
+        var loopBreak = L.Expression.Label(loop.BreakTarget!.Name);
 
-        var loopContinue = L.Expression.Label("continue");
-        var loopBreak = L.Expression.Label("break");
+        SetCurrentBranchTarget(loop.ContinueTarget, loopContinue);
+        SetCurrentBranchTarget(loop.BreakTarget, loopBreak);
 
-        SetCurrentBranchTarget("continue", loopContinue);
-        SetCurrentBranchTarget("break", loopBreak);
+        var body = Translate(loop.Body);
 
-        var body = Translate(@while.Body);
-
-        var loop =
+        return
             L.Expression.Loop(
                 body,
                 loopBreak, loopContinue);
-
-        SetCurrentBranchTarget("continue", outerLoopContinue);
-        SetCurrentBranchTarget("break", outerLoopBreak);
-
-        return loop;
     }
 
-    private Type? _currentFunctionDelegateType;
+    private Dictionary<LabelSymbol, L.LabelTarget> _currentBranchTargets =
+        new Dictionary<LabelSymbol, L.LabelTarget>();
 
-    private Dictionary<string, L.LabelTarget?> _currentBranchTargets =
-        new Dictionary<string, L.LabelTarget?>();
-
-    public L.LabelTarget? GetCurrentBranchTarget(string targetName)
+    public L.LabelTarget? GetCurrentBranchTarget(LabelSymbol labelSymbol)
     {
-        _currentBranchTargets.TryGetValue(targetName, out var labelTarget);
-        return labelTarget;
+        if (labelSymbol == null)
+            return null;
+        _currentBranchTargets.TryGetValue(labelSymbol, out var target);
+        return target;
     }
 
-    public L.LabelTarget? SetCurrentBranchTarget(string targetName, L.LabelTarget? labelTarget)
+    public void SetCurrentBranchTarget(LabelSymbol labelSymbol, L.LabelTarget labelTarget)
     {
-        _currentBranchTargets[targetName] = labelTarget;
-        return labelTarget;
+        _currentBranchTargets[labelSymbol] = labelTarget;
     }
 
     private Dictionary<Symbol, L.ParameterExpression> _variableMap =

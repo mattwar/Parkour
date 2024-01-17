@@ -8,7 +8,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
     public MethodDeclaration GetMethod { get; }
     public MethodDeclaration? SetMethod { get; }
     public FieldDeclaration? BackingField { get; }
-    public PropertySymbol? Symbol { get; }
+    public PropertySymbol? PropertySymbol { get; }
 
     public PropertyDeclaration(
         string name,
@@ -19,20 +19,24 @@ public sealed class PropertyDeclaration : MemberDeclaration
         MethodDeclaration getMethod,
         MethodDeclaration? setMethod,
         ISourceLocation? location,
-        PropertySymbol? symbol,
+        PropertySymbol? propertySymbol,
         ImmutableList<Diagnostic>? diagnostics)
     : base(
-          getMethod.State | (setMethod != null ? setMethod.State : ContainsState.None),
-          name,
-          access,
-          modifiers,
-          location,
-          diagnostics)
+        propertyType.State
+        | OptionalState(backingField)
+        | getMethod.State 
+        | OptionalState(setMethod)
+        | NotNullState(propertySymbol),
+        name,
+        access,
+        modifiers,
+        location,
+        diagnostics)
     {
         this.PropertyType = propertyType ?? getMethod.ReturnType;
         this.BackingField = backingField;
         this.GetMethod = getMethod;
         this.SetMethod = setMethod;
-        this.Symbol = symbol;
+        this.PropertySymbol = propertySymbol;
     }
 }

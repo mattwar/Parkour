@@ -13,7 +13,8 @@ public class OperatorExpression : Expression
         TypeSymbol? resultType, 
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            ContainsState.None, 
+            NotNullOrDiagnosticState(referencedSymbol, diagnostics)
+            | NotNullState(resultType), 
             location,
             resultType, 
             diagnostics)

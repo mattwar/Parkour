@@ -212,7 +212,7 @@ public class ExpressionBinder
     private readonly Dictionary<LabelExpression, LabelSymbol> _labelToSymbolMap
         = new Dictionary<LabelExpression, LabelSymbol>();
 
-    protected void AssociateLabelSymbol(LabelExpression label, LabelSymbol symbol)
+    protected void SetAssociatedLabelSymbol(LabelExpression label, LabelSymbol symbol)
     {
         _labelToSymbolMap[label] = symbol;
     }
@@ -241,7 +241,7 @@ public class ExpressionBinder
                     var type = label.ReceivingType != null ? BindType(label.ReceivingType, labelContext) : _symbols.Void;
                     var labelSymbol = label.LabelSymbol ?? new LabelSymbol(label.Name, type);
                     labelSymbols.Add(labelSymbol);
-                    AssociateLabelSymbol(label, labelSymbol);
+                    SetAssociatedLabelSymbol(label, labelSymbol);
                 }
             }
 
@@ -296,7 +296,7 @@ public class ExpressionBinder
         types.AddRange(
             body.SelectWhere(
                 s => s is Expression e && !HasBody(e),
-                s => s is BranchExpression b && b.Target == target,
+                s => s is BranchExpression b && b.TargetSymbol == target,
                 s => ((BranchExpression)s).Expression != null ? ((BranchExpression)s).Expression!.ResultType : SpecialSymbols.Void));
     }
 
@@ -338,7 +338,7 @@ public class ExpressionBinder
             }
 
             if (expression == branch.Expression
-                && targetSymbol == branch.Target
+                && targetSymbol == branch.TargetSymbol
                 && diagnostics.Count == 0)
                 return branch;
 
@@ -348,44 +348,6 @@ public class ExpressionBinder
                 branch.Location,
                 targetSymbol,
                 _symbols.DoesNotReturn,
-                diagnostics.ToImmutableList());
-        }
-        finally
-        {
-            _diagnosticListPool.ReturnToPool(diagnostics);
-        }
-    }
-
-    protected virtual Expression BindLabel(LabelExpression label, BindingContext context)
-    {
-        var diagnostics = _diagnosticListPool.AllocateFromPool();
-        try
-        {
-            var branchType = label.ReceivingType != null ? BindExpression(label.ReceivingType, context) : null;
-            var resultType = branchType != null ? branchType.ReferencedSymbol as TypeSymbol : _symbols.Void;
-            var targetSymbol = GetAssociatedLabelSymbol(label);
-
-            // check for inflow types into labels
-            if (resultType != _symbols.Void)
-            {
-                // if label is expecting to receive a value, then inflow type must match 
-                if (!TryGetConversion(context.InflowType, resultType, ConversionKind.Widening, out _, label.Location, null))
-                {
-                    diagnostics.Add(BindingDiagnostics.FlowIntoLabelDoesNotMatchType().WithLocation(label.Location));
-                }
-            }
-
-            if (label.ReceivingType == branchType
-                && label.LabelSymbol == targetSymbol
-                && label.ResultType == resultType)
-                return label;
-
-            return new LabelExpression(
-                label.Name, 
-                branchType, 
-                label.Location, 
-                targetSymbol, 
-                resultType, 
                 diagnostics.ToImmutableList());
         }
         finally
@@ -787,26 +749,42 @@ public class ExpressionBinder
         return expr.ReferencedSymbol as TypeSymbol;
     }
 
-    protected virtual ImmutableList<ParameterSymbol> CreateParameterSymbols(
-        Symbol? declaringSymbol,
-        ImmutableList<ParameterDeclaration> parameters,
-        BindingContext context)
+    protected virtual Expression BindLabel(LabelExpression label, BindingContext context)
     {
-        if (parameters.Count == 0)
-            return ImmutableList<ParameterSymbol>.Empty;
-
-        var list = new List<ParameterSymbol>();
-
-        context = context.WithTargetType(null);
-
-        foreach (var p in parameters)
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
         {
-            var type = p.ParameterType != null ? BindExpression(p.ParameterType, context) : null;
-            var ptype = type?.ReferencedSymbol as TypeSymbol ?? _symbols.Any;
-            list.Add(new ParameterSymbol(p.Name, declaringSymbol, ptype, runtimeParameter: null));
-        }
+            var receivingType = label.ReceivingType != null ? BindExpression(label.ReceivingType, context) : null;
+            var resultType = receivingType != null ? receivingType.ReferencedSymbol as TypeSymbol : _symbols.Void;
+            var targetSymbol = GetAssociatedLabelSymbol(label) ?? new LabelSymbol(label.Name, resultType);
 
-        return list.ToImmutableList();
+            // check for inflow types into labels
+            if (resultType != _symbols.Void)
+            {
+                // if label is expecting to receive a value, then inflow type must match 
+                if (!TryGetConversion(context.InflowType, resultType, ConversionKind.Widening, out _, label.Location, null))
+                {
+                    diagnostics.Add(BindingDiagnostics.FlowIntoLabelDoesNotMatchType().WithLocation(label.Location));
+                }
+            }
+
+            if (label.ReceivingType == receivingType
+                && label.LabelSymbol == targetSymbol
+                && label.ResultType == resultType)
+                return label;
+
+            return new LabelExpression(
+                label.Name,
+                receivingType,
+                label.Location,
+                targetSymbol,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
 
     protected virtual Expression BindLambda(LambdaExpression lambda, BindingContext context)
@@ -815,9 +793,10 @@ public class ExpressionBinder
         var types = _typeListPool.AllocateFromPool();
         try
         {
-            FunctionSymbol? lambdaSymbol = lambda.Symbol;
+            FunctionSymbol? lambdaSymbol = lambda.LambdaSymbol;
             LabelSymbol? returnTarget = lambda.ReturnTarget 
                 ?? new LabelSymbol(LabelSymbol.ReturnLabelName, _symbols.Any);
+            ImmutableList<ParameterDeclaration> parameters = lambda.Parameters;
             Expression body = lambda.Body;
             TypeSymbol? returnType = null;
 
@@ -832,16 +811,17 @@ public class ExpressionBinder
                 BindLambdaSymbol(context);
             }
            
-            if (body == lambda.Body
-                && lambda.Symbol != null
-                && lambda.Symbol.ReturnType == body.ResultType
+            if (parameters == lambda.Parameters
+                && body == lambda.Body
+                && lambda.LambdaSymbol != null
+                && lambda.LambdaSymbol.ReturnType == body.ResultType
                 && lambda.ReturnType == returnType
                 && diagnostics.Count == 0)
                 return lambda;
 
             return new LambdaExpression(
                 lambda.Name,
-                lambda.Parameters,
+                parameters ?? ImmutableList<ParameterDeclaration>.Empty,
                 body,
                 lambda.Location,
                 returnType,
@@ -856,7 +836,7 @@ public class ExpressionBinder
                     lambda.Name,
                     me =>
                     {
-                        var pms = CreateParameterSymbols(me, lambda.Parameters, context);
+                        var pms = CreateParameterSymbols(me, context);
                         BindBodyAndReturnType(pms, context);
                         return pms;
                     },
@@ -866,6 +846,32 @@ public class ExpressionBinder
                 // for side-effect assignment to locals  (Erik Meijer said it was okay.)
                 var _ = lambdaSymbol.Parameters;
                 returnType = lambdaSymbol.ReturnType;
+            }
+
+            ImmutableList<ParameterSymbol> CreateParameterSymbols(
+                Symbol? declaringSymbol,
+                BindingContext context)
+            {
+                if (parameters.Count == 0)
+                    return ImmutableList<ParameterSymbol>.Empty;
+
+                var symbols = new List<ParameterSymbol>();
+                var declarations = new List<ParameterDeclaration>();
+
+                context = context.WithTargetType(null);
+
+                foreach (var p in parameters)
+                {
+                    var type = p.ParameterType != null ? BindExpression(p.ParameterType, context) : null;
+                    var ptype = type?.ReferencedSymbol as TypeSymbol ?? _symbols.Any;
+                    var psymbol = new ParameterSymbol(p.Name, declaringSymbol, ptype, runtimeParameter: null);
+                    var pdecl = new ParameterDeclaration(p.Name, type, p.Location, psymbol, null);
+                    symbols.Add(psymbol);
+                    declarations.Add(pdecl);
+                }
+
+                parameters = declarations.ToImmutableList();
+                return symbols.ToImmutableList();
             }
 
             void BindBodyAndReturnType(ImmutableList<ParameterSymbol> parameters, BindingContext context)
@@ -884,6 +890,8 @@ public class ExpressionBinder
             _typeListPool.ReturnToPool(types);
         }           
     }
+
+
 
     protected virtual TypeSymbol GetLambdaResultType(Expression body, LabelSymbol returnTarget, List<Diagnostic> diagnostics)
     {

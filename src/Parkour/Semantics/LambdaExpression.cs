@@ -7,7 +7,7 @@ public sealed class LambdaExpression : Expression
     public string Name { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
-    public FunctionSymbol? Symbol { get; }
+    public FunctionSymbol? LambdaSymbol { get; }
     public TypeSymbol? ReturnType { get; }
     public LabelSymbol? ReturnTarget { get; }
 
@@ -17,19 +17,23 @@ public sealed class LambdaExpression : Expression
         Expression body,
         ISourceLocation? location,
         TypeSymbol? returnType,
-        FunctionSymbol? symbol,
+        FunctionSymbol? lambdaSymbol,
         LabelSymbol? returnTarget,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            body.State,
+            CombineState(parameters)
+            | body.State
+            | NotNullState(returnType)
+            | NotNullState(lambdaSymbol)
+            | NotNullState(returnTarget),
             location,
-            symbol,
+            lambdaSymbol,
             diagnostics)
     {
         this.Name = name;
         this.Parameters = parameters;
         this.Body = body;
-        this.Symbol = symbol;
+        this.LambdaSymbol = lambdaSymbol;
         this.ReturnType = returnType;
         this.ReturnTarget = returnTarget;
     }

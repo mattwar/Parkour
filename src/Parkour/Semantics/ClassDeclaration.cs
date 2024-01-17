@@ -6,7 +6,7 @@ public sealed class ClassDeclaration : MemberDeclaration
 {
     public ImmutableList<Expression> BaseTypes { get; }
     public ImmutableList<Declaration> Declarations { get; }
-    public TypeSymbol? Symbol { get; }
+    public TypeSymbol? ClassSymbol { get; }
 
     public ClassDeclaration(
         string name,
@@ -15,10 +15,11 @@ public sealed class ClassDeclaration : MemberDeclaration
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
         ISourceLocation? location,
-        TypeSymbol? symbol,
+        TypeSymbol? classSymbol,
         ImmutableList<Diagnostic>? diagnostics)
     : base(
-          declarations != null ? CombineState(declarations) : ContainsState.None,
+          CombineState(declarations)
+          | NotNullState(classSymbol),
           name,
           access,
           modifiers,
@@ -27,7 +28,7 @@ public sealed class ClassDeclaration : MemberDeclaration
     {
         this.BaseTypes = baseTypes;
         this.Declarations = declarations ?? ImmutableList<Declaration>.Empty;
-        this.Symbol = symbol;
+        this.ClassSymbol = classSymbol;
     }
 }
 

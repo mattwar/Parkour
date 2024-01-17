@@ -12,7 +12,8 @@ public sealed class PathExpression : Expression
         ISourceLocation? location,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            expression.State | reference.State, 
+            expression.State 
+            | reference.State, 
             location,
             reference.ResultType, 
             diagnostics)

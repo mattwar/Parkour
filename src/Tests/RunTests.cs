@@ -21,28 +21,41 @@ public class RunTests
     [TestMethod]
     public void TestConstant()
     {
-        TestRun(Constant(1), 1);
-        TestRun(Constant("one"), "one");
+        TestRun(
+            Constant(1), 
+            1);
+        TestRun(
+            Constant("one"), 
+            "one");
     }
 
     [TestMethod]
     public void TestAdd()
     {
-        TestRun(Add(Constant(1), Constant(2)), 3);
+        TestRun(
+            Add(Constant(1), Constant(2)), 
+            3);
     }
 
     [TestMethod]
     public void TestParameters()
     {
-        TestRun(Lamda(new[] { Parameter("x", Reference("Int32")) }, Reference("x")), 1, 1);
-        //TestRun(Function(new[] { Parameter("x", Reference("Int32")) }, Add(Reference("x"), Constant(1))), 2, 1);
+        TestRun(
+            Lambda([Parameter("x", TypeReference(_symbols.Int32))], Reference("x")), 
+            [1], 
+            1);
+        
+        TestRun(
+            Lambda([Parameter("x", TypeReference(_symbols.Int32))], Add(Reference("x"), Constant(1))), 
+            [2], 
+            3);
     }
 
     [TestMethod]
     public void TestPath()
     {
         TestRun(
-            Path(Reference("Int32"), Reference("MaxValue")), 
+            Path(TypeReference(_symbols.Int32), Reference("MaxValue")), 
             Int32.MaxValue);
     }
 
@@ -54,13 +67,18 @@ public class RunTests
             "1");
     }
 
-    private void TestRun(Expression expression, object expectedResult, BindingScope scope, params object[] args)
+    private void TestRun(Expression expression, object expectedResult, BindingScope? scope = null) =>
+        TestRun(expression, [], expectedResult, scope);
+
+    private void TestRun(Expression expression, object[] args, object expectedResult, BindingScope? scope = null)
     {
         if (!(expression is LambdaExpression))
             expression = Lambda(expression);
 
+        args ??= Array.Empty<object>();
+
         var binder = new ExpressionBinder(_symbols.GlobalNamespace);
-        var bound = (LambdaExpression)binder.Bind(expression, scope);
+        var bound = (LambdaExpression)binder.Bind(expression, scope ?? _defaultTestScope);
 
         if (bound.ContainsDiagnostics)
         {
@@ -79,8 +97,4 @@ public class RunTests
         var actualResult = compiled.DynamicInvoke(args);
         Assert.AreEqual(expectedResult, actualResult);
     }
-
-    private void TestRun(Expression expression, object expectedResult, params object[] args) =>
-        TestRun(expression, expectedResult, _defaultTestScope, args);
-
 }

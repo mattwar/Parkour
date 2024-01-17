@@ -1,6 +1,5 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public sealed class CallExpression : Expression
 {
@@ -12,18 +11,21 @@ public sealed class CallExpression : Expression
         Expression expression,
         ImmutableList<Expression> arguments,
         ISourceLocation? location,
-        Symbol? symbol,
+        Symbol? calledSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-              expression.State | arguments.Aggregate(ContainsState.None, (s, e) => e.State | s),
-              location,
-              resultType,
-              diagnostics)
+            expression.State 
+            | CombineState(arguments)
+            | NotNullState(calledSymbol)
+            | NotNullState(resultType),
+            location,
+            resultType,
+            diagnostics)
     {
         this.Expression = expression;
         this.Arguments = arguments.ToImmutableList();
-        this.CalledSymbol = symbol;
+        this.CalledSymbol = calledSymbol;
     }
 }
 

@@ -8,7 +8,7 @@ public class ConstructorDeclaration : MemberDeclaration
 {
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
-    public ConstructorSymbol? Symbol { get; }
+    public ConstructorSymbol? ConstructorSymbol { get; }
 
     public ConstructorDeclaration(
         SymbolAccess access,
@@ -16,10 +16,12 @@ public class ConstructorDeclaration : MemberDeclaration
         ImmutableList<ParameterDeclaration> parameters,
         Expression body,
         ISourceLocation? location,
-        ConstructorSymbol? symbol,
+        ConstructorSymbol? constructorSymbol,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            CombineState(parameters) | body.State,
+            CombineState(parameters) 
+            | body.State
+            | NotNullState(constructorSymbol),
             (modifiers & SymbolModifier.Static) == 0 ? ".ctor" : ".cctor",
             access,
             modifiers,
@@ -28,6 +30,6 @@ public class ConstructorDeclaration : MemberDeclaration
     {
         this.Parameters = parameters;
         this.Body = body;
-        this.Symbol = symbol;
+        this.ConstructorSymbol = constructorSymbol;
     }
 }

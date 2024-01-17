@@ -23,9 +23,11 @@ public class LabelExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            ContainsState.None, 
+            OptionalState(receivingType)
+            | NotNullState(labelSymbol)
+            | NotNullState(resultType),
             location,
-            resultType ?? labelSymbol?.Type, 
+            resultType, 
             diagnostics)
     {
         this.Name = name;
