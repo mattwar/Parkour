@@ -49,7 +49,7 @@ public class ExpressionTests
         TestBinding(
             Block(
                 Declare("x", Constant(1)),
-                Reference("x")),
+                Name("x")),
             _symbols.Int32);
     }
 
@@ -73,7 +73,7 @@ public class ExpressionTests
                     Constant(true),
                     Branch("label", Constant(1))),
                 Constant(2),
-                Label("label", TypeReference(_symbols.Int32))
+                Label("label", Type(_symbols.Int32))
                 ));
 
         // branch with expression & label with convertable type
@@ -83,7 +83,7 @@ public class ExpressionTests
                     Constant(true),
                     Branch("label", Constant(1))),
                 Constant(2),
-                Label("label", TypeReference(_symbols.Int64))
+                Label("label", Type(_symbols.Int64))
                 ));
 
         // branch with expression & label with non-convertable type
@@ -93,7 +93,7 @@ public class ExpressionTests
                     Constant(true),
                     Branch("label", Constant(1))),
                 Constant(2),
-                Label("label", TypeReference(_symbols.String))
+                Label("label", Type(_symbols.String))
                 ),
                 containsDiagnostics: true);
 
@@ -124,7 +124,7 @@ public class ExpressionTests
     [TestMethod]
     public void TestCall()
     {
-        TestBinding(Call(Path(Constant(1), Reference("ToString"))), _symbols.String);
+        TestBinding(Call(Path(Constant(1), Name("ToString"))), _symbols.String);
     }
 
     [TestMethod]
@@ -173,22 +173,22 @@ public class ExpressionTests
 
         // declare with type but no initializer
         TestBinding(
-            Declare(TypeReference(_symbols.Int32), "x"),
+            Declare(Type(_symbols.Int32), "x"),
             _symbols.Int32);
 
         // declare with type and initializer
         TestBinding(
-            Declare(TypeReference(_symbols.Int32), "x", Constant(1)),
+            Declare(Type(_symbols.Int32), "x", Constant(1)),
             _symbols.Int32);
 
         // declare with type and initializer with convertable types
         TestBinding(
-            Declare(TypeReference(_symbols.Int64), "x", Constant(1)),
+            Declare(Type(_symbols.Int64), "x", Constant(1)),
             _symbols.Int64);
 
         // declare with type and initializer with non-convertable types
         TestBinding(
-            Declare(TypeReference(_symbols.Int64), "x", Constant("one")),
+            Declare(Type(_symbols.Int64), "x", Constant("one")),
             _symbols.Int64,
             containsDiagnostics: true);
 
@@ -204,7 +204,7 @@ public class ExpressionTests
     {
         // default w/ type expression
         TestBinding(
-            Default(TypeReference(_symbols.Int32)),
+            Default(Type(_symbols.Int32)),
             _symbols.Int32);
 
         // default w/o type expression
@@ -214,7 +214,7 @@ public class ExpressionTests
 
         // default w/o type but with target type
         TestBinding(
-            Declare(TypeReference(_symbols.Int32), "x", Default()),
+            Declare(Type(_symbols.Int32), "x", Default()),
             _symbols.Int32);
     }
 
@@ -242,7 +242,7 @@ public class ExpressionTests
         TestBinding(
             Block(
                 Constant(1),
-                Label("x", TypeReference(_symbols.Int32))
+                Label("x", Type(_symbols.Int32))
                 ),
             expectedResultType: _symbols.Int32);
 
@@ -250,13 +250,13 @@ public class ExpressionTests
         TestBinding(
             Block(
                 Constant(1),
-                Label("x", TypeReference(_symbols.Int64))
+                Label("x", Type(_symbols.Int64))
                 ),
             expectedResultType: _symbols.Int64);
 
         // cannot flow void into label expecting type
         TestBinding(
-            Label("x", TypeReference(_symbols.Int32)),
+            Label("x", Type(_symbols.Int32)),
             expectedResultType: _symbols.Int32,
             containsDiagnostics: true);
 
@@ -264,7 +264,7 @@ public class ExpressionTests
         TestBinding(
             Block(
                 Constant("one"),
-                Label("x", TypeReference(_symbols.Int32))
+                Label("x", Type(_symbols.Int32))
                 ),
             expectedResultType: _symbols.Int32,
             containsDiagnostics: true);
@@ -309,19 +309,19 @@ public class ExpressionTests
     [TestMethod]
     public void TestPath()
     {
-        TestBinding(Path(TypeReference(_symbols.Int32), Reference("MaxValue")), _symbols.Int32);
+        TestBinding(Path(Type(_symbols.Int32), Name("MaxValue")), _symbols.Int32);
     }
 
     [TestMethod]
     public void TestReference()
     {
         TestBinding(
-            Reference("Int32"), 
+            Name("Int32"), 
             _symbols.Type, 
             _symbols.Int32);
 
         TestBinding(
-            Reference("System"),
+            Name("System"),
             _symbols.Namespace,
             _symbols.System);
     }
@@ -330,7 +330,7 @@ public class ExpressionTests
     public void TestTypeReference()
     {
         TestBinding(
-            TypeReference(_symbols.Int32), 
+            Type(_symbols.Int32), 
             expectedResultType: _symbols.Type, 
             expectedReferencedSymbol: _symbols.Int32);
     }
@@ -361,15 +361,15 @@ public class ExpressionTests
         // lambda with parameter
         TestBinding(
             Lambda(
-                [Parameter("x", TypeReference(_symbols.String))],
-                Reference("x")));
+                [Parameter("x", Type(_symbols.String))],
+                Name("x")));
 
         // call lambda with parameter
         TestBinding(
             Call(
                 Lambda(
-                    [Parameter("x", TypeReference(_symbols.String))],
-                    Reference("x")),
+                    [Parameter("x", Type(_symbols.String))],
+                    Name("x")),
                 Constant("string")),
             _symbols.String);
 
@@ -466,7 +466,7 @@ public class ExpressionTests
                 Condition(Constant(true), Constant(1), Break(Constant(2L)))),
             expectedResultType: _symbols.Int64);
 
-        // loop with multiple breaks, compatible breaks
+        // loop with multiple compatible breaks
         TestBinding(
             Loop(
                 Block(
@@ -481,22 +481,29 @@ public class ExpressionTests
                     Break(Constant(2L)))),
             expectedResultType: _symbols.Int64);
 
-        // loop with multiple breaks, incompatible break types
+        // loop with multiple breaks, void and value
         TestBinding(
             Loop(
                 Block(
                     Break(),
                     Break(Constant(1)))),
-            expectedResultType: _symbols.Void,
-            containsDiagnostics: true);
+            expectedResultType: _symbols.Int32);
 
         TestBinding(
             Loop(
                 Block(
                     Break(Constant(1)),
                     Break())),
-            expectedResultType: _symbols.Void,
-            containsDiagnostics: true);
+            expectedResultType: _symbols.Int32);
+
+        // loop with final expression (not compatible with break)
+        // does not figure in loop's type
+        TestBinding(
+            Loop(
+                Block(
+                    Break(Constant(1)),
+                    Constant("string"))),
+            expectedResultType: _symbols.Int32);
 
         // loop with continue
         TestBinding(

@@ -296,7 +296,7 @@ public class ExpressionBinder
         types.AddRange(
             body.SelectWhere(
                 s => s is Expression e && !HasBody(e),
-                s => s is BranchExpression b && b.TargetSymbol == target,
+                s => s is BranchExpression b && b.LabelSymbol == target,
                 s => ((BranchExpression)s).Expression != null ? ((BranchExpression)s).Expression!.ResultType : SpecialSymbols.Void));
     }
 
@@ -320,7 +320,7 @@ public class ExpressionBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var targetSymbol = context.Scope.FindSymbol<LabelSymbol>(s => s.Name == branch.TargetName);
+            var targetSymbol = context.Scope.FindSymbol<LabelSymbol>(s => s.Name == branch.LabelName);
 
             var expression = branch.Expression != null
                 ? BindExpression(branch.Expression, context.WithTargetType(targetSymbol?.Type))
@@ -330,20 +330,22 @@ public class ExpressionBinder
 
             if (targetSymbol == null)
             {
-                diagnostics.Add(BindingDiagnostics.NoMatchingTarget(branch.TargetName).WithLocation(branch.Location));
+                diagnostics.Add(BindingDiagnostics.NoMatchingTarget(branch.LabelName).WithLocation(branch.Location));
             }
-            else
-            {              
-                TryGetConversion(expressionType, targetSymbol.Type, ConversionKind.Widening, out _, branch.Location, diagnostics);
+            else if (expression != null && expressionType != targetSymbol.Type)
+            {
+                expression = ConvertTo(expression, targetSymbol.Type, context);
+                expression = BindExpression(expression, context.WithRebind(true));
+                //TryGetConversion(expressionType, targetSymbol.Type, ConversionKind.Widening, out _, branch.Location, diagnostics);
             }
 
             if (expression == branch.Expression
-                && targetSymbol == branch.TargetSymbol
+                && targetSymbol == branch.LabelSymbol
                 && diagnostics.Count == 0)
                 return branch;
 
             return new BranchExpression(
-                branch.TargetName,
+                branch.LabelName,
                 expression,
                 branch.Location,
                 targetSymbol,
@@ -530,7 +532,7 @@ public class ExpressionBinder
     protected virtual TypeSymbol? GetBestCommonType(params TypeSymbol?[] types) =>
         GetBestCommonType((IReadOnlyList<TypeSymbol?>)types);
 
-    protected virtual TypeSymbol? GetBestCommonType(IReadOnlyList<TypeSymbol?> types)
+    protected virtual TypeSymbol? GetBestCommonType(IReadOnlyList<TypeSymbol?> types, bool voidIsBetter = false)
     {
         TypeSymbol? best = PickBest();
 
@@ -553,15 +555,8 @@ public class ExpressionBinder
                 if (type == null || IgnoreType(type))
                     continue;
 
-                if (best == null || type == _symbols.Void)
-                {
-                    best = type;
-                    continue;
-                }
-
-                // if type cannot be assigned to best
-                if (!CanAutoConvert(ConversionKind.Widening, type, best)
-                    && CanAutoConvert(ConversionKind.Widening, best, type))
+                if (type != best
+                    && IsBetterThanOrSame(type, best))
                 {
                     best = type;
                 }
@@ -570,20 +565,43 @@ public class ExpressionBinder
             return best;
         }
 
-        // check if all types can be auto converted to best type
+        // check if best is better than all types
         bool StillBest(TypeSymbol best)
         {
             for (int i = 0; i < types.Count; i++)
             {
                 var type = types[i];
+
                 if (type == null || IgnoreType(type))
                     continue;
 
-                if (!CanAutoConvert(ConversionKind.Widening, type, best))
+                if (!IsBetterThanOrSame(best, type))
                     return false;
             }
 
             return true;
+        }
+
+        bool IsBetterThanOrSame(TypeSymbol type, TypeSymbol? best)
+        {
+            if (type == best)
+                return true;
+
+            if (best == null
+                || (type == SpecialSymbols.Void && voidIsBetter)
+                || (best == SpecialSymbols.Void && !voidIsBetter))
+            {
+                return true;
+            }
+
+            // if type cannot be assigned to best
+            if (!CanAutoConvert(ConversionKind.Widening, type, best)
+                && CanAutoConvert(ConversionKind.Widening, best, type))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         bool IgnoreType(TypeSymbol type) =>
@@ -901,19 +919,8 @@ public class ExpressionBinder
             GetBranchExpressionTypes(body, returnTarget, types);
             types.Add(body.ResultType);
 
-            var best = GetBestCommonType(types);
-            if (best == null)
-            {
-                types.Add(_symbols.Object);
-                best = GetBestCommonType(types);
-            }
-
-            if (best == null)
-            {
-                diagnostics.Add(BindingDiagnostics.NoCommonTypeFound().WithLocation(body.Location));
-            }
-
-            return best ?? _symbols.Object;
+            var best = GetBestCommonType(types, voidIsBetter: false) ?? _symbols.Object;
+            return best;
         }
         finally
         {
@@ -938,9 +945,7 @@ public class ExpressionBinder
 
             // result type is the common type of all the break branches.
             GetBranchExpressionTypes(body, breakTarget, types);
-            var resultType = types.Count == 0
-                ? _symbols.Void 
-                : GetBestCommonType(types);
+            var resultType = GetBestCommonType(types, voidIsBetter: false) ?? SpecialSymbols.Void;
 
             if (breakTarget.Type != resultType)
             {
@@ -1208,14 +1213,16 @@ public class ExpressionBinder
         if (type == SpecialSymbols.Void
             || type == SpecialSymbols.Any
             || type == SpecialSymbols.Unknown
-            || IsAssignableTo(expression.ResultType, type))
+            || type == _symbols.Object
+            || type == expression.ResultType)
+            //|| IsAssignableTo(expression.ResultType, type))
             return expression;
 
         // wrap expression with widening conversion and bind it.
         var convert = SemanticFactory.Convert(
             ConversionKind.Widening,
             expression,
-            SemanticFactory.TypeReference(type),
+            SemanticFactory.Type(type),
             expression.Location);
 
         return BindExpression(convert, context);

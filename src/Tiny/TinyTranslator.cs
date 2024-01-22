@@ -23,7 +23,7 @@ public class TinyTranslator
                 TinyTokenKinds.NumberToken =>
                     Constant(double.Parse(token.Text)),
                 TinyTokenKinds.IdentifierToken =>
-                    Reference(token.Text),
+                    Name(token.Text),
                 _ => throw new InvalidOperationException($"Unhandled token kind: '{token.Kind}'")
             };
         }

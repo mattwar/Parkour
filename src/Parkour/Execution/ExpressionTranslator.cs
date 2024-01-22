@@ -47,16 +47,20 @@ public sealed class ExpressionTranslator
                 return TranslateConvert(convert);
             case DeclarationExpression declaration:
                 return TranslateDeclaration(declaration);
-            case LambdaExpression function:
-                return TranslateLambda(function);
+            case DefaultExpression dex:
+                return TranslateDefault(dex);
             case LabelExpression label:
                 return TranslateLabel(label);
+            case LambdaExpression lambda:
+                return TranslateLambda(lambda);
+            case LoopExpression loop:
+                return TranslateLoop(loop);
             case PathExpression path:
                 return TranslatePath(path);
             case ReferenceExpression rex:
                 return TranslateReference(rex);
-            case LoopExpression @while:
-                return TranslateLoop(@while);
+            case VoidExpression @void:
+                return TranslateVoid(@void);
             default:
                 throw new InvalidOperationException($"Unhandled semantic type '{expression.GetType().Name}' in {nameof(ExpressionTranslator)}.Translate");
         }
@@ -64,6 +68,10 @@ public sealed class ExpressionTranslator
 
     private Type Translate(TypeSymbol type)
     {
+        if (type == SpecialSymbols.Void
+            || type == SpecialSymbols.DoesNotReturn)
+            return typeof(void);
+
         if (type.RuntimeType != null)
             return type.RuntimeType;
 
@@ -86,18 +94,33 @@ public sealed class ExpressionTranslator
             e => (DeclarationExpression)e)
             .ToList();
 
+        var labels = block.Expressions
+            .OfType<LabelExpression>()
+            .ToList();
+
+        foreach (var label in labels)
+        {
+            var labelType = Translate(label.ResultType);
+            var labelTarget = L.Expression.Label(labelType, label.Name);
+            SetCurrentBranchTarget(label.LabelSymbol!, labelTarget);
+        }
+
+        var blockType = Translate(block.ResultType);
+        var expressions = block.Expressions.Select(e => Translate(e)).ToList();
+
         if (declarations.Count > 0)
         {
+            var variables = declarations.Select(d => DeclareVariable(d.Variable!, d.Variable!.VariableType)).ToList();
             return L.Expression.Block(
-                Translate(block.ResultType),
-                declarations.Select(d => DeclareVariable(d.Variable!, d.Variable!.VariableType)), 
-                block.Expressions.Select(e => Translate(e)));
+                blockType,
+                variables, 
+                expressions);
         }
         else
         {
             return L.Expression.Block(
-                Translate(block.ResultType), 
-                block.Expressions.Select(e => Translate(e)));
+                blockType, 
+                expressions);
         }
     }
 
@@ -142,9 +165,9 @@ public sealed class ExpressionTranslator
 
     private L.Expression TranslateBranch(BranchExpression branch)
     {
-        var label = GetCurrentBranchTarget(branch.TargetSymbol!);
+        var label = GetCurrentBranchTarget(branch.LabelSymbol!);
         if (label == null)
-            throw new InvalidOperationException($"No branch target defined for '{branch.TargetName}'");
+            throw new InvalidOperationException($"No branch target defined for '{branch.LabelName}'");
 
         if (branch.Expression == null || branch.Expression.ResultType == SpecialSymbols.Void)
         {
@@ -171,11 +194,15 @@ public sealed class ExpressionTranslator
         }
     }
 
-    private L.Expression TranslateCondition(ConditionExpression condition) =>
-        L.Expression.Condition(
-            Translate(condition.Test), 
-            Translate(condition.WhenTrue), 
-            Translate(condition.WhenFalse));
+    private L.Expression TranslateCondition(ConditionExpression condition)
+    {
+        var type = Translate(condition.ResultType);
+        return L.Expression.Condition(
+            Translate(condition.Test),
+            Translate(condition.WhenTrue),
+            Translate(condition.WhenFalse),
+            type);
+    }
 
     private L.Expression TranslateConstant(ConstantExpression constant) =>
         L.Expression.Constant(constant.Value, Translate(constant.ResultType));
@@ -199,14 +226,25 @@ public sealed class ExpressionTranslator
         }
     }
 
+    private L.Expression TranslateDefault(DefaultExpression dex)
+    {
+        var type = Translate(dex.ResultType);
+        return L.Expression.Default(type);
+    }
+
     private L.Expression TranslateLabel(LabelExpression label)
     {
-        if (label.LabelSymbol == null)
-            throw new InvalidOperationException($"No label symbol defined for '{label.Name}'");
-        var target = GetCurrentBranchTarget(label.LabelSymbol);
-        if (target == null)
-            throw new InvalidOperationException($"No branch label defined for '{label.Name}'");
-        return L.Expression.Label(target);
+        var labelTarget = GetCurrentBranchTarget(label.LabelSymbol!);
+        if (labelTarget == null)
+        {
+            var labelType = Translate(label.ResultType);
+            labelTarget = L.Expression.Label(labelType, label.Name);
+            SetCurrentBranchTarget(label.LabelSymbol!, labelTarget);
+        }
+
+        if (label.ResultType == SpecialSymbols.Void)
+            return L.Expression.Label(labelTarget);
+        return L.Expression.Label(labelTarget, L.Expression.Default(labelTarget.Type));
     }
 
     private L.Expression TranslateLambda(LambdaExpression lambda)
@@ -232,7 +270,7 @@ public sealed class ExpressionTranslator
             SetCurrentBranchTarget(lambda.ReturnTarget, returnTarget);
 
             var body = Translate(lambda.Body);
-
+            
             lambdaBody = L.Expression.Block(
                 returnType,
                 body,
@@ -242,6 +280,24 @@ public sealed class ExpressionTranslator
 
         return L.Expression.Lambda(lambdaBody, parameters);
     }
+
+    private L.Expression TranslateLoop(LoopExpression loop)
+    {
+        var loopContinue = L.Expression.Label(loop.ContinueTarget!.Name);
+        var breakType = Translate(loop.BreakTarget!.Type);
+        var loopBreak = L.Expression.Label(breakType, loop.BreakTarget!.Name);
+
+        SetCurrentBranchTarget(loop.ContinueTarget, loopContinue);
+        SetCurrentBranchTarget(loop.BreakTarget, loopBreak);
+
+        var body = Translate(loop.Body);
+
+        return
+            L.Expression.Loop(
+                body,
+                loopBreak, loopContinue);
+    }
+
 
     private L.Expression TranslatePath(PathExpression path)
     {
@@ -288,20 +344,9 @@ public sealed class ExpressionTranslator
         }
     }
 
-    private L.Expression TranslateLoop(LoopExpression loop)
+    private L.Expression TranslateVoid(VoidExpression vex)
     {
-        var loopContinue = L.Expression.Label(loop.ContinueTarget!.Name);
-        var loopBreak = L.Expression.Label(loop.BreakTarget!.Name);
-
-        SetCurrentBranchTarget(loop.ContinueTarget, loopContinue);
-        SetCurrentBranchTarget(loop.BreakTarget, loopBreak);
-
-        var body = Translate(loop.Body);
-
-        return
-            L.Expression.Loop(
-                body,
-                loopBreak, loopContinue);
+        return L.Expression.Default(typeof(object));
     }
 
     private Dictionary<LabelSymbol, L.LabelTarget> _currentBranchTargets =

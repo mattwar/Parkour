@@ -133,7 +133,7 @@ public class SemanticWriter
                 else
                 {
                     Write("goto ");
-                    Write(branch.TargetName);
+                    Write(branch.LabelName);
                 }
 
                 if (branch.Expression != null)

@@ -17,8 +17,8 @@ public static class SemanticFactory
     public static BlockExpression Block(params Expression[] expressions) =>
         Block(expressions.ToImmutableList());
 
-    public static BranchExpression Branch(string target, Expression? expression = null, ISourceLocation? location = null) =>
-        new BranchExpression(target, expression, location, null, null, null);
+    public static BranchExpression Branch(string labelName, Expression? expression = null, ISourceLocation? location = null) =>
+        new BranchExpression(labelName, expression, location, null, null, null);
 
     public static BranchExpression Break(Expression? expression = null, ISourceLocation? location = null) =>
         BranchExpression.CreateBreak(expression, location, null, null);
@@ -65,11 +65,29 @@ public static class SemanticFactory
     public static DefaultExpression Default(ISourceLocation? location = null) =>
         Default(null, location);
 
+    /// <summary>
+    /// Synonym for <see cref="Branch(string, Expression?, ISourceLocation?)"/>
+    /// </summary>
+    public static BranchExpression Goto(string labelName, Expression? expression = null, ISourceLocation? location = null) =>
+        new BranchExpression(labelName, expression, location, null, null, null);
+
+    /// <summary>
+    /// Synonym for <see cref="Condition(Expression, Expression, Expression, ISourceLocation?)"/>
+    /// </summary>
+    public static ConditionExpression If(Expression test, Expression whenTrue, Expression whenFalse, ISourceLocation? location = null) =>
+        Condition(test, whenTrue, whenFalse, location);
+
+    /// <summary>
+    /// Synonym for <see cref="Condition(Expression, Expression, ISourceLocation?)"/>
+    /// </summary>
+    public static ConditionExpression If(Expression test, Expression whenTrue, ISourceLocation? location = null) =>
+        Condition(test, whenTrue, location);
+
     public static PathExpression Path(Expression expression, ReferenceExpression reference, ISourceLocation? location = null) =>
         new PathExpression(expression, reference, location, null);
 
     public static PathExpression Path(Expression expression, string name, ISourceLocation? location = null) =>
-        Path(expression, Reference(name), location);
+        Path(expression, Name(name), location);
 
     public static LabelExpression Label(string name, Expression? recievingType = null, ISourceLocation? location = null) =>
         new LabelExpression(name, recievingType, location, null, null, null);
@@ -92,7 +110,10 @@ public static class SemanticFactory
     public static ReferenceExpression Reference(string name, ISourceLocation? location = null) =>
         new ReferenceExpression(name, location, null, null, null);
 
-    public static ReferenceExpression TypeReference(TypeSymbol symbol, ISourceLocation? location = null) =>
+    public static ReferenceExpression Name(string name, ISourceLocation? location = null) =>
+        Reference(name, location);
+
+    public static ReferenceExpression Type(TypeSymbol symbol, ISourceLocation? location = null) =>
         Reference(symbol.FullName, location);
 
     public static BranchExpression Return(Expression? expression = null, ISourceLocation? location = null) =>
@@ -138,6 +159,12 @@ public static class SemanticFactory
 
     public static CallExpression BitwiseNot(Expression operand, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.BitwiseNot), [operand], location);
+
+    public static CallExpression ShiftLeft(Expression left, Expression right, ISourceLocation? location = null) =>
+        Call(Operator(OperatorKinds.ShiftLeft), [left, right], location);
+
+    public static CallExpression ShiftRight(Expression left, Expression right, ISourceLocation? location = null) =>
+        Call(Operator(OperatorKinds.ShiftRight), [left, right], location);
 
     public static CallExpression Equal(Expression left, Expression right, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.Equal), [left, right], location);
@@ -206,8 +233,8 @@ public static class SemanticFactory
         Property(name,
             access,
             modifiers,
-            Method("get_" + name, access, modifiers, ImmutableList<ParameterDeclaration>.Empty, propertyType, Reference("field")),
-            Method("set_" + name, access, modifiers, [Parameter("value", propertyType)], Void(), Assign(Reference("field"), Reference("value"))),
+            Method("get_" + name, access, modifiers, ImmutableList<ParameterDeclaration>.Empty, propertyType, Name("field")),
+            Method("set_" + name, access, modifiers, [Parameter("value", propertyType)], Void(), Assign(Name("field"), Name("value"))),
             Field("field", SymbolAccess.Private, SymbolModifier.None, propertyType, null),
             propertyType,
             location);

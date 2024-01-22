@@ -37,7 +37,7 @@ public class DeclarationTests
     {
         TestBind(
             [Class("C",
-                [Method("M", [], Reference("System.Int32"), Void())])],
+                [Method("M", [], Name("System.Int32"), Void())])],
             ["C", "C.M"]);
     }
 
@@ -46,7 +46,7 @@ public class DeclarationTests
     {
         TestBind([
             Class("C", [
-                Method("M", [], Reference("System.Int32"), Void())
+                Method("M", [], Name("System.Int32"), Void())
                 ])
             ],
             ["C", "C.M"]);
@@ -57,7 +57,7 @@ public class DeclarationTests
     {
         TestBind(
             [Class("C",
-                [Property("P", Reference("System.Int32"))])
+                [Property("P", Name("System.Int32"))])
                 ],
             ["C", "C.P"]);
     }
