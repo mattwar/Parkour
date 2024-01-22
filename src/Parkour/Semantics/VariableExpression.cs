@@ -1,15 +1,17 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
-public sealed class DeclarationExpression : Expression
+/// <summary>
+/// An expression that declares a variable
+/// </summary>
+public sealed class VariableExpression : Expression
 {
     public string Name { get; }
     public Expression? VariableType { get; }
     public Expression? Initializer { get; }
     public VariableSymbol? Variable { get; }
 
-    public DeclarationExpression(
+    public VariableExpression(
         string name,
         Expression? variableType,
         Expression? initializer,

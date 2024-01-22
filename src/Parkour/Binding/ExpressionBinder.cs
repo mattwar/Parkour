@@ -124,9 +124,6 @@ public class ExpressionBinder
             case ConvertExpression convert:
                 return BindConvert(convert, context);
 
-            case DeclarationExpression declaration:
-                return BindDeclaration(declaration, context);
-
             case DefaultExpression dex:
                 return BindDefault(dex, context);
 
@@ -147,6 +144,9 @@ public class ExpressionBinder
 
             case ReferenceExpression reference:
                 return BindReference(reference, context);
+
+            case VariableExpression variable:
+                return BindVariable(variable, context);
 
             case VoidExpression vex:
                 return BindVoid(vex, context);
@@ -252,7 +252,7 @@ public class ExpressionBinder
             {
                 var boundExpression = BindExpression(expression, _context);
 
-                if (boundExpression is DeclarationExpression decl
+                if (boundExpression is VariableExpression decl
                     && decl.Variable != null)
                 {
                     // if the declaration changes then the variable is now different 
@@ -669,68 +669,6 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual Expression BindDeclaration(DeclarationExpression declaration, BindingContext context)
-    {
-        var diagnostics = _diagnosticListPool.AllocateFromPool();
-        try
-        {
-            Expression? variableType = null;
-            TypeSymbol? vtype = null;
-            Expression? initializer = null;
-
-            context = context.WithInflowType(_symbols.Void);
-
-            if (declaration.VariableType != null)
-            {
-                variableType = BindExpression(declaration.VariableType, context.WithTargetType(null));
-                vtype = variableType?.ReferencedSymbol as TypeSymbol ?? _symbols.Object;
-                if (declaration.Initializer != null)
-                {
-                    initializer = BindExpression(declaration.Initializer, context.WithTargetType(vtype));
-                    initializer = ConvertTo(initializer, vtype, context);
-                }
-            }
-            else if (declaration.Initializer != null)
-            {
-                // target type can carry through declaration
-                initializer = BindExpression(declaration.Initializer, context);
-                vtype = initializer.ResultType;
-            }
-            else
-            {
-                diagnostics.Add(BindingDiagnostics.DeclarationMustHaveTypeOrInitializer().WithLocation(declaration.Location));
-                vtype = _symbols.Object;
-            }
-
-            if (variableType == declaration.VariableType
-                && initializer == declaration.Initializer
-                && declaration.Variable != null
-                && declaration.Variable.VariableType == vtype
-                && declaration.ResultType == vtype)
-            {
-                return declaration;
-            }
-
-            var variable = declaration.Variable != null
-                && declaration.Variable.VariableType == vtype
-                ? declaration.Variable
-                : new VariableSymbol(declaration.Name, vtype ?? _symbols.Any);
-
-            return new DeclarationExpression(
-                declaration.Name,
-                variableType,
-                initializer,
-                declaration.Location,
-                variable,
-                vtype,
-                diagnostics.ToImmutableList());
-        }
-        finally
-        {
-            _diagnosticListPool.ReturnToPool(diagnostics);
-        }
-    }
-
     protected virtual Expression BindDefault(DefaultExpression dex, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
@@ -1142,6 +1080,68 @@ public class ExpressionBinder
             NamespaceSymbol => _symbols.Namespace,
             _ => null
         };
+
+    protected virtual Expression BindVariable(VariableExpression declaration, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            Expression? variableType = null;
+            TypeSymbol? vtype = null;
+            Expression? initializer = null;
+
+            context = context.WithInflowType(_symbols.Void);
+
+            if (declaration.VariableType != null)
+            {
+                variableType = BindExpression(declaration.VariableType, context.WithTargetType(null));
+                vtype = variableType?.ReferencedSymbol as TypeSymbol ?? _symbols.Object;
+                if (declaration.Initializer != null)
+                {
+                    initializer = BindExpression(declaration.Initializer, context.WithTargetType(vtype));
+                    initializer = ConvertTo(initializer, vtype, context);
+                }
+            }
+            else if (declaration.Initializer != null)
+            {
+                // target type can carry through declaration
+                initializer = BindExpression(declaration.Initializer, context);
+                vtype = initializer.ResultType;
+            }
+            else
+            {
+                diagnostics.Add(BindingDiagnostics.DeclarationMustHaveTypeOrInitializer().WithLocation(declaration.Location));
+                vtype = _symbols.Object;
+            }
+
+            if (variableType == declaration.VariableType
+                && initializer == declaration.Initializer
+                && declaration.Variable != null
+                && declaration.Variable.VariableType == vtype
+                && declaration.ResultType == vtype)
+            {
+                return declaration;
+            }
+
+            var variable = declaration.Variable != null
+                && declaration.Variable.VariableType == vtype
+                ? declaration.Variable
+                : new VariableSymbol(declaration.Name, vtype ?? _symbols.Any);
+
+            return new VariableExpression(
+                declaration.Name,
+                variableType,
+                initializer,
+                declaration.Location,
+                variable,
+                vtype,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
 
     protected virtual VoidExpression BindVoid(VoidExpression vex, BindingContext context)
     {

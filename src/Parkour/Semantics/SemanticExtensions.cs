@@ -72,6 +72,11 @@ public static class SemanticExtensions
 
         switch (expr)
         {
+            case AssignExpression assign:
+                Walk(assign.Target, walkChildren, action);
+                Walk(assign.Source, walkChildren, action);
+                break;
+
             case BlockExpression block:
                 Walk(block.Expressions, walkChildren, action);
                 break;
@@ -95,11 +100,6 @@ public static class SemanticExtensions
                 Walk(convert.Expression, walkChildren, action);
                 break;
 
-            case DeclarationExpression declaration:
-                Walk(declaration.VariableType, walkChildren, action);
-                Walk(declaration.Initializer, walkChildren, action);
-                break;
-
             case DefaultExpression def:
                 Walk(def.TypeExpression, walkChildren, action);
                 break;
@@ -120,6 +120,11 @@ public static class SemanticExtensions
             case PathExpression path:
                 Walk(path.Expression, walkChildren, action);
                 Walk(path.Reference, walkChildren, action);
+                break;
+
+            case VariableExpression variable:
+                Walk(variable.VariableType, walkChildren, action);
+                Walk(variable.Initializer, walkChildren, action);
                 break;
 
             case ClassDeclaration cd:

@@ -28,6 +28,16 @@ public class ExpressionTests
             });
     }
 
+    [TestMethod]
+    public void TestAssign()
+    {
+        TestBinding(
+            Block(
+                Variable(Type(_symbols.Int32), "x"),
+                Assign(Name("x"), Constant(1))),
+            _symbols.Int32
+            );
+    }
 
     [TestMethod]
     public void TestBlock()
@@ -48,7 +58,7 @@ public class ExpressionTests
         // declare in block
         TestBinding(
             Block(
-                Declare("x", Constant(1)),
+                Variable("x", Constant(1)),
                 Name("x")),
             _symbols.Int32);
     }
@@ -169,42 +179,6 @@ public class ExpressionTests
     }
 
     [TestMethod]
-    public void TestDeclaration()
-    {
-        // declaration with initializer
-        TestBinding(
-            Declare("x", Constant(1)),
-            _symbols.Int32);
-
-        // declare with type but no initializer
-        TestBinding(
-            Declare(Type(_symbols.Int32), "x"),
-            _symbols.Int32);
-
-        // declare with type and initializer
-        TestBinding(
-            Declare(Type(_symbols.Int32), "x", Constant(1)),
-            _symbols.Int32);
-
-        // declare with type and initializer with convertable types
-        TestBinding(
-            Declare(Type(_symbols.Int64), "x", Constant(1)),
-            _symbols.Int64);
-
-        // declare with type and initializer with non-convertable types
-        TestBinding(
-            Declare(Type(_symbols.Int64), "x", Constant("one")),
-            _symbols.Int64,
-            containsDiagnostics: true);
-
-        // declare with no type and no initializer
-        TestBinding(
-            Declare(null, "x", null),
-            _symbols.Object,
-            containsDiagnostics: true);
-    }
-
-    [TestMethod]
     public void TestDefault()
     {
         // default w/ type expression
@@ -219,7 +193,7 @@ public class ExpressionTests
 
         // default w/o type but with target type
         TestBinding(
-            Declare(Type(_symbols.Int32), "x", Default()),
+            Variable(Type(_symbols.Int32), "x", Default()),
             _symbols.Int32);
     }
 
@@ -277,74 +251,6 @@ public class ExpressionTests
         // TODO: should be able to branch with value to void label. though probably doing something wrong.
     }
 
-    [TestMethod]
-    public void TestOperators()
-    {
-        // Int32
-        TestBinding(Add(Constant(1), Constant(2)), _symbols.Int32);
-
-        TestBinding(Subtract(Constant(1), Constant(2)), _symbols.Int32);
-        TestBinding(Multiply(Constant(1), Constant(2)), _symbols.Int32);
-        TestBinding(Divide(Constant(1), Constant(2)), _symbols.Int32);
-        TestBinding(Remainder(Constant(1), Constant(2)), _symbols.Int32);
-        TestBinding(Negate(Constant(1)), _symbols.Int32);
-
-        TestBinding(Equal(Constant(1), Constant(2)), _symbols.Boolean);
-        TestBinding(NotEqual(Constant(1), Constant(2)), _symbols.Boolean);
-        TestBinding(LessThan(Constant(1), Constant(2)), _symbols.Boolean);
-        TestBinding(LessThanOrEqual(Constant(1), Constant(2)), _symbols.Boolean);
-        TestBinding(GreaterThan(Constant(1), Constant(2)), _symbols.Boolean);
-        TestBinding(GreaterThanOrEqual(Constant(1), Constant(2)), _symbols.Boolean);
-
-        TestBinding(BitwiseAnd(Constant(1), Constant(2)), _symbols.Int32);
-        TestBinding(BitwiseOr(Constant(1), Constant(2)), _symbols.Int32);
-        TestBinding(BitwiseXor(Constant(1), Constant(2)), _symbols.Int32);
-        TestBinding(BitwiseNot(Constant(1)), _symbols.Int32);
-
-        // boolean / logical
-        TestBinding(And(Constant(true), Constant(true)), _symbols.Boolean);
-        TestBinding(Or(Constant(true), Constant(true)), _symbols.Boolean);
-        TestBinding(Not(Constant(true)), _symbols.Boolean);
-
-        // string
-        TestBinding(Add(Constant("one"), Constant("two")), _symbols.String);
-        TestBinding(Equal(Constant("one"), Constant("two")), _symbols.Boolean);
-    }
-
-    [TestMethod]
-    public void TestPath()
-    {
-        TestBinding(Path(Type(_symbols.Int32), Name("MaxValue")), _symbols.Int32);
-    }
-
-    [TestMethod]
-    public void TestReference()
-    {
-        TestBinding(
-            Name("Int32"), 
-            _symbols.Type, 
-            _symbols.Int32);
-
-        TestBinding(
-            Name("System"),
-            _symbols.Namespace,
-            _symbols.System);
-    }
-
-    [TestMethod]
-    public void TestTypeReference()
-    {
-        TestBinding(
-            Type(_symbols.Int32), 
-            expectedResultType: _symbols.Type, 
-            expectedReferencedSymbol: _symbols.Int32);
-    }
-
-    [TestMethod]
-    public void TestVoid()
-    {
-        TestBinding(Void(), _symbols.Void);
-    }
 
     [TestMethod]
     public void TestLambda()
@@ -549,6 +455,111 @@ public class ExpressionTests
         TestBinding(
             Loop(Condition(Constant(true), Continue(), Break(Constant(1)))),
             expectedResultType: _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestOperators()
+    {
+        // Int32
+        TestBinding(Add(Constant(1), Constant(2)), _symbols.Int32);
+
+        TestBinding(Subtract(Constant(1), Constant(2)), _symbols.Int32);
+        TestBinding(Multiply(Constant(1), Constant(2)), _symbols.Int32);
+        TestBinding(Divide(Constant(1), Constant(2)), _symbols.Int32);
+        TestBinding(Remainder(Constant(1), Constant(2)), _symbols.Int32);
+        TestBinding(Negate(Constant(1)), _symbols.Int32);
+
+        TestBinding(Equal(Constant(1), Constant(2)), _symbols.Boolean);
+        TestBinding(NotEqual(Constant(1), Constant(2)), _symbols.Boolean);
+        TestBinding(LessThan(Constant(1), Constant(2)), _symbols.Boolean);
+        TestBinding(LessThanOrEqual(Constant(1), Constant(2)), _symbols.Boolean);
+        TestBinding(GreaterThan(Constant(1), Constant(2)), _symbols.Boolean);
+        TestBinding(GreaterThanOrEqual(Constant(1), Constant(2)), _symbols.Boolean);
+
+        TestBinding(BitwiseAnd(Constant(1), Constant(2)), _symbols.Int32);
+        TestBinding(BitwiseOr(Constant(1), Constant(2)), _symbols.Int32);
+        TestBinding(BitwiseXor(Constant(1), Constant(2)), _symbols.Int32);
+        TestBinding(BitwiseNot(Constant(1)), _symbols.Int32);
+
+        // boolean / logical
+        TestBinding(And(Constant(true), Constant(true)), _symbols.Boolean);
+        TestBinding(Or(Constant(true), Constant(true)), _symbols.Boolean);
+        TestBinding(Not(Constant(true)), _symbols.Boolean);
+
+        // string
+        TestBinding(Add(Constant("one"), Constant("two")), _symbols.String);
+        TestBinding(Equal(Constant("one"), Constant("two")), _symbols.Boolean);
+    }
+
+    [TestMethod]
+    public void TestPath()
+    {
+        TestBinding(Path(Type(_symbols.Int32), Name("MaxValue")), _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestNameReference()
+    {
+        TestBinding(
+            Name("Int32"), 
+            _symbols.Type, 
+            _symbols.Int32);
+
+        TestBinding(
+            Name("System"),
+            _symbols.Namespace,
+            _symbols.System);
+    }
+
+    [TestMethod]
+    public void TestTypeReference()
+    {
+        TestBinding(
+            Type(_symbols.Int32), 
+            expectedResultType: _symbols.Type, 
+            expectedReferencedSymbol: _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestVariable()
+    {
+        // declaration with initializer
+        TestBinding(
+            Variable("x", Constant(1)),
+            _symbols.Int32);
+
+        // declare with type but no initializer
+        TestBinding(
+            Variable(Type(_symbols.Int32), "x"),
+            _symbols.Int32);
+
+        // declare with type and initializer
+        TestBinding(
+            Variable(Type(_symbols.Int32), "x", Constant(1)),
+            _symbols.Int32);
+
+        // declare with type and initializer with convertable types
+        TestBinding(
+            Variable(Type(_symbols.Int64), "x", Constant(1)),
+            _symbols.Int64);
+
+        // declare with type and initializer with non-convertable types
+        TestBinding(
+            Variable(Type(_symbols.Int64), "x", Constant("one")),
+            _symbols.Int64,
+            containsDiagnostics: true);
+
+        // declare with no type and no initializer
+        TestBinding(
+            Variable(null, "x", null),
+            _symbols.Object,
+            containsDiagnostics: true);
+    }
+
+    [TestMethod]
+    public void TestVoid()
+    {
+        TestBinding(Void(), _symbols.Void);
     }
 
     private void TestBinding(

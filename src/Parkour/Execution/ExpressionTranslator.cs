@@ -33,6 +33,8 @@ public sealed class ExpressionTranslator
 
         switch (expression)
         {
+            case AssignExpression assign:
+                return TranslateAssign(assign);
             case BlockExpression block:
                 return TranslateBlock(block);
             case BranchExpression branch:
@@ -45,8 +47,6 @@ public sealed class ExpressionTranslator
                 return TranslateConstant(constant);
             case ConvertExpression convert:
                 return TranslateConvert(convert);
-            case DeclarationExpression declaration:
-                return TranslateDeclaration(declaration);
             case DefaultExpression dex:
                 return TranslateDefault(dex);
             case LabelExpression label:
@@ -59,6 +59,8 @@ public sealed class ExpressionTranslator
                 return TranslatePath(path);
             case ReferenceExpression rex:
                 return TranslateReference(rex);
+            case VariableExpression variable:
+                return TranslateVariable(variable);
             case VoidExpression @void:
                 return TranslateVoid(@void);
             default:
@@ -86,13 +88,27 @@ public sealed class ExpressionTranslator
         throw new InvalidOperationException($"Unhandled type '{type.Name}' in {nameof(ExpressionTranslator)}.GetType");
     }
 
+    private L.Expression TranslateAssign(AssignExpression assign)
+    {
+        var target = Translate(assign.Target);
+        var source = ConvertVoidToValue(Translate(assign.Source), target.Type);
+        return L.Expression.Assign(target, source);
+    }
+
     private L.Expression TranslateBlock(BlockExpression block)
     {
-        var declarations = block.SelectWhere(e => 
-            e is not BlockExpression && e is not LambdaExpression, 
-            e => e is DeclarationExpression, 
-            e => (DeclarationExpression)e)
+        var variableDecls = block.SelectWhere(e => 
+            e == block || (e is not BlockExpression && e is not LambdaExpression), 
+            e => e is VariableExpression, 
+            e => (VariableExpression)e)
             .ToList();
+
+        var variables = new List<L.ParameterExpression>();
+        foreach (var decl in variableDecls)
+        {
+            var v = DeclareVariable(decl.Variable!, decl.Variable!.VariableType);
+            variables.Add(v);
+        }
 
         var labels = block.Expressions
             .OfType<LabelExpression>()
@@ -108,9 +124,8 @@ public sealed class ExpressionTranslator
         var blockType = Translate(block.ResultType);
         var expressions = block.Expressions.Select(e => Translate(e)).ToList();
 
-        if (declarations.Count > 0)
+        if (variableDecls.Count > 0)
         {
-            var variables = declarations.Select(d => DeclareVariable(d.Variable!, d.Variable!.VariableType)).ToList();
             return L.Expression.Block(
                 blockType,
                 variables, 
@@ -122,45 +137,6 @@ public sealed class ExpressionTranslator
                 blockType, 
                 expressions);
         }
-    }
-
-    private L.Expression TranslateCall(CallExpression call)
-    {
-        var calledSymbol = call.CalledSymbol;
-        if (calledSymbol == null)
-            throw new InvalidOperationException($"Cannot translate call for unknown function");
-
-        switch (calledSymbol)
-        {
-            case MethodSymbol method:
-                if (method.RuntimeMethod is System.Reflection.MethodInfo mi)
-                {
-                    var instance = call.Expression is PathExpression path
-                        ? Translate(path.Expression)
-                        : null;
-                    var arguments = call.Arguments.Select(a => Translate(a)).ToArray();
-
-                    return L.Expression.Call(instance, mi, arguments);
-                }
-                break;
-            case ConstructorSymbol constructor:
-                if (constructor.RuntimeMethod is System.Reflection.ConstructorInfo ci)
-                {
-                    var arguments = call.Arguments.Select(a => Translate(a)).ToArray();
-                    return L.Expression.New(ci, arguments);
-                }
-                break;
-            case OperatorSymbol opsym:
-                return TranslateOperatorCall(call, opsym);
-            case FunctionSymbol function:
-                {
-                    var fn = Translate(call.Expression);
-                    var arguments = call.Arguments.Select(a => Translate(a)).ToArray();
-                    return L.Expression.Invoke(fn, arguments);
-                }
-        }
-
-        throw new InvalidOperationException($"Cannot translate call for symbol '{calledSymbol.Name}'");
     }
 
     private L.Expression TranslateBranch(BranchExpression branch)
@@ -194,6 +170,60 @@ public sealed class ExpressionTranslator
         }
     }
 
+    private L.Expression TranslateCall(CallExpression call)
+    {
+        var calledSymbol = call.CalledSymbol;
+        if (calledSymbol == null)
+            throw new InvalidOperationException($"Cannot translate call for unknown function");
+
+        switch (calledSymbol)
+        {
+            case MethodSymbol method:
+                if (method.RuntimeMethod is MethodInfo mi)
+                {
+                    var instance = call.Expression is PathExpression path
+                        ? Translate(path.Expression)
+                        : null;
+                    var parameterTypes = mi.GetParameters().Select(p => p.ParameterType).ToArray();
+                    var arguments = TranslateArguments(call.Arguments, parameterTypes);
+                    return L.Expression.Call(instance, mi, arguments);
+                }
+                break;
+            case ConstructorSymbol constructor:
+                if (constructor.RuntimeMethod is ConstructorInfo ci)
+                {
+                    var parameterTypes = ci.GetParameters().Select(p => p.ParameterType).ToArray();
+                    var arguments = TranslateArguments(call.Arguments, parameterTypes);
+                    return L.Expression.New(ci, arguments);
+                }
+                break;
+            case OperatorSymbol opsym:
+                return TranslateOperatorCall(call, opsym);
+            case FunctionSymbol function:
+                {
+                    var fn = Translate(call.Expression);
+                    var parameterTypes = function.Parameters.Select(p => Translate(p.ParameterType)).ToArray();
+                    var arguments = TranslateArguments(call.Arguments, parameterTypes);
+                    return L.Expression.Invoke(fn, arguments);
+                }
+        }
+
+        throw new InvalidOperationException($"Cannot translate call for symbol '{calledSymbol.Name}'");
+    }
+
+    private IReadOnlyList<L.Expression> TranslateArguments(
+        ImmutableList<Expression> arguments, IReadOnlyList<Type> parameterTypes)
+    {
+        var translatedArgs = new List<L.Expression>();
+        for (int i = 0; i < arguments.Count; i++)
+        {
+            var ptype = parameterTypes[i];
+            var arg = ConvertVoidToValue(Translate(arguments[i]), ptype);
+            translatedArgs.Add(arg);
+        }
+        return translatedArgs;
+    }
+
     private L.Expression TranslateCondition(ConditionExpression condition)
     {
         var type = Translate(condition.ResultType);
@@ -224,20 +254,6 @@ public sealed class ExpressionTranslator
         L.Expression.Convert(
             Translate(convert.Expression),
             Translate(convert.ResultType));
-
-    private L.Expression TranslateDeclaration(DeclarationExpression declaration)
-    {
-        var variable = GetVariable(declaration.Variable!);
-        if (declaration.Initializer != null)
-        {
-            var initializer = Translate(declaration.Initializer);
-            return L.Expression.Assign(variable, initializer);
-        }
-        else
-        {
-            return variable;
-        }
-    }
 
     private L.Expression TranslateDefault(DefaultExpression dex)
     {
@@ -349,11 +365,39 @@ public sealed class ExpressionTranslator
         {
             case VariableSymbol _:
             case ParameterSymbol _:
-                return GetVariable(rex.ReferencedSymbol);
+                var v = GetVariable(rex.ReferencedSymbol);
+                if (v == null)
+                    throw new InvalidOperationException($"The name '{rex.ReferencedSymbol}' has no matching variable.");
+                return v;
             case null:
                 throw new InvalidOperationException("Reference has no symbol");
             default:
                 throw new InvalidOperationException($"Unhandled symbol '{rex.ReferencedSymbol.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateReference)}");
+        }
+    }
+
+    private L.Expression TranslateVariable(VariableExpression declaration)
+    {
+        var variable = GetVariable(declaration.Variable!);
+        if (variable == null)
+        {
+            // variable must be associated with a block or parameter,
+            // but was not predeclared in map from an outer block or parameter
+            // so add wrapper block and try again.
+            var block = new BlockExpression([declaration], declaration.Location, declaration.ResultType, null);
+            return TranslateBlock(block);
+        }
+        else
+        {
+            if (declaration.Initializer != null)
+            {
+                var initializer = ConvertVoidToValue(Translate(declaration.Initializer), variable.Type);
+                return L.Expression.Assign(variable, initializer);
+            }
+            else
+            {
+                return variable;
+            }
         }
     }
 
@@ -391,12 +435,10 @@ public sealed class ExpressionTranslator
         return variable;
     }
 
-    private L.ParameterExpression GetVariable(Symbol symbol)
+    private L.ParameterExpression? GetVariable(Symbol symbol)
     {
-        if (_variableMap.TryGetValue(symbol, out var variable))
-            return variable;
-
-        throw new InvalidOperationException($"cannot find variable for symbol '{symbol.Name}'");
+        _variableMap.TryGetValue(symbol, out var variable);
+        return variable;
     }
 
     private L.Expression TranslateOperatorCall(CallExpression c, OperatorSymbol opsym)

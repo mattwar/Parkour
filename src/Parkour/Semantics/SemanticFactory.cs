@@ -50,14 +50,14 @@ public static class SemanticFactory
     public static ConvertExpression Convert(Expression expression, Expression convertedType, ISourceLocation? location = null) =>
         Convert(ConversionKind.Narrowing, expression, convertedType, location);
 
-    public static DeclarationExpression Declare(Expression? variableType, string name, Expression? initializer, ISourceLocation? location = null) =>
-        new DeclarationExpression(name, variableType, initializer, location, null, null, null);
+    public static VariableExpression Variable(Expression? variableType, string name, Expression? initializer, ISourceLocation? location = null) =>
+        new VariableExpression(name, variableType, initializer, location, null, null, null);
 
-    public static DeclarationExpression Declare(Expression? variableType, string name, ISourceLocation? location = null) =>
-        Declare(variableType, name, null, location);
+    public static VariableExpression Variable(Expression? variableType, string name, ISourceLocation? location = null) =>
+        Variable(variableType, name, null, location);
 
-    public static DeclarationExpression Declare(string name, Expression? initializer, ISourceLocation? location = null) =>
-        Declare(null, name, initializer, location);
+    public static VariableExpression Variable(string name, Expression? initializer, ISourceLocation? location = null) =>
+        Variable(null, name, initializer, location);
 
     public static DefaultExpression Default(Expression? type, ISourceLocation? location = null) =>
         new DefaultExpression(type, location, null, null);

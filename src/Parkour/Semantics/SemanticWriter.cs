@@ -217,7 +217,7 @@ public class SemanticWriter
                 Write(function.Body);
                 break;
 
-            case DeclarationExpression declaration:
+            case VariableExpression declaration:
                 Write("var ");
                 Write(declaration.Name);
                 if (declaration.VariableType != null)

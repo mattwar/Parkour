@@ -153,6 +153,34 @@ public class RunTests
             Int32.MaxValue);
     }
 
+    [TestMethod]
+    public void TestVariable()
+    {
+        // variable without block
+        TestRun(
+            Variable("x", Constant(1)),
+            1);
+
+        // variable in block
+        TestRun(
+            Block(
+                Variable("x", Constant(1))),
+            1);
+
+        // variable with initializer and reference
+        TestRun(
+            Block(
+                Variable("x", Constant(1)),
+                Add(Name("x"), Constant(2))),
+            3);
+
+        // variable without initializer and assignment
+        TestRun(
+            Block(
+                Variable(Type(_symbols.Int32), "x"),
+                Assign(Name("x"), Constant(2))),
+            2);
+    }
 
     private void TestRun(Expression expression, object? expectedResult, BindingScope? scope = null) =>
         TestRun(expression, [], expectedResult, scope);
