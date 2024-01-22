@@ -30,5 +30,5 @@ public static class SpecialSymbols
     /// <summary>
     /// Similar to None and Void, but indicates the expression does not actually return.
     /// </summary>
-    public static readonly TypeSymbol DoesNotReturn = new TypeSymbol("DoesNotReturn", typeof(object));
+    public static readonly TypeSymbol DoesNotReturn = new TypeSymbol("DoesNotReturn", typeof(void));
 }

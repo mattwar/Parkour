@@ -62,8 +62,8 @@ public class RunTests
     {
         TestRun(Condition(Constant(true), Constant(1), Constant(2)), 1);
         TestRun(Condition(Constant(false), Constant(1), Constant(2)), 2);
-        TestRun(Condition(Constant(true), Constant(1)), null);
-        TestRun(Condition(Constant(false), Constant(1)), null);
+        TestRun(Condition(Constant(true), Constant(1)), 1);
+        TestRun(Condition(Constant(false), Constant(1)), 0);
     }
 
     [TestMethod]

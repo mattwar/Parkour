@@ -197,11 +197,24 @@ public sealed class ExpressionTranslator
     private L.Expression TranslateCondition(ConditionExpression condition)
     {
         var type = Translate(condition.ResultType);
-        return L.Expression.Condition(
-            Translate(condition.Test),
-            Translate(condition.WhenTrue),
-            Translate(condition.WhenFalse),
-            type);
+        var test = Translate(condition.Test);
+        var whenTrue = ConvertVoidToValue(Translate(condition.WhenTrue), type);
+        var whenFalse = ConvertVoidToValue(Translate(condition.WhenFalse), type);
+        return L.Expression.Condition(test, whenTrue, whenFalse, type);
+    }
+
+    private L.Expression ConvertVoidToValue(L.Expression expr, Type type)
+    {
+        if (expr.Type == typeof(void) && type != typeof(void))
+        {
+            var def = L.Expression.Default(type);
+            return L.Expression.Block(
+                type,
+                expr,
+                def);
+        }
+
+        return expr;
     }
 
     private L.Expression TranslateConstant(ConstantExpression constant) =>
@@ -210,7 +223,7 @@ public sealed class ExpressionTranslator
     private L.Expression TranslateConvert(ConvertExpression convert) =>
         L.Expression.Convert(
             Translate(convert.Expression),
-            Translate((TypeSymbol)convert.ConvertedType.ReferencedSymbol!));
+            Translate(convert.ResultType));
 
     private L.Expression TranslateDeclaration(DeclarationExpression declaration)
     {
@@ -344,9 +357,12 @@ public sealed class ExpressionTranslator
         }
     }
 
+    private static readonly L.Expression _void =
+        L.Expression.Block(typeof(void));
+
     private L.Expression TranslateVoid(VoidExpression vex)
     {
-        return L.Expression.Default(typeof(object));
+        return _void;
     }
 
     private Dictionary<LabelSymbol, L.LabelTarget> _currentBranchTargets =

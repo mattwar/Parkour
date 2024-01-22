@@ -146,14 +146,19 @@ public class ExpressionTests
             _symbols.Object,
             containsDiagnostics: true);
 
-        // whenTrue is void
+        // whenTrue is void (void path leads to default)
         TestBinding(
             Condition(Constant(true), Void(), Constant(2)),
-            _symbols.Void);
+            _symbols.Int32);
 
-        // whenFalse is void
+        // whenFalse is void (void path leads to default)
         TestBinding(
             Condition(Constant(true), Constant(1), Void()),
+            _symbols.Int32);
+
+        // both are void
+        TestBinding(
+            Condition(Constant(true), Void(), Void()),
             _symbols.Void);
     }
 

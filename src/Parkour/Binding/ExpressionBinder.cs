@@ -485,20 +485,7 @@ public class ExpressionBinder
             var whenTrue = BindExpression(condition.WhenTrue, context);
             var whenFalse = BindExpression(condition.WhenFalse, context);
 
-            var resultType = (whenTrue.ResultType == whenFalse.ResultType) ? whenTrue.ResultType
-                : (whenTrue.ResultType == _symbols.Void) ? _symbols.Void
-                : (whenFalse.ResultType == _symbols.Void) ? _symbols.Void
-                : null;
-
-            if (resultType == null && whenTrue.ResultType == _symbols.DoesNotReturn)
-                resultType = whenFalse.ResultType;
-
-            if (resultType == null && whenFalse.ResultType == _symbols.DoesNotReturn)
-                resultType = whenTrue.ResultType;
-
-            if (resultType == null)
-                resultType = GetBestCommonType(whenTrue.ResultType, whenFalse.ResultType, context.TargetType);
-
+            var resultType = GetBestCommonType([whenTrue.ResultType, whenFalse.ResultType, context.TargetType], voidIsBetter: false);
             if (resultType == null)
             {
                 diagnostics.Add(BindingDiagnostics.NoCommonTypeFound().WithLocation(condition.Location));
@@ -536,7 +523,7 @@ public class ExpressionBinder
     {
         TypeSymbol? best = PickBest();
 
-        if (best == _symbols.Void)
+        if (best != null && IsVoidLike(best))
             return best;
 
         if (best != null && StillBest(best))
@@ -555,8 +542,8 @@ public class ExpressionBinder
                 if (type == null || IgnoreType(type))
                     continue;
 
-                if (type != best
-                    && IsBetterThanOrSame(type, best))
+                if (best == null
+                    || (type != best && IsBetterThanOrSame(type, best)))
                 {
                     best = type;
                 }
@@ -588,15 +575,15 @@ public class ExpressionBinder
                 return true;
 
             if (best == null
-                || (type == SpecialSymbols.Void && voidIsBetter)
-                || (best == SpecialSymbols.Void && !voidIsBetter))
+                || (IsVoidLike(type) && voidIsBetter)
+                || (IsVoidLike(best) && !voidIsBetter))
             {
                 return true;
             }
 
             // if type cannot be assigned to best
-            if (!CanAutoConvert(ConversionKind.Widening, type, best)
-                && CanAutoConvert(ConversionKind.Widening, best, type))
+            if (!HasConversion(ConversionKind.Widening, type, best)
+                && HasConversion(ConversionKind.Widening, best, type))
             {
                 return true;
             }
@@ -604,9 +591,12 @@ public class ExpressionBinder
             return false;
         }
 
+        bool IsVoidLike(TypeSymbol type) =>
+            type == SpecialSymbols.Void
+            || type == SpecialSymbols.DoesNotReturn;
+
         bool IgnoreType(TypeSymbol type) =>
-            type == _symbols.DoesNotReturn
-            || type == _symbols.Null
+            type == _symbols.Null
             || type == _symbols.Unknown;
     }
 
@@ -634,14 +624,30 @@ public class ExpressionBinder
         {
             context = context.WithInflowType(_symbols.Void);
 
-            var convertedType = BindExpression(convert.ConvertedType, context.WithTargetType(null));
-            var type = convertedType.ReferencedSymbol as TypeSymbol;
+            var convertedType = convert.ConvertedType != null
+                ? BindExpression(convert.ConvertedType, context.WithTargetType(null))
+                : null;
+
+            var type = convertedType != null
+                ? convertedType.ReferencedSymbol as TypeSymbol
+                : convert.ResultType;
+
             var expression = BindExpression(convert.Expression, context.WithTargetType(type));
-            TryGetConversion(expression.ResultType, type, convert.Kind, out var conversionSymbol, expression.Location, diagnostics);
+
+            if (convert.ConvertedType == null
+                && convert.ResultType != null
+                && IsAssignableTo(expression.ResultType, convert.ResultType))
+            {
+                // remove unnecessary non-explicit conversion
+                return expression;
+            }
+
+            TryGetConversion(convert.Kind, expression.ResultType, type, out var conversionSymbol, expression.Location, diagnostics);
 
             if (convert.Expression == expression
                 && convert.ConvertedType == convertedType
                 && convert.ConversionSymbol == conversionSymbol
+                && convert.ResultType == type
                 && diagnostics.Count == 0)
             {
                 return convert;
@@ -780,7 +786,7 @@ public class ExpressionBinder
             if (resultType != _symbols.Void)
             {
                 // if label is expecting to receive a value, then inflow type must match 
-                if (!TryGetConversion(context.InflowType, resultType, ConversionKind.Widening, out _, label.Location, null))
+                if (!TryGetConversion(ConversionKind.Widening, context.InflowType, resultType, out _, label.Location, null))
                 {
                     diagnostics.Add(BindingDiagnostics.FlowIntoLabelDoesNotMatchType().WithLocation(label.Location));
                 }
@@ -1209,29 +1215,39 @@ public class ExpressionBinder
 
     protected virtual Expression ConvertTo(Expression expression, TypeSymbol type, BindingContext context)
     {
-        // no conversion required?
+        // ignore void
         if (type == SpecialSymbols.Void
-            || type == SpecialSymbols.Any
-            || type == SpecialSymbols.Unknown
-            || type == _symbols.Object
-            || type == expression.ResultType)
-            //|| IsAssignableTo(expression.ResultType, type))
+            || expression.ResultType == SpecialSymbols.Void)
+            return expression;
+
+        // remove unnecessary conversions added by this method on prior bindings
+        while (expression is ConvertExpression ce 
+            && ce.ConvertedType == null // added by binding
+            && IsAssignableTo(ce.Expression.ResultType, type))
+        {
+            expression = ce.Expression;
+        }
+
+        if (IsAssignableTo(expression.ResultType, type))
             return expression;
 
         // wrap expression with widening conversion and bind it.
-        var convert = SemanticFactory.Convert(
+        var convert = new ConvertExpression(
             ConversionKind.Widening,
             expression,
-            SemanticFactory.Type(type),
-            expression.Location);
+            convertedType: null,
+            expression.Location,
+            conversionSymbol: null,
+            resultType: type,
+            diagnostics: null);
 
-        return BindExpression(convert, context);
+        return BindConvert(convert, context);
     }
 
     protected virtual bool TryGetConversion(
-        TypeSymbol sourceType, 
-        TypeSymbol? targetType, 
-        ConversionKind kind, 
+        ConversionKind kind,
+        TypeSymbol sourceType,
+        TypeSymbol? targetType,
         out Symbol? conversionSymbol,
         ISourceLocation? location,
         List<Diagnostic>? diagnostics)
@@ -1245,7 +1261,7 @@ public class ExpressionBinder
                 conversionSymbol = null;
                 return false;
             }
-            else if (CanAutoConvert(kind, sourceType, targetType))
+            else if (HasIntrinsicConversion(kind, sourceType, targetType))
             {
                 conversionSymbol = null;
                 return true;
@@ -1270,25 +1286,28 @@ public class ExpressionBinder
         }
     }
 
+    protected virtual bool HasConversion(ConversionKind kind, TypeSymbol sourceType, TypeSymbol targetType) =>
+        TryGetConversion(kind, sourceType, targetType, out _, null, null);
+
     /// <summary>
-    /// Determines if the conversion is allowed through automatic means, numeric widening/narrowing or object up/down casting.
+    /// Determines if the conversion can be done through intrinsic means (not custom conversion).
     /// </summary>
-    protected virtual bool CanAutoConvert(ConversionKind conversion, TypeSymbol source, TypeSymbol target)
+    protected virtual bool HasIntrinsicConversion(ConversionKind kind, TypeSymbol sourceType, TypeSymbol targetType)
     {
-        if (IsAssignableTo(source, target))
+        if (IsAssignableTo(sourceType, targetType))
             return true;
 
-        if (CanDownCast(source, target))
+        if (CanDownCast(sourceType, targetType))
             return true; 
 
-        if (conversion == ConversionKind.Narrowing)
+        if (kind == ConversionKind.Narrowing)
         {
-            return IsAssignableTo(target, source)
-                || CanUpCast(source, target);
+            return IsAssignableTo(targetType, sourceType)
+                || CanUpCast(sourceType, targetType);
         }
 
-        return source == target
-            || CanWiden(source, target);
+        return sourceType == targetType
+            || CanWiden(sourceType, targetType);
     }
 
     protected virtual bool CanDownCast(TypeSymbol source, TypeSymbol target)
@@ -1395,12 +1414,12 @@ public class ExpressionBinder
             FunctionSymbol function =>
                 function.ReturnType == target
                 && function.Parameters.Count == 1
-                && CanAutoConvert(ConversionKind.Widening, source, function.Parameters[0].ParameterType),
+                && HasConversion(ConversionKind.Widening, source, function.Parameters[0].ParameterType),
             MethodSymbol method =>
                 method.IsStatic
                 && method.ReturnType == target
                 && method.Parameters.Count == 1
-                && CanAutoConvert(ConversionKind.Widening, source, method.Parameters[0].ParameterType),
+                && HasConversion(ConversionKind.Widening, source, method.Parameters[0].ParameterType),
             _ => false
         };
 

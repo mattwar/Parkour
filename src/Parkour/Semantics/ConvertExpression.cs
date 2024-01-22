@@ -5,19 +5,20 @@ public sealed class ConvertExpression : Expression
 {
     public ConversionKind Kind { get; }
     public Expression Expression { get; }
-    public Expression ConvertedType { get; }
+    public Expression? ConvertedType { get; }
     public Symbol? ConversionSymbol { get; }
 
     public ConvertExpression(
         ConversionKind kind,
         Expression expression,
-        Expression convertedType,
+        Expression? convertedType,
         ISourceLocation? location,
         Symbol? conversionSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             expression.State
+            | OptionalState(convertedType)
             | NotNullState(resultType), 
             location,
             resultType, 
