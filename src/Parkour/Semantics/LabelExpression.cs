@@ -34,5 +34,14 @@ public class LabelExpression : Expression
         this.ReceivingType = receivingType;
         this.LabelSymbol = labelSymbol;
     }
+
+    public override int ChildCount => 1;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.ReceivingType,
+            _ => null
+        };
 }
 

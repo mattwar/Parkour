@@ -33,5 +33,15 @@ public sealed class VariableExpression : Expression
         this.Initializer = initializer;
         this.Variable = variable;
     }
+
+    public override int ChildCount => 2;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.VariableType,
+            1 => this.Initializer,
+            _ => null
+        };
 }
 

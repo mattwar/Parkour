@@ -2,16 +2,62 @@
 
 public static class SemanticExtensions
 {
-    public static IReadOnlyList<TResult> SelectWhere<TResult>(
-        this SemanticElement root, 
+    /// <summary>
+    /// Assign a source value to a target location.
+    /// </summary>
+    public static AssignExpression Assign(this Expression target, Expression expression, ISourceLocation? location = null) =>
+        SemanticFactory.Assign(target, expression, location);
+
+    /// <summary>
+    /// Invokes a delegate, lambda function or method.
+    /// </summary>
+    public static CallExpression Call(this Expression target, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
+        SemanticFactory.Call(target, arguments, location);
+
+    /// <summary>
+    /// Invokes a delegate, lambda function or method.
+    /// </summary>
+    public static CallExpression Call(Expression target, IEnumerable<Expression> arguments, ISourceLocation? location = null) =>
+        SemanticFactory.Call(target, arguments, location);
+
+    /// <summary>
+    /// Invokes a delegate, lambda function or method.
+    /// </summary>
+    public static CallExpression Call(Expression target, params Expression[] arguments) =>
+        SemanticFactory.Call(target, arguments);
+
+    /// <summary>
+    /// Converts an expression to a specific type.
+    /// </summary>
+    public static ConvertExpression ConvertTo(this Expression expression, Expression convertedType, ISourceLocation? location = null) =>
+        SemanticFactory.Convert(expression, convertedType, location);
+
+    /// <summary>
+    /// Accesses the referenced member of the expression's type or instance.
+    /// </summary>
+    public static PathExpression Path(this Expression expression, ReferenceExpression reference, ISourceLocation? location = null) =>
+        SemanticFactory.Path(expression, reference, location);
+
+    /// <summary>
+    /// Accesses the referenced member of the expression's type or instance.
+    /// </summary>
+    public static PathExpression Path(this Expression expression, string name, ISourceLocation? location = null) =>
+        SemanticFactory.Path(expression, name, location);
+
+    /// <summary>
+    /// Returns the list of values computed from the semantic elements in the tree 
+    /// starting at the specified element that match the predicate.
+    /// </summary>
+    public static IReadOnlyList<TValue> SelectWhere<TValue>(
+        this SemanticElement element, 
         Func<SemanticElement, bool> walkChildren, 
         Func<SemanticElement, bool> predicate,
-        Func<SemanticElement, TResult> selector)
+        Func<SemanticElement, TValue> selector)
     {
-        var list = new List<TResult>();
+        var list = new List<TValue>();
 
         Walk(
-            root,
+            element,
             walkChildren,
             action: e =>
             {
@@ -22,18 +68,52 @@ public static class SemanticExtensions
         return list;
     }
 
-    public static IReadOnlyList<TResult> SelectWhere<TResult>(this SemanticElement root, Func<SemanticElement, bool> predicate, Func<SemanticElement, TResult> selector) =>
-        SelectWhere(root, s => true, predicate, selector);
-
-    public static IReadOnlyList<SemanticElement> Where(this SemanticElement root, Func<SemanticElement, bool> walkChildren, Func<SemanticElement, bool> predicate) =>
-        SelectWhere(root, walkChildren, predicate, e => e);
-
-    public static IReadOnlyList<SemanticElement> Where(this SemanticElement root, Func<SemanticElement, bool> predicate) =>
-        Where(root, s => true, predicate);
-
-    public static IReadOnlyList<TResult> SelectWhere<TResult>(this ImmutableList<SemanticElement> elements, Func<SemanticElement, bool> walkChildren, Func<SemanticElement, bool> predicate, Func<SemanticElement, TResult> selector)
+    /// <summary>
+    /// Returns the list of values computed from the semantic elements in the tree 
+    /// starting at the specified element that match the predicate.
+    /// </summary>
+    public static IReadOnlyList<TValue> SelectWhere<TValue>(
+        this SemanticElement root, 
+        Func<SemanticElement, bool> predicate, 
+        Func<SemanticElement, TValue> selector)
     {
-        var list = new List<TResult>();
+        return SelectWhere(root, s => true, predicate, selector);
+    }
+
+    /// <summary>
+    /// Returns the list of <see cref="SemanticElement"/> in the tree starting at the specified element
+    /// that match the predicate.
+    /// </summary>
+    public static IReadOnlyList<SemanticElement> Where(
+        this SemanticElement root, 
+        Func<SemanticElement, bool> walkChildren, 
+        Func<SemanticElement, bool> predicate)
+    {
+        return SelectWhere(root, walkChildren, predicate, e => e);
+    }
+
+    /// <summary>
+    /// Returns the list of <see cref="SemanticElement"/> in the tree starting at the specified element
+    /// that match the predicate.
+    /// </summary>
+    public static IReadOnlyList<SemanticElement> Where(
+        this SemanticElement root, 
+        Func<SemanticElement, bool> predicate)
+    {
+        return Where(root, s => true, predicate);
+    }
+
+    /// <summary>
+    /// Returns the list of values computed from the semantic elements in the trees 
+    /// starting at the specified elements that match the predicate.
+    /// </summary>
+    public static IReadOnlyList<TValue> SelectWhere<TValue>(
+        this ImmutableList<SemanticElement> elements, 
+        Func<SemanticElement, bool> walkChildren, 
+        Func<SemanticElement, bool> predicate, 
+        Func<SemanticElement, TValue> selector)
+    {
+        var list = new List<TValue>();
 
         Walk(
             elements,
@@ -47,129 +127,66 @@ public static class SemanticExtensions
         return list;
     }
 
-    public static IReadOnlyList<TResult> SelectWhere<TResult>(this ImmutableList<SemanticElement> expressions, Func<SemanticElement, bool> predicate, Func<SemanticElement, TResult> selector) =>
-        SelectWhere(expressions, s => true, predicate, selector);
-
-    public static IReadOnlyList<SemanticElement> Where(this ImmutableList<SemanticElement> expressions, Func<SemanticElement, bool> walkChildren, Func<SemanticElement, bool> predicate) =>
-        SelectWhere(expressions, walkChildren, predicate, e => e);
-
-    public static IReadOnlyList<SemanticElement> Where(this ImmutableList<SemanticElement> expressions, Func<SemanticElement, bool> predicate) =>
-        Where(expressions, s => true, predicate);
+    /// <summary>
+    /// Returns the list of values computed from the semantic elements in the trees 
+    /// starting at the specified elements that match the predicate.
+    /// </summary>
+    public static IReadOnlyList<TValue> SelectWhere<TValue>(
+        this ImmutableList<SemanticElement> expressions, 
+        Func<SemanticElement, bool> predicate, 
+        Func<SemanticElement, TValue> selector)
+    {
+        return SelectWhere(expressions, s => true, predicate, selector);
+    }
 
     /// <summary>
-    /// Walks the expression tree calling the action callback for each expression
-    /// including the root.
+    /// Returns the list of <see cref="SemanticElement"/> in the trees starting at the specified elements 
+    /// that match the predicate.
     /// </summary>
-    public static void Walk(SemanticElement? expr, Func<SemanticElement, bool> walkChildren, Action<SemanticElement> action)
+    public static IReadOnlyList<SemanticElement> Where(
+        this ImmutableList<SemanticElement> expressions, 
+        Func<SemanticElement, bool> walkChildren, 
+        Func<SemanticElement, bool> predicate)
     {
-        if (expr == null)
+        return SelectWhere(expressions, walkChildren, predicate, e => e);
+    }
+
+    /// <summary>
+    /// Returns the list of <see cref="SemanticElement"/> in the trees starting at the specified elements 
+    /// that match the predicate.
+    /// </summary>
+    public static IReadOnlyList<SemanticElement> Where(
+        this ImmutableList<SemanticElement> expressions, 
+        Func<SemanticElement, bool> predicate)
+    {
+        return Where(expressions, s => true, predicate);
+    }
+
+    /// <summary>
+    /// Walks the semantic tree calling the action callback for each element including the root.
+    /// </summary>
+    public static void Walk(
+        SemanticElement? element, 
+        Func<SemanticElement, bool> walkChildren, 
+        Action<SemanticElement> action)
+    {
+        if (element == null)
             return;
 
-        action(expr);
+        action(element);
 
-        if (!walkChildren(expr))
+        if (!walkChildren(element))
             return;
 
-        switch (expr)
+        for (int i = 0, n = element.ChildCount; i < n; i++)
         {
-            case AssignExpression assign:
-                Walk(assign.Target, walkChildren, action);
-                Walk(assign.Source, walkChildren, action);
-                break;
-
-            case BlockExpression block:
-                Walk(block.Expressions, walkChildren, action);
-                break;
-
-            case BranchExpression branch:
-                Walk(branch.Expression, walkChildren, action);
-                break;
-
-            case CallExpression call:
-                Walk(call.Expression, walkChildren, action);
-                Walk(call.Arguments, walkChildren, action);
-                break;
-
-            case ConditionExpression condition:
-                Walk(condition.Test, walkChildren, action);
-                Walk(condition.WhenTrue, walkChildren, action);
-                Walk(condition.WhenFalse, walkChildren, action);
-                break;
-
-            case ConvertExpression convert:
-                Walk(convert.Expression, walkChildren, action);
-                break;
-
-            case DefaultExpression def:
-                Walk(def.TypeExpression, walkChildren, action);
-                break;
-
-            case LabelExpression label:
-                Walk(label.ReceivingType, walkChildren, action);
-                break;
-
-            case LambdaExpression lambda:
-                Walk(lambda.Parameters, walkChildren, action);
-                Walk(lambda.Body, walkChildren, action);
-                break;
-
-            case LoopExpression loop:
-                Walk(loop.Body, walkChildren, action);
-                break;
-
-            case PathExpression path:
-                Walk(path.Expression, walkChildren, action);
-                Walk(path.Reference, walkChildren, action);
-                break;
-
-            case VariableExpression variable:
-                Walk(variable.VariableType, walkChildren, action);
-                Walk(variable.Initializer, walkChildren, action);
-                break;
-
-            case ClassDeclaration cd:
-                Walk(cd.BaseTypes, walkChildren, action);
-                Walk(cd.Declarations, walkChildren, action);
-                break;
-
-            case ConstructorDeclaration cd:
-                Walk(cd.Parameters, walkChildren, action);
-                Walk(cd.Body, walkChildren, action);
-                break;
-
-            case MethodDeclaration md:
-                Walk(md.Parameters, walkChildren, action);
-                Walk(md.Body, walkChildren, action);
-                Walk(md.ReturnType, walkChildren, action);
-                break;
-
-            case ParameterDeclaration pd:
-                Walk(pd.ParameterType, walkChildren, action);
-                break;
-
-            case FieldDeclaration fd:
-                Walk(fd.FieldType, walkChildren, action);
-                break;
-
-            case PropertyDeclaration prd:
-                Walk(prd.PropertyType, walkChildren, action);
-                Walk(prd.GetMethod, walkChildren, action);
-                Walk(prd.SetMethod, walkChildren, action);
-                break;
-
-            case ReferenceExpression _:
-            case OperatorExpression _:
-            case ConstantExpression _:
-            case VoidExpression _:
-                break;
-
-            default:
-                throw new InvalidOperationException($"Unhandled expression kind '{expr.GetType().Name}' in Semantic.Walk");
+            if (element.GetChild(i) is SemanticElement child)
+                Walk(child, walkChildren, action);
         }
     }
 
     /// <summary>
-    /// Walks the Semantic's sub-expressions recursively.
+    /// Walks the semantic's sub-expressions recursively.
     /// </summary>
     public static void Walk<TSemantic>(
         ImmutableList<TSemantic> expressions, 
@@ -183,12 +200,22 @@ public static class SemanticExtensions
         }
     }
 
+    /// <summary>
+    /// Rewrites a list of semantic elements, 
+    /// return the original list if no elements where changed.
+    /// </summary>
     public static ImmutableList<TSemantic> Rewrite<TSemantic>(
         this ImmutableList<TSemantic> list, 
         Func<TSemantic, TSemantic> rewriter)
-        where TSemantic : SemanticElement =>
-        Rewrite<TSemantic, object?>(list, null, (e, a) => (rewriter(e), a)).list;
+        where TSemantic : SemanticElement
+    {
+        return Rewrite<TSemantic, object?>(list, null, (e, a) => (rewriter(e), a)).list;
+    }
 
+    /// <summary>
+    /// Rewrites a list of semantic elements, 
+    /// return the original list if no elements where changed.
+    /// </summary>
     public static (ImmutableList<TSemantic> list, TArg final) Rewrite<TSemantic, TArg>(
         this ImmutableList<TSemantic> list, 
         TArg arg, 

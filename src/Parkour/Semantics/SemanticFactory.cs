@@ -1,150 +1,275 @@
 ﻿namespace Parkour.Semantics;
 using Binding;
 using Symbols;
-using Syntax;
 
 public static class SemanticFactory
 {
+    /// <summary>
+    /// Assign a source value to a target location.
+    /// </summary>
     public static AssignExpression Assign(Expression target, Expression expression, ISourceLocation? location = null) =>
         new AssignExpression(target, expression, location, null);
 
+    /// <summary>
+    /// Defines a block expression of multiple expressions. The final expression determines the block expression's result.
+    /// </summary>
     public static BlockExpression Block(ImmutableList<Expression> expressions, ISourceLocation? location = null) =>
         new BlockExpression(expressions, location, null, null);
 
+    /// <summary>
+    /// Defines a block expression of multiple expressions. The final expression determines the block expression's result.
+    /// </summary>
     public static BlockExpression Block(IEnumerable<Expression> expressions, ISourceLocation? location = null) =>
         Block(expressions.ToImmutableList(), location);
 
+    /// <summary>
+    /// Defines a block expression of multiple expressions. The final expression determines the block expression's result.
+    /// </summary>
     public static BlockExpression Block(params Expression[] expressions) =>
         Block(expressions.ToImmutableList());
 
+    /// <summary>
+    /// Branches to a label.
+    /// </summary>
     public static BranchExpression Branch(string labelName, Expression? expression = null, ISourceLocation? location = null) =>
         new BranchExpression(labelName, expression, location, null, null, null);
 
+    /// <summary>
+    /// Branches to the break location of a loop.
+    /// </summary>
     public static BranchExpression Break(Expression? expression = null, ISourceLocation? location = null) =>
         BranchExpression.CreateBreak(expression, location, null, null);
 
+    /// <summary>
+    /// Invokes a delegate, lambda function or method.
+    /// </summary>
     public static CallExpression Call(Expression target, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
         new CallExpression(target, arguments, location, null, null, null);
 
+    /// <summary>
+    /// Invokes a delegate, lambda function or method.
+    /// </summary>
     public static CallExpression Call(Expression target, IEnumerable<Expression> arguments, ISourceLocation? location = null) =>
         Call(target, arguments.ToImmutableList(), location);
 
+    /// <summary>
+    /// Invokes a delegate, lambda function or method.
+    /// </summary>
     public static CallExpression Call(Expression target, params Expression[] arguments) =>
         Call(target, arguments.ToImmutableList());
 
+    /// <summary>
+    /// Evaluates the whenTrue expression if the test expression results in true or otherwise evaluates the whenFalse expression.
+    /// </summary>
     public static ConditionExpression Condition(Expression test, Expression whenTrue, Expression whenFalse, ISourceLocation? location = null) =>
         new ConditionExpression(test, whenTrue, whenFalse, location, null, null);
 
+    /// <summary>
+    /// Evaluates the whenTrue expression if the test expressions results in true.
+    /// </summary>
     public static ConditionExpression Condition(Expression test, Expression whenTrue, ISourceLocation? location = null) =>
         new ConditionExpression(test, whenTrue, Void(location), location, null, null);
 
+    /// <summary>
+    /// Produces the constant value specified at runtime.
+    /// </summary>
     public static ConstantExpression Constant(object? value, ISourceLocation? location = null) =>
         new ConstantExpression(value, location, null, null);
 
+    /// <summary>
+    /// Branches to the loop's continue location.
+    /// </summary>
     public static BranchExpression Continue(ISourceLocation? location = null) =>
         BranchExpression.CreateContinue(location, null, null);
 
+    /// <summary>
+    /// Converts an expression to a specific type.
+    /// </summary>
     public static ConvertExpression Convert(ConversionKind kind, Expression expression, Expression convertedType, ISourceLocation? location = null) =>
         new ConvertExpression(kind, expression, convertedType, location, null, null, null);
 
+    /// <summary>
+    /// Converts an expression to a specific type.
+    /// </summary>
     public static ConvertExpression Convert(Expression expression, Expression convertedType, ISourceLocation? location = null) =>
         Convert(ConversionKind.Narrowing, expression, convertedType, location);
 
-    public static VariableExpression Variable(Expression? variableType, string name, Expression? initializer, ISourceLocation? location = null) =>
+    /// <summary>
+    /// Declares a variable of a specific type and initializer.
+    /// </summary>
+    public static VariableExpression Variable(Expression variableType, string name, Expression initializer, ISourceLocation? location = null) =>
         new VariableExpression(name, variableType, initializer, location, null, null, null);
 
-    public static VariableExpression Variable(Expression? variableType, string name, ISourceLocation? location = null) =>
-        Variable(variableType, name, null, location);
-
-    public static VariableExpression Variable(string name, Expression? initializer, ISourceLocation? location = null) =>
-        Variable(null, name, initializer, location);
-
-    public static DefaultExpression Default(Expression? type, ISourceLocation? location = null) =>
-        new DefaultExpression(type, location, null, null);
-
-    public static DefaultExpression Default(ISourceLocation? location = null) =>
-        Default(null, location);
+    /// <summary>
+    /// Declares a variable of a specific type.
+    /// </summary>
+    public static VariableExpression Variable(Expression variableType, string name, ISourceLocation? location = null) =>
+        new VariableExpression(name, variableType, null, location, null, null, null);
 
     /// <summary>
-    /// Synonym for <see cref="Branch(string, Expression?, ISourceLocation?)"/>
+    /// Declares and initializes a variable.
+    /// </summary>
+    public static VariableExpression Variable(string name, Expression initializer, ISourceLocation? location = null) =>
+        new VariableExpression(name, null, initializer, location, null, null, null);
+
+    /// <summary>
+    /// Produces the default value for the specified type.
+    /// </summary>
+    public static DefaultExpression Default(Expression type, ISourceLocation? location = null) =>
+        new DefaultExpression(type, location, null, null);
+
+    /// <summary>
+    /// Produces the default value for the infered type.
+    /// </summary>
+    public static DefaultExpression Default(ISourceLocation? location = null) =>
+        new DefaultExpression(null, location, null, null);
+
+    /// <summary>
+    /// Branches to the specified label.
+    /// This is a synonym for <see cref="Branch(string, Expression?, ISourceLocation?)"/>
     /// </summary>
     public static BranchExpression Goto(string labelName, Expression? expression = null, ISourceLocation? location = null) =>
         new BranchExpression(labelName, expression, location, null, null, null);
 
     /// <summary>
-    /// Synonym for <see cref="Condition(Expression, Expression, Expression, ISourceLocation?)"/>
+    /// Evaluates the whenTrue expression if the test expressions results in true.
+    /// This is a synonym for <see cref="Condition(Expression, Expression, Expression, ISourceLocation?)"/>
     /// </summary>
     public static ConditionExpression If(Expression test, Expression whenTrue, Expression whenFalse, ISourceLocation? location = null) =>
         Condition(test, whenTrue, whenFalse, location);
 
     /// <summary>
-    /// Synonym for <see cref="Condition(Expression, Expression, ISourceLocation?)"/>
+    /// Evaluates the whenTrue expression if the test expressions results in true.
+    /// This is a synonym for <see cref="Condition(Expression, Expression, ISourceLocation?)"/>
     /// </summary>
     public static ConditionExpression If(Expression test, Expression whenTrue, ISourceLocation? location = null) =>
         Condition(test, whenTrue, location);
 
+    /// <summary>
+    /// Accesses the referenced member of the expression's type or instance.
+    /// </summary>
     public static PathExpression Path(Expression expression, ReferenceExpression reference, ISourceLocation? location = null) =>
         new PathExpression(expression, reference, location, null);
 
+    /// <summary>
+    /// Accesses the referenced member of the expression's type or instance.
+    /// </summary>
     public static PathExpression Path(Expression expression, string name, ISourceLocation? location = null) =>
         Path(expression, Name(name), location);
 
+    /// <summary>
+    /// A label for branch targets.
+    /// </summary>
     public static LabelExpression Label(string name, Expression? recievingType = null, ISourceLocation? location = null) =>
         new LabelExpression(name, recievingType, location, null, null, null);
 
+    /// <summary>
+    /// Creates a lambda function.
+    /// </summary>
     public static LambdaExpression Lambda(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
         new LambdaExpression("", parameters, body, location, null, null, null, null);
 
+    /// <summary>
+    /// Creates a lambda function.
+    /// </summary>
     public static LambdaExpression Lambda(IEnumerable<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
         Lambda(parameters.ToImmutableList(), body, location);
 
+    /// <summary>
+    /// Creates a lambda function.
+    /// </summary>
     public static LambdaExpression Lambda(IEnumerable<string> parameterNames, Expression body, ISourceLocation? location = null) =>
         Lambda(parameterNames.Select(n => Parameter(n)), body, location);
 
+    /// <summary>
+    /// Creates a lambda function.
+    /// </summary>
     public static LambdaExpression Lambda(Expression body, ISourceLocation? location = null) =>
         Lambda(ImmutableList<ParameterDeclaration>.Empty, body, location);
 
+    /// <summary>
+    /// Refers to a known operator.
+    /// </summary>
     public static OperatorExpression Operator(string name, ISourceLocation? location = null) =>
         new OperatorExpression(name, location, null, null, null);
 
+    /// <summary>
+    /// References a named symbol in scope.
+    /// </summary>
     public static ReferenceExpression Reference(string name, ISourceLocation? location = null) =>
         new ReferenceExpression(name, location, null, null, null);
 
+    /// <summary>
+    /// References a named symbol in scope.
+    /// </summary>
     public static ReferenceExpression Name(string name, ISourceLocation? location = null) =>
         Reference(name, location);
 
+    /// <summary>
+    /// Reference a type.
+    /// </summary>
     public static ReferenceExpression Type(TypeSymbol symbol, ISourceLocation? location = null) =>
         Reference(symbol.FullName, location);
 
+    /// <summary>
+    /// Return from a method or lambda.
+    /// </summary>
     public static BranchExpression Return(Expression? expression = null, ISourceLocation? location = null) =>
         BranchExpression.CreateReturn(expression, location, null, null);
 
+    /// <summary>
+    /// An expression that does nothing and returns nothing.
+    /// </summary>
     public static VoidExpression Void(ISourceLocation? location = null) => 
         location == null 
             ? VoidExpression.Default
             : new VoidExpression(location);
 
+    /// <summary>
+    /// A loop that continues to repeat the body until a break exits the loop.
+    /// </summary>
     public static LoopExpression Loop(Expression body, ISourceLocation? location = null) =>
         new LoopExpression(body, location, null, null, null, null);
 
+    /// <summary>
+    /// A loop that continues to repeat the body until the test fails or a break exists the loop.
+    /// </summary>
     public static LoopExpression While(Expression test, Expression body, ISourceLocation? location = null) =>
         Loop(Condition(test, body, Break()));
 
+    /// <summary>
+    /// Applies the Add operator to two values.
+    /// </summary>
     public static CallExpression Add(Expression left, Expression right, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.Add), [left, right], location);
 
+    /// <summary>
+    /// Applies the Subtract operator to two values.
+    /// </summary>
     public static CallExpression Subtract(Expression left, Expression right, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.Subtract), [left, right], location);
 
+    /// <summary>
+    /// Applies the Multiply operator to two values.
+    /// </summary>
     public static CallExpression Multiply(Expression left, Expression right, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.Multiply), [left, right], location);
 
+    /// <summary>
+    /// Applies the Divide operator to two values.
+    /// </summary>
     public static CallExpression Divide(Expression left, Expression right, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.Divide), [left, right], location);
 
+    /// <summary>
+    /// Applies the Remainder operator to two values.
+    /// </summary>
     public static CallExpression Remainder(Expression left, Expression right, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.Remainder), [left, right], location);
 
+    /// <summary>
+    /// Applies the Negate operator to a value.
+    /// </summary>
     public static CallExpression Negate(Expression operand, ISourceLocation? location = null) =>
         Call(Operator(OperatorKinds.Negate), [operand], location);
 

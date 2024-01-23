@@ -144,7 +144,7 @@ public class SemanticWriter
                 break;
 
             case CallExpression call:
-                if (call.CalledSymbol is FunctionSymbol fn)
+                if (call.CalledSymbol is LambdaSymbol fn)
                 {
                     if (call.Expression is PathExpression path)
                     {
@@ -196,8 +196,16 @@ public class SemanticWriter
             case ConvertExpression convert:
                 Write("Convert(");
                 Write(convert.Expression);
-                Write(", ");
-                Write(convert.ConvertedType);
+                if (convert.ConvertedType != null)
+                {
+                    Write(", ");
+                    Write(convert.ConvertedType);
+                }
+                else if (convert.ResultType != null)
+                {
+                    Write(", ");
+                    Write(convert.ResultType.FullName);
+                }
                 Write(")");
                 break;
 

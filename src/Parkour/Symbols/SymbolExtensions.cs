@@ -5,13 +5,20 @@ public static class SymbolExtensions
     /// <summary>
     /// Walks the tree of symbol declarations top-down
     /// </summary>
-    public static void Walk(this Symbol? symbol, Action<Symbol> action)
+    public static void Walk(this Symbol? symbol, Action<Symbol>? action)
     {
         if (symbol == null)
             return;
 
-        action(symbol);
+        action?.Invoke(symbol);
 
+        for (int i = 0, n = symbol.DeclarationCount; i < n; i++)
+        {
+            var decl = symbol.GetDeclaration(i);
+            Walk(decl, action);
+        }
+
+#if false
         switch (symbol)
         {
             case PropertySymbol p:               
@@ -33,7 +40,7 @@ public static class SymbolExtensions
                 break;
 
             case TypeSymbol t:
-                WalkList(t.TypeParameters, action);
+                WalkList(t.TypeArguments, action);
                 WalkList(t.Members, action);
                 break;
 
@@ -49,5 +56,6 @@ public static class SymbolExtensions
                 Walk(symbol, action);
             }
         }
+#endif
     }
 }

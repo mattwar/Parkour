@@ -43,7 +43,20 @@ public abstract class SemanticElement
             this.State |= ContainsState.Diagnostics;
     }
 
-    public string ToText() =>
+    /// <summary>
+    /// The number of child elements this element contains.
+    /// </summary>
+    public abstract int ChildCount { get; }
+
+    /// <summary>
+    /// Gets the value of the specified element.
+    /// </summary>
+    public abstract SemanticElement? GetChild(int index);
+
+    /// <summary>
+    /// Returns the element in a textual form, useful for debugging.
+    /// </summary>
+    public string ToDebugText() =>
         new SemanticWriter().WriteToString(this);
 
     /// <summary>

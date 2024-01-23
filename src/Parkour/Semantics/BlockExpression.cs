@@ -1,6 +1,5 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public sealed class BlockExpression : Expression
 {
@@ -19,5 +18,11 @@ public sealed class BlockExpression : Expression
     {
         this.Expressions = expressions.ToImmutableList();
     }
+
+    public override int ChildCount => 
+        this.Expressions.Count;
+
+    public override SemanticElement? GetChild(int index) =>
+        this.Expressions[index];
 }
 

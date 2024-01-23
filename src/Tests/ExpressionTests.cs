@@ -551,7 +551,7 @@ public class ExpressionTests
 
         // declare with no type and no initializer
         TestBinding(
-            Variable(null, "x", null),
+            new VariableExpression("x", null, null, null, null, null, null),
             _symbols.Object,
             containsDiagnostics: true);
     }

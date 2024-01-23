@@ -32,4 +32,12 @@ public class ConstructorDeclaration : MemberDeclaration
         this.Body = body;
         this.ConstructorSymbol = constructorSymbol;
     }
+
+    public override int ChildCount =>
+        this.Parameters.Count + 1;
+
+    public override SemanticElement? GetChild(int index) =>
+        index < this.Parameters.Count
+            ? this.Parameters[index]
+            : this.Body;
 }

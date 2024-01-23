@@ -47,14 +47,14 @@ public sealed class Operators
         return intrinsics;
     }
 
-    private readonly Dictionary<string, ImmutableList<FunctionSymbol>> _kindToOperators;
+    private readonly Dictionary<string, ImmutableList<LambdaSymbol>> _kindToOperators;
 
-    public ImmutableList<FunctionSymbol> GetOperators(string kind) =>
+    public ImmutableList<LambdaSymbol> GetOperators(string kind) =>
         _kindToOperators.TryGetValue(kind, out var intrinsics)
             ? intrinsics
-            : ImmutableList<FunctionSymbol>.Empty;
+            : ImmutableList<LambdaSymbol>.Empty;
 
-    public static FunctionSymbol UnaryOp(string name, string kind, TypeSymbol operandType, TypeSymbol resultType) =>
+    public static LambdaSymbol UnaryOp(string name, string kind, TypeSymbol operandType, TypeSymbol resultType) =>
         new OperatorSymbol(
             name, 
             kind, 
@@ -62,10 +62,10 @@ public sealed class Operators
             () => resultType
             );
 
-    public static FunctionSymbol UnaryOp(string name, string kind, TypeSymbol operand) =>
+    public static LambdaSymbol UnaryOp(string name, string kind, TypeSymbol operand) =>
         UnaryOp(name, kind, operand, operand);
 
-    public static FunctionSymbol BinaryOp(string name, string kind, TypeSymbol leftType, TypeSymbol rightType, TypeSymbol resultType) =>
+    public static LambdaSymbol BinaryOp(string name, string kind, TypeSymbol leftType, TypeSymbol rightType, TypeSymbol resultType) =>
         new OperatorSymbol(
             name,
             kind,
@@ -76,47 +76,47 @@ public sealed class Operators
             () => resultType
             );
 
-    public static FunctionSymbol BinaryOp(string name, string kind, TypeSymbol argsType, TypeSymbol resultType) =>
+    public static LambdaSymbol BinaryOp(string name, string kind, TypeSymbol argsType, TypeSymbol resultType) =>
         BinaryOp(name, kind, argsType, argsType, resultType);
 
-    public static FunctionSymbol BinaryOp(string name, string kind, TypeSymbol type) =>
+    public static LambdaSymbol BinaryOp(string name, string kind, TypeSymbol type) =>
         BinaryOp(name, kind, type, type, type);
 
     // Int32 operators
-    public FunctionSymbol AddInt32 { get; }
-    public FunctionSymbol SubtractInt32 { get; }
-    public FunctionSymbol MultiplyInt32 { get; }
-    public FunctionSymbol DivideInt32 { get; }
-    public FunctionSymbol RemainderInt32 { get; }
-    public FunctionSymbol NegateInt32 { get; }
-    public FunctionSymbol BitwiseAndInt32 { get; }
-    public FunctionSymbol BitwiseOrInt32 { get; }
-    public FunctionSymbol BitwiseXorInt32 { get; }
-    public FunctionSymbol BitwiseNotInt32 { get; }
-    public FunctionSymbol ShiftLeftInt32 { get; }
-    public FunctionSymbol ShiftRightInt32 { get; }
-    public FunctionSymbol EqualInt32 { get; }
-    public FunctionSymbol NotEqualInt32 { get; }
-    public FunctionSymbol LessThanInt32 { get; }
-    public FunctionSymbol LessThanOrEqualInt32 { get; }
-    public FunctionSymbol GreaterThanInt32 { get; }
-    public FunctionSymbol GreaterThanOrEqualInt32 { get; }
+    public LambdaSymbol AddInt32 { get; }
+    public LambdaSymbol SubtractInt32 { get; }
+    public LambdaSymbol MultiplyInt32 { get; }
+    public LambdaSymbol DivideInt32 { get; }
+    public LambdaSymbol RemainderInt32 { get; }
+    public LambdaSymbol NegateInt32 { get; }
+    public LambdaSymbol BitwiseAndInt32 { get; }
+    public LambdaSymbol BitwiseOrInt32 { get; }
+    public LambdaSymbol BitwiseXorInt32 { get; }
+    public LambdaSymbol BitwiseNotInt32 { get; }
+    public LambdaSymbol ShiftLeftInt32 { get; }
+    public LambdaSymbol ShiftRightInt32 { get; }
+    public LambdaSymbol EqualInt32 { get; }
+    public LambdaSymbol NotEqualInt32 { get; }
+    public LambdaSymbol LessThanInt32 { get; }
+    public LambdaSymbol LessThanOrEqualInt32 { get; }
+    public LambdaSymbol GreaterThanInt32 { get; }
+    public LambdaSymbol GreaterThanOrEqualInt32 { get; }
 
     // string operators
-    public FunctionSymbol ConcatString { get; }
-    public FunctionSymbol EqualString { get; }
-    public FunctionSymbol NotEqualString { get; }
-    public FunctionSymbol LessThanString { get; }
-    public FunctionSymbol LessThanOrEqualString { get; }
-    public FunctionSymbol GreaterThanString { get; }
-    public FunctionSymbol GreaterThanOrEqualString { get; }
+    public LambdaSymbol ConcatString { get; }
+    public LambdaSymbol EqualString { get; }
+    public LambdaSymbol NotEqualString { get; }
+    public LambdaSymbol LessThanString { get; }
+    public LambdaSymbol LessThanOrEqualString { get; }
+    public LambdaSymbol GreaterThanString { get; }
+    public LambdaSymbol GreaterThanOrEqualString { get; }
 
     // boolean logical operators
-    public FunctionSymbol LogicalNotBoolean { get; }
-    public FunctionSymbol LogicalAndBoolean { get; }
-    public FunctionSymbol LogicalAndAlsoBoolean { get; }
-    public FunctionSymbol LogicalOrElseBoolean { get; }
-    public FunctionSymbol LogicalOrBoolean { get; }
+    public LambdaSymbol LogicalNotBoolean { get; }
+    public LambdaSymbol LogicalAndBoolean { get; }
+    public LambdaSymbol LogicalAndAlsoBoolean { get; }
+    public LambdaSymbol LogicalOrElseBoolean { get; }
+    public LambdaSymbol LogicalOrBoolean { get; }
 
     private Operators(SymbolCache symbols)
     {
@@ -156,7 +156,7 @@ public sealed class Operators
         this.LogicalOrBoolean = BinaryOp(nameof(LogicalOrBoolean), OperatorKinds.LogicalOr, symbols.Boolean);
 
         // operator intrinsics
-        _kindToOperators = new Dictionary<string, ImmutableList<FunctionSymbol>>
+        _kindToOperators = new Dictionary<string, ImmutableList<LambdaSymbol>>
         {
             { OperatorKinds.Add, ImmutableList.Create(
                 this.AddInt32,

@@ -77,7 +77,7 @@ public sealed class ExpressionTranslator
         if (type.RuntimeType != null)
             return type.RuntimeType;
 
-        if (type is FunctionSymbol fs)
+        if (type is LambdaSymbol fs)
         {
             var list = new List<Type>();
             list.AddRange(fs.Parameters.Select(p => Translate(p.ParameterType)));
@@ -199,7 +199,7 @@ public sealed class ExpressionTranslator
                 break;
             case OperatorSymbol opsym:
                 return TranslateOperatorCall(call, opsym);
-            case FunctionSymbol function:
+            case LambdaSymbol function:
                 {
                     var fn = Translate(call.Expression);
                     var parameterTypes = function.Parameters.Select(p => Translate(p.ParameterType)).ToArray();

@@ -27,5 +27,14 @@ public sealed class CallExpression : Expression
         this.Arguments = arguments.ToImmutableList();
         this.CalledSymbol = calledSymbol;
     }
+
+    public override int ChildCount => 1 + this.Arguments.Count;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.Expression,
+            _ => this.Arguments[index - 1]
+        };
 }
 

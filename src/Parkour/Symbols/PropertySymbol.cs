@@ -5,6 +5,7 @@ namespace Parkour.Symbols;
 public sealed class PropertySymbol : MemberSymbol
 {
     public TypeSymbol? DeclaringType { get; }
+
     public override MemberSymbol? Container => DeclaringType;
     public override SymbolAccess Access { get; }
     public override SymbolModifier Modifiers { get; }
@@ -48,7 +49,7 @@ public sealed class PropertySymbol : MemberSymbol
     private Func<PropertySymbol, MethodSymbol>? _fnGetMethod;
     private MethodSymbol? _getMethod;
 
-    public MethodSymbol GetMethod
+    public MethodSymbol? GetMethod
     {
         get
         {
@@ -59,7 +60,7 @@ public sealed class PropertySymbol : MemberSymbol
                 _fnGetMethod = null;
             }
 
-            return _getMethod!;
+            return _getMethod;
         }
     }
 
@@ -90,7 +91,7 @@ public sealed class PropertySymbol : MemberSymbol
         SymbolModifier modifiers,
         Func<TypeSymbol> fnPropertyType,
         Func<PropertySymbol, FieldSymbol>? fnBackingField,
-        Func<PropertySymbol, MethodSymbol> fnGetMethod,
+        Func<PropertySymbol, MethodSymbol>? fnGetMethod,
         Func<PropertySymbol, MethodSymbol>? fnSetMethod,
         PropertyInfo? runtimeProperty)
         : base(name)
@@ -104,4 +105,14 @@ public sealed class PropertySymbol : MemberSymbol
         _fnSetMethod = fnSetMethod;
         RuntimeProperty = runtimeProperty;
     }
+
+    public override int DeclarationCount => 3;
+    public override Symbol? GetDeclaration(int index) =>
+        index switch
+        {
+            0 => GetMethod,
+            1 => SetMethod,
+            2 => BackingField,
+            _ => null
+        };
 }

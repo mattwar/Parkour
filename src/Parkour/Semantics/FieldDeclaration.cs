@@ -30,5 +30,15 @@ public sealed class FieldDeclaration : MemberDeclaration
         this.Initializer = initializer;
         this.FieldSymbol = fieldSymbol;
     }
+
+    public override int ChildCount => 2;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.FieldType,
+            1 => this.Initializer,
+            _ => null
+        };
 }
 

@@ -35,4 +35,17 @@ public class MethodDeclaration : MemberDeclaration
         this.ReturnType = returnType;
         this.MethodSymbol = methodSymbol;
     }
+
+    public override int ChildCount =>
+        this.Parameters.Count + 2;
+
+    public override SemanticElement? GetChild(int index) =>
+        index < this.Parameters.Count
+            ? this.Parameters[index]
+            : (index - this.Parameters.Count) switch
+                {
+                    0 => this.Body,
+                    1 => this.ReturnType,
+                    _ => null
+                };
 }

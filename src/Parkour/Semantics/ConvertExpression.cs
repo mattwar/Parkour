@@ -29,5 +29,15 @@ public sealed class ConvertExpression : Expression
         this.ConvertedType = convertedType;
         this.ConversionSymbol = conversionSymbol;
     }
+
+    public override int ChildCount => 2;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.Expression,
+            1 => this.ConvertedType,
+            _ => null
+        };
 }
 

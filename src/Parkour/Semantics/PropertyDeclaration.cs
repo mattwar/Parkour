@@ -39,4 +39,16 @@ public sealed class PropertyDeclaration : MemberDeclaration
         this.SetMethod = setMethod;
         this.PropertySymbol = propertySymbol;
     }
+
+    public override int ChildCount => 4;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.PropertyType,
+            1 => this.GetMethod,
+            2 => this.SetMethod,
+            3 => this.BackingField,
+            _ => null
+        };
 }

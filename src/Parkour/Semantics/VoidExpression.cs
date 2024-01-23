@@ -14,7 +14,9 @@ public sealed class VoidExpression : Expression
     }
 
     public override Symbol? ReferencedSymbol => SpecialSymbols.Void;
-
     public static VoidExpression Default = new VoidExpression(null);
+
+    public override int ChildCount => 0;
+    public override SemanticElement? GetChild(int index) => null;
 }
 

@@ -324,4 +324,9 @@ public class SymbolCache
     /// </summary>
     public virtual Symbol GetGroup(params Symbol[] symbols) =>
         GetGroup((IEnumerable<Symbol>)symbols);
+
+    public TypeSymbol Construct(TypeSymbol typeDefinition, ImmutableList<TypeSymbol> typeArguments)
+    {
+        throw new NotImplementedException();
+    }
 }

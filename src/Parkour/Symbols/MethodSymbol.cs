@@ -9,10 +9,21 @@ public class MethodSymbol : MemberSymbol
     public override SymbolAccess Access { get; }
     public override SymbolModifier Modifiers { get; }
 
-    private Func<ImmutableList<TypeSymbol>>? _fnTypeParameters;
-    private ImmutableList<TypeSymbol>? _typeParameters;
+    private Func<ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
+    private ImmutableList<TypeParameterSymbol>? _typeParameters;
+    private Func<ImmutableList<TypeSymbol>>? _fnTypeArguments;
+    private ImmutableList<TypeSymbol>? _typeArguments;
+    private Func<MethodSymbol>? _fnDefinition;
+    private MethodSymbol? _definition;
+    private Func<MethodSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
+    private ImmutableList<ParameterSymbol>? _parameters;
+    private Func<TypeSymbol>? _fnReturnType;
+    private TypeSymbol? _returnType;
 
-    public ImmutableList<TypeSymbol> TypeParameters
+    /// <summary>
+    /// <see cref="TypeParameters"/> for generic method definitions.
+    /// </summary>
+    public ImmutableList<TypeParameterSymbol> TypeParameters
     {
         get
         {
@@ -23,35 +34,64 @@ public class MethodSymbol : MemberSymbol
                 Interlocked.CompareExchange(ref _typeParameters, tmp, null);
             }
 
-            return _typeParameters ?? ImmutableList<TypeSymbol>.Empty;
+            return _typeParameters ?? ImmutableList<TypeParameterSymbol>.Empty;
         }
     }
 
-    private Func<MethodSymbol>? _fnGenericDefinition;
-    private MethodSymbol? _genericDefinition;
+    /// <summary>
+    /// Type arguments for constructed generic methods
+    /// </summary>
+    public ImmutableList<TypeSymbol> TypeArguments
+    {
+        get
+        {
+            if (_typeArguments == null && _fnTypeArguments is { } fn)
+            {
+                _fnTypeArguments = null;
+                var tmp = fn();
+                Interlocked.CompareExchange(ref _typeArguments, tmp, null);
+            }
 
-    public MethodSymbol? GenericDefinition 
+            return _typeArguments ?? ImmutableList<TypeSymbol>.Empty;
+        }
+    }
+
+    /// <summary>
+    /// The generic definition for this constructed method.
+    /// </summary>
+    public MethodSymbol? Definition 
     { 
         get
         {
-            if (_genericDefinition == null && _fnGenericDefinition is { } fn)
+            if (_definition == null && _fnDefinition is { } fn)
             {
-                _fnGenericDefinition = null;
+                _fnDefinition = null;
                 var tmp = fn();
-                Interlocked.CompareExchange(ref _genericDefinition, tmp, null);
+                Interlocked.CompareExchange(ref _definition, tmp, null);
             }
 
-            return _genericDefinition;
+            return _definition;
         }
     }
 
-    public bool IsGeneric => this.TypeParameters.Count > 0;
-    public bool IsDefinition => this.GenericDefinition != null;
-    public bool IsConcrete => this.IsGeneric && !IsDefinition;
+    /// <summary>
+    /// True if the method is generic (definition or constructed)
+    /// </summary>
+    public bool IsGeneric => IsDefinition || IsConstructed;
 
-    private Func<MethodSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
-    private ImmutableList<ParameterSymbol>? _parameters;
+    /// <summary>
+    /// True if the method is a generic method definition.
+    /// </summary>
+    public bool IsDefinition => this.TypeParameters.Count > 0;
 
+    /// <summary>
+    /// True if the method is a constructed generic method.
+    /// </summary>
+    public bool IsConstructed => this.TypeArguments.Count > 0;
+
+    /// <summary>
+    /// The parameters of this method.
+    /// </summary>
     public ImmutableList<ParameterSymbol> Parameters
     {
         get
@@ -67,9 +107,9 @@ public class MethodSymbol : MemberSymbol
         }
     }
 
-    private Func<TypeSymbol>? _fnReturnType;
-    private TypeSymbol? _returnType;
-
+    /// <summary>
+    /// The return type of this method.
+    /// </summary>
     public TypeSymbol ReturnType
     {
         get
@@ -92,7 +132,8 @@ public class MethodSymbol : MemberSymbol
         MemberSymbol? declaringSymbol, 
         SymbolAccess access, 
         SymbolModifier modifiers, 
-        Func<ImmutableList<TypeSymbol>>? fnTypeParameters,
+        Func<ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
+        Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<MethodSymbol, ImmutableList<ParameterSymbol>>? fnParameters, 
         Func<TypeSymbol>? fnReturnType, 
         Func<MethodSymbol>? fnGenericDefinition,
@@ -103,9 +144,10 @@ public class MethodSymbol : MemberSymbol
         Access = access;
         Modifiers = modifiers;
         _fnTypeParameters = fnTypeParameters;
+        _fnTypeArguments = fnTypeArguments;
         _fnParameters = fnParameters;
         _fnReturnType = fnReturnType;
-        _fnGenericDefinition = fnGenericDefinition;
+        _fnDefinition = fnGenericDefinition;
         RuntimeMethod = runtimeMethod;
     }
 
@@ -114,7 +156,8 @@ public class MethodSymbol : MemberSymbol
         MemberSymbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifier,
-        ImmutableList<TypeSymbol> typeParameters,
+        ImmutableList<TypeParameterSymbol> typeParameters,
+        ImmutableList<TypeSymbol> typeArguments,
         ImmutableList<ParameterSymbol> parameters,
         TypeSymbol returnType,
         MethodSymbol? genericDefinition,
@@ -125,10 +168,19 @@ public class MethodSymbol : MemberSymbol
               access, 
               modifier, 
               () => typeParameters, 
+              () => typeArguments,
               me => parameters, 
               () => returnType, 
               genericDefinition != null ? () => genericDefinition : null,
               runtimeMethod)
     {
     }
+
+    public override int DeclarationCount =>
+        this.TypeParameters.Count + this.Parameters.Count;
+
+    public override Symbol? GetDeclaration(int index) =>
+        index < this.TypeParameters.Count
+            ? this.TypeParameters[index]
+            : this.Parameters[index = this.TypeParameters.Count];
 }

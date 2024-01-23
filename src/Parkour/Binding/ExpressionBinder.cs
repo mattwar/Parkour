@@ -755,7 +755,7 @@ public class ExpressionBinder
         var types = _typeListPool.AllocateFromPool();
         try
         {
-            FunctionSymbol? lambdaSymbol = lambda.LambdaSymbol;
+            LambdaSymbol? lambdaSymbol = lambda.LambdaSymbol;
             LabelSymbol? returnTarget = lambda.ReturnTarget 
                 ?? new LabelSymbol(LabelSymbol.ReturnLabelName, _symbols.Any);
             ImmutableList<ParameterDeclaration> parameters = lambda.Parameters;
@@ -794,7 +794,7 @@ public class ExpressionBinder
             void BindLambdaSymbol(BindingContext context)
             {
                 // bind and evalute new function symbol at the same time
-                lambdaSymbol = new FunctionSymbol(
+                lambdaSymbol = new LambdaSymbol(
                     lambda.Name,
                     me =>
                     {
@@ -1073,7 +1073,7 @@ public class ExpressionBinder
             ParameterSymbol p => p.ParameterType,
             FieldSymbol f => f.FieldType,
             PropertySymbol p => p.PropertyType,
-            FunctionSymbol f => f,
+            LambdaSymbol f => f,
             GroupSymbol g => g,
             MethodSymbol => _symbols.Void,
             TypeSymbol => _symbols.Type,
@@ -1149,12 +1149,12 @@ public class ExpressionBinder
     }
 
     protected virtual bool IsCallableSymbol(Symbol symbol) =>
-        symbol is FunctionSymbol or MethodSymbol or ConstructorSymbol;
+        symbol is LambdaSymbol or MethodSymbol or ConstructorSymbol;
 
     protected virtual TypeSymbol? GetCalledSymbolReturnType(Symbol symbol) =>
         symbol switch
         {
-            FunctionSymbol f => f.ReturnType,
+            LambdaSymbol f => f.ReturnType,
             MethodSymbol m => m.ReturnType,
             ConstructorSymbol c => c.ReturnType,
             _ => null
@@ -1180,7 +1180,7 @@ public class ExpressionBinder
     protected virtual ImmutableList<ParameterSymbol> GetCallableSymbolParameters(Symbol callableSymbol) =>
         callableSymbol switch
         {
-            FunctionSymbol function => function.Parameters,
+            LambdaSymbol function => function.Parameters,
             MethodSymbol method => method.Parameters,
             ConstructorSymbol constructor => constructor.Parameters,
             _ => ImmutableList<ParameterSymbol>.Empty
@@ -1411,7 +1411,7 @@ public class ExpressionBinder
     protected virtual bool IsMatchingConversionOperator(Symbol symbol, ConversionKind kind, TypeSymbol source, TypeSymbol target) =>
         symbol switch
         {
-            FunctionSymbol function =>
+            LambdaSymbol function =>
                 function.ReturnType == target
                 && function.Parameters.Count == 1
                 && HasConversion(ConversionKind.Widening, source, function.Parameters[0].ParameterType),

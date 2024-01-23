@@ -1,11 +1,10 @@
 ﻿using System.Reflection;
 
 namespace Parkour.Symbols;
-using Binding;
 
-public class FunctionSymbol : TypeSymbol
+public class LambdaSymbol : TypeSymbol
 {
-    private Func<FunctionSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
+    private Func<LambdaSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
     private ImmutableList<ParameterSymbol>? _parameters;
 
     public ImmutableList<ParameterSymbol> Parameters
@@ -43,9 +42,9 @@ public class FunctionSymbol : TypeSymbol
 
     public MethodBase? RuntimeMethod { get; }
 
-    public FunctionSymbol(
+    public LambdaSymbol(
         string name, 
-        Func<FunctionSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
+        Func<LambdaSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
         Func<TypeSymbol> fnReturnType, 
         MethodBase? runtimeMethod)
         : base(name)
@@ -54,4 +53,10 @@ public class FunctionSymbol : TypeSymbol
         _fnReturnType = fnReturnType;
         RuntimeMethod = runtimeMethod;
     }
+
+    public override int DeclarationCount =>
+        this.Parameters.Count;
+
+    public override Symbol? GetDeclaration(int index) =>
+        this.Parameters[index];
 }

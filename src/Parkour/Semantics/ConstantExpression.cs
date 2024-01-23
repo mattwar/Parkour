@@ -1,6 +1,5 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public sealed class ConstantExpression : Expression
 {
@@ -19,5 +18,8 @@ public sealed class ConstantExpression : Expression
     {
         this.Value = value;
     }
+
+    public override int ChildCount => 0;
+    public override SemanticElement? GetChild(int index) => null;
 }
 

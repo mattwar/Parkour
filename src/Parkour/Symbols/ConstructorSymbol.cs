@@ -43,4 +43,10 @@ public class ConstructorSymbol : MemberSymbol
         _fnParameters = fnParameters;
         RuntimeMethod = runtimeMethod;
     }
+
+    public override int DeclarationCount =>
+        this.Parameters.Count;
+
+    public override Symbol? GetDeclaration(int index) =>
+        this.Parameters[index];
 }

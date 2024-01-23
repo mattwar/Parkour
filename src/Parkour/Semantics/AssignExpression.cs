@@ -1,5 +1,4 @@
 ﻿namespace Parkour.Semantics;
-using Syntax;
 
 public sealed class AssignExpression : Expression
 {
@@ -20,4 +19,14 @@ public sealed class AssignExpression : Expression
         this.Target = target;
         this.Source = source;
     }
+
+    public override int ChildCount => 2;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.Target,
+            1 => this.Source,
+            _ => null
+        };
 }

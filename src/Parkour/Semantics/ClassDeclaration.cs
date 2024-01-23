@@ -1,6 +1,5 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public sealed class ClassDeclaration : MemberDeclaration
 {
@@ -30,5 +29,13 @@ public sealed class ClassDeclaration : MemberDeclaration
         this.Declarations = declarations ?? ImmutableList<Declaration>.Empty;
         this.ClassSymbol = classSymbol;
     }
+
+    public override int ChildCount => 
+        this.BaseTypes.Count + this.Declarations.Count;
+
+    public override SemanticElement? GetChild(int index) =>
+        index < this.BaseTypes.Count
+            ? this.BaseTypes[index]
+            : this.Declarations[index - this.BaseTypes.Count];
 }
 

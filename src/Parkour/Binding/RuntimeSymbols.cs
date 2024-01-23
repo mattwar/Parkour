@@ -71,7 +71,7 @@ public class RuntimeSymbols
             .ToList();
 
         var symbolsInNamespace = typesInNamespace
-            .Select(t => CreateSymbol(t, declaringNamespace) is Symbol s ? s : null)
+            .Select(t => GetOrCreateSymbol(t, declaringNamespace) is Symbol s ? s : null)
             .OfType<Symbol>()
             .ToList();
 
@@ -108,24 +108,14 @@ public class RuntimeSymbols
         return fullName.Substring(start);
     }
 
-    private readonly ConditionalWeakTable<object, Symbol> _symbolMap =
-        new ConditionalWeakTable<object, Symbol>();
+    private readonly Dictionary<Type, Dictionary<object, Symbol>> _symbolMap =
+        new Dictionary<Type, Dictionary<object, Symbol>>();
 
-    private Symbol GetOrCreateSymbol(object runtimeSymbol, MemberSymbol? container)
+    private Symbol? GetOrCreateSymbol(object runtimeSymbol, MemberSymbol? container)
     {
-        return GetSymbol(runtimeSymbol)
-            ?? CreateSymbol(runtimeSymbol, container)
-            ?? SpecialSymbols.Unknown;
-    }
+        if (GetSymbol(runtimeSymbol) is Symbol sym)
+            return sym;
 
-    private Symbol? GetSymbol(object runtimeSymbol)
-    {
-        _symbolMap.TryGetValue(runtimeSymbol, out var symbol);
-        return symbol;
-    }
-
-    private Symbol? CreateSymbol(object runtimeSymbol, MemberSymbol? container)
-    {
         Symbol? symbol = null;
 
         if (container == null)
@@ -165,28 +155,60 @@ public class RuntimeSymbols
                     GetModifiers(property),
                     () => GetType(property.PropertyType),
                     fnBackingField: null,
-                    me => (MethodSymbol)CreateSymbol(property.GetGetMethod()!, me)!,
-                    property.GetSetMethod() != null
-                        ? me => (MethodSymbol)CreateSymbol(property.GetSetMethod()!, me)!
+                    property.GetGetMethod() is MethodInfo gmi
+                        ? me => (MethodSymbol)GetOrCreateSymbol(gmi, me)!
+                        : null,
+                    property.GetSetMethod() is MethodInfo smi
+                        ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
                         : null,
                     property);
                 break;
 
             case MethodInfo method:
-                symbol = new MethodSymbol(
-                    method.Name,
-                    container,
-                    GetAccess(method),
-                    GetModifiers(method),
-                    () => GetTypes(method.GetGenericArguments()),
-                    me => CreateParameters(me, method),
-                    () => GetType(method.ReturnType),
-                    method.IsConstructedGenericMethod 
-                        ? () => (MethodSymbol)CreateSymbol(
-                            method.GetGenericMethodDefinition(), 
-                            GetType(method.GetGenericMethodDefinition().DeclaringType!))!
-                        : null,
-                    method);
+                if (method.IsConstructedGenericMethod)
+                {
+                    symbol = new MethodSymbol(
+                        method.Name,
+                        container,
+                        GetAccess(method),
+                        GetModifiers(method),
+                        () => ImmutableList<TypeParameterSymbol>.Empty,
+                        () => GetTypes(method.GetGenericArguments()),
+                        me => CreateParameters(me, method),
+                        () => GetType(method.ReturnType),
+                        () => (MethodSymbol)GetOrCreateSymbol(
+                            method.GetGenericMethodDefinition(),
+                            null)!,
+                        method);
+                }
+                else if (method.IsGenericMethodDefinition)
+                {
+                    symbol = new MethodSymbol(
+                        method.Name,
+                        container,
+                        GetAccess(method),
+                        GetModifiers(method),
+                        () => GetTypes(method.GetGenericArguments()).OfType<TypeParameterSymbol>().ToImmutableList(),
+                        () => ImmutableList<TypeSymbol>.Empty,
+                        me => CreateParameters(me, method),
+                        () => GetType(method.ReturnType),
+                        null,
+                        method);
+                }
+                else
+                {
+                    symbol = new MethodSymbol(
+                        method.Name,
+                        container,
+                        GetAccess(method),
+                        GetModifiers(method),
+                        () => ImmutableList<TypeParameterSymbol>.Empty,
+                        () => ImmutableList<TypeSymbol>.Empty,
+                        me => CreateParameters(me, method),
+                        () => GetType(method.ReturnType),
+                        null,
+                        method);
+                }
                 break;
 
             case ConstructorInfo constructor:
@@ -208,21 +230,7 @@ public class RuntimeSymbols
 
             case Type type:
                 var name = type.Name;
-                if (type.IsConstructedGenericType)
-                {
-                    var typeDef = GetType(type.GetGenericTypeDefinition());
-                    symbol = new TypeSymbol(
-                        type.Name,
-                        container,
-                        GetAccess(type),
-                        GetModifiers(type),
-                        () => GetTypes(type.GenericTypeArguments),
-                        () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
-                        _type => CreateMembers(type, (MemberSymbol)_type),
-                        typeDef,
-                        type);
-                }
-                else if (type.IsArray)
+                if (type.IsArray)
                 {
                     var elementType = GetType(type.GetElementType()!);
                     symbol = new ArraySymbol(elementType);
@@ -231,6 +239,35 @@ public class RuntimeSymbols
                 {
                     symbol = new TypeParameterSymbol(type.Name, type);
                 }
+                else if (type.IsConstructedGenericType)
+                {
+                    var typeDef = GetType(type.GetGenericTypeDefinition());
+                    symbol = new TypeSymbol(
+                        type.Name,
+                        container,
+                        GetAccess(type),
+                        GetModifiers(type),
+                        () => ImmutableList<TypeParameterSymbol>.Empty,
+                        () => GetTypes(type.GenericTypeArguments),
+                        () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
+                        _type => CreateMembers(type, (MemberSymbol)_type),
+                        typeDef,
+                        type);
+                }
+                else if (type.IsTypeDefinition)
+                {
+                    symbol = new TypeSymbol(
+                        type.Name,
+                        container,
+                        GetAccess(type),
+                        GetModifiers(type),
+                        () => GetTypes(type.GenericTypeArguments).OfType<TypeParameterSymbol>().ToImmutableList(),
+                        () => ImmutableList<TypeSymbol>.Empty,
+                        () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
+                        me => CreateMembers(type, me),
+                        null,
+                        type);
+                }
                 else
                 {
                     symbol = new TypeSymbol(
@@ -238,7 +275,8 @@ public class RuntimeSymbols
                         container,
                         GetAccess(type),
                         GetModifiers(type),
-                        () => GetTypes(type.GenericTypeArguments),
+                        () => ImmutableList<TypeParameterSymbol>.Empty,
+                        () => ImmutableList<TypeSymbol>.Empty,
                         () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
                         me => CreateMembers(type, me),
                         null,
@@ -247,27 +285,55 @@ public class RuntimeSymbols
                 break;
         }
 
+
         if (symbol != null)
-            return _symbolMap.GetValue(runtimeSymbol, _ => symbol);
+        {
+            SetSymbol(runtimeSymbol, symbol);
+        }
+
+        return symbol;
+    }
+
+    private Symbol? GetSymbol(object runtimeSymbol)
+    {
+        var type = runtimeSymbol.GetType();
+        if (_symbolMap.TryGetValue(type, out var rsToSymbolMap)
+            && rsToSymbolMap.TryGetValue(runtimeSymbol, out var symbol))
+        {
+            return symbol;
+        }
 
         return null;
     }
 
+    private void SetSymbol(object runtimeSymbol, Symbol symbol)
+    {
+        var type = runtimeSymbol.GetType();
+        if (!_symbolMap.TryGetValue(type, out var rsToSymbolMap))
+        {
+            rsToSymbolMap = new Dictionary<object, Symbol>();
+            _symbolMap[type] = rsToSymbolMap;
+        }
+
+        rsToSymbolMap.Add(runtimeSymbol, symbol);
+    }
+
     private ImmutableList<Symbol> CreateMembers(Type runtimeType, MemberSymbol? container) =>
         runtimeType.GetMembers(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly)
-            .Select(m => CreateSymbol(m, container) is Symbol s ? s : null)
+            .Select(m => GetOrCreateSymbol(m, container) is Symbol s ? s : null)
             .Where(s => s != null)
             .ToImmutableList()!;
 
     private ImmutableList<ParameterSymbol> CreateParameters(MemberSymbol? declaringSymbol, MethodBase method) =>
-        method.GetParameters().Select(p => (ParameterSymbol)CreateSymbol(p, declaringSymbol)!).ToImmutableList();
+        method.GetParameters().Select(p => (ParameterSymbol)GetOrCreateSymbol(p, declaringSymbol)!).ToImmutableList();
 
     private ImmutableList<TypeSymbol> GetBaseTypes(Type? baseType, Type[] interfaces)
     {
         if (baseType != null)
         {
             if (interfaces == null || interfaces.Length == 0)
-                return ImmutableList.Create(GetType(baseType));
+                return [GetType(baseType)];
+
             return GetTypes(new[] { baseType }.Concat(interfaces));
         }
         else if (interfaces.Length > 0)
@@ -342,23 +408,19 @@ public class RuntimeSymbols
         if (FindSymbol(type) is TypeSymbol found)
             return found;
 
-        return (TypeSymbol)GetOrCreateSymbol(type, null);
+        return (TypeSymbol)GetOrCreateSymbol(type, null)!;
     }
 
     private Symbol? FindSymbol(object runtimeSymbol)
     {
         if (runtimeSymbol is Type type && type.FullName != null)
         {
-            var foundType = _globalNamespace.GetFirstSymbolFromPath<TypeSymbol>(type.FullName);
-            if (foundType != null)
-                return _symbolMap.GetValue(runtimeSymbol, _ => foundType);
+            return _globalNamespace.GetFirstSymbolFromPath<TypeSymbol>(type.FullName);
         }
         else if (runtimeSymbol is MemberInfo member && member.DeclaringType != null)
         {
             var dottedName = member.DeclaringType.FullName + "." + member.Name;
-            var foundMember = _globalNamespace.GetFirstSymbolFromPath(dottedName);
-            if (foundMember != null)
-                return _symbolMap.GetValue(runtimeSymbol, _ => foundMember);
+            return _globalNamespace.GetFirstSymbolFromPath(dottedName);
         }
 
         return null;

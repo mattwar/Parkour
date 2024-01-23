@@ -2,7 +2,6 @@
 
 public abstract class MemberSymbol : Symbol
 {
-    public abstract MemberSymbol? Container { get; }
     public virtual SymbolAccess Access => SymbolAccess.Public;
     public virtual SymbolModifier Modifiers => SymbolModifier.None;
 
@@ -13,6 +12,7 @@ public abstract class MemberSymbol : Symbol
     {
     }
 
+    public abstract MemberSymbol? Container { get; }
     public string Namespace => this.Container != null ? this.Container.Namespace : "";
 
     private string? _fullName;

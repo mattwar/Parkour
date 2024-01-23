@@ -32,16 +32,13 @@ namespace Tests
         [TestMethod]
         public void TestRuntimeSymbolsWalk()
         {
-            // attempt to iterate though all symbols reachable from global namespace
+            // attempt to iterate though all declared symbols reachable from global namespace
             var ns = RuntimeSymbols.GetOrCreateGlobalNamespace();
             EnumerateMembers(ns);
 
             void EnumerateMembers(Symbol symbol)
             {
-                foreach (var member in symbol.Members)
-                {
-                    EnumerateMembers(member);
-                }
+                symbol.Walk(null);
             }
         }
     }

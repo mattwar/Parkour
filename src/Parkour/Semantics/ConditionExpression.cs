@@ -28,5 +28,16 @@ public sealed class ConditionExpression : Expression
         this.WhenTrue = whenTrue;
         this.WhenFalse = whenFalse;
     }
+
+    public override int ChildCount => 3;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.Test,
+            1 => this.WhenTrue,
+            2 => this.WhenFalse,
+            _ => null
+        };
 }
 

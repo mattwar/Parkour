@@ -27,5 +27,14 @@ public sealed class LoopExpression : Expression
         this.BreakTarget = breakTarget;
         this.ContinueTarget = continueTarget;
     }
+
+    public override int ChildCount => 1;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.Body,
+            _ => null
+        };
 }
 

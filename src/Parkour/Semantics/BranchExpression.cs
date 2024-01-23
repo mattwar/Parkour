@@ -27,6 +27,15 @@ public sealed class BranchExpression : Expression
         this.Expression = expression;
     }
 
+    public override int ChildCount => 1;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.Expression,
+            _ => null
+        };
+
     public bool IsBreak => this.LabelName == LabelSymbol.BreakLabelName;
     public bool IsContinue => this.LabelName == LabelSymbol.ContinueLabelName;
     public bool IsReturn => this.LabelName == LabelSymbol.ReturnLabelName;

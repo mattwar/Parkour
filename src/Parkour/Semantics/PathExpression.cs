@@ -21,5 +21,15 @@ public sealed class PathExpression : Expression
         this.Expression = expression;
         this.Reference = reference;
     }
+
+    public override int ChildCount => 2;
+
+    public override SemanticElement? GetChild(int index) =>
+        index switch
+        {
+            0 => this.Expression,
+            1 => this.Reference,
+            _ => null
+        };
 }
 

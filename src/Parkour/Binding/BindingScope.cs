@@ -41,10 +41,13 @@ public record struct BindingScope(ImmutableList<Symbol> Containers, ImmutableLis
         // look at container members
         foreach (var container in this.Containers)
         {
-            foreach (var members in container.Members)
+            if (container is NamespaceOrTypeSymbol nsOrType)
             {
-                if (members is TSymbol tsymbol && fnMatch(tsymbol))
-                    list.Add(tsymbol);
+                foreach (var members in nsOrType.Members)
+                {
+                    if (members is TSymbol tsymbol && fnMatch(tsymbol))
+                        list.Add(tsymbol);
+                }
             }
         }
 
@@ -65,10 +68,13 @@ public record struct BindingScope(ImmutableList<Symbol> Containers, ImmutableLis
     {
         foreach (var container in this.Containers)
         {
-            foreach (var member in container.Members)
+            if (container is NamespaceOrTypeSymbol nsOrType)
             {
-                if (member is TSymbol tsymbol && fnMatch(tsymbol))
-                    return tsymbol;
+                foreach (var member in nsOrType.Members)
+                {
+                    if (member is TSymbol tsymbol && fnMatch(tsymbol))
+                        return tsymbol;
+                }
             }
         }
 

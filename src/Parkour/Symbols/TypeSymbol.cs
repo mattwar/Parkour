@@ -1,16 +1,25 @@
 ﻿namespace Parkour.Symbols;
 
-public class TypeSymbol : MemberSymbol
+public class TypeSymbol : NamespaceOrTypeSymbol
 {
     public override SymbolAccess Access { get; }
     public override SymbolModifier Modifiers { get; }
     public override MemberSymbol? Container { get; }
     public TypeSymbol? DeclaringType => Container as TypeSymbol;
 
-    private Func<ImmutableList<TypeSymbol>>? _fnTypeParameters;
-    private ImmutableList<TypeSymbol>? _typeParameters;
+    private Func<ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
+    private ImmutableList<TypeParameterSymbol>? _typeParameters;
+    private Func<ImmutableList<TypeSymbol>>? _fnTypeArguments;
+    private ImmutableList<TypeSymbol>? _typeArguments;
+    private Func<ImmutableList<TypeSymbol>>? _fnBaseTypes;
+    private ImmutableList<TypeSymbol>? _baseTypes;
+    private Func<TypeSymbol, ImmutableList<Symbol>>? _fnMembers;
+    private ImmutableList<Symbol>? _members;
 
-    public ImmutableList<TypeSymbol> TypeParameters
+    /// <summary>
+    /// The type parameters for this generic type definition.
+    /// </summary>
+    public ImmutableList<TypeParameterSymbol> TypeParameters
     {
         get
         {
@@ -21,19 +30,51 @@ public class TypeSymbol : MemberSymbol
                 Interlocked.CompareExchange(ref _typeParameters, tmp, null);
             }
 
-            return _typeParameters ?? ImmutableList<TypeSymbol>.Empty;
+            return _typeParameters ?? ImmutableList<TypeParameterSymbol>.Empty;
         }
     }
 
-    public bool IsDefinition => this.GenericDefinition != null;
-    public bool IsGeneric => this.TypeParameters.Count > 0;
-    public bool IsConcrete => this.IsGeneric && !IsDefinition;
+    /// <summary>
+    /// The type arguments for this constructed generic type.
+    /// </summary>
+    public ImmutableList<TypeSymbol> TypeArguments
+    {
+        get
+        {
+            if (_typeArguments == null && _fnTypeArguments is { } fn)
+            {
+                _fnTypeArguments = null;
+                var tmp = fn();
+                Interlocked.CompareExchange(ref _typeArguments, tmp, null);
+            }
 
-    public TypeSymbol? GenericDefinition { get; }
+            return _typeArguments ?? ImmutableList<TypeSymbol>.Empty;
+        }
+    }
 
-    private Func<ImmutableList<TypeSymbol>>? _fnBaseTypes;
-    private ImmutableList<TypeSymbol>? _baseTypes;
+    /// <summary>
+    /// True if this type is a generic type definition or a constructed generic type.
+    /// </summary>
+    public bool IsGeneric => IsDefinition || IsConstructed;
 
+    /// <summary>
+    /// True if this type is a generic type definition.
+    /// </summary>
+    public bool IsDefinition => this.TypeParameters.Count > 0;
+
+    /// <summary>
+    /// True if this type is a constructed generic type.
+    /// </summary>
+    public bool IsConstructed => this.TypeArguments.Count > 0;
+
+    /// <summary>
+    /// The generic type definition of this constructed generic type.
+    /// </summary>
+    public TypeSymbol? Definition { get; }
+
+    /// <summary>
+    /// The base type and interfaces of this type.
+    /// </summary>
     public ImmutableList<TypeSymbol> BaseTypes
     {
         get
@@ -49,9 +90,9 @@ public class TypeSymbol : MemberSymbol
         }
     }
 
-    private Func<TypeSymbol, ImmutableList<Symbol>>? _fnMembers;
-    private ImmutableList<Symbol>? _members;
-
+    /// <summary>
+    /// The members of this type.
+    /// </summary>
     public override ImmutableList<Symbol> Members
     {
         get
@@ -74,7 +115,8 @@ public class TypeSymbol : MemberSymbol
         MemberSymbol? container,
         SymbolAccess access,
         SymbolModifier modifiers,
-        Func<ImmutableList<TypeSymbol>>? fnTypeParameters,
+        Func<ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
+        Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         TypeSymbol? genericDefinition,
@@ -84,10 +126,11 @@ public class TypeSymbol : MemberSymbol
         Container = container;
         Access = access;
         Modifiers = modifiers;
+        _fnTypeParameters = fnTypeParameters;
+        _fnTypeArguments = fnTypeArguments;
         _fnBaseTypes = fnBaseTypes;
         _fnMembers = fnMembers;
-        _fnTypeParameters = fnTypeParameters;
-        this.GenericDefinition = genericDefinition;
+        this.Definition = genericDefinition;
         this.RuntimeType = runtimeType;
     }
 
@@ -96,7 +139,8 @@ public class TypeSymbol : MemberSymbol
         MemberSymbol? container,
         SymbolAccess access,
         SymbolModifier modifiers,
-        ImmutableList<TypeSymbol> typeParameters,
+        ImmutableList<TypeParameterSymbol> typeParameters,
+        ImmutableList<TypeSymbol> typeArguments,
         ImmutableList<TypeSymbol> baseTypes,
         ImmutableList<Symbol> members,
         TypeSymbol? genericDefinition,
@@ -107,6 +151,7 @@ public class TypeSymbol : MemberSymbol
               access,
               modifiers,
               () => typeParameters,
+              () => typeArguments,
               () => baseTypes,
               me => members,
               genericDefinition,
@@ -120,6 +165,7 @@ public class TypeSymbol : MemberSymbol
             container: null, 
             SymbolAccess.Public, 
             SymbolModifier.None,
+            ImmutableList<TypeParameterSymbol>.Empty,
             ImmutableList<TypeSymbol>.Empty,
             ImmutableList<TypeSymbol>.Empty,
             ImmutableList<Symbol>.Empty,
@@ -134,4 +180,12 @@ public class TypeSymbol : MemberSymbol
             runtimeType)
     {
     }
+
+    public override int DeclarationCount =>
+        this.TypeArguments.Count + this.Members.Count;
+
+    public override Symbol? GetDeclaration(int index) =>
+        index < this.TypeArguments.Count
+            ? this.TypeArguments[index]
+            : this.Members[index - this.TypeArguments.Count];
 }

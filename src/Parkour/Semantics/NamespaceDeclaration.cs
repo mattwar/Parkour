@@ -25,4 +25,10 @@ public class NamespaceDeclaration : MemberDeclaration
         this.Declarations = declarations;
         this.NamespaceSymbol = namespaceSymbol;
     }
+
+    public override int ChildCount =>
+        this.Declarations.Count;
+
+    public override SemanticElement? GetChild(int index) =>
+        this.Declarations[index];
 }

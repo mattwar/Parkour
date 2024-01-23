@@ -22,5 +22,8 @@ public sealed class ReferenceExpression : Expression
         this.Name = name;
         this.ReferencedSymbol = referencedSymbol;
     }
+
+    public override int ChildCount => 0;
+    public override SemanticElement? GetChild(int index) => null;
 }
 

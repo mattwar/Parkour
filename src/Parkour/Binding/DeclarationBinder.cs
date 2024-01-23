@@ -208,6 +208,7 @@ public class DeclarationBinder
                     cd.Access,
                     cd.Modifiers,
                     fnTypeParameters: null,
+                    fnTypeArguments: null,
                     () => cd.BaseTypes.Select(bt => GetType(bt)).ToImmutableList()!,
                     me => cd.Declarations.Select(d => CreateSymbol(me, d, scope)).Where(s => s != null).ToImmutableList()!,
                     genericDefinition: null,
@@ -221,6 +222,7 @@ public class DeclarationBinder
                     md.Access,
                     md.Modifiers,
                     fnTypeParameters: null,
+                    fnTypeArguments: null,
                     me =>
                     {
                         return md.Parameters

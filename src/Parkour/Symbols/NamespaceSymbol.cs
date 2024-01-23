@@ -1,7 +1,7 @@
 ﻿namespace Parkour.Symbols;
 using Utils;
 
-public class NamespaceSymbol : MemberSymbol
+public class NamespaceSymbol : NamespaceOrTypeSymbol
 {
     public NamespaceSymbol? DeclaringNamespace { get; }
     public override MemberSymbol? Container => DeclaringNamespace;
@@ -33,6 +33,10 @@ public class NamespaceSymbol : MemberSymbol
         DeclaringNamespace = declaringNamespace;
         _fnMembers = fnMembers;
     }
+
+    public override int DeclarationCount => this.Members.Count;
+    public override Symbol? GetDeclaration(int index) => this.Members[index];
+
 
     private Dictionary<TextKey, ImmutableList<Symbol>>? _keyMap;
 
@@ -136,8 +140,10 @@ public class NamespaceSymbol : MemberSymbol
         {
             foreach (var container in containers)
             {
+                if (container is NamespaceOrTypeSymbol nsOrType)
+
                 // find all items with matching name from all containers
-                container.GetMembers(dottedName, start, length, result);
+                nsOrType.GetMembers(dottedName, start, length, result);
             }
         }
     }

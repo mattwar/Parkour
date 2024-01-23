@@ -19,6 +19,16 @@ public class RunTests
     }
 
     [TestMethod]
+    public void TestAssign()
+    {
+        TestRun(
+            Block(
+                Variable(Type(_symbols.Int32), "x"),
+                Assign(Name("x"), Constant(2))),
+            2);
+    }
+
+    [TestMethod]
     public void TestBlock()
     {
         TestRun(Block(Constant(1)), 1);
@@ -77,6 +87,41 @@ public class RunTests
     public void TestDefault()
     {
         TestRun(Default(Type(_symbols.Int32)), 0);
+    }
+
+    [TestMethod]
+    public void TestLambda()
+    {
+        // test w/o parameter
+        TestRun(
+            Lambda(Constant(1)),
+            1);
+
+        // test w/ parameter
+        TestRun(
+            Lambda(
+                [Parameter("x", Type(_symbols.Int32))], 
+                Name("x")),
+            [2],
+            2);
+
+        // test w/ 2 parameters
+        TestRun(
+            Lambda(
+                [
+                    Parameter("x", Type(_symbols.Int32)), 
+                    Parameter("y", Type(_symbols.Int32))
+                ],
+                Add(Name("x"), Name("y"))),
+            [2, 3],
+            5);
+
+        // invoke lambda
+        TestRun(
+            Call(
+                Lambda([Parameter("x", Type(_symbols.Int32))], Name("x")),
+                [Constant(2)]),
+            2);
     }
 
     [TestMethod]

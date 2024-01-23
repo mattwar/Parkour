@@ -7,7 +7,7 @@ public sealed class LambdaExpression : Expression
     public string Name { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
-    public FunctionSymbol? LambdaSymbol { get; }
+    public LambdaSymbol? LambdaSymbol { get; }
     public TypeSymbol? ReturnType { get; }
     public LabelSymbol? ReturnTarget { get; }
 
@@ -17,7 +17,7 @@ public sealed class LambdaExpression : Expression
         Expression body,
         ISourceLocation? location,
         TypeSymbol? returnType,
-        FunctionSymbol? lambdaSymbol,
+        LambdaSymbol? lambdaSymbol,
         LabelSymbol? returnTarget,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
@@ -37,5 +37,13 @@ public sealed class LambdaExpression : Expression
         this.ReturnType = returnType;
         this.ReturnTarget = returnTarget;
     }
+
+    public override int ChildCount =>
+        this.Parameters.Count + 1;
+
+    public override SemanticElement? GetChild(int index) =>
+        index < this.Parameters.Count
+            ? this.Parameters[index]
+            : this.Body;
 }
 
