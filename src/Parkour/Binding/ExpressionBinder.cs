@@ -142,11 +142,14 @@ public class ExpressionBinder
             case MemberExpression member:
                 return BindMember(member, context);
 
+            case NameReferenceExpression nameRef:
+                return BindNameReference(nameRef, context);
+
             case OperatorExpression opex:
                 return BindOperator(opex, context);
 
-            case ReferenceExpression reference:
-                return BindReference(reference, context);
+            case SymbolReferenceExpression reference:
+                return BindTypeReference(reference, context);
 
             case VariableExpression variable:
                 return BindVariable(variable, context);
@@ -1246,29 +1249,13 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual Expression BindReference(ReferenceExpression reference, BindingContext context)
-    {
-        Symbol? symbol = null;
-
-        context = context.WithInflowType(_symbols.Void);
-
-        if (NamespaceSymbol.IsDottedPath(reference.Name))
-        {
-            symbol = _symbols.GetSymbol<Symbol>(reference.Name);
-        }
-        else
-        {
-            symbol = context.Scope.FindSymbol<Symbol>(s => s.Name == reference.Name);
-        }
-
-        return UpdateReference(reference, symbol);
-    }
-
-    protected virtual ReferenceExpression UpdateReference(ReferenceExpression reference, Symbol? referencedSymbol)
+    protected virtual Expression BindNameReference(NameReferenceExpression reference, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
+            var referencedSymbol = context.Scope.FindSymbol<Symbol>(s => s.Name == reference.Name);
+
             if (referencedSymbol != null && referencedSymbol == reference.ReferencedSymbol)
                 return reference;
 
@@ -1277,10 +1264,10 @@ public class ExpressionBinder
 
             var resultType = GetReferenceResultType(referencedSymbol) ?? _symbols.Object;
 
-            return new ReferenceExpression(
-                reference.Name, 
+            return new NameReferenceExpression(
+                reference.Name,
                 reference.Location,
-                referencedSymbol, 
+                referencedSymbol,
                 resultType,
                 diagnostics.ToImmutableList());
         }
@@ -1288,11 +1275,38 @@ public class ExpressionBinder
         {
             _diagnosticListPool.ReturnToPool(diagnostics);
         }
+    }
 
+    protected virtual Expression BindTypeReference(SymbolReferenceExpression reference, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var referencedSymbol = _symbols.GetSymbol<Symbol>(reference.FullName);
+
+            if (referencedSymbol != null && referencedSymbol == reference.ReferencedSymbol)
+                return reference;
+
+            if (referencedSymbol == null)
+                diagnostics.Add(BindingDiagnostics.UnknownName(reference.FullName).WithLocation(reference.Location));
+
+            var resultType = GetReferenceResultType(referencedSymbol) ?? _symbols.Object;
+
+            return new SymbolReferenceExpression(
+                reference.FullName,
+                reference.Location,
+                referencedSymbol,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
 
     /// <summary>
-    /// Determines the result type of a <see cref="ReferenceExpression"/> given the referenced symbol.
+    /// Determines the result type of a referenced <see cref="Symbol"/>.
     /// </summary>
     protected virtual TypeSymbol? GetReferenceResultType(Symbol? referencedSymbol) =>
         referencedSymbol switch

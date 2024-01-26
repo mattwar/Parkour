@@ -33,7 +33,7 @@ public class ExpressionTests
     {
         TestBinding(
             Block(
-                Variable(Type(_symbols.Int32), "x"),
+                Variable(Symbol(_symbols.Int32), "x"),
                 Assign(Name("x"), Constant(1))),
             _symbols.Int32
             );
@@ -83,7 +83,7 @@ public class ExpressionTests
                     Constant(true),
                     Branch("label", Constant(1))),
                 Constant(2),
-                Label("label", Type(_symbols.Int32))
+                Label("label", Symbol(_symbols.Int32))
                 ));
 
         // branch with expression & label with convertable type
@@ -93,7 +93,7 @@ public class ExpressionTests
                     Constant(true),
                     Branch("label", Constant(1))),
                 Constant(2),
-                Label("label", Type(_symbols.Int64))
+                Label("label", Symbol(_symbols.Int64))
                 ));
 
         // branch with expression & label with non-convertable type
@@ -103,7 +103,7 @@ public class ExpressionTests
                     Constant(true),
                     Branch("label", Constant(1))),
                 Constant(2),
-                Label("label", Type(_symbols.String))
+                Label("label", Symbol(_symbols.String))
                 ),
                 containsDiagnostics: true);
 
@@ -187,7 +187,7 @@ public class ExpressionTests
         Assert.IsNotNull(listInt32);
 
         TestBinding(
-            Construct(Type(listT), [Type(_symbols.Int32)]),
+            Construct(Symbol(listT), [Symbol(_symbols.Int32)]),
             expectedReferencedSymbol: listInt32
             );
     }
@@ -197,7 +197,7 @@ public class ExpressionTests
     {
         // default w/ type expression
         TestBinding(
-            Default(Type(_symbols.Int32)),
+            Default(Symbol(_symbols.Int32)),
             _symbols.Int32);
 
         // default w/o type expression
@@ -207,7 +207,7 @@ public class ExpressionTests
 
         // default w/o type but with target type
         TestBinding(
-            Variable(Type(_symbols.Int32), "x", Default()),
+            Variable(Symbol(_symbols.Int32), "x", Default()),
             _symbols.Int32);
     }
 
@@ -235,7 +235,7 @@ public class ExpressionTests
         TestBinding(
             Block(
                 Constant(1),
-                Label("x", Type(_symbols.Int32))
+                Label("x", Symbol(_symbols.Int32))
                 ),
             expectedResultType: _symbols.Int32);
 
@@ -243,13 +243,13 @@ public class ExpressionTests
         TestBinding(
             Block(
                 Constant(1),
-                Label("x", Type(_symbols.Int64))
+                Label("x", Symbol(_symbols.Int64))
                 ),
             expectedResultType: _symbols.Int64);
 
         // cannot flow void into label expecting type
         TestBinding(
-            Label("x", Type(_symbols.Int32)),
+            Label("x", Symbol(_symbols.Int32)),
             expectedResultType: _symbols.Int32,
             containsDiagnostics: true);
 
@@ -257,7 +257,7 @@ public class ExpressionTests
         TestBinding(
             Block(
                 Constant("one"),
-                Label("x", Type(_symbols.Int32))
+                Label("x", Symbol(_symbols.Int32))
                 ),
             expectedResultType: _symbols.Int32,
             containsDiagnostics: true);
@@ -286,14 +286,14 @@ public class ExpressionTests
         // lambda with parameter
         TestBinding(
             Lambda(
-                [Parameter("x", Type(_symbols.String))],
+                [Parameter("x", Symbol(_symbols.String))],
                 Name("x")));
 
         // call lambda with parameter
         TestBinding(
             Call(
                 Lambda(
-                    [Parameter("x", Type(_symbols.String))],
+                    [Parameter("x", Symbol(_symbols.String))],
                     Name("x")),
                 Constant("string")),
             _symbols.String);
@@ -472,6 +472,34 @@ public class ExpressionTests
     }
 
     [TestMethod]
+    public void TestMember()
+    {
+        TestBinding(Symbol(_symbols.Int32).Member("MaxValue"), _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestNameReference()
+    {
+        // refer to a variable in scope
+        TestBinding(
+            Block(
+                Variable("x", Constant(1)),
+                Name("x")),
+            expectedResultType: _symbols.Int32);
+
+        // refer to a namespace name in scope
+        TestBinding(
+            Name("System"),
+            expectedResultType: _symbols.Namespace,
+            expectedReferencedSymbol: _symbols.System);
+
+        // refer to a parameter in scope
+        TestBinding(
+            Lambda([Parameter("x", Symbol(_symbols.Int32))], Name("x"))
+            );
+    }
+
+    [TestMethod]
     public void TestOperators()
     {
         // Int32
@@ -506,32 +534,21 @@ public class ExpressionTests
     }
 
     [TestMethod]
-    public void TestPath()
-    {
-        TestBinding(Type(_symbols.Int32).Member("MaxValue"), _symbols.Int32);
-    }
-
-    [TestMethod]
-    public void TestNameReference()
+    public void TestSymbolReference()
     {
         TestBinding(
-            Name("Int32"), 
-            _symbols.Type, 
-            _symbols.Int32);
-
-        TestBinding(
-            Name("System"),
-            _symbols.Namespace,
-            _symbols.System);
-    }
-
-    [TestMethod]
-    public void TestTypeReference()
-    {
-        TestBinding(
-            Type(_symbols.Int32), 
+            Symbol("System.Int32"), 
             expectedResultType: _symbols.Type, 
             expectedReferencedSymbol: _symbols.Int32);
+
+        TestBinding(
+            Symbol("System"),
+            expectedResultType: _symbols.Namespace,
+            expectedReferencedSymbol: _symbols.System);
+
+        TestBinding(
+            Symbol("System.Collections.Generic"),
+            expectedResultType: _symbols.Namespace);
     }
 
     [TestMethod]
@@ -544,22 +561,22 @@ public class ExpressionTests
 
         // declare with type but no initializer
         TestBinding(
-            Variable(Type(_symbols.Int32), "x"),
+            Variable(Symbol(_symbols.Int32), "x"),
             _symbols.Int32);
 
         // declare with type and initializer
         TestBinding(
-            Variable(Type(_symbols.Int32), "x", Constant(1)),
+            Variable(Symbol(_symbols.Int32), "x", Constant(1)),
             _symbols.Int32);
 
         // declare with type and initializer with convertable types
         TestBinding(
-            Variable(Type(_symbols.Int64), "x", Constant(1)),
+            Variable(Symbol(_symbols.Int64), "x", Constant(1)),
             _symbols.Int64);
 
         // declare with type and initializer with non-convertable types
         TestBinding(
-            Variable(Type(_symbols.Int64), "x", Constant("one")),
+            Variable(Symbol(_symbols.Int64), "x", Constant("one")),
             _symbols.Int64,
             containsDiagnostics: true);
 

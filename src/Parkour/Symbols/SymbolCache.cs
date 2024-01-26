@@ -375,20 +375,6 @@ public class SymbolCache
         }
     }
 
-    /// <summary>
-    /// Substitute any matching <see cref="TypeParameterSymbol"/> referenced by the symbol
-    /// with the corresponding <see cref="TypeSymbol"/>.
-    /// </summary>
-    public TSymbol Substitute<TSymbol>(
-        TSymbol symbol, 
-        ImmutableList<TypeParameterSymbol> typeParameters, 
-        ImmutableList<TypeSymbol> typeArguments)
-        where TSymbol : Symbol
-    {
-        var context = new SubContext(typeParameters, typeArguments);
-        return context.Substitute(symbol);
-    }
-
     private class SubContext : SubstitutionContext
     {
         private readonly ImmutableList<TypeParameterSymbol> _typeParameters;

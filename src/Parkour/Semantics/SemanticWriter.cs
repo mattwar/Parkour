@@ -101,6 +101,15 @@ public class SemanticWriter
     {
         switch (semantic)
         {
+            case ArityExpression arity:
+                Write(arity.Expression);
+                Write("<");
+                for (int i = 0; i < arity.Arity - 1; i++)
+                    Write(",");
+                Write(">");
+                Write(arity.Arity.ToString());
+                break;
+
             case BlockExpression block:
                 WriteLine();
                 WriteLine("{");
@@ -144,26 +153,7 @@ public class SemanticWriter
                 break;
 
             case CallExpression call:
-                if (call.CalledSymbol is LambdaSymbol fn)
-                {
-                    if (call.Expression is MemberExpression path)
-                    {
-                        Write(path.Expression);
-                        Write(".");
-                    }
-                    else if (call.Expression is ReferenceExpression rex)
-                    {
-                        Write(call.CalledSymbol.Name);
-                    }
-                    else
-                    {
-                        Write(call.Expression);
-                    }
-                }
-                else
-                {
-                    Write(call.Expression);
-                }
+                Write(call.Expression);
                 Write("(");
                 for (int i = 0; i < call.Arguments.Count; i++)
                 {
@@ -193,6 +183,18 @@ public class SemanticWriter
                 });
                 break;
 
+            case ConstructExpression construct:
+                Write(construct.Expression);
+                Write("<");
+                for (int i = 0; i < construct.TypeArguments.Count; i++)
+                {
+                    if (i > 0)
+                        Write(", ");
+                    Write(construct.TypeArguments[i]);
+                }
+                Write(">");
+                break;
+
             case ConvertExpression convert:
                 Write("Convert(");
                 Write(convert.Expression);
@@ -209,20 +211,45 @@ public class SemanticWriter
                 Write(")");
                 break;
 
-            case LambdaExpression function:
-                if (function.Body is BlockExpression)
+            case LabelExpression label:
+                Write(label.Name);
+                Write(":");
+                break;
+
+            case LambdaExpression lambda:
+                if (lambda.Body is BlockExpression)
                     Write("function ");
                 Write("(");
-                for (int i = 0; i < function.Parameters.Count; i++)
+                for (int i = 0; i < lambda.Parameters.Count; i++)
                 {
                     if (i > 0)
                         Write(", ");
-                    Write(function.Parameters[i].Name);
+                    Write(lambda.Parameters[i].Name);
                 }
                 Write(")");
-                if (function.Body is not BlockExpression)
+                if (lambda.Body is not BlockExpression)
                     Write(" => ");
-                Write(function.Body);
+                Write(lambda.Body);
+                break;
+
+            case LoopExpression loop:
+                Write("loop");
+                WriteLine();
+                WriteBlockOrIndented(loop.Body);
+                break;
+
+            case MemberExpression member:
+                Write(member.Expression);
+                Write(".");
+                Write(member.Name);
+                break;
+
+            case NameReferenceExpression nameRef:
+                Write(nameRef.Name);
+                break;
+
+            case SymbolReferenceExpression symbolRef:
+                Write(symbolRef.FullName);
                 break;
 
             case VariableExpression declaration:
@@ -240,21 +267,6 @@ public class SemanticWriter
                 }
                 break;
 
-            case MemberExpression member:
-                Write(member.Expression);
-                Write(".");
-                Write(member.Name);
-                break;
-
-            case ReferenceExpression rex:
-                Write(rex.Name);
-                break;
-
-            case LoopExpression loop:
-                Write("loop");
-                WriteLine();
-                WriteBlockOrIndented(loop.Body);
-                break;
 
             case NamespaceDeclaration nd:
                 Write("namespace ");

@@ -202,26 +202,20 @@ public static class SemanticFactory
     /// <summary>
     /// References a named symbol in scope.
     /// </summary>
-    public static ReferenceExpression Reference(string name, ISourceLocation? location = null) =>
-        new ReferenceExpression(name, location, null, null, null);
+    public static NameReferenceExpression Name(string name, ISourceLocation? location = null) =>
+        new NameReferenceExpression(name, location, null, null, null);
 
     /// <summary>
-    /// References a named symbol in scope.
+    /// Reference a declared symbol.
     /// </summary>
-    public static ReferenceExpression Name(string name, ISourceLocation? location = null) =>
-        Reference(name, location);
+    public static SymbolReferenceExpression Symbol(MemberSymbol symbol, ISourceLocation? location = null) =>
+        Symbol(symbol.FullName, location);
 
     /// <summary>
-    /// Reference a type.
+    /// Reference a declared symbol by its full name; ignores scoping rules.
     /// </summary>
-    public static ReferenceExpression Type(TypeSymbol symbol, ISourceLocation? location = null) =>
-        Reference(symbol.FullName, location);
-
-    /// <summary>
-    /// Reference a type by name
-    /// </summary>
-    public static ReferenceExpression Type(string name, ISourceLocation? location = null) =>
-        Reference(name, location);
+    public static SymbolReferenceExpression Symbol(string fullName, ISourceLocation? location = null) =>
+        new SymbolReferenceExpression(fullName, location, null, null, null);
 
     /// <summary>
     /// Return from a method or lambda.

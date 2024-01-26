@@ -61,8 +61,10 @@ public sealed class ExpressionTranslator
                 return TranslateLoop(loop);
             case MemberExpression path:
                 return TranslateMember(path);
-            case ReferenceExpression rex:
-                return TranslateReference(rex);
+            case NameReferenceExpression nameRef:
+                return TranslateNameReference(nameRef);
+            case SymbolReferenceExpression symbolRef:
+                return TranslateSymbolReference(symbolRef);
             case VariableExpression variable:
                 return TranslateVariable(variable);
             case VoidExpression @void:
@@ -430,7 +432,12 @@ public sealed class ExpressionTranslator
         }
     }
 
-    private L.Expression TranslateReference(ReferenceExpression rex)
+    private L.Expression TranslateNameReference(NameReferenceExpression rex)
+    {
+        return TranslateReferencedSymbol(rex.ReferencedSymbol);
+    }
+
+    private L.Expression TranslateSymbolReference(SymbolReferenceExpression rex)
     {
         return TranslateReferencedSymbol(rex.ReferencedSymbol);
     }

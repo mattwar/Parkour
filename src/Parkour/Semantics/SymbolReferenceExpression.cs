@@ -1,13 +1,16 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
-public sealed class ReferenceExpression : Expression
+/// <summary>
+/// References a symbol by its full name, regardless of scoping.
+/// </summary>
+public sealed class SymbolReferenceExpression : Expression
 {
-    public string Name { get; }
+    public string FullName { get; }
     public override Symbol? ReferencedSymbol { get; }
 
-    public ReferenceExpression(
-        string name,
+    public SymbolReferenceExpression(
+        string fullName,
         ISourceLocation? location,
         Symbol? referencedSymbol,
         TypeSymbol? resultType,
@@ -19,11 +22,10 @@ public sealed class ReferenceExpression : Expression
             resultType,
             diagnostics)
     {
-        this.Name = name;
+        this.FullName = fullName;
         this.ReferencedSymbol = referencedSymbol;
     }
 
     public override int ChildCount => 0;
     public override SemanticElement? GetChild(int index) => null;
 }
-

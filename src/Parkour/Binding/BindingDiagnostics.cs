@@ -6,6 +6,9 @@ internal static class BindingDiagnostics
     public static Diagnostic UnknownName(string name) =>
         new Diagnostic($"The name '{name}' does not match anything in this context.");
 
+    public static Diagnostic UnknownSymbol(string name) =>
+        new Diagnostic($"The name '{name}' does not match known symbol.");
+
     public static Diagnostic UnknownOperator(string kind) =>
         new Diagnostic($"The name '{kind}' does not match a known operator.");
 

@@ -67,16 +67,5 @@ namespace Tests
             Assert.IsNotNull(listInt32);
             listInt32.WalkDeclarations(null);
         }
-
-        [TestMethod]
-        public void TestSubstitute()
-        {
-            var symbols = RuntimeSymbols.GetOrCreateCache();
-            var listT = (TypeSymbol?)symbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
-            Assert.IsNotNull(listT);
-            var listInt32 = symbols.Substitute(listT, listT.TypeParameters, [symbols.Int32]);
-            Assert.IsNotNull(listInt32);
-            var members = listInt32.Members;
-        }
     }
 }

@@ -55,32 +55,3 @@ public abstract class Symbol
     internal protected virtual Symbol Substitute(SubstitutionContext context)
         => this;
 }
-
-public abstract class ConstructionContext
-{
-    /// <summary>
-    /// The type arguments to construct with.
-    /// </summary>
-    public abstract ImmutableList<TypeSymbol> TypeArguments { get; }
-
-    /// <summary>
-    /// Create a subsitutation context to be used by the new symbol 
-    /// to substitute references from the type parameters to the new type arguments.
-    /// </summary>
-    public abstract SubstitutionContext CreateSubstitution(ImmutableList<TypeParameterSymbol> typeParameters);
-}
-
-public abstract class SubstitutionContext
-{
-    /// <summary>
-    /// Substitute this symbol or make substitutions in symbols referenced by this symbol.
-    /// </summary>
-    public abstract TSymbol Substitute<TSymbol>(TSymbol symbol)
-        where TSymbol : Symbol;
-
-    /// <summary>
-    /// Substitute these symbols or make substitutions in symbols referenced by them.
-    /// </summary>
-    public abstract ImmutableList<TSymbol> Substitute<TSymbol>(ImmutableList<TSymbol> symbols)
-        where TSymbol : Symbol;
-}

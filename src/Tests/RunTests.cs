@@ -24,7 +24,7 @@ public class RunTests
     {
         TestRun(
             Block(
-                Variable(Type(_symbols.Int32), "x"),
+                Variable(Symbol(_symbols.Int32), "x"),
                 Assign(Name("x"), Constant(2))),
             2);
     }
@@ -58,7 +58,7 @@ public class RunTests
         TestRun(
             Block(
                 Goto("x", Constant(1)),
-                Label("x", Type(_symbols.Int32))),
+                Label("x", Symbol(_symbols.Int32))),
             1);
     }
 
@@ -88,14 +88,14 @@ public class RunTests
     public void TestConstructType()
     {
         TestRun(
-            Type("System.Collections.Generic.List`1").Construct([Type(_symbols.Int32)]),
+            Symbol("System.Collections.Generic.List`1").Construct([Symbol(_symbols.Int32)]),
             typeof(List<int>));
     }
 
     [TestMethod]
     public void TestDefault()
     {
-        TestRun(Default(Type(_symbols.Int32)), 0);
+        TestRun(Default(Symbol(_symbols.Int32)), 0);
     }
 
     [TestMethod]
@@ -109,7 +109,7 @@ public class RunTests
         // test w/ parameter
         TestRun(
             Lambda(
-                [Parameter("x", Type(_symbols.Int32))], 
+                [Parameter("x", Symbol(_symbols.Int32))], 
                 Name("x")),
             [2],
             2);
@@ -118,8 +118,8 @@ public class RunTests
         TestRun(
             Lambda(
                 [
-                    Parameter("x", Type(_symbols.Int32)), 
-                    Parameter("y", Type(_symbols.Int32))
+                    Parameter("x", Symbol(_symbols.Int32)), 
+                    Parameter("y", Symbol(_symbols.Int32))
                 ],
                 Add(Name("x"), Name("y"))),
             [2, 3],
@@ -128,7 +128,7 @@ public class RunTests
         // invoke lambda
         TestRun(
             Call(
-                Lambda([Parameter("x", Type(_symbols.Int32))], Name("x")),
+                Lambda([Parameter("x", Symbol(_symbols.Int32))], Name("x")),
                 [Constant(2)]),
             2);
     }
@@ -189,21 +189,21 @@ public class RunTests
     public void TestParameters()
     {
         TestRun(
-            Lambda([Parameter("x", Type(_symbols.Int32))], Name("x")), 
+            Lambda([Parameter("x", Symbol(_symbols.Int32))], Name("x")), 
             [1], 
             1);
         
         TestRun(
-            Lambda([Parameter("x", Type(_symbols.Int32))], Add(Name("x"), Constant(1))), 
+            Lambda([Parameter("x", Symbol(_symbols.Int32))], Add(Name("x"), Constant(1))), 
             [2], 
             3);
     }
 
     [TestMethod]
-    public void TestPath()
+    public void TestMember()
     {
         TestRun(
-            Type(_symbols.Int32).Member("MaxValue"), 
+            Symbol(_symbols.Int32).Member("MaxValue"), 
             Int32.MaxValue);
     }
 
@@ -231,7 +231,7 @@ public class RunTests
         // variable without initializer and assignment
         TestRun(
             Block(
-                Variable(Type(_symbols.Int32), "x"),
+                Variable(Symbol(_symbols.Int32), "x"),
                 Assign(Name("x"), Constant(2))),
             2);
     }
