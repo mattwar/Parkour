@@ -1,9 +1,9 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public class MethodDeclaration : MemberDeclaration
 {
+    public ImmutableList<TypeParameterDeclaration> TypeParameters { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
     public Expression ReturnType { get; }
@@ -13,6 +13,7 @@ public class MethodDeclaration : MemberDeclaration
         string name, 
         SymbolAccess access, 
         SymbolModifier modifiers, 
+        ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<ParameterDeclaration> parameters, 
         Expression body, 
         Expression returnType,
@@ -20,7 +21,8 @@ public class MethodDeclaration : MemberDeclaration
         MethodSymbol? methodSymbol,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            CombineState(parameters) 
+            CombineState(typeParameters)
+            | CombineState(parameters) 
             | body.State
             | returnType.State
             | NotNullState(methodSymbol),
@@ -30,6 +32,7 @@ public class MethodDeclaration : MemberDeclaration
             location,
             diagnostics)
     {
+        this.TypeParameters = typeParameters;
         this.Parameters = parameters;
         this.Body = body;
         this.ReturnType = returnType;
@@ -37,15 +40,23 @@ public class MethodDeclaration : MemberDeclaration
     }
 
     public override int ChildCount =>
-        this.Parameters.Count + 2;
+        this.TypeParameters.Count 
+        + this.Parameters.Count 
+        + 2;
 
-    public override SemanticElement? GetChild(int index) =>
-        index < this.Parameters.Count
-            ? this.Parameters[index]
-            : (index - this.Parameters.Count) switch
-                {
-                    0 => this.Body,
-                    1 => this.ReturnType,
-                    _ => null
-                };
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index < this.TypeParameters.Count)
+            return this.TypeParameters[index];
+        index -= this.TypeParameters.Count;
+        if (index < this.Parameters.Count)
+            return this.Parameters[index];
+        index -= this.Parameters.Count;
+        return index switch
+        {
+            0 => this.Body,
+            1 => this.ReturnType,
+            _ => null
+        };
+    }
 }

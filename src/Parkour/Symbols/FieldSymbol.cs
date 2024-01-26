@@ -1,15 +1,9 @@
 ﻿using System.Reflection;
 
 namespace Parkour.Symbols;
-using Binding;
 
 public sealed class FieldSymbol : MemberSymbol
 {
-    public TypeSymbol? DeclaringType { get; }
-    public override MemberSymbol? Container => this.DeclaringType;
-    public override SymbolAccess Access { get; }
-    public override SymbolModifier Modifiers { get; }
-
     private Func<TypeSymbol>? _fnFieldType;
     private TypeSymbol? _fieldType;
 
@@ -28,32 +22,46 @@ public sealed class FieldSymbol : MemberSymbol
         }
     }
 
-    public FieldInfo? RuntimeField { get; }
+    public FieldInfo? RuntimeInfo { get; }
 
     public FieldSymbol(
         string name, 
-        TypeSymbol? declaringType, 
+        Symbol? declaringSymbol, 
         SymbolAccess access, 
         SymbolModifier modifiers, 
         Func<TypeSymbol> fnFieldType, 
-        FieldInfo? runtimeField)
-        : base(name)
+        FieldInfo? runtimeInfo)
+        : base(name, declaringSymbol, access, modifiers)
     {
-        DeclaringType = declaringType;
-        Access = access;
-        Modifiers = modifiers;
         _fnFieldType = fnFieldType;
-        RuntimeField = runtimeField;
+        RuntimeInfo = runtimeInfo;
     }
 
     public FieldSymbol(
         string name,
-        TypeSymbol? declaringType,
+        Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
         TypeSymbol fieldType,
-        FieldInfo? runtimeField)
-        : this(name, declaringType, access, modifiers, () => fieldType, runtimeField)
+        FieldInfo? runtimeInfo)
+        : this(
+            name, 
+            declaringSymbol, 
+            access, 
+            modifiers, 
+            () => fieldType, 
+            runtimeInfo)
     {
+    }
+
+    internal protected override FieldSymbol Substitute(SubstitutionContext context)
+    {
+        return new FieldSymbol(
+            this.Name,
+            this.DeclaringSymbol,
+            this.Access,
+            this.Modifiers,
+            () => context.Substitute(this.FieldType),
+            null);
     }
 }

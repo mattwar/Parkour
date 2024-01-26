@@ -14,7 +14,7 @@ public class ExpressionTests
 
     public ExpressionTests()
     {       
-        _symbols = RuntimeSymbols.GetOrCreateCommonSymbols();
+        _symbols = RuntimeSymbols.GetOrCreateCache();
         _defaultTestScope = CreateBindingScope(_symbols);
     }
 
@@ -134,7 +134,7 @@ public class ExpressionTests
     [TestMethod]
     public void TestCall()
     {
-        TestBinding(Call(Path(Constant(1), Name("ToString"))), _symbols.String);
+        TestBinding(Call(Constant(1).Member("ToString")), _symbols.String);
     }
 
     [TestMethod]
@@ -176,6 +176,20 @@ public class ExpressionTests
     public void TestConstant()
     {
         TestBinding(Constant(1), _symbols.Int32);
+    }
+
+    [TestMethod]
+    public void TestConstructType()
+    {
+        var listT = (TypeSymbol?)_symbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
+        Assert.IsNotNull(listT);
+        var listInt32 = _symbols.GetOrConstruct(listT, [_symbols.Int32]);
+        Assert.IsNotNull(listInt32);
+
+        TestBinding(
+            Construct(Type(listT), [Type(_symbols.Int32)]),
+            expectedReferencedSymbol: listInt32
+            );
     }
 
     [TestMethod]
@@ -494,7 +508,7 @@ public class ExpressionTests
     [TestMethod]
     public void TestPath()
     {
-        TestBinding(Path(Type(_symbols.Int32), Name("MaxValue")), _symbols.Int32);
+        TestBinding(Type(_symbols.Int32).Member("MaxValue"), _symbols.Int32);
     }
 
     [TestMethod]

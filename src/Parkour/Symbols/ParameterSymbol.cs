@@ -1,7 +1,7 @@
-﻿using System.Reflection;
+﻿using System.Collections.Immutable;
+using System.Reflection;
 
 namespace Parkour.Symbols;
-using Binding;
 
 public sealed class ParameterSymbol : Symbol
 {
@@ -50,5 +50,14 @@ public sealed class ParameterSymbol : Symbol
               () => parameterType,
               runtimeParameter)
     {
+    }
+
+    internal protected override Symbol Substitute(SubstitutionContext context)
+    {
+        return new ParameterSymbol(
+            this.Name,
+            this.DeclaringSymbol,
+            () => context.Substitute(this.ParameterType),
+            null);
     }
 }

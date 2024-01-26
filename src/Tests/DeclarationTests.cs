@@ -20,15 +20,27 @@ public class DeclarationTests
     public void TestBindClass()
     {
         TestBind(
-            [Class("C")],
+            [Class("C", [])],
             ["C"]);
+    }
+
+    [TestMethod]
+    public void TestBindClassWithTypeParameters()
+    {
+        TestBind(
+            [Class("C", 
+                [TypeParameter("T")],
+                [],
+                [])
+                ],
+            ["C`1"]);
     }
 
     [TestMethod]
     public void TestBindClassInNamespace()
     {
         TestBind(
-            [Namespace("N", Class("C"))],
+            [Namespace("N", [Class("C", [])])],
             ["N", "N.C"]);
     }
 

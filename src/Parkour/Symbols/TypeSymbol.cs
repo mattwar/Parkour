@@ -2,12 +2,7 @@
 
 public class TypeSymbol : NamespaceOrTypeSymbol
 {
-    public override SymbolAccess Access { get; }
-    public override SymbolModifier Modifiers { get; }
-    public override MemberSymbol? Container { get; }
-    public TypeSymbol? DeclaringType => Container as TypeSymbol;
-
-    private Func<ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
+    private Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
     private ImmutableList<TypeParameterSymbol>? _typeParameters;
     private Func<ImmutableList<TypeSymbol>>? _fnTypeArguments;
     private ImmutableList<TypeSymbol>? _typeArguments;
@@ -15,6 +10,74 @@ public class TypeSymbol : NamespaceOrTypeSymbol
     private ImmutableList<TypeSymbol>? _baseTypes;
     private Func<TypeSymbol, ImmutableList<Symbol>>? _fnMembers;
     private ImmutableList<Symbol>? _members;
+
+    public TypeSymbol(
+        string name,
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers,
+        Func<TypeSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters,
+        Func<ImmutableList<TypeSymbol>> fnTypeArguments,
+        Func<ImmutableList<TypeSymbol>> fnBaseTypes,
+        Func<TypeSymbol, ImmutableList<Symbol>> fnMembers,
+        TypeSymbol? constructedFrom,
+        Type? runtimeType)
+        : base(name, declaringSymbol, access, modifiers)
+    {
+        _fnTypeParameters = fnTypeParameters;
+        _fnTypeArguments = fnTypeArguments;
+        _fnBaseTypes = fnBaseTypes;
+        _fnMembers = fnMembers;
+        ConstructedFrom = constructedFrom;
+        RuntimeType = runtimeType;
+    }
+
+    public TypeSymbol(
+        string name,
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers,
+        ImmutableList<TypeParameterSymbol> typeParameters,
+        ImmutableList<TypeSymbol> typeArguments,
+        ImmutableList<TypeSymbol> baseTypes,
+        ImmutableList<Symbol> members,
+        TypeSymbol? constructedFrom,
+        Type? runtimeType)
+        : this(
+              name,
+              declaringSymbol,
+              access,
+              modifiers,
+              me => typeParameters,
+              () => typeArguments,
+              () => baseTypes,
+              me => members,
+              constructedFrom,
+              runtimeType)
+    {
+    }
+
+    public TypeSymbol(string name, Type? runtimeType = null)
+        : this(
+            name,
+            declaringSymbol: null,
+            SymbolAccess.Public,
+            SymbolModifier.None,
+            ImmutableList<TypeParameterSymbol>.Empty,
+            ImmutableList<TypeSymbol>.Empty,
+            ImmutableList<TypeSymbol>.Empty,
+            ImmutableList<Symbol>.Empty,
+            constructedFrom: null,
+            runtimeType)
+    {
+    }
+
+    public TypeSymbol(Type runtimeType)
+        : this(
+            runtimeType.Name,
+            runtimeType)
+    {
+    }
 
     /// <summary>
     /// The type parameters for this generic type definition.
@@ -26,7 +89,7 @@ public class TypeSymbol : NamespaceOrTypeSymbol
             if (_typeParameters == null && _fnTypeParameters is { } fn)
             {
                 _fnTypeParameters = null;
-                var tmp = fn();
+                var tmp = fn(this);
                 Interlocked.CompareExchange(ref _typeParameters, tmp, null);
             }
 
@@ -55,22 +118,26 @@ public class TypeSymbol : NamespaceOrTypeSymbol
     /// <summary>
     /// True if this type is a generic type definition or a constructed generic type.
     /// </summary>
-    public bool IsGeneric => IsDefinition || IsConstructed;
+    public bool IsGeneric => 
+        this.TypeParameters.Count > 0
+        || this.TypeArguments.Count > 0;
 
     /// <summary>
     /// True if this type is a generic type definition.
     /// </summary>
-    public bool IsDefinition => this.TypeParameters.Count > 0;
+    public bool IsDefinition => 
+        IsGeneric && this.TypeArguments.Count == 0;
 
     /// <summary>
     /// True if this type is a constructed generic type.
     /// </summary>
-    public bool IsConstructed => this.TypeArguments.Count > 0;
+    public bool IsConstructed => 
+        IsGeneric && this.TypeArguments.Count > 0;
 
     /// <summary>
-    /// The generic type definition of this constructed generic type.
+    /// The type this type is constructed from.
     /// </summary>
-    public TypeSymbol? Definition { get; }
+    public TypeSymbol? ConstructedFrom { get; }
 
     /// <summary>
     /// The base type and interfaces of this type.
@@ -110,82 +177,53 @@ public class TypeSymbol : NamespaceOrTypeSymbol
 
     public Type? RuntimeType { get; }
 
-    public TypeSymbol(
-        string name,
-        MemberSymbol? container,
-        SymbolAccess access,
-        SymbolModifier modifiers,
-        Func<ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
-        Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
-        Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
-        Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
-        TypeSymbol? genericDefinition,
-        Type? runtimeType)
-        : base(name)
-    {
-        Container = container;
-        Access = access;
-        Modifiers = modifiers;
-        _fnTypeParameters = fnTypeParameters;
-        _fnTypeArguments = fnTypeArguments;
-        _fnBaseTypes = fnBaseTypes;
-        _fnMembers = fnMembers;
-        this.Definition = genericDefinition;
-        this.RuntimeType = runtimeType;
-    }
-
-    public TypeSymbol(
-        string name,
-        MemberSymbol? container,
-        SymbolAccess access,
-        SymbolModifier modifiers,
-        ImmutableList<TypeParameterSymbol> typeParameters,
-        ImmutableList<TypeSymbol> typeArguments,
-        ImmutableList<TypeSymbol> baseTypes,
-        ImmutableList<Symbol> members,
-        TypeSymbol? genericDefinition,
-        Type? runtimeType)
-        : this(
-              name,
-              container,
-              access,
-              modifiers,
-              () => typeParameters,
-              () => typeArguments,
-              () => baseTypes,
-              me => members,
-              genericDefinition,
-              runtimeType)
-    {
-    }
-
-    public TypeSymbol(string name, Type? runtimeType = null)
-        : this(
-            name, 
-            container: null, 
-            SymbolAccess.Public, 
-            SymbolModifier.None,
-            ImmutableList<TypeParameterSymbol>.Empty,
-            ImmutableList<TypeSymbol>.Empty,
-            ImmutableList<TypeSymbol>.Empty,
-            ImmutableList<Symbol>.Empty,
-            genericDefinition: null,
-            runtimeType)
-    {
-    }
-
-    public TypeSymbol(Type runtimeType)
-        : this(
-            runtimeType.Name,
-            runtimeType)
-    {
-    }
+    public override int Arity =>
+        IsConstructed
+            ? this.TypeArguments.Count
+            : this.TypeParameters.Count;
 
     public override int DeclarationCount =>
-        this.TypeArguments.Count + this.Members.Count;
+        this.TypeParameters.Count + this.Members.Count;
 
     public override Symbol? GetDeclaration(int index) =>
-        index < this.TypeArguments.Count
-            ? this.TypeArguments[index]
-            : this.Members[index - this.TypeArguments.Count];
+        index < this.TypeParameters.Count
+            ? this.TypeParameters[index]
+            : this.Members[index - this.TypeParameters.Count];
+
+    public override bool IsConstructable =>
+        this.IsGeneric;
+        
+    internal protected override TypeSymbol Construct(ConstructionContext context)
+    {
+        var definition = this.ConstructedFrom ?? this;
+        var subContext = context.CreateSubstitution(definition.TypeParameters);
+
+        return new TypeSymbol(
+            this.Name,
+            this.DeclaringSymbol,
+            this.Access,
+            this.Modifiers,
+            me => ImmutableList<TypeParameterSymbol>.Empty,
+            () => context.TypeArguments,
+            () => subContext.Substitute(this.BaseTypes),
+            me => subContext.Substitute(this.Members),
+            definition,
+            null);
+    }
+
+    internal protected override TypeSymbol Substitute(SubstitutionContext context)
+    {
+        return new TypeSymbol(
+            this.Name,
+            this.DeclaringSymbol,
+            this.Access,
+            this.Modifiers,
+            me => this.TypeParameters,
+            () => context.Substitute(this.TypeArguments),
+            () => context.Substitute(this.BaseTypes),
+            me => context.Substitute(this.Members),
+            this.ConstructedFrom,
+            null
+            );
+    }
 }

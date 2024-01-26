@@ -121,6 +121,9 @@ public class ExpressionBinder
             case ConstantExpression constant:
                 return BindConstant(constant, context);
 
+            case ConstructExpression construct:
+                return BindConstruct(construct, context);
+
             case ConvertExpression convert:
                 return BindConvert(convert, context);
 
@@ -136,11 +139,11 @@ public class ExpressionBinder
             case LoopExpression loop:
                 return BindLoop(loop, context);
 
+            case MemberExpression member:
+                return BindMember(member, context);
+
             case OperatorExpression opex:
                 return BindOperator(opex, context);
-
-            case PathExpression path:
-                return BindPath(path, context);
 
             case ReferenceExpression reference:
                 return BindReference(reference, context);
@@ -163,6 +166,51 @@ public class ExpressionBinder
         if (expressions.Count == 0)
             return expressions;
         return expressions.Rewrite(e => (TExpression)BindExpression(e, context));
+    }
+
+    protected virtual Expression BindArity(ArityExpression arity, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var expression = BindExpression(arity.Expression, context);
+
+            Symbol? referencedSymbol = null;
+            if (expression.ReferencedSymbol is GroupSymbol group)
+            {
+                referencedSymbol = _symbols.GetGroup(group.Symbols.Where(s => s.Arity == arity.Arity));
+            }
+            else if (expression.ReferencedSymbol is Symbol symbol)
+            {
+                referencedSymbol = symbol.Arity == arity.Arity ? symbol : null;
+            }
+
+            if (referencedSymbol == null)
+            {
+                diagnostics.Add(BindingDiagnostics.NoReferencedSymbolsHaveMatchingArity().WithLocation(arity.Location));
+
+            }
+
+            var resultType = GetReferenceResultType(referencedSymbol);
+
+            if (expression == arity.Expression
+                && referencedSymbol == arity.ReferencedSymbol
+                && resultType == arity.ResultType
+                && diagnostics.Count == 0)
+                return arity;
+
+            return new ArityExpression(
+                expression,
+                arity.Arity,
+                arity.Location,
+                referencedSymbol,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
 
     protected virtual Expression BindAssign(AssignExpression assign, BindingContext context)
@@ -369,38 +417,31 @@ public class ExpressionBinder
             var expression = BindExpression(call.Expression, context);
             var arguments = BindExpressionList(call.Arguments, context);
 
-            var instance = expression;
-
-            if (expression is PathExpression path) // xxx.Method?
+            if (expression is LambdaExpression lambda)
             {
-                instance = path.Expression;
-                GetCalledSymbolCandidates(path.Expression, path.Reference.Name, arguments, candidates);
+                if (lambda.LambdaSymbol != null)
+                {
+                    candidates.Add(lambda.LambdaSymbol);
+                }
             }
-
-            if (candidates.Count == 0)
+            else
             {
-                if (expression.ReferencedSymbol is GroupSymbol refGroup
-                    && refGroup.Symbols.Any(IsCallableSymbol))
+                var instance = GetCallInstance(expression);
+                var referencedSymbol = expression.ReferencedSymbol;
+
+                if (referencedSymbol is GroupSymbol group)
                 {
-                    candidates.AddRange(refGroup.Symbols);
+                    GetCalledSymbolCandidates(group.Symbols, arguments, candidates);
                 }
-                else if (expression.ReferencedSymbol != null
-                    && IsCallableSymbol(expression.ReferencedSymbol))
+                else if (referencedSymbol != null
+                    && IsCallableSymbol(referencedSymbol))
                 {
-                    candidates.Add(expression.ReferencedSymbol);
-                }
-                else if (expression.ResultType is GroupSymbol group)
-                {
-                    candidates.AddRange(group.Symbols);
-                }
-                else
-                {
-                    candidates.Add(expression.ResultType);
+                    candidates.Add(referencedSymbol);
                 }
             }
 
+            var location = expression.Location;
             Symbol? calledSymbol = null;
-            var location = expression is PathExpression ep ? ep.Reference.Location : expression.Location;
 
             if (candidates.Count == 0)
             {
@@ -408,7 +449,7 @@ public class ExpressionBinder
             }
             else
             {
-                calledSymbol = GetBestCalledSymbol(instance, arguments, candidates);
+                calledSymbol = GetBestCalledSymbol(arguments, candidates);
 
                 if (calledSymbol == null || calledSymbol == _symbols.Unknown)
                 {
@@ -426,14 +467,16 @@ public class ExpressionBinder
                     {
                         diagnostics.Add(BindingDiagnostics.CallHasIncorrectNumberOfArguments(calledSymbol.Name).WithLocation(location));
                     }
-                    else 
+                    else
                     {
                         arguments = ConvertArguments(parameters, arguments, context);
                     }
                 }
             }
 
-            var resultType = calledSymbol != null ? GetCalledSymbolReturnType(calledSymbol) : null;
+            var resultType = calledSymbol != null 
+                ? GetCalledSymbolReturnType(calledSymbol) 
+                : null;
 
             if (expression == call.Expression
                 && arguments == call.Arguments
@@ -454,6 +497,90 @@ public class ExpressionBinder
             _symbolListPool.ReturnToPool(candidates);
             _diagnosticListPool.ReturnToPool(diagnostics);
         }
+    }
+
+    protected virtual Expression? GetCallInstance(Expression expression)
+    {
+        switch (expression)
+        {
+            case MemberExpression member:
+                return member.Expression;
+            case ArityExpression arity:
+                return null;
+            case ConstructExpression construct:
+                return GetCallInstance(construct);
+            default:
+                return expression;
+        }
+    }
+
+    protected virtual bool IsCallableSymbol(Symbol symbol) =>
+        symbol is LambdaSymbol or MethodSymbol or ConstructorSymbol;
+
+    protected virtual TypeSymbol? GetCalledSymbolReturnType(Symbol symbol) =>
+        symbol switch
+        {
+            LambdaSymbol f => f.ReturnType,
+            MethodSymbol m => m.ReturnType,
+            ConstructorSymbol c => c.ReturnType,
+            _ => null
+        };
+
+    /// <summary>
+    /// Gets the list of candidate symbols for a call with the supplied arguments
+    /// </summary>
+    protected virtual void GetCalledSymbolCandidates(
+        ImmutableList<Symbol> symbols,
+        ImmutableList<Expression> arguments,
+        List<Symbol> candidates)
+    {
+        candidates.AddRange(
+            symbols.Where(s => MatchesParameters(s, arguments)));
+    }
+
+    protected virtual Symbol? GetBestCalledSymbol(ImmutableList<Expression> arguments, List<Symbol> candidates)
+    {
+        // todo: be better
+        return candidates.FirstOrDefault(c => MatchesParameters(c, arguments));
+    }
+
+    /// <summary>
+    /// Get the <see cref="ParameterSymbol"/> declarations for the callable symbol
+    /// </summary>
+    protected virtual ImmutableList<ParameterSymbol> GetCallableSymbolParameters(Symbol callableSymbol) =>
+        callableSymbol switch
+        {
+            LambdaSymbol function => function.Parameters,
+            MethodSymbol method => method.Parameters,
+            ConstructorSymbol constructor => constructor.Parameters,
+            _ => ImmutableList<ParameterSymbol>.Empty
+        };
+
+    /// <summary>
+    /// Returns true if the callable symbol has parameters that are compatible with the arguments
+    /// </summary>
+    protected virtual bool MatchesParameters(Symbol callableSymbol, ImmutableList<Expression> arguments) =>
+        MatchesParameters(GetCallableSymbolParameters(callableSymbol), arguments);
+
+    protected virtual bool MatchesParameters(ImmutableList<ParameterSymbol> parameters, ImmutableList<Expression> arguments)
+    {
+        if (parameters.Count != arguments.Count)
+            return false;
+
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            if (!MatchesParameter(parameters[i], arguments[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    protected virtual bool MatchesParameter(ParameterSymbol parameter, Expression argument)
+    {
+        return parameter.ParameterType == _symbols.Any
+            || argument.ResultType == _symbols.Unknown
+            || parameter.ParameterType == argument.ResultType;
     }
 
     protected virtual ImmutableList<Expression> ConvertArguments(
@@ -614,6 +741,105 @@ public class ExpressionBinder
             constant.Location,
             resultType, 
             null);
+    }
+
+    protected virtual Expression BindConstruct(ConstructExpression construct, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var expression = BindExpression(construct.Expression, context);
+            var typeArguments = BindExpressionList(construct.TypeArguments, context);
+
+            Symbol? constructedSymbol = null;
+            if (expression.ReferencedSymbol is Symbol symbol)
+            {
+                var typeArgs = typeArguments
+                    .Select(ta => BindType(ta, context))
+                    .OfType<TypeSymbol>()
+                    .ToImmutableList();
+
+                constructedSymbol = ConstructSymbol(symbol, typeArgs, construct.Location, diagnostics);
+            }
+
+            var resultType = GetReferenceResultType(constructedSymbol);
+
+            if (expression == construct.Expression
+                && typeArguments == construct.TypeArguments
+                && constructedSymbol == construct.ConstructedSymbol
+                && resultType == construct.ResultType
+                && diagnostics.Count == 0)
+                return construct;
+
+            return new ConstructExpression(
+                expression,
+                typeArguments,
+                construct.Location,
+                constructedSymbol,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Makes a constructed symbol from a generic type definition
+    /// </summary>
+    protected virtual Symbol? ConstructSymbol(
+        Symbol symbol, 
+        ImmutableList<TypeSymbol> typeArguments, 
+        ISourceLocation? location = null, 
+        List<Diagnostic>? diagnostics = null)
+    {
+        if (symbol is GroupSymbol group)
+        {
+            var constructableSymbols = group.Symbols.Where(s => s.Arity == typeArguments.Count).ToList();
+            if (constructableSymbols.Count == 0)
+            {
+                if (diagnostics != null)
+                    diagnostics.Add(BindingDiagnostics.NoTypeOrMethodWithMatchingArityToConstruct().WithLocation(location));
+                return null;
+            }
+
+            var constructedSymbols = 
+                group.Symbols
+                .Select(s => ConstructSymbol(s, typeArguments))
+                .OfType<Symbol>()
+                .ToImmutableList();
+            
+            return _symbols.GetGroup(constructedSymbols);
+        }
+        else if (symbol is TypeSymbol type)
+        {
+            if (type.Arity != typeArguments.Count)
+            {
+                if (diagnostics != null)
+                    diagnostics.Add(BindingDiagnostics.TypeDoesNotHaveMatchingArity().WithLocation(location));
+                return null;
+            }
+
+            return _symbols.GetOrConstruct(type, typeArguments);
+        }
+        else if (symbol is MethodSymbol method)
+        {
+            if (method.Arity != typeArguments.Count)
+            {
+                if (diagnostics != null)
+                    diagnostics.Add(BindingDiagnostics.MethodDoesNotHaveMatchingArity().WithLocation(location));
+                return null;
+            }
+            return _symbols.GetOrConstruct(method, typeArguments);
+        }
+        else
+        {
+            if (diagnostics != null)
+                diagnostics.Add(BindingDiagnostics.NoTypeOrMethodWithMatchingArityToConstruct().WithLocation(location));
+        }
+
+        return null;
     }
 
     protected virtual Expression BindConvert(ConvertExpression convert, BindingContext context)
@@ -951,66 +1177,68 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual Expression BindPath(PathExpression path, BindingContext context)
+    protected virtual Expression BindMember(MemberExpression member, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
-        var members = _memberListPool.AllocateFromPool();
-
         try
         {
             context = context.WithInflowType(_symbols.Void);
 
-            var expression = BindExpression(path.Expression, context.WithTargetType(null));
+            var expression = BindExpression(member.Expression, context.WithTargetType(null));
 
             if (expression.ResultType is GroupSymbol)
-                diagnostics.Add(BindingDiagnostics.UnknownName(path.Reference.Name).WithLocation(path.Reference.Location));
+                diagnostics.Add(BindingDiagnostics.UnknownName(member.Name).WithLocation(member.Location));
 
-            var reference = BindPathReference(expression, path.Reference, context);
+            var referencedSymbol = GetReferencedMember(expression, member.Name, diagnostics);
 
-            if (path.Expression == expression
-                && path.Reference == reference)
-                return path;
+            var resultType = GetReferenceResultType(referencedSymbol);
 
-            return new PathExpression(
+            if (member.Expression == expression
+                && member.ReferencedSymbol == referencedSymbol
+                && member.ResultType == resultType
+                && diagnostics.Count == 0)
+                return member;
+
+            return new MemberExpression(
                 expression, 
-                reference,
-                path.Location,
+                member.Name,
+                member.Location,
+                referencedSymbol,
+                resultType,
                 diagnostics.ToImmutableList());
         }
         finally
         {
             _diagnosticListPool.ReturnToPool(diagnostics);
-            _memberListPool.ReturnToPool(members);
         }
     }
 
-    protected virtual ReferenceExpression BindPathReference(
-        Expression expression, ReferenceExpression reference, BindingContext context)
+    protected virtual Symbol? GetReferencedMember(
+        Expression expression, 
+        string name,
+        List<Diagnostic>? diagnositcs)
     {
         var members = _symbolListPool.AllocateFromPool();
-
         try
         {
             if (expression.ReferencedSymbol is TypeSymbol type)
             {
                 GetMatchingTypeMembers(
-                    type, 
-                    reference.Name, 
+                    type,
+                    name,
                     s => s is MemberSymbol m && m.IsStatic,
                     members);
+                return _symbols.GetGroup(members);
             }
             else
             {
                 GetMatchingTypeMembers(
-                    expression.ResultType, 
-                    reference.Name, 
+                    expression.ResultType,
+                    name,
                     s => s is MemberSymbol m && !m.IsStatic,
                     members);
+                return _symbols.GetGroup(members);
             }
-
-            Symbol? symbol = _symbols.GetGroup(members);
-
-            return UpdateReference(reference, symbol);
         }
         finally
         {
@@ -1148,70 +1376,6 @@ public class ExpressionBinder
         return vex;
     }
 
-    protected virtual bool IsCallableSymbol(Symbol symbol) =>
-        symbol is LambdaSymbol or MethodSymbol or ConstructorSymbol;
-
-    protected virtual TypeSymbol? GetCalledSymbolReturnType(Symbol symbol) =>
-        symbol switch
-        {
-            LambdaSymbol f => f.ReturnType,
-            MethodSymbol m => m.ReturnType,
-            ConstructorSymbol c => c.ReturnType,
-            _ => null
-        };
-
-    /// <summary>
-    /// Gets the list of candidate symbols for a call with the supplied arguments
-    /// </summary>
-    protected virtual void GetCalledSymbolCandidates(Expression instance, string name, ImmutableList<Expression> arguments, List<Symbol> candidates)
-    {
-        GetMatchingTypeMembers(instance.ResultType, name, s => MatchesParameters(s, arguments), candidates);
-    }
-
-    protected virtual Symbol? GetBestCalledSymbol(Expression instance, ImmutableList<Expression> arguments, List<Symbol> candidates)
-    {
-        // todo: be better
-        return candidates.FirstOrDefault(c => MatchesParameters(c, arguments));
-    }
-
-    /// <summary>
-    /// Get the <see cref="ParameterSymbol"/> declarations for the callable symbol
-    /// </summary>
-    protected virtual ImmutableList<ParameterSymbol> GetCallableSymbolParameters(Symbol callableSymbol) =>
-        callableSymbol switch
-        {
-            LambdaSymbol function => function.Parameters,
-            MethodSymbol method => method.Parameters,
-            ConstructorSymbol constructor => constructor.Parameters,
-            _ => ImmutableList<ParameterSymbol>.Empty
-        };
-
-    /// <summary>
-    /// Returns true if the callable symbol has parameters that are compatible with the arguments
-    /// </summary>
-    protected virtual bool MatchesParameters(Symbol callableSymbol, ImmutableList<Expression> arguments) =>
-        MatchesParameters(GetCallableSymbolParameters(callableSymbol), arguments);
-
-    protected virtual bool MatchesParameters(ImmutableList<ParameterSymbol> parameters, ImmutableList<Expression> arguments)
-    {
-        if (parameters.Count != arguments.Count)
-            return false;
-
-        for (int i = 0; i < parameters.Count; i++)
-        {
-            if (!MatchesParameter(parameters[i], arguments[i]))
-                return false;
-        }
-
-        return true;
-    }
-
-    protected virtual bool MatchesParameter(ParameterSymbol parameter, Expression argument)
-    {
-        return parameter.ParameterType == _symbols.Any
-            || argument.ResultType == _symbols.Unknown
-            || parameter.ParameterType == argument.ResultType;
-    }
 
     protected virtual Expression ConvertTo(Expression expression, TypeSymbol type, BindingContext context)
     {

@@ -5,6 +5,12 @@ using Symbols;
 public static class SemanticFactory
 {
     /// <summary>
+    /// Filter the referenced symbol(s) to only those with the specified arity.
+    /// </summary>
+    public static ArityExpression Arity(Expression expression, int arity, ISourceLocation? location = null) =>
+        new ArityExpression(expression, arity, location, null, null, null);
+
+    /// <summary>
     /// Assign a source value to a target location.
     /// </summary>
     public static AssignExpression Assign(Expression target, Expression expression, ISourceLocation? location = null) =>
@@ -77,6 +83,12 @@ public static class SemanticFactory
         new ConstantExpression(value, location, null, null);
 
     /// <summary>
+    /// Constructs the type or method with the specified type arguments.
+    /// </summary>
+    public static ConstructExpression Construct(Expression expression, ImmutableList<Expression> typeArguments, ISourceLocation? location = null) =>
+        new ConstructExpression(expression, typeArguments, location, null, null, null);
+
+    /// <summary>
     /// Branches to the loop's continue location.
     /// </summary>
     public static BranchExpression Continue(ISourceLocation? location = null) =>
@@ -146,18 +158,6 @@ public static class SemanticFactory
         Condition(test, whenTrue, location);
 
     /// <summary>
-    /// Accesses the referenced member of the expression's type or instance.
-    /// </summary>
-    public static PathExpression Path(Expression expression, ReferenceExpression reference, ISourceLocation? location = null) =>
-        new PathExpression(expression, reference, location, null);
-
-    /// <summary>
-    /// Accesses the referenced member of the expression's type or instance.
-    /// </summary>
-    public static PathExpression Path(Expression expression, string name, ISourceLocation? location = null) =>
-        Path(expression, Name(name), location);
-
-    /// <summary>
     /// A label for branch targets.
     /// </summary>
     public static LabelExpression Label(string name, Expression? recievingType = null, ISourceLocation? location = null) =>
@@ -188,6 +188,12 @@ public static class SemanticFactory
         Lambda(ImmutableList<ParameterDeclaration>.Empty, body, location);
 
     /// <summary>
+    /// Accesses the member of the expression.
+    /// </summary>
+    public static MemberExpression Member(Expression expression, string name, ISourceLocation? location = null) =>
+        new MemberExpression(expression, name, location, null, null, null);
+
+    /// <summary>
     /// Refers to a known operator.
     /// </summary>
     public static OperatorExpression Operator(string name, ISourceLocation? location = null) =>
@@ -210,6 +216,12 @@ public static class SemanticFactory
     /// </summary>
     public static ReferenceExpression Type(TypeSymbol symbol, ISourceLocation? location = null) =>
         Reference(symbol.FullName, location);
+
+    /// <summary>
+    /// Reference a type by name
+    /// </summary>
+    public static ReferenceExpression Type(string name, ISourceLocation? location = null) =>
+        Reference(name, location);
 
     /// <summary>
     /// Return from a method or lambda.
@@ -327,8 +339,11 @@ public static class SemanticFactory
     public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, ISourceLocation? location = null) =>
         new ParameterDeclaration(name, parameterType, location, null, null);
 
+    public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
+        new MethodDeclaration(name, access, modifiers, typeParameters, parameters, body, returnType, location, null, null);
+
     public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
-        new MethodDeclaration(name, access, modifiers, parameters, body, returnType, location, null, null);
+        Method(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, parameters, body, returnType, location);
 
     public static MethodDeclaration Method(string name, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
         Method(name, SymbolAccess.Public, SymbolModifier.None, parameters, returnType, body, location);
@@ -367,15 +382,27 @@ public static class SemanticFactory
     public static PropertyDeclaration Property(string name, Expression propertyType, ISourceLocation? location = null) =>
         Property(name, SymbolAccess.Public, SymbolModifier.None, propertyType, location);
 
-    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        new ClassDeclaration(name, access, modifiers, baseTypes, declarations, location, null, null);
+    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        new ClassDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
 
-    public static ClassDeclaration Class(string name, params Declaration[] declarations) =>
-        Class(name, SymbolAccess.Public, SymbolModifier.None, ImmutableList<Expression>.Empty, declarations.ToImmutableList());
+    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
+
+    public static ClassDeclaration Class(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, SymbolAccess.Public, SymbolModifier.None, typeParameters, baseTypes, declarations, location);
+
+    public static ClassDeclaration Class(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static ClassDeclaration Class(string name, ImmutableList<Declaration> declarations) =>
+        Class(name, ImmutableList<Expression>.Empty, declarations);
 
     public static NamespaceDeclaration Namespace(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         new NamespaceDeclaration(name, declarations, location, null, null);
 
-    public static NamespaceDeclaration Namespace(string name, params Declaration[] declarations) =>
-        Namespace(name, declarations.ToImmutableList());
+    public static TypeParameterDeclaration TypeParameter(string name, ISourceLocation? location = null) =>
+        new TypeParameterDeclaration(name, location, null, null);
 }

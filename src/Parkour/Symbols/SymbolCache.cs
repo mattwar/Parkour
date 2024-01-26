@@ -1,7 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace Parkour.Binding;
-using Symbols;
+namespace Parkour.Symbols;
 
 /// <summary>
 /// A class for caching symbols found in the global namespace.
@@ -201,12 +200,6 @@ public class SymbolCache
         new ArraySymbol(elementType);
 
     /// <summary>
-    /// Gets a list of the specified element type.
-    /// </summary>
-    public virtual ListSymbol GetList(TypeSymbol elementType) =>
-        new ListSymbol(elementType);
-
-    /// <summary>
     /// Gets the union or individual type from a list of types.
     /// </summary>
     public virtual TypeSymbol GetUnion(IEnumerable<TypeSymbol> types)
@@ -325,8 +318,141 @@ public class SymbolCache
     public virtual Symbol GetGroup(params Symbol[] symbols) =>
         GetGroup((IEnumerable<Symbol>)symbols);
 
-    public TypeSymbol Construct(TypeSymbol typeDefinition, ImmutableList<TypeSymbol> typeArguments)
+    /// <summary>
+    /// Gets or constructs a constructable symbol with the specified type arguments.
+    /// </summary>
+    public TSymbol GetOrConstruct<TSymbol>(
+        TSymbol constructableSymbol, 
+        ImmutableList<TypeSymbol> typeArguments)
+        where TSymbol : Symbol
     {
-        throw new NotImplementedException();
+        Symbol? constructedSymbol = null;
+
+        if (!constructableSymbol.IsConstructable)
+            throw new InvalidOperationException("Cannot construct non-constructable symbol.");
+
+        if (!_constructedSymbolMap.TryGetValue(constructableSymbol, out var constructedSymbolInfo))
+        {
+            constructedSymbolInfo = _constructedSymbolMap.GetOrCreateValue(constructableSymbol);
+        }
+
+        if (!constructedSymbolInfo.TypeArgumentsToConstructedSymbolMap.TryGetValue(typeArguments, out constructedSymbol))
+        {
+            var context = new ConsContext(typeArguments);           
+            var tmp = constructableSymbol.Construct(context);
+
+            constructedSymbol = ImmutableInterlocked.GetOrAdd(
+                ref constructedSymbolInfo.TypeArgumentsToConstructedSymbolMap,
+                typeArguments,
+                tmp);
+        }
+
+        return (TSymbol)constructedSymbol;
+    }
+
+    private class ConstructedSymbolInfo
+    {
+        public ImmutableDictionary<ImmutableList<TypeSymbol>, Symbol> TypeArgumentsToConstructedSymbolMap =
+            ImmutableDictionary<ImmutableList<TypeSymbol>, Symbol>.Empty
+            .WithComparers(TypeListEqualityComparer.Instance);
+    }
+
+    private ConditionalWeakTable<Symbol, ConstructedSymbolInfo> _constructedSymbolMap =
+        new ConditionalWeakTable<Symbol, ConstructedSymbolInfo>();
+
+    private class ConsContext : ConstructionContext
+    {
+        public override ImmutableList<TypeSymbol> TypeArguments { get; }
+
+        public ConsContext(ImmutableList<TypeSymbol> typeArguments)
+        {
+            this.TypeArguments = typeArguments;
+        }
+
+        public override SubstitutionContext CreateSubstitution(ImmutableList<TypeParameterSymbol> typeParameters)
+        {
+            return new SubContext(typeParameters, this.TypeArguments);
+        }
+    }
+
+    /// <summary>
+    /// Substitute any matching <see cref="TypeParameterSymbol"/> referenced by the symbol
+    /// with the corresponding <see cref="TypeSymbol"/>.
+    /// </summary>
+    public TSymbol Substitute<TSymbol>(
+        TSymbol symbol, 
+        ImmutableList<TypeParameterSymbol> typeParameters, 
+        ImmutableList<TypeSymbol> typeArguments)
+        where TSymbol : Symbol
+    {
+        var context = new SubContext(typeParameters, typeArguments);
+        return context.Substitute(symbol);
+    }
+
+    private class SubContext : SubstitutionContext
+    {
+        private readonly ImmutableList<TypeParameterSymbol> _typeParameters;
+        private readonly ImmutableList<TypeSymbol> _typeArguments;
+        private Dictionary<Symbol, Symbol> _substitutions;
+
+        public SubContext(
+            ImmutableList<TypeParameterSymbol> typeParameters, 
+            ImmutableList<TypeSymbol> typeArguments)
+        {
+            if (typeParameters.Count != typeArguments.Count)
+                throw new ArgumentException("The number of type parameters does not match the number of type arguments.");
+
+            _typeParameters = typeParameters;
+            _typeArguments = typeArguments;
+            _substitutions = new Dictionary<Symbol, Symbol>();
+        }
+
+        public override TSymbol Substitute<TSymbol>(TSymbol symbol)
+        {
+            if (!_substitutions.TryGetValue(symbol, out var sub))
+            {
+                if (symbol is TypeParameterSymbol tp)
+                {
+                    var index = _typeParameters.IndexOf(tp);
+                    if (index >= 0)
+                    {
+                        sub = _typeArguments[index];
+                    }
+                    else
+                    {
+                        sub = symbol;
+                    }
+                }
+                else 
+                {
+                    sub = symbol.Substitute(this);
+                    _substitutions.Add(symbol, sub);
+                }
+            }
+
+            return (TSymbol)sub;
+        }
+
+        public override ImmutableList<TSymbol> Substitute<TSymbol>(ImmutableList<TSymbol> symbols)
+        {
+            List<TSymbol>? newList = null;
+
+            for (int i = 0; i < symbols.Count; i++)
+            {
+                var symbol = symbols[i];
+                var sub = (TSymbol)symbol.Substitute(this);
+                if (sub != symbol || newList != null)
+                {
+                    if (newList == null)
+                    {
+                        newList = [..symbols.Take(i)];
+                    }
+
+                    newList.Add(sub);
+                }
+            }
+
+            return newList != null ? newList.ToImmutableList() : symbols;
+        }
     }
 }

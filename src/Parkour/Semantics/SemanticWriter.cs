@@ -146,7 +146,7 @@ public class SemanticWriter
             case CallExpression call:
                 if (call.CalledSymbol is LambdaSymbol fn)
                 {
-                    if (call.Expression is PathExpression path)
+                    if (call.Expression is MemberExpression path)
                     {
                         Write(path.Expression);
                         Write(".");
@@ -240,10 +240,10 @@ public class SemanticWriter
                 }
                 break;
 
-            case PathExpression path:
-                Write(path.Expression);
+            case MemberExpression member:
+                Write(member.Expression);
                 Write(".");
-                Write(path.Reference);
+                Write(member.Name);
                 break;
 
             case ReferenceExpression rex:

@@ -8,13 +8,13 @@ namespace Tests
     public class SymbolTests
     {
         [TestMethod]
-        public void TestRuntimeCommonSymbols()
+        public void TestSymbolCache_RuntimeSymbols()
         {
-            var symbols = RuntimeSymbols.GetOrCreateCommonSymbols();
-            TestCommonSymbols(symbols);
+            var symbols = RuntimeSymbols.GetOrCreateCache();
+            TestSymbolCache(symbols);
         }
 
-        private void TestCommonSymbols(SymbolCache symbols)
+        private void TestSymbolCache(SymbolCache symbols)
         {
             Assert.AreEqual("System", symbols.System.Name);
             Assert.AreEqual("Object", symbols.Object.Name);
@@ -38,8 +38,45 @@ namespace Tests
 
             void EnumerateMembers(Symbol symbol)
             {
-                symbol.Walk(null);
+                symbol.WalkDeclarations(null);
             }
+        }
+
+        [TestMethod]
+        public void TestFindSymbol()
+        {
+            var ns = RuntimeSymbols.GetOrCreateGlobalNamespace();
+
+            //TestFindSymbol(ns, "System.Int32");
+            TestFindSymbol(ns, "System.Collections.Generic.List`1");
+        }
+
+        private void TestFindSymbol(NamespaceSymbol symbol, string pathName)
+        {
+            var found = symbol.GetFirstSymbolFromPath(pathName);
+            Assert.IsNotNull(found);
+        }
+
+        [TestMethod]
+        public void TestConstruct()
+        {
+            var symbols = RuntimeSymbols.GetOrCreateCache();
+            var listT = (TypeSymbol?)symbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
+            Assert.IsNotNull(listT);
+            var listInt32 = symbols.GetOrConstruct(listT, [symbols.Int32]);
+            Assert.IsNotNull(listInt32);
+            listInt32.WalkDeclarations(null);
+        }
+
+        [TestMethod]
+        public void TestSubstitute()
+        {
+            var symbols = RuntimeSymbols.GetOrCreateCache();
+            var listT = (TypeSymbol?)symbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
+            Assert.IsNotNull(listT);
+            var listInt32 = symbols.Substitute(listT, listT.TypeParameters, [symbols.Int32]);
+            Assert.IsNotNull(listInt32);
+            var members = listInt32.Members;
         }
     }
 }

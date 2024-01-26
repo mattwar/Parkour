@@ -3,9 +3,6 @@ using Utils;
 
 public class NamespaceSymbol : NamespaceOrTypeSymbol
 {
-    public NamespaceSymbol? DeclaringNamespace { get; }
-    public override MemberSymbol? Container => DeclaringNamespace;
-
     private Func<NamespaceSymbol, ImmutableList<Symbol>>? _fnMembers;
     private ImmutableList<Symbol>? _members;
 
@@ -26,11 +23,10 @@ public class NamespaceSymbol : NamespaceOrTypeSymbol
 
     public NamespaceSymbol(
         string name, 
-        NamespaceSymbol? declaringNamespace,
+        Symbol? declaringSymbol,
         Func<NamespaceSymbol, ImmutableList<Symbol>> fnMembers)
-        : base(name)
+        : base(name, declaringSymbol, SymbolAccess.Public, SymbolModifier.None)
     {
-        DeclaringNamespace = declaringNamespace;
         _fnMembers = fnMembers;
     }
 
@@ -109,22 +105,24 @@ public class NamespaceSymbol : NamespaceOrTypeSymbol
             while (nameStart < dottedName.Length)
             {
                 var nextSplit = dottedName.IndexOfAny(_namePathSplitChars, nameStart);
-                var nameLength = nextSplit > nameStart ? nextSplit - nameStart : dottedName.Length - nameStart;
+                var nameEnd = nextSplit > nameStart ? nextSplit : dottedName.Length;
+                var nameLength = nameEnd - nameStart;
 
-                if (nameStart + nameLength == dottedName.Length)
+                var arity = 0;
+                var arityStart = dottedName.IndexOf('`', nameStart);
+                if (arityStart > nameStart && arityStart < nameEnd)
                 {
-                    // put final matches into final output list
-                    GetSymbolsInContainers(dottedName, nameStart, nameLength, containers, symbols);
-                    return;
+                    var aritySpan = dottedName.AsSpan().Slice(arityStart + 1, nameEnd - arityStart - 1);
+                    int.TryParse(aritySpan, out arity);
+                    nameLength = arityStart - nameStart;
                 }
-                else
-                {
-                    results.Clear();
-                    GetSymbolsInContainers(dottedName, nameStart, nameLength, containers, results);
-                    nameStart += nameLength + 1; // skip over ./+ too
-                    containers.Clear();
-                    containers.AddRange(results);
-                }
+
+                results.Clear();
+                GetSymbolsInContainers(dottedName, nameStart, nameLength, containers, results);
+                RemoveArityMismatch(results, arity);
+                nameStart = nameEnd + 1;
+                containers.Clear();
+                containers.AddRange(results);
             }
 
             // we might get here if dotted path ends in a dot (so just return last set of results)
@@ -144,6 +142,15 @@ public class NamespaceSymbol : NamespaceOrTypeSymbol
 
                 // find all items with matching name from all containers
                 nsOrType.GetMembers(dottedName, start, length, result);
+            }
+        }
+
+        static void RemoveArityMismatch(List<Symbol> symbols, int arity)
+        {
+            for (int i = symbols.Count - 1; i >= 0; i--)
+            {
+                if (symbols[i].Arity != arity)
+                    symbols.RemoveAt(i);
             }
         }
     }

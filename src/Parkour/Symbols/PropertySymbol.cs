@@ -4,12 +4,6 @@ namespace Parkour.Symbols;
 
 public sealed class PropertySymbol : MemberSymbol
 {
-    public TypeSymbol? DeclaringType { get; }
-
-    public override MemberSymbol? Container => DeclaringType;
-    public override SymbolAccess Access { get; }
-    public override SymbolModifier Modifiers { get; }
-
     private Func<TypeSymbol>? _fnPropertyType;
     private TypeSymbol? _propertyType;
 
@@ -82,28 +76,48 @@ public sealed class PropertySymbol : MemberSymbol
         }
     }
 
-    public PropertyInfo? RuntimeProperty { get; }
+    public PropertyInfo? RuntimeInfo { get; }
 
     public PropertySymbol(
         string name,
-        TypeSymbol? declaringType,
+        Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
         Func<TypeSymbol> fnPropertyType,
         Func<PropertySymbol, FieldSymbol>? fnBackingField,
         Func<PropertySymbol, MethodSymbol>? fnGetMethod,
         Func<PropertySymbol, MethodSymbol>? fnSetMethod,
-        PropertyInfo? runtimeProperty)
-        : base(name)
+        PropertyInfo? runtimeInfo)
+        : base(name, declaringSymbol, access, modifiers)
     {
-        DeclaringType = declaringType;
-        Access = access;
-        Modifiers = modifiers;
         _fnBackingField = fnBackingField;
         _fnPropertyType = fnPropertyType;
         _fnGetMethod = fnGetMethod;
         _fnSetMethod = fnSetMethod;
-        RuntimeProperty = runtimeProperty;
+        RuntimeInfo = runtimeInfo;
+    }
+
+    public PropertySymbol(
+        string name,
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers,
+        TypeSymbol propertyType,
+        FieldSymbol? backingField,
+        MethodSymbol? getMethod,
+        MethodSymbol? setMethod,
+        PropertyInfo? runtimeInfo)
+        : this(
+            name,
+            declaringSymbol,
+            access,
+            modifiers,
+            () => propertyType,
+            backingField != null ? me => backingField : null,
+            getMethod != null ? me => getMethod : null,
+            setMethod != null ? me => setMethod : null,
+            runtimeInfo)
+    {
     }
 
     public override int DeclarationCount => 3;
@@ -115,4 +129,24 @@ public sealed class PropertySymbol : MemberSymbol
             2 => BackingField,
             _ => null
         };
+
+    internal protected override Symbol Substitute(SubstitutionContext context)
+    {
+        return new PropertySymbol(
+            this.Name,
+            this.DeclaringSymbol,
+            this.Access,
+            this.Modifiers,
+            () => context.Substitute(this.PropertyType),
+            this.BackingField != null
+                ? me => context.Substitute(this.BackingField)
+                : null,
+            this.GetMethod != null
+                ? me => context.Substitute(this.GetMethod)
+                : null,
+            this.SetMethod != null
+                ? me => context.Substitute(this.SetMethod)
+                : null,
+            null);
+    }
 }

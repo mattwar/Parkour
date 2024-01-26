@@ -2,12 +2,17 @@
 
 public abstract class NamespaceOrTypeSymbol : MemberSymbol
 {
-    protected NamespaceOrTypeSymbol(string name)
-        : base(name)
+    protected NamespaceOrTypeSymbol(
+        string name, 
+        Symbol? declaringSymbol,
+        SymbolAccess access, 
+        SymbolModifier modifiers)
+        : base(name, declaringSymbol, access, modifiers)
     {
     }
 
-    public virtual ImmutableList<Symbol> Members => ImmutableList<Symbol>.Empty;
+    public virtual ImmutableList<Symbol> Members => 
+        ImmutableList<Symbol>.Empty;
 
     public virtual void GetMembers(Func<Symbol, bool> fnMatch, List<Symbol> symbols)
     {

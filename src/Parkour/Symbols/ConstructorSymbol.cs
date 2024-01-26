@@ -4,13 +4,6 @@ namespace Parkour.Symbols;
 
 public class ConstructorSymbol : MemberSymbol
 {
-    public TypeSymbol? DeclaringType { get; }
-    public override MemberSymbol? Container => this.DeclaringType;
-    public override SymbolAccess Access { get; }
-    public override SymbolModifier Modifiers { get; }
-    public TypeSymbol ReturnType => this.DeclaringType ?? SpecialSymbols.Unknown;
-    public MethodBase? RuntimeMethod { get; }
-
     private Func<ConstructorSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
     private ImmutableList<ParameterSymbol>? _parameters;
 
@@ -29,19 +22,56 @@ public class ConstructorSymbol : MemberSymbol
         }
     }
 
+    private Func<TypeSymbol>? _fnReturnType;
+    private TypeSymbol? _returnType;
+
+    public TypeSymbol ReturnType
+    {
+        get
+        {
+            if (_returnType == null && _fnReturnType is { } fn)
+            {
+                _fnReturnType = null;
+                var tmp = fn();
+                Interlocked.CompareExchange(ref _returnType, tmp, null);
+            }
+
+            return _returnType!;
+        }
+    }
+
+
+    public ConstructorInfo? RuntimeInfo { get; }
+
     public ConstructorSymbol(
-        TypeSymbol? declaringType,
+        Symbol? declaringSymbol,
         SymbolAccess access, 
         SymbolModifier modifiers, 
         Func<ConstructorSymbol, ImmutableList<ParameterSymbol>> fnParameters,
-        MethodBase? runtimeMethod)
-        : base("")
+        Func<TypeSymbol> fnReturnType,
+        ConstructorInfo? runtimeInfo)
+        : base("", declaringSymbol, access, modifiers)
     {
-        DeclaringType = declaringType;
-        Access = access;
-        Modifiers = modifiers;
         _fnParameters = fnParameters;
-        RuntimeMethod = runtimeMethod;
+        _fnReturnType = fnReturnType;
+        RuntimeInfo = runtimeInfo;
+    }
+
+    public ConstructorSymbol(
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers,
+        ImmutableList<ParameterSymbol> parameters,
+        TypeSymbol returnType,
+        ConstructorInfo? runtimeInfo)
+        : this(
+              declaringSymbol,
+              access,
+              modifiers,
+              me => parameters,
+              () => returnType,
+              runtimeInfo)
+    {
     }
 
     public override int DeclarationCount =>
@@ -49,4 +79,15 @@ public class ConstructorSymbol : MemberSymbol
 
     public override Symbol? GetDeclaration(int index) =>
         this.Parameters[index];
+
+    internal protected override ConstructorSymbol Substitute(SubstitutionContext context)
+    {
+        return new ConstructorSymbol(
+            this.DeclaringSymbol,
+            this.Access,
+            this.Modifiers,
+            me => context.Substitute(this.Parameters),
+            () => context.Substitute(this.ReturnType),
+            null);
+    }
 }

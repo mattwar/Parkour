@@ -56,4 +56,16 @@ internal static class BindingDiagnostics
 
     public static Diagnostic FlowIntoLabelDoesNotMatchType() =>
         new Diagnostic("The flow of logic does not provide the label's expected value or compatible type.");
+
+    public static Diagnostic NoTypeOrMethodWithMatchingArityToConstruct() =>
+        new Diagnostic("No type or method with matching arity to construct.");
+
+    public static Diagnostic MethodDoesNotHaveMatchingArity() =>
+        new Diagnostic("The method does not have the same arity as the number of type arguments.");
+
+    public static Diagnostic TypeDoesNotHaveMatchingArity() =>
+        new Diagnostic("The type does not have the same arity as the number of type arguments.");
+
+    public static Diagnostic NoReferencedSymbolsHaveMatchingArity() =>
+        new Diagnostic("No referenced symbol have mathing arity.");
 }

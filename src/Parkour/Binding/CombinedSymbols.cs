@@ -11,7 +11,7 @@ public class CombinedSymbols
         Func<NamespaceSymbol, ImmutableList<NamespaceSymbol>> fnCreateGlobalNamespaces)
     {
         return new NamespaceSymbol("",
-            declaringNamespace: null,
+            declaringSymbol: null,
             ns =>
             {
                 var globalNamespaces = fnCreateGlobalNamespaces(ns);

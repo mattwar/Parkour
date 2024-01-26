@@ -2,18 +2,45 @@
 
 public abstract class MemberSymbol : Symbol
 {
-    public virtual SymbolAccess Access => SymbolAccess.Public;
-    public virtual SymbolModifier Modifiers => SymbolModifier.None;
+    /// <summary>
+    /// The accessibility of the symbol.
+    /// </summary>
+    public SymbolAccess Access { get; }
 
+    /// <summary>
+    /// Declaration modifiers for the symbol.
+    /// </summary>
+    public SymbolModifier Modifiers { get; }
+
+    /// <summary>
+    /// The symbol that declares this symbol.
+    /// </summary>
+    public Symbol? DeclaringSymbol { get; }
+
+    /// <summary>
+    /// True if the member is consiered to be static.
+    /// </summary>
     public bool IsStatic => (Modifiers & SymbolModifier.Static) != 0;
 
-    public MemberSymbol(string name)
+    public MemberSymbol(
+        string name, 
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers)
         : base(name)
     {
+        this.DeclaringSymbol = declaringSymbol;
+        this.Access = access;
+        this.Modifiers = modifiers;
     }
 
-    public abstract MemberSymbol? Container { get; }
-    public string Namespace => this.Container != null ? this.Container.Namespace : "";
+    /// <summary>
+    /// The namespace this symbol is declared within.
+    /// </summary>
+    public string Namespace => 
+        this.DeclaringSymbol is MemberSymbol ms
+            ? ms.Namespace 
+            : "";
 
     private string? _fullName;
     public string FullName
@@ -24,11 +51,11 @@ public abstract class MemberSymbol : Symbol
             {
                 string? fname = null;
 
-                if (this.Container != null)
+                if (this.DeclaringSymbol is MemberSymbol ms)
                 {
-                    if (this.Container.FullName.Length > 0)
+                    if (ms.FullName.Length > 0)
                     {
-                        fname = this.Container.FullName + "." + this.Name;
+                        fname = ms.FullName + "." + this.Name;
                     }
                     else
                     {
@@ -42,6 +69,11 @@ public abstract class MemberSymbol : Symbol
                 else
                 {
                     fname = this.Name;
+                }
+
+                if (this.Arity > 0)
+                {
+                    fname = fname + "`" + this.Arity;
                 }
 
                 Interlocked.CompareExchange(ref _fullName, fname, null);

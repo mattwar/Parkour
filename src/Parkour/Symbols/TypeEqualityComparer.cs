@@ -10,7 +10,7 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
 
     public bool Equals(TypeSymbol? type1, TypeSymbol? type2)
     {
-        // most types are singetons
+        // same instance
         if (type1 == type2) return true;
 
         if (type1 == null && type2 == null) return true;
@@ -20,8 +20,6 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
         {
             case ArraySymbol array1 when type2 is ArraySymbol array2:
                 return Equals(array1.ElementType, array2.ElementType);
-            case ListSymbol list1 when type2 is ListSymbol list2:
-                return Equals(list1.ElementType, list2.ElementType);
             case UnionSymbol union1 when type2 is UnionSymbol union2:
                 if (union1.Types.Count != union2.Types.Count)
                     return false;
@@ -40,9 +38,23 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
                         return false;
                 }
                 return true;
-        }
+            default:
+                // must both be construct with same definition
+                if (!type1.IsConstructed 
+                    || !type2.IsConstructed
+                    || type1.ConstructedFrom != type2.ConstructedFrom
+                    || type1.TypeArguments.Count != type2.TypeArguments.Count)
+                    return false;
 
-        return false;
+                // must have same type arguments.
+                for (int i = 0; i < type1.TypeArguments.Count; i++)
+                {
+                    if (!Equals(type1.TypeArguments[i], type2.TypeArguments[i]))
+                        return false;
+                }
+
+                return true;
+        }
     }
 
     public int GetHashCode([DisallowNull] TypeSymbol type)
@@ -53,9 +65,6 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
         {
             case ArraySymbol array:
                 hc = GetHashCode(array.ElementType);
-                break;
-            case ListSymbol list:
-                hc = GetHashCode(list.ElementType);
                 break;
             case UnionSymbol union:
                 for (int i = 0; i < union.Types.Count; i++)
@@ -70,9 +79,62 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
                 }
                 break;
             default:
-                // rest are singleton types so we use the runtime default hashcode.
-                hc = type.GetHashCode();
+                if (type.IsConstructed && type.ConstructedFrom != null)
+                {
+                    hc = GetHashCode(type.ConstructedFrom);
+                    for (int i = 0; i < type.TypeArguments.Count; i++)
+                    {
+                        hc = HashCode.Combine(GetHashCode(type.TypeArguments[i]));
+                    }
+                }
+                else
+                {
+                    // rest are singleton types so we use the runtime default hashcode.
+                    hc = type.GetHashCode();
+                }
                 break;
+        }
+
+        return hc;
+    }
+}
+
+public class TypeListEqualityComparer : IEqualityComparer<ImmutableList<TypeSymbol>>
+{
+    public static TypeListEqualityComparer Instance = new TypeListEqualityComparer();
+
+    private TypeListEqualityComparer() { }
+
+    public bool Equals(ImmutableList<TypeSymbol>? list1, ImmutableList<TypeSymbol>? list2)
+    {
+        // same instance
+        if (list1 == list2) return true;
+
+        if (list1 == null && list2 == null) return true;
+        if (list1 == null || list2 == null) return false;
+
+        if (list1.Count != list2.Count)
+            return false;
+
+        var typeComparer = TypeEqualityComparer.Instance;
+
+        for (int i = 0; i < list1.Count; i++)
+        {
+            if (!typeComparer.Equals(list1[i], list2[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    public int GetHashCode([DisallowNull] ImmutableList<TypeSymbol> list)
+    {
+        var hc = 0;
+        var typeComparer = TypeEqualityComparer.Instance;
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            hc = HashCode.Combine(hc, typeComparer.GetHashCode(list[i]));
         }
 
         return hc;

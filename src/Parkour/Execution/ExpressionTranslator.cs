@@ -33,6 +33,8 @@ public sealed class ExpressionTranslator
 
         switch (expression)
         {
+            case ArityExpression arity:
+                return TranslateArity(arity);
             case AssignExpression assign:
                 return TranslateAssign(assign);
             case BlockExpression block:
@@ -45,6 +47,8 @@ public sealed class ExpressionTranslator
                 return TranslateCondition(condition);
             case ConstantExpression constant:
                 return TranslateConstant(constant);
+            case ConstructExpression construct:
+                return TranslateConstruct(construct);
             case ConvertExpression convert:
                 return TranslateConvert(convert);
             case DefaultExpression dex:
@@ -55,8 +59,8 @@ public sealed class ExpressionTranslator
                 return TranslateLambda(lambda);
             case LoopExpression loop:
                 return TranslateLoop(loop);
-            case PathExpression path:
-                return TranslatePath(path);
+            case MemberExpression path:
+                return TranslateMember(path);
             case ReferenceExpression rex:
                 return TranslateReference(rex);
             case VariableExpression variable:
@@ -68,7 +72,7 @@ public sealed class ExpressionTranslator
         }
     }
 
-    private Type Translate(TypeSymbol type)
+    private Type TranslateType(TypeSymbol type)
     {
         if (type == SpecialSymbols.Void
             || type == SpecialSymbols.DoesNotReturn)
@@ -77,15 +81,72 @@ public sealed class ExpressionTranslator
         if (type.RuntimeType != null)
             return type.RuntimeType;
 
-        if (type is LambdaSymbol fs)
+        if (type is TypeSymbol ts && ts.ConstructedFrom != null)
+        {
+            var typeDef = TranslateType(ts.ConstructedFrom);
+            var typeArgs = ts.TypeArguments.Select(ta => TranslateType(ta)).ToArray();
+            return typeDef.MakeGenericType(typeArgs);
+        }
+        else if (type is ArraySymbol array)
+        {
+            var elementType = TranslateType(array.ElementType);
+            return elementType.MakeArrayType();
+        }
+        else if (type is LambdaSymbol fs)
         {
             var list = new List<Type>();
-            list.AddRange(fs.Parameters.Select(p => Translate(p.ParameterType)));
-            list.Add(Translate(fs.ReturnType));
+            list.AddRange(fs.Parameters.Select(p => TranslateType(p.ParameterType)));
+            list.Add(TranslateType(fs.ReturnType));
             return L.Expression.GetDelegateType(list.ToArray());
         };
 
-        throw new InvalidOperationException($"Unhandled type '{type.Name}' in {nameof(ExpressionTranslator)}.GetType");
+        throw new InvalidOperationException($"Unhandled type '{type.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateType)}");
+    }
+
+    private MethodInfo TranslateMethod(MethodSymbol method)
+    {
+        if (method.RuntimeInfo is MethodInfo info)
+        {
+            return info;
+        }
+        else if (method.ConstructedFrom != null)
+        {
+            var methodDef = TranslateMethod(method.ConstructedFrom);
+            var typeArgs = method.TypeArguments.Select(ta => TranslateType(ta)).ToArray();
+            return methodDef.MakeGenericMethod(typeArgs);
+        }
+
+        throw new InvalidOperationException($"Non-translatable method '{method.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMethod)}");
+    }
+
+    private ConstructorInfo TranslateConstructor(ConstructorSymbol constructor)
+    {
+        if (constructor.RuntimeInfo is ConstructorInfo info)
+        {
+            return info;
+        }
+
+        throw new InvalidOperationException($"Non-translatable constructor for type '{constructor.DeclaringSymbol?.Name ?? ""}' in {nameof(ExpressionTranslator)}.{nameof(TranslateConstructor)}");
+    }
+
+    private FieldInfo TranslateField(FieldSymbol field)
+    {
+        if (field.RuntimeInfo is FieldInfo info)
+        {
+            return info;
+        }
+
+        throw new InvalidOperationException($"Non-translatable field '{field.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateField)}");
+    }
+
+    private PropertyInfo TranslateProperty(PropertySymbol property)
+    {
+        if (property.RuntimeInfo is PropertyInfo info)
+        {
+            return info;
+        }
+
+        throw new InvalidOperationException($"Non-translatable property '{property.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateProperty)}");
     }
 
     private L.Expression TranslateAssign(AssignExpression assign)
@@ -116,12 +177,12 @@ public sealed class ExpressionTranslator
 
         foreach (var label in labels)
         {
-            var labelType = Translate(label.ResultType);
+            var labelType = TranslateType(label.ResultType);
             var labelTarget = L.Expression.Label(labelType, label.Name);
             SetCurrentBranchTarget(label.LabelSymbol!, labelTarget);
         }
 
-        var blockType = Translate(block.ResultType);
+        var blockType = TranslateType(block.ResultType);
         var expressions = block.Expressions.Select(e => Translate(e)).ToList();
 
         if (variableDecls.Count > 0)
@@ -179,30 +240,22 @@ public sealed class ExpressionTranslator
         switch (calledSymbol)
         {
             case MethodSymbol method:
-                if (method.RuntimeMethod is MethodInfo mi)
                 {
-                    var instance = call.Expression is PathExpression path
-                        ? Translate(path.Expression)
-                        : null;
+                    var mi = TranslateMethod(method);
+                    var callInstance = GetCallInstance(call.Expression);
+                    var instance = callInstance != null ? Translate(callInstance) : null;
                     var parameterTypes = mi.GetParameters().Select(p => p.ParameterType).ToArray();
                     var arguments = TranslateArguments(call.Arguments, parameterTypes);
                     return L.Expression.Call(instance, mi, arguments);
                 }
-                break;
-            case ConstructorSymbol constructor:
-                if (constructor.RuntimeMethod is ConstructorInfo ci)
-                {
-                    var parameterTypes = ci.GetParameters().Select(p => p.ParameterType).ToArray();
-                    var arguments = TranslateArguments(call.Arguments, parameterTypes);
-                    return L.Expression.New(ci, arguments);
-                }
-                break;
+
             case OperatorSymbol opsym:
                 return TranslateOperatorCall(call, opsym);
+
             case LambdaSymbol function:
                 {
                     var fn = Translate(call.Expression);
-                    var parameterTypes = function.Parameters.Select(p => Translate(p.ParameterType)).ToArray();
+                    var parameterTypes = function.Parameters.Select(p => TranslateType(p.ParameterType)).ToArray();
                     var arguments = TranslateArguments(call.Arguments, parameterTypes);
                     return L.Expression.Invoke(fn, arguments);
                 }
@@ -210,6 +263,22 @@ public sealed class ExpressionTranslator
 
         throw new InvalidOperationException($"Cannot translate call for symbol '{calledSymbol.Name}'");
     }
+
+    private Expression? GetCallInstance(Expression expression)
+    {
+        switch (expression)
+        {
+            case MemberExpression member:
+                return member.Expression;
+            case ArityExpression arity:
+                return null;
+            case ConstructExpression construct:
+                return GetCallInstance(construct);
+            default:
+                return expression;
+        }
+    }
+
 
     private IReadOnlyList<L.Expression> TranslateArguments(
         ImmutableList<Expression> arguments, IReadOnlyList<Type> parameterTypes)
@@ -226,7 +295,7 @@ public sealed class ExpressionTranslator
 
     private L.Expression TranslateCondition(ConditionExpression condition)
     {
-        var type = Translate(condition.ResultType);
+        var type = TranslateType(condition.ResultType);
         var test = Translate(condition.Test);
         var whenTrue = ConvertVoidToValue(Translate(condition.WhenTrue), type);
         var whenFalse = ConvertVoidToValue(Translate(condition.WhenFalse), type);
@@ -248,16 +317,16 @@ public sealed class ExpressionTranslator
     }
 
     private L.Expression TranslateConstant(ConstantExpression constant) =>
-        L.Expression.Constant(constant.Value, Translate(constant.ResultType));
+        L.Expression.Constant(constant.Value, TranslateType(constant.ResultType));
 
     private L.Expression TranslateConvert(ConvertExpression convert) =>
         L.Expression.Convert(
             Translate(convert.Expression),
-            Translate(convert.ResultType));
+            TranslateType(convert.ResultType));
 
     private L.Expression TranslateDefault(DefaultExpression dex)
     {
-        var type = Translate(dex.ResultType);
+        var type = TranslateType(dex.ResultType);
         return L.Expression.Default(type);
     }
 
@@ -266,7 +335,7 @@ public sealed class ExpressionTranslator
         var labelTarget = GetCurrentBranchTarget(label.LabelSymbol!);
         if (labelTarget == null)
         {
-            var labelType = Translate(label.ResultType);
+            var labelType = TranslateType(label.ResultType);
             labelTarget = L.Expression.Label(labelType, label.Name);
             SetCurrentBranchTarget(label.LabelSymbol!, labelTarget);
         }
@@ -294,7 +363,7 @@ public sealed class ExpressionTranslator
         }
         else
         {
-            var returnType = Translate(lambda.ReturnType);
+            var returnType = TranslateType(lambda.ReturnType);
             var returnTarget = L.Expression.Label(returnType, lambda.ReturnTarget!.Name);
             SetCurrentBranchTarget(lambda.ReturnTarget, returnTarget);
 
@@ -313,7 +382,7 @@ public sealed class ExpressionTranslator
     private L.Expression TranslateLoop(LoopExpression loop)
     {
         var loopContinue = L.Expression.Label(loop.ContinueTarget!.Name);
-        var breakType = Translate(loop.BreakTarget!.Type);
+        var breakType = TranslateType(loop.BreakTarget!.Type);
         var loopBreak = L.Expression.Label(breakType, loop.BreakTarget!.Name);
 
         SetCurrentBranchTarget(loop.ContinueTarget, loopContinue);
@@ -328,51 +397,84 @@ public sealed class ExpressionTranslator
     }
 
 
-    private L.Expression TranslatePath(PathExpression path)
+    private L.Expression TranslateMember(MemberExpression member)
     {
-        switch (path.Reference.ReferencedSymbol)
+        switch (member.ReferencedSymbol)
         {
-            case PropertySymbol prop when prop.RuntimeProperty is PropertyInfo pi:
+            case PropertySymbol prop:
+                var pi = TranslateProperty(prop);
                 if (prop.IsStatic)
                 {
                     return L.Expression.Property(null, pi);
                 }
                 else
                 {
-                    var expression = Translate(path.Expression);
+                    var expression = Translate(member.Expression);
                     return L.Expression.Property(expression, pi);
                 }
-            case FieldSymbol field when field.RuntimeField is FieldInfo fi:
+            case FieldSymbol field:
+                var fi = TranslateField(field);
                 if (field.IsStatic)
                 {
                     return L.Expression.Field(null, fi);
                 }
                 else
                 {
-                    var expression = Translate(path.Expression);
+                    var expression = Translate(member.Expression);
                     return L.Expression.Field(expression, fi);
                 }
             default:
-                if (path.ReferencedSymbol == null)
+                if (member.ReferencedSymbol == null)
                     throw new InvalidOperationException($"The reference has no symbol");
-                throw new InvalidOperationException($"Unhandled symbol '{path.Reference.ReferencedSymbol?.Name ?? "?"}' in {nameof(ExpressionTranslator)}.{nameof(TranslatePath)}");
+                throw new InvalidOperationException($"Unhandled symbol '{member.ReferencedSymbol?.Name ?? "?"}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMember)}");
         }
     }
 
     private L.Expression TranslateReference(ReferenceExpression rex)
     {
-        switch (rex.ReferencedSymbol)
+        return TranslateReferencedSymbol(rex.ReferencedSymbol);
+    }
+
+    private L.Expression TranslateArity(ArityExpression arity)
+    {
+        return TranslateReferencedSymbol(arity.ReferencedSymbol);
+    }
+
+    private L.Expression TranslateConstruct(ConstructExpression construct)
+    {
+        return TranslateReferencedSymbol(construct.ReferencedSymbol);
+    }
+
+    private L.Expression TranslateReferencedSymbol(Symbol? symbol)
+    {
+        switch (symbol)
         {
             case VariableSymbol _:
             case ParameterSymbol _:
-                var v = GetVariable(rex.ReferencedSymbol);
+                var v = GetVariable(symbol);
                 if (v == null)
-                    throw new InvalidOperationException($"The name '{rex.ReferencedSymbol}' has no matching variable.");
+                    throw new InvalidOperationException($"The symbol '{symbol.Name}' has no matching variable.");
                 return v;
+
+            case GroupSymbol gs:
+                return L.Expression.NewArrayInit(
+                    typeof(object),
+                    gs.Symbols.Select(s => TranslateReferencedSymbol(s)).ToArray());
+
+            case TypeSymbol ts:
+                return L.Expression.Constant(TranslateType(ts));
+
+            case MethodSymbol ms:
+                return L.Expression.Constant(TranslateMethod(ms));
+
+            case ConstructorSymbol cs:
+                return L.Expression.Constant(TranslateConstructor(cs));
+
             case null:
                 throw new InvalidOperationException("Reference has no symbol");
+
             default:
-                throw new InvalidOperationException($"Unhandled symbol '{rex.ReferencedSymbol.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateReference)}");
+                throw new InvalidOperationException($"Unhandled symbol '{symbol.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateReferencedSymbol)}");
         }
     }
 
@@ -430,7 +532,7 @@ public sealed class ExpressionTranslator
 
     private L.ParameterExpression DeclareVariable(Symbol symbol, TypeSymbol type)
     {
-        var variable = L.Expression.Parameter(Translate(type), symbol.Name);
+        var variable = L.Expression.Parameter(TranslateType(type), symbol.Name);
         _variableMap[symbol] = variable;
         return variable;
     }

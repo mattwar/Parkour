@@ -4,21 +4,62 @@ namespace Parkour.Symbols;
 
 public class MethodSymbol : MemberSymbol
 {
-    public MemberSymbol? DeclaringSymbol { get; }
-    public override MemberSymbol? Container => DeclaringSymbol;
-    public override SymbolAccess Access { get; }
-    public override SymbolModifier Modifiers { get; }
-
-    private Func<ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
+    private Func<MethodSymbol, ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
     private ImmutableList<TypeParameterSymbol>? _typeParameters;
     private Func<ImmutableList<TypeSymbol>>? _fnTypeArguments;
     private ImmutableList<TypeSymbol>? _typeArguments;
-    private Func<MethodSymbol>? _fnDefinition;
-    private MethodSymbol? _definition;
     private Func<MethodSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
     private ImmutableList<ParameterSymbol>? _parameters;
     private Func<TypeSymbol>? _fnReturnType;
     private TypeSymbol? _returnType;
+
+    public MethodInfo? RuntimeInfo { get; }
+
+    public MethodSymbol(
+        string name,
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers,
+        Func<MethodSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters,
+        Func<ImmutableList<TypeSymbol>> fnTypeArguments,
+        Func<MethodSymbol, ImmutableList<ParameterSymbol>> fnParameters,
+        Func<TypeSymbol> fnReturnType,
+        MethodSymbol? constructedFrom,
+        MethodInfo? runtimeInfo)
+        : base(name, declaringSymbol, access, modifiers)
+    {
+        _fnTypeParameters = fnTypeParameters;
+        _fnTypeArguments = fnTypeArguments;
+        _fnParameters = fnParameters;
+        _fnReturnType = fnReturnType;
+        ConstructedFrom = constructedFrom;
+        RuntimeInfo = runtimeInfo;
+    }
+
+    public MethodSymbol(
+        string name,
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers,
+        ImmutableList<TypeParameterSymbol> typeParameters,
+        ImmutableList<TypeSymbol> typeArguments,
+        ImmutableList<ParameterSymbol> parameters,
+        TypeSymbol returnType,
+        MethodSymbol? constructedFrom,
+        MethodInfo? runtimeInfo)
+        : this(
+              name,
+              declaringSymbol,
+              access,
+              modifiers,
+              me => typeParameters,
+              () => typeArguments,
+              me => parameters,
+              () => returnType,
+              constructedFrom,
+              runtimeInfo)
+    {
+    }
 
     /// <summary>
     /// <see cref="TypeParameters"/> for generic method definitions.
@@ -30,7 +71,7 @@ public class MethodSymbol : MemberSymbol
             if (_typeParameters == null && _fnTypeParameters is { } fn)
             {
                 _fnTypeParameters = null;
-                var tmp = fn();
+                var tmp = fn(this);
                 Interlocked.CompareExchange(ref _typeParameters, tmp, null);
             }
 
@@ -57,37 +98,28 @@ public class MethodSymbol : MemberSymbol
     }
 
     /// <summary>
-    /// The generic definition for this constructed method.
-    /// </summary>
-    public MethodSymbol? Definition 
-    { 
-        get
-        {
-            if (_definition == null && _fnDefinition is { } fn)
-            {
-                _fnDefinition = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _definition, tmp, null);
-            }
-
-            return _definition;
-        }
-    }
-
-    /// <summary>
     /// True if the method is generic (definition or constructed)
     /// </summary>
-    public bool IsGeneric => IsDefinition || IsConstructed;
+    public bool IsGeneric =>
+        this.TypeParameters.Count > 0
+        || this.TypeArguments.Count > 0;
 
     /// <summary>
     /// True if the method is a generic method definition.
     /// </summary>
-    public bool IsDefinition => this.TypeParameters.Count > 0;
+    public bool IsDefinition => 
+        IsGeneric && this.TypeArguments.Count == 0;
 
     /// <summary>
     /// True if the method is a constructed generic method.
     /// </summary>
-    public bool IsConstructed => this.TypeArguments.Count > 0;
+    public bool IsConstructed => 
+        IsGeneric && this.TypeArguments.Count > 0;
+
+    /// <summary>
+    /// The method this method is constructed from.
+    /// </summary>
+    public MethodSymbol? ConstructedFrom { get; }
 
     /// <summary>
     /// The parameters of this method.
@@ -125,56 +157,10 @@ public class MethodSymbol : MemberSymbol
         }
     }
 
-    public MethodBase? RuntimeMethod { get; }
-
-    public MethodSymbol(
-        string name,
-        MemberSymbol? declaringSymbol, 
-        SymbolAccess access, 
-        SymbolModifier modifiers, 
-        Func<ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
-        Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
-        Func<MethodSymbol, ImmutableList<ParameterSymbol>>? fnParameters, 
-        Func<TypeSymbol>? fnReturnType, 
-        Func<MethodSymbol>? fnGenericDefinition,
-        MethodBase? runtimeMethod)
-        : base(name)
-    {
-        DeclaringSymbol = declaringSymbol;
-        Access = access;
-        Modifiers = modifiers;
-        _fnTypeParameters = fnTypeParameters;
-        _fnTypeArguments = fnTypeArguments;
-        _fnParameters = fnParameters;
-        _fnReturnType = fnReturnType;
-        _fnDefinition = fnGenericDefinition;
-        RuntimeMethod = runtimeMethod;
-    }
-
-    public MethodSymbol(
-        string name,
-        MemberSymbol? declaringSymbol,
-        SymbolAccess access,
-        SymbolModifier modifier,
-        ImmutableList<TypeParameterSymbol> typeParameters,
-        ImmutableList<TypeSymbol> typeArguments,
-        ImmutableList<ParameterSymbol> parameters,
-        TypeSymbol returnType,
-        MethodSymbol? genericDefinition,
-        MethodBase? runtimeMethod)
-        : this(
-              name, 
-              declaringSymbol, 
-              access, 
-              modifier, 
-              () => typeParameters, 
-              () => typeArguments,
-              me => parameters, 
-              () => returnType, 
-              genericDefinition != null ? () => genericDefinition : null,
-              runtimeMethod)
-    {
-    }
+    public override int Arity =>
+        this.TypeParameters.Count > 0 ? this.TypeParameters.Count
+        : this.TypeArguments.Count > 0 ? this.TypeArguments.Count
+        : 0;
 
     public override int DeclarationCount =>
         this.TypeParameters.Count + this.Parameters.Count;
@@ -183,4 +169,40 @@ public class MethodSymbol : MemberSymbol
         index < this.TypeParameters.Count
             ? this.TypeParameters[index]
             : this.Parameters[index = this.TypeParameters.Count];
+
+    public override bool IsConstructable =>
+        this.IsGeneric;
+
+    internal protected override MethodSymbol Construct(ConstructionContext context)
+    {
+        var definition = this.ConstructedFrom ?? this;
+        var subContext = context.CreateSubstitution(definition.TypeParameters);
+
+        return new MethodSymbol(
+            this.Name,
+            this.DeclaringSymbol,
+            this.Access,
+            this.Modifiers,
+            me => ImmutableList<TypeParameterSymbol>.Empty,
+            () => context.TypeArguments,
+            me => subContext.Substitute(this.Parameters),
+            () => subContext.Substitute(this.ReturnType),
+            definition,
+            null);
+    }
+
+    internal protected override MethodSymbol Substitute(SubstitutionContext context)
+    {
+        return new MethodSymbol(
+            this.Name,
+            this.DeclaringSymbol,
+            this.Access,
+            this.Modifiers,
+            me => this.TypeParameters,
+            () => context.Substitute(this.TypeArguments),
+            me => context.Substitute(this.Parameters),
+            () => context.Substitute(this.ReturnType),
+            this.ConstructedFrom,
+            null);
+    }
 }

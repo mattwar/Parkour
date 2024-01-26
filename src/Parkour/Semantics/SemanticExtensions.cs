@@ -1,49 +1,7 @@
 ﻿namespace Parkour.Semantics;
 
 public static class SemanticExtensions
-{
-    /// <summary>
-    /// Assign a source value to a target location.
-    /// </summary>
-    public static AssignExpression Assign(this Expression target, Expression expression, ISourceLocation? location = null) =>
-        SemanticFactory.Assign(target, expression, location);
-
-    /// <summary>
-    /// Invokes a delegate, lambda function or method.
-    /// </summary>
-    public static CallExpression Call(this Expression target, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
-        SemanticFactory.Call(target, arguments, location);
-
-    /// <summary>
-    /// Invokes a delegate, lambda function or method.
-    /// </summary>
-    public static CallExpression Call(Expression target, IEnumerable<Expression> arguments, ISourceLocation? location = null) =>
-        SemanticFactory.Call(target, arguments, location);
-
-    /// <summary>
-    /// Invokes a delegate, lambda function or method.
-    /// </summary>
-    public static CallExpression Call(Expression target, params Expression[] arguments) =>
-        SemanticFactory.Call(target, arguments);
-
-    /// <summary>
-    /// Converts an expression to a specific type.
-    /// </summary>
-    public static ConvertExpression ConvertTo(this Expression expression, Expression convertedType, ISourceLocation? location = null) =>
-        SemanticFactory.Convert(expression, convertedType, location);
-
-    /// <summary>
-    /// Accesses the referenced member of the expression's type or instance.
-    /// </summary>
-    public static PathExpression Path(this Expression expression, ReferenceExpression reference, ISourceLocation? location = null) =>
-        SemanticFactory.Path(expression, reference, location);
-
-    /// <summary>
-    /// Accesses the referenced member of the expression's type or instance.
-    /// </summary>
-    public static PathExpression Path(this Expression expression, string name, ISourceLocation? location = null) =>
-        SemanticFactory.Path(expression, name, location);
-
+{ 
     /// <summary>
     /// Returns the list of values computed from the semantic elements in the tree 
     /// starting at the specified element that match the predicate.

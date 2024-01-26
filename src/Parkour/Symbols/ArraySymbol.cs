@@ -2,11 +2,41 @@
 
 public sealed class ArraySymbol : TypeSymbol
 {
-    public TypeSymbol ElementType { get; }
+    private Func<TypeSymbol>? _fnElementType;
+    private TypeSymbol? _elementType;
+
+    public TypeSymbol ElementType
+    {
+        get
+        {
+            if (_elementType == null && _fnElementType is { } fn)
+            {
+                _fnElementType = null;
+                var tmp = fn();
+                Interlocked.CompareExchange(ref _elementType, tmp, null);
+            }
+
+            return _elementType!;
+        }
+    }
+
+    public ArraySymbol(Func<TypeSymbol> fnElementType)
+        : base($"Array")
+    {
+        _fnElementType = fnElementType;
+        _elementType = null;
+    }
 
     public ArraySymbol(TypeSymbol elementType) 
-        : base($"Array({elementType.Name})")
+        : base($"Array")
     {
-        ElementType = elementType;
+        _elementType = elementType;
+        _fnElementType = null;
+    }
+
+    internal protected override ArraySymbol Substitute(SubstitutionContext context)
+    {
+        return new ArraySymbol(
+            () => context.Substitute(this.ElementType));
     }
 }

@@ -1,6 +1,7 @@
 using Parkour;
 using Parkour.Binding;
 using Parkour.Semantics;
+using Parkour.Symbols;
 using Parkour.Execution;
 using static Parkour.Semantics.SemanticFactory;
 
@@ -14,7 +15,7 @@ public class RunTests
 
     public RunTests()
     {
-        _symbols = RuntimeSymbols.GetOrCreateCommonSymbols();
+        _symbols = RuntimeSymbols.GetOrCreateCache();
         _defaultTestScope = ExpressionTests.CreateBindingScope(_symbols);
     }
 
@@ -64,7 +65,7 @@ public class RunTests
     [TestMethod]
     public void TestCall()
     {
-        TestRun(Call(Path(Constant(1), "ToString")), "1");
+        TestRun(Call(Constant(1).Member("ToString")), "1");
     }
 
     [TestMethod]
@@ -81,6 +82,14 @@ public class RunTests
     {
         TestRun(Constant(1), 1);
         TestRun(Constant("one"), "one");
+    }
+
+    [TestMethod]
+    public void TestConstructType()
+    {
+        TestRun(
+            Type("System.Collections.Generic.List`1").Construct([Type(_symbols.Int32)]),
+            typeof(List<int>));
     }
 
     [TestMethod]
@@ -194,7 +203,7 @@ public class RunTests
     public void TestPath()
     {
         TestRun(
-            Path(Type(_symbols.Int32), Name("MaxValue")), 
+            Type(_symbols.Int32).Member("MaxValue"), 
             Int32.MaxValue);
     }
 

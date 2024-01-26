@@ -52,7 +52,7 @@ public class DeclarationBinder
         var declarationNamespaceMembers = declarationSymbols!.Members;
 
         // resolve all declared symbols which creates symbol<->declaration maps
-        declarationSymbols.Walk(s => { });
+        declarationSymbols.WalkDeclarations(s => { });
 
         return new DeferredBinding(
             this,
@@ -201,17 +201,23 @@ public class DeclarationBinder
 
         switch (declaration)
         {
+            case TypeParameterDeclaration tp:
+                symbol = new TypeParameterSymbol(
+                    tp.Name,
+                    runtimeType: null);
+                break;
+
             case ClassDeclaration cd:
                 symbol = new TypeSymbol(
                     cd.Name,
                     container,
                     cd.Access,
                     cd.Modifiers,
-                    fnTypeParameters: null,
-                    fnTypeArguments: null,
+                    me => cd.TypeParameters.Select(tp => (TypeParameterSymbol)CreateSymbol(me, tp, scope)!).ToImmutableList()!,
+                    () => ImmutableList<TypeSymbol>.Empty,
                     () => cd.BaseTypes.Select(bt => GetType(bt)).ToImmutableList()!,
                     me => cd.Declarations.Select(d => CreateSymbol(me, d, scope)).Where(s => s != null).ToImmutableList()!,
-                    genericDefinition: null,
+                    constructedFrom: null,
                     runtimeType: null);
                 break;
 
@@ -221,17 +227,12 @@ public class DeclarationBinder
                     container,
                     md.Access,
                     md.Modifiers,
-                    fnTypeParameters: null,
-                    fnTypeArguments: null,
-                    me =>
-                    {
-                        return md.Parameters
-                            .Select(p => (ParameterSymbol)CreateSymbol(me, p, scope)!)
-                            .ToImmutableList()!;
-                    },
+                    me => ImmutableList<TypeParameterSymbol>.Empty,
+                    () => ImmutableList<TypeSymbol>.Empty,
+                    me => md.Parameters.Select(p => (ParameterSymbol)CreateSymbol(me, p, scope)!).ToImmutableList()!,
                     () => GetType(md.ReturnType),
-                    fnGenericDefinition: null,
-                    runtimeMethod: null
+                    constructedFrom: null,
+                    runtimeInfo: null
                     );
                 break;
 
@@ -251,7 +252,7 @@ public class DeclarationBinder
                     fd.Access,
                     fd.Modifiers,
                     () => GetType(fd.FieldType),
-                    runtimeField: null
+                    runtimeInfo: null
                     );
                 break;
 
@@ -269,7 +270,7 @@ public class DeclarationBinder
                     pd.SetMethod != null 
                         ? me => (MethodSymbol)CreateSymbol(me, pd.SetMethod, scope)!
                         : null,
-                    runtimeProperty: null
+                    runtimeInfo: null
                 );
                 break;
         }
@@ -414,8 +415,12 @@ public class DeclarationBinder
             );
     }
 
-    protected virtual MethodDeclaration BindMethod(MethodDeclaration md, MethodSymbol symbol, BindingScope scope)
+    protected virtual MethodDeclaration BindMethod(
+        MethodDeclaration md, 
+        MethodSymbol symbol, 
+        BindingScope scope)
     {
+        var typeParameters = BindDeclarations(md.TypeParameters, scope);
         var parameters = BindDeclarations(md.Parameters, scope);
         var returnType = BindExpression(md.ReturnType, scope);
 
@@ -429,6 +434,7 @@ public class DeclarationBinder
             md.Name,
             md.Access,
             md.Modifiers,
+            typeParameters,
             parameters,
             body,
             returnType,
@@ -440,6 +446,7 @@ public class DeclarationBinder
 
     private ClassDeclaration BindClass(ClassDeclaration cd, TypeSymbol symbol, BindingScope scope)
     {
+        var typeParameters = BindDeclarations(cd.TypeParameters, scope);
         var baseTypes = BindExpressions(cd.BaseTypes, scope);
 
         // add all class members to scope
@@ -453,6 +460,7 @@ public class DeclarationBinder
             cd.Name,
             cd.Access,
             cd.Modifiers,
+            typeParameters,
             baseTypes,
             declarations,
             cd.Location,
