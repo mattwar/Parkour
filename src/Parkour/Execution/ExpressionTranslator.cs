@@ -28,8 +28,8 @@ public sealed class ExpressionTranslator
 
     public L.Expression Translate(Expression expression)
     {
-        if (expression.ContainsUnknowns)
-            throw new InvalidOperationException("Cannot translation expression with unknowns");
+        if (expression.IsUnbound)
+            throw new InvalidOperationException("Cannot translation unbound expressions");
 
         switch (expression)
         {

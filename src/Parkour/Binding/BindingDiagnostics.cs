@@ -33,8 +33,14 @@ internal static class BindingDiagnostics
     public static Diagnostic CallIsAmbiguous() =>
         new Diagnostic("The call refers to more than one invokable symbol, and a best symbol cannot be determined.");
 
-    public static Diagnostic CallHasIncorrectNumberOfArguments(string name) =>
-        new Diagnostic($"The call to '{name}' has an incorrect number of arguments");
+    public static Diagnostic IncorrectNumberOfArguments() =>
+        new Diagnostic($"Incorrect number of arguments.");
+
+    public static Diagnostic NoConstructorFound() =>
+        new Diagnostic($"No suitable constructor found");
+
+    public static Diagnostic ConstructorsAreAmbiguous() =>
+        new Diagnostic($"No single best constructor can be determined");
 
     public static Diagnostic CannotConvert(TypeSymbol source, TypeSymbol target) =>
         new Diagnostic($"Cannot convert from type '{source.Name}' to type '{target.Name}'.");

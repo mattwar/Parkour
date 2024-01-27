@@ -52,6 +52,6 @@ public abstract class Symbol
     /// <summary>
     /// Returns a new symbol with references to any type parameter to references to the corresponding type argument.
     /// </summary>
-    internal protected virtual Symbol Substitute(SubstitutionContext context)
+    internal protected virtual Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
         => this;
 }

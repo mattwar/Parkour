@@ -181,6 +181,13 @@ public class SymbolCache
         this.GlobalNamespace.GetFirstSymbolFromPath<TSymbol>(dottedName);
 
     /// <summary>
+    /// Get the symbol associated with the dotted path name: "Namespace.MyType.Method"
+    /// If multiple symbols are found with the same name, the first is returned.
+    /// </summary>
+    public virtual Symbol? GetSymbol(string dottedName) =>
+        GetSymbol<Symbol>(dottedName);
+
+    /// <summary>
     /// Gets all the symbols associated with the dotted path name.
     /// </summary>
     public virtual void GetSymbols(string dottedName, List<Symbol> symbols) =>
@@ -393,7 +400,7 @@ public class SymbolCache
             _substitutions = new Dictionary<Symbol, Symbol>();
         }
 
-        public override TSymbol Substitute<TSymbol>(TSymbol symbol)
+        public override TSymbol Substitute<TSymbol>(TSymbol symbol, Symbol? declaringSymbol)
         {
             if (!_substitutions.TryGetValue(symbol, out var sub))
             {
@@ -411,7 +418,7 @@ public class SymbolCache
                 }
                 else 
                 {
-                    sub = symbol.Substitute(this);
+                    sub = symbol.Substitute(this, declaringSymbol);
                     _substitutions.Add(symbol, sub);
                 }
             }
@@ -419,14 +426,14 @@ public class SymbolCache
             return (TSymbol)sub;
         }
 
-        public override ImmutableList<TSymbol> Substitute<TSymbol>(ImmutableList<TSymbol> symbols)
+        public override ImmutableList<TSymbol> Substitute<TSymbol>(ImmutableList<TSymbol> symbols, Symbol? declaringSymbol)
         {
             List<TSymbol>? newList = null;
 
             for (int i = 0; i < symbols.Count; i++)
             {
                 var symbol = symbols[i];
-                var sub = (TSymbol)symbol.Substitute(this);
+                var sub = (TSymbol)symbol.Substitute(this, declaringSymbol);
                 if (sub != symbol || newList != null)
                 {
                     if (newList == null)

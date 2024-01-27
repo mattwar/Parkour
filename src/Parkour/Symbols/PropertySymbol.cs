@@ -130,11 +130,11 @@ public sealed class PropertySymbol : MemberSymbol
             _ => null
         };
 
-    internal protected override Symbol Substitute(SubstitutionContext context)
+    internal protected override Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new PropertySymbol(
             this.Name,
-            this.DeclaringSymbol,
+            declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
             () => context.Substitute(this.PropertyType),

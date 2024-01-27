@@ -9,7 +9,7 @@ public class NewExpression : Expression
 
     public NewExpression(
         Expression? typeExpression,
-        ImmutableList<Expression> arguments,
+        ImmutableList<Expression>? arguments,
         ISourceLocation? location,
         ConstructorSymbol? constructorSymbol,
         TypeSymbol? resultType,
@@ -24,7 +24,7 @@ public class NewExpression : Expression
             diagnostics)
     {
         this.TypeExpression = typeExpression;
-        this.Arguments = arguments;
+        this.Arguments = arguments ?? ImmutableList<Expression>.Empty;
         this.ConstructorSymbol = constructorSymbol;
     }
 

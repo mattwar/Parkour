@@ -185,17 +185,17 @@ public class MethodSymbol : MemberSymbol
             this.Modifiers,
             me => ImmutableList<TypeParameterSymbol>.Empty,
             () => context.TypeArguments,
-            me => subContext.Substitute(this.Parameters),
+            me => subContext.Substitute(this.Parameters, me),
             () => subContext.Substitute(this.ReturnType),
             definition,
             null);
     }
 
-    internal protected override MethodSymbol Substitute(SubstitutionContext context)
+    internal protected override MethodSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new MethodSymbol(
             this.Name,
-            this.DeclaringSymbol,
+            declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
             me => this.TypeParameters,

@@ -52,11 +52,11 @@ public sealed class ParameterSymbol : Symbol
     {
     }
 
-    internal protected override Symbol Substitute(SubstitutionContext context)
+    internal protected override Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new ParameterSymbol(
             this.Name,
-            this.DeclaringSymbol,
+            declaringSymbol ?? this.DeclaringSymbol,
             () => context.Substitute(this.ParameterType),
             null);
     }

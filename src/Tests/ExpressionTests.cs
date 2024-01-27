@@ -500,6 +500,25 @@ public class ExpressionTests
     }
 
     [TestMethod]
+    public void TestNew()
+    {
+        TestBinding(
+            New(Symbol("System.Object"), []),
+            expectedResultType: _symbols.Object
+            );
+
+        var listInt32 =
+            (TypeSymbol)_symbols.GetOrConstruct(
+                _symbols.GetSymbol("System.Collections.Generic.List`1")!,
+                [_symbols.Int32]);
+
+        TestBinding(
+            New(Symbol("System.Collections.Generic.List`1").Construct([Symbol("System.Int32")])),
+            expectedResultType: listInt32               
+            );
+    }
+
+    [TestMethod]
     public void TestOperators()
     {
         // Int32
@@ -603,7 +622,7 @@ public class ExpressionTests
         var binder = new ExpressionBinder(_symbols.GlobalNamespace);
         var bound = binder.Bind(expression, scope ?? _defaultTestScope);
 
-        Assert.IsFalse(bound.ContainsUnknowns, "expression contains unknowns after binding");
+        Assert.IsFalse(bound.IsUnbound, "expression contains unbound elements after binding");
 
         if (expectedResultType != null)
         {

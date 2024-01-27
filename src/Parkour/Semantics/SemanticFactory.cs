@@ -206,6 +206,24 @@ public static class SemanticFactory
         new NameReferenceExpression(name, location, null, null, null);
 
     /// <summary>
+    /// Creates an new instance of the specfied type.
+    /// </summary>
+    public static NewExpression New(Expression typeExpression, ImmutableList<Expression>? arguments = null, ISourceLocation? location = null) =>
+        new NewExpression(typeExpression, arguments, location, null, null, null);
+
+    /// <summary>
+    /// Creates an new instance of the infered type.
+    /// </summary>
+    public static NewExpression New(ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
+        new NewExpression(null, arguments, location, null, null, null);
+
+    /// <summary>
+    /// Creates an new instance of the infered type.
+    /// </summary>
+    public static NewExpression New(ISourceLocation? location = null) =>
+        new NewExpression(null, null, location, null, null, null);
+
+    /// <summary>
     /// Reference a declared symbol.
     /// </summary>
     public static SymbolReferenceExpression Symbol(MemberSymbol symbol, ISourceLocation? location = null) =>

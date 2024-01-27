@@ -54,11 +54,11 @@ public sealed class FieldSymbol : MemberSymbol
     {
     }
 
-    internal protected override FieldSymbol Substitute(SubstitutionContext context)
+    internal protected override FieldSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new FieldSymbol(
             this.Name,
-            this.DeclaringSymbol,
+            declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
             () => context.Substitute(this.FieldType),

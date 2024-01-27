@@ -5,7 +5,7 @@ using Syntax;
 [System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class Expression : SemanticElement
 {
-    private string DebugText => $"{GetType().Name}: {ResultType.Name}";
+    private string DebugText => $"{GetType().Name}: {ResultType.FullName}";
 
     public TypeSymbol ResultType { get; }
 

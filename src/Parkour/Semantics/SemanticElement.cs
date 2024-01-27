@@ -5,7 +5,7 @@ using Symbols;
 internal enum ContainsState
 {
     None = 0,
-    Unknowns = 2,
+    Unbound = 2,
     Diagnostics = 4
 }
 
@@ -16,12 +16,12 @@ public abstract class SemanticElement
     internal ContainsState State { get; }
 
     /// <summary>
-    /// This semantic or child semantics contains unknown/unbound elements.
+    /// This <see cref="SemanticElement"/> or its descendants is unbound.
     /// </summary>
-    public bool ContainsUnknowns => (this.State & ContainsState.Unknowns) != 0;
+    public bool IsUnbound => (this.State & ContainsState.Unbound) != 0;
 
     /// <summary>
-    /// This semantic or child semantics contains diagnostics.
+    /// This <see cref="SemanticElement"/> or its descendants has diagnostics.
     /// </summary>
     public bool ContainsDiagnostics => (this.State & ContainsState.Diagnostics) != 0;
 
@@ -88,12 +88,13 @@ public abstract class SemanticElement
 
     internal static ContainsState NotNullState(Symbol? symbol) =>
         symbol == null || symbol == SpecialSymbols.Unknown
-            ? ContainsState.Unknowns 
+            ? ContainsState.Unbound 
             : ContainsState.None;
 
     internal static ContainsState NotNullOrDiagnosticState(Symbol? symbol, ImmutableList<Diagnostic>? diagnostics) =>
-        (symbol == null || symbol == SpecialSymbols.Unknown) && (diagnostics == null || diagnostics.Count == 0)
-            ? ContainsState.Unknowns
+        (symbol == null || symbol == SpecialSymbols.Unknown) 
+            && (diagnostics == null || diagnostics.Count == 0)
+            ? ContainsState.Unbound
             : ContainsState.None;
 }
 

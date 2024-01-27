@@ -1,7 +1,10 @@
 ﻿namespace Parkour.Symbols;
 
+[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class MemberSymbol : Symbol
 {
+    private string DebugText => $"{GetType().Name}: {FullName}";
+
     /// <summary>
     /// The accessibility of the symbol.
     /// </summary>
@@ -43,43 +46,63 @@ public abstract class MemberSymbol : Symbol
             : "";
 
     private string? _fullName;
+    
     public string FullName
     {
         get
         {
             if (_fullName == null)
             {
-                string? fname = null;
-
-                if (this.DeclaringSymbol is MemberSymbol ms)
-                {
-                    if (ms.FullName.Length > 0)
-                    {
-                        fname = ms.FullName + "." + this.Name;
-                    }
-                    else
-                    {
-                        fname = this.Name;
-                    }
-                }
-                else if (this.Namespace.Length > 0)
-                {
-                    fname = this.Namespace + "." + this.Name;
-                }
-                else
-                {
-                    fname = this.Name;
-                }
-
-                if (this.Arity > 0)
-                {
-                    fname = fname + "`" + this.Arity;
-                }
-
-                Interlocked.CompareExchange(ref _fullName, fname, null);
+                var tmp = GetFullName();
+                Interlocked.CompareExchange(ref _fullName, tmp, null);
             }
 
             return _fullName;
         }
+    }
+
+    protected string GetFullName()
+    {
+        string? fname = null;
+
+        if (this.DeclaringSymbol is MemberSymbol ms)
+        {
+            if (ms.FullName.Length > 0)
+            {
+                fname = ms.FullName + "." + this.Name;
+            }
+            else
+            {
+                fname = this.Name;
+            }
+        }
+        else if (this.Namespace.Length > 0)
+        {
+            fname = this.Namespace + "." + this.Name;
+        }
+        else
+        {
+            fname = this.Name;
+        }
+
+        if (this.Arity > 0)
+        {
+            var typeArgs =
+                this is TypeSymbol type ? type.TypeArguments
+                : this is MethodSymbol method ? method.TypeArguments
+                : ImmutableList<TypeSymbol>.Empty;
+
+            if (typeArgs.Count > 0)
+            {
+                var typeArgList = string.Join(", ", typeArgs.Select(ta => ta.FullName));
+                fname += $"[{typeArgList}]";
+            }
+            else
+            {
+                fname = fname + "`" + this.Arity;
+            }
+        }
+
+        return fname;
     }
 }

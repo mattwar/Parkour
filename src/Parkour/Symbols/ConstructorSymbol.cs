@@ -50,7 +50,11 @@ public class ConstructorSymbol : MemberSymbol
         Func<ConstructorSymbol, ImmutableList<ParameterSymbol>> fnParameters,
         Func<TypeSymbol> fnReturnType,
         ConstructorInfo? runtimeInfo)
-        : base("", declaringSymbol, access, modifiers)
+        : base(
+            (modifiers & SymbolModifier.Static) != 0 ? ".cctor" : ".ctor", 
+            declaringSymbol, 
+            access, 
+            modifiers)
     {
         _fnParameters = fnParameters;
         _fnReturnType = fnReturnType;
@@ -80,14 +84,14 @@ public class ConstructorSymbol : MemberSymbol
     public override Symbol? GetDeclaration(int index) =>
         this.Parameters[index];
 
-    internal protected override ConstructorSymbol Substitute(SubstitutionContext context)
+    internal protected override ConstructorSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new ConstructorSymbol(
-            this.DeclaringSymbol,
+            declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            me => context.Substitute(this.Parameters),
-            () => context.Substitute(this.ReturnType),
+            me => context.Substitute(this.Parameters, me),
+            () => declaringSymbol as TypeSymbol ?? this.ReturnType,
             null);
     }
 }

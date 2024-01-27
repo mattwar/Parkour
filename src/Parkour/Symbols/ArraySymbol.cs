@@ -34,7 +34,7 @@ public sealed class ArraySymbol : TypeSymbol
         _fnElementType = null;
     }
 
-    internal protected override ArraySymbol Substitute(SubstitutionContext context)
+    internal protected override ArraySymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new ArraySymbol(
             () => context.Substitute(this.ElementType));

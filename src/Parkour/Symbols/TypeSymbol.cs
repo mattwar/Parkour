@@ -206,16 +206,16 @@ public class TypeSymbol : NamespaceOrTypeSymbol
             me => ImmutableList<TypeParameterSymbol>.Empty,
             () => context.TypeArguments,
             () => subContext.Substitute(this.BaseTypes),
-            me => subContext.Substitute(this.Members),
+            me => subContext.Substitute(this.Members, me),
             definition,
             null);
     }
 
-    internal protected override TypeSymbol Substitute(SubstitutionContext context)
+    internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new TypeSymbol(
             this.Name,
-            this.DeclaringSymbol,
+            declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
             me => this.TypeParameters,

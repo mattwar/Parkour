@@ -2,7 +2,6 @@
 using Semantics;
 using Symbols;
 using System;
-using static System.Net.Mime.MediaTypeNames;
 
 public class ExpressionBinder
 {
@@ -98,7 +97,7 @@ public class ExpressionBinder
     /// </summary>
     private Expression BindExpression(Expression expression, BindingContext context)
     {
-        if (!(context.Rebind || expression.ContainsUnknowns))
+        if (!(context.Rebind || expression.IsUnbound))
             return expression;
 
         switch (expression)
@@ -144,6 +143,9 @@ public class ExpressionBinder
 
             case NameReferenceExpression nameRef:
                 return BindNameReference(nameRef, context);
+
+            case NewExpression nex:
+                return BindNew(nex, context);
 
             case OperatorExpression opex:
                 return BindOperator(opex, context);
@@ -431,16 +433,8 @@ public class ExpressionBinder
             {
                 var instance = GetCallInstance(expression);
                 var referencedSymbol = expression.ReferencedSymbol;
-
-                if (referencedSymbol is GroupSymbol group)
-                {
-                    GetCalledSymbolCandidates(group.Symbols, arguments, candidates);
-                }
-                else if (referencedSymbol != null
-                    && IsCallableSymbol(referencedSymbol))
-                {
-                    candidates.Add(referencedSymbol);
-                }
+                if (referencedSymbol != null)
+                    GetCalledSymbolCandidates(referencedSymbol, arguments, candidates);
             }
 
             var location = expression.Location;
@@ -454,21 +448,16 @@ public class ExpressionBinder
             {
                 calledSymbol = GetBestCalledSymbol(arguments, candidates);
 
-                if (calledSymbol == null || calledSymbol == _symbols.Unknown)
+                if (calledSymbol == null)
                 {
-                    if (candidates.Count > 1)
-                        diagnostics.Add(BindingDiagnostics.CallIsAmbiguous().WithLocation(location));
-                }
-                else if (!IsCallableSymbol(calledSymbol))
-                {
-                    diagnostics.Add(BindingDiagnostics.SymbolNotCallable(calledSymbol.Name).WithLocation(location));
+                    diagnostics.Add(BindingDiagnostics.CallIsAmbiguous().WithLocation(location));
                 }
                 else
                 {
                     var parameters = GetCallableSymbolParameters(calledSymbol);
                     if (parameters.Count != arguments.Count)
                     {
-                        diagnostics.Add(BindingDiagnostics.CallHasIncorrectNumberOfArguments(calledSymbol.Name).WithLocation(location));
+                        diagnostics.Add(BindingDiagnostics.IncorrectNumberOfArguments().WithLocation(location));
                     }
                     else
                     {
@@ -484,7 +473,8 @@ public class ExpressionBinder
             if (expression == call.Expression
                 && arguments == call.Arguments
                 && call.CalledSymbol == calledSymbol
-                && call.ResultType == resultType)
+                && call.ResultType == resultType
+                && diagnostics.Count == 0)
                 return call;
             
             return new CallExpression(
@@ -533,12 +523,18 @@ public class ExpressionBinder
     /// Gets the list of candidate symbols for a call with the supplied arguments
     /// </summary>
     protected virtual void GetCalledSymbolCandidates(
-        ImmutableList<Symbol> symbols,
+        Symbol symbol,
         ImmutableList<Expression> arguments,
         List<Symbol> candidates)
     {
-        candidates.AddRange(
-            symbols.Where(s => MatchesParameters(s, arguments)));
+        if (symbol is GroupSymbol group)
+        {
+            candidates.AddRange(group.Symbols.Where(s => IsCallableSymbol(s) && MatchesParameters(s, arguments)));
+        }
+        else if (IsCallableSymbol(symbol))
+        {
+            candidates.Add(symbol);
+        }
     }
 
     protected virtual Symbol? GetBestCalledSymbol(ImmutableList<Expression> arguments, List<Symbol> candidates)
@@ -1275,6 +1271,101 @@ public class ExpressionBinder
         {
             _diagnosticListPool.ReturnToPool(diagnostics);
         }
+    }
+
+    protected virtual Expression BindNew(NewExpression nex, BindingContext context)
+    {
+        var candidates = _symbolListPool.AllocateFromPool();
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var argContext = context.WithTargetType(null).WithInflowType(_symbols.Void);
+
+            var typeExpression = nex.TypeExpression != null ? BindExpression(nex.TypeExpression, argContext) : null;
+            var arguments = BindExpressionList(nex.Arguments, argContext);
+            var referencedType = (typeExpression?.ReferencedSymbol ?? context.TargetType) as TypeSymbol;
+
+            if (referencedType != null)
+                GetConstructorCandidates(referencedType, arguments, candidates);
+
+            var location = nex.Location;
+            ConstructorSymbol? constructorSymbol = null;
+
+            if (candidates.Count == 0)
+            {
+                diagnostics.Add(BindingDiagnostics.NoConstructorFound().WithLocation(location));
+            }
+            else
+            {
+                constructorSymbol = GetBestConstructor(candidates);
+
+                if (constructorSymbol == null)
+                {
+                    diagnostics.Add(BindingDiagnostics.ConstructorsAreAmbiguous().WithLocation(location));
+                }
+                else if (constructorSymbol.Parameters.Count != arguments.Count)
+                {
+                    diagnostics.Add(BindingDiagnostics.IncorrectNumberOfArguments().WithLocation(location));
+                }
+                else
+                {
+                    arguments = ConvertArguments(constructorSymbol.Parameters, arguments, context);
+                }
+            }
+
+            var resultType = constructorSymbol?.ReturnType;
+
+            if (typeExpression == nex.TypeExpression
+                && arguments == nex.Arguments
+                && constructorSymbol == nex.ConstructorSymbol
+                && resultType == nex.ResultType
+                && diagnostics.Count == 0)
+                return nex;
+
+            return new NewExpression(
+                typeExpression,
+                arguments,
+                nex.Location,
+                constructorSymbol,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _symbolListPool.ReturnToPool(candidates);
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Gets the list of candidate symbols for a call with the supplied arguments
+    /// </summary>
+    protected virtual void GetConstructorCandidates(
+        TypeSymbol type,
+        ImmutableList<Expression> arguments,
+        List<Symbol> candidates)
+    {
+        var symbols = _symbolListPool.AllocateFromPool();
+        try
+        {
+            type.GetMembers(".ctor", symbols);
+
+            candidates.AddRange(
+                symbols
+                .OfType<ConstructorSymbol>()
+                .Where(c => !c.IsStatic && MatchesParameters(c, arguments))
+                );
+        }
+        finally
+        {
+            _symbolListPool.ReturnToPool(symbols);
+        }
+    }
+
+    protected virtual ConstructorSymbol? GetBestConstructor(List<Symbol> candidates)
+    {
+        // TODO: get good
+        return candidates.OfType<ConstructorSymbol>().FirstOrDefault();
     }
 
     protected virtual Expression BindTypeReference(SymbolReferenceExpression reference, BindingContext context)
