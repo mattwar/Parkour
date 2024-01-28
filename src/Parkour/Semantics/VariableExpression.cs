@@ -20,8 +20,8 @@ public sealed class VariableExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            OptionalState(variableType)
-            | OptionalState(initializer)
+            State(variableType)
+            | State(initializer)
             | NotNullState(variable)
             | NotNullState(resultType),
             location,

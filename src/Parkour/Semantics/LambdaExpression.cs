@@ -22,7 +22,7 @@ public sealed class LambdaExpression : Expression
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(parameters)
-            | body.State
+            | State(body)
             | NotNullState(returnType)
             | NotNullState(lambdaSymbol)
             | NotNullState(returnTarget),

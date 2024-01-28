@@ -1,29 +1,21 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
-[Flags]
-internal enum ContainsState
-{
-    None = 0,
-    Unbound = 2,
-    Diagnostics = 4
-}
-
 public abstract class SemanticElement
 {
     public ImmutableList<Diagnostic> Diagnostics { get; }
     public ISourceLocation? Location { get; }
-    internal ContainsState State { get; }
+    private readonly ContainsState _state;
 
     /// <summary>
     /// This <see cref="SemanticElement"/> or its descendants is unbound.
     /// </summary>
-    public bool IsUnbound => (this.State & ContainsState.Unbound) != 0;
+    public bool IsUnbound => (_state & ContainsState.Unbound) != 0;
 
     /// <summary>
     /// This <see cref="SemanticElement"/> or its descendants has diagnostics.
     /// </summary>
-    public bool ContainsDiagnostics => (this.State & ContainsState.Diagnostics) != 0;
+    public bool ContainsDiagnostics => (_state & ContainsState.Diagnostics) != 0;
 
     /// <summary>
     /// This semantic has diagnostics
@@ -36,11 +28,11 @@ public abstract class SemanticElement
         ImmutableList<Diagnostic>? diagnostics
         )
     {
-        this.State = state;
-        this.Diagnostics = diagnostics ?? ImmutableList<Diagnostic>.Empty;
-        this.Location = location;
-        if (this.Diagnostics.Count > 0)
-            this.State |= ContainsState.Diagnostics;
+        _state = state;
+        Diagnostics = diagnostics ?? ImmutableList<Diagnostic>.Empty;
+        Location = location;
+        if (Diagnostics.Count > 0)
+            _state |= ContainsState.Diagnostics;
     }
 
     /// <summary>
@@ -71,27 +63,35 @@ public abstract class SemanticElement
             );
     }
 
+    [Flags]
+    internal protected enum ContainsState
+    {
+        None = 0,
+        Unbound = 2,
+        Diagnostics = 4
+    }
+
     /// <summary>
     /// Get all contained diagnostics.
     /// </summary>
     public void GetContainedDiagnostics(List<Diagnostic> diagnostics) =>
         GetContainedDiagnostics(null, diagnostics);
 
-    internal static ContainsState CombineState<TSemantic>(IEnumerable<TSemantic>? items)
+    protected static ContainsState CombineState<TSemantic>(IEnumerable<TSemantic>? items)
         where TSemantic : SemanticElement =>
         items != null
-            ? items.Aggregate(ContainsState.None, (s, e) => s | e.State)
+            ? items.Aggregate(ContainsState.None, (s, e) => s | State(e))
             : ContainsState.None;
 
-    internal static ContainsState OptionalState(SemanticElement? element) =>
-        element != null ? element.State : ContainsState.None;
+    protected static ContainsState State(SemanticElement? element) =>
+        element != null ? element._state : ContainsState.None;
 
-    internal static ContainsState NotNullState(Symbol? symbol) =>
+    protected static ContainsState NotNullState(Symbol? symbol) =>
         symbol == null || symbol == SpecialSymbols.Unknown
             ? ContainsState.Unbound 
             : ContainsState.None;
 
-    internal static ContainsState NotNullOrDiagnosticState(Symbol? symbol, ImmutableList<Diagnostic>? diagnostics) =>
+    protected static ContainsState NotNullOrDiagnosticState(Symbol? symbol, ImmutableList<Diagnostic>? diagnostics) =>
         (symbol == null || symbol == SpecialSymbols.Unknown) 
             && (diagnostics == null || diagnostics.Count == 0)
             ? ContainsState.Unbound

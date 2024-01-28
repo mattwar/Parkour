@@ -15,7 +15,7 @@ public sealed class BranchExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-              OptionalState(expression)
+              State(expression)
               | NotNullOrDiagnosticState(target, diagnostics)
               | NotNullState(resultType),
               location,

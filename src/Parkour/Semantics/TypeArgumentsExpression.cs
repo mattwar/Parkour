@@ -1,13 +1,16 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
-public class ConstructExpression : Expression
+/// <summary>
+/// Filters the referenced symbols by arity and converts the remaining into constructed versions.
+/// </summary>
+public class TypeArgumentsExpression : AdjustedReferenceExpression
 {
-    public Expression Expression { get; }
+    public override Expression Expression { get; }
     public ImmutableList<Expression> TypeArguments { get; }
     public Symbol? ConstructedSymbol { get; }
 
-    public ConstructExpression(
+    public TypeArgumentsExpression(
         Expression expression,
         ImmutableList<Expression> typeArguments,
         ISourceLocation? location,
@@ -15,7 +18,7 @@ public class ConstructExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            expression.State
+            State(expression)
             | CombineState(typeArguments)
             | NotNullOrDiagnosticState(constructedSymbol, diagnostics),
             location,

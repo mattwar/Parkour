@@ -22,10 +22,10 @@ public sealed class PropertyDeclaration : MemberDeclaration
         PropertySymbol? propertySymbol,
         ImmutableList<Diagnostic>? diagnostics)
     : base(
-        propertyType.State
-        | OptionalState(backingField)
-        | getMethod.State 
-        | OptionalState(setMethod)
+        State(propertyType)
+        | State(backingField)
+        | State(getMethod)
+        | State(setMethod)
         | NotNullState(propertySymbol),
         name,
         access,

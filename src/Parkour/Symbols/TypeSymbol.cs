@@ -1,6 +1,6 @@
 ﻿namespace Parkour.Symbols;
 
-public class TypeSymbol : NamespaceOrTypeSymbol
+public class TypeSymbol : ContainerSymbol
 {
     private Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
     private ImmutableList<TypeParameterSymbol>? _typeParameters;

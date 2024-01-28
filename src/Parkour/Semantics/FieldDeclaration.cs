@@ -18,7 +18,7 @@ public sealed class FieldDeclaration : MemberDeclaration
         FieldSymbol? fieldSymbol,
         ImmutableList<Diagnostic>? diagnostics)
     : base(
-          OptionalState(initializer)
+          State(initializer)
           | NotNullState(fieldSymbol),
           name,
           access,

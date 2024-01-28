@@ -102,6 +102,12 @@ public class ExpressionBinder
 
         switch (expression)
         {
+            case ArrayExpression array:
+                return BindArray(array, context);
+
+            case ArityExpression arity:
+                return BindArity(arity, context);
+
             case AssignExpression assign:
                 return BindAssign(assign, context);
 
@@ -120,7 +126,7 @@ public class ExpressionBinder
             case ConstantExpression constant:
                 return BindConstant(constant, context);
 
-            case ConstructExpression construct:
+            case TypeArgumentsExpression construct:
                 return BindConstruct(construct, context);
 
             case ConvertExpression convert:
@@ -144,8 +150,14 @@ public class ExpressionBinder
             case NameReferenceExpression nameRef:
                 return BindNameReference(nameRef, context);
 
-            case NewExpression nex:
-                return BindNew(nex, context);
+            case NewExpression @new:
+                return BindNew(@new, context);
+
+            case NewArrayInitExpression newArrayInit:
+                return BindNewArrayInit(newArrayInit, context);
+
+            case NewArraySizeExpression newArraySize:
+                return BindNewArraySize(newArraySize, context);
 
             case OperatorExpression opex:
                 return BindOperator(opex, context);
@@ -171,6 +183,41 @@ public class ExpressionBinder
         if (expressions.Count == 0)
             return expressions;
         return expressions.Rewrite(e => (TExpression)BindExpression(e, context));
+    }
+
+    protected virtual Expression BindArray(ArrayExpression array, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var expression = BindExpression(array.Expression, context);
+            var elementType = expression.ReferencedSymbol as TypeSymbol;
+            var referencedSymbol = elementType != null ? _symbols.GetArray(elementType) : null;
+            var resultType = GetReferenceResultType(referencedSymbol);
+
+            if (elementType == null)
+            {
+                diagnostics.Add(BindingDiagnostics.ReferencedSymbolNotType().WithLocation(array.Location));
+            }
+
+            if (expression == array.Expression
+                && referencedSymbol == array.ReferencedSymbol
+                && resultType == array.ResultType
+                && diagnostics.Count == 0)
+                return array;
+
+            return new ArrayExpression(
+                expression,
+                array.Location,
+                referencedSymbol,
+                resultType,
+                diagnostics.ToImmutableList()
+                );
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
 
     protected virtual Expression BindArity(ArityExpression arity, BindingContext context)
@@ -498,10 +545,8 @@ public class ExpressionBinder
         {
             case MemberExpression member:
                 return member.Expression;
-            case ArityExpression arity:
-                return null;
-            case ConstructExpression construct:
-                return GetCallInstance(construct);
+            case AdjustedReferenceExpression filter:
+                return GetCallInstance(filter.Expression);
             default:
                 return expression;
         }
@@ -642,7 +687,25 @@ public class ExpressionBinder
         }
     }
 
-    protected virtual TypeSymbol? GetBestCommonType(params TypeSymbol?[] types) =>
+    protected TypeSymbol? GetBestCommonType(IReadOnlyList<Expression> expressions, bool voidIsBetter = false)
+    {
+        var types = _typeListPool.AllocateFromPool();
+        try
+        {
+            types.AddRange(
+                expressions
+                .Select(e => e.ResultType)
+                );
+
+            return GetBestCommonType(types, voidIsBetter);
+        }
+        finally
+        {
+            _typeListPool.ReturnToPool(types);
+        }
+    }
+
+    protected TypeSymbol? GetBestCommonType(params TypeSymbol?[] types) =>
         GetBestCommonType((IReadOnlyList<TypeSymbol?>)types);
 
     protected virtual TypeSymbol? GetBestCommonType(IReadOnlyList<TypeSymbol?> types, bool voidIsBetter = false)
@@ -742,7 +805,7 @@ public class ExpressionBinder
             null);
     }
 
-    protected virtual Expression BindConstruct(ConstructExpression construct, BindingContext context)
+    protected virtual Expression BindConstruct(TypeArgumentsExpression construct, BindingContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
@@ -770,7 +833,7 @@ public class ExpressionBinder
                 && diagnostics.Count == 0)
                 return construct;
 
-            return new ConstructExpression(
+            return new TypeArgumentsExpression(
                 expression,
                 typeArguments,
                 construct.Location,
@@ -820,7 +883,7 @@ public class ExpressionBinder
                 return null;
             }
 
-            return _symbols.GetOrConstruct(type, typeArguments);
+            return _symbols.GetConstructed(type, typeArguments);
         }
         else if (symbol is MethodSymbol method)
         {
@@ -830,7 +893,7 @@ public class ExpressionBinder
                     diagnostics.Add(BindingDiagnostics.MethodDoesNotHaveMatchingArity().WithLocation(location));
                 return null;
             }
-            return _symbols.GetOrConstruct(method, typeArguments);
+            return _symbols.GetConstructed(method, typeArguments);
         }
         else
         {
@@ -1227,7 +1290,13 @@ public class ExpressionBinder
                     name,
                     s => s is MemberSymbol m && m.IsStatic,
                     members);
-                return _symbols.GetGroup(members);
+            }
+            else if (expression.ReferencedSymbol is ContainerSymbol container)
+            {
+                container.GetMembers(
+                    name, 
+                    s => s is MemberSymbol m,
+                    members);
             }
             else
             {
@@ -1236,8 +1305,9 @@ public class ExpressionBinder
                     name,
                     s => s is MemberSymbol m && !m.IsStatic,
                     members);
-                return _symbols.GetGroup(members);
             }
+
+            return _symbols.GetGroup(members);
         }
         finally
         {
@@ -1366,6 +1436,85 @@ public class ExpressionBinder
     {
         // TODO: get good
         return candidates.OfType<ConstructorSymbol>().FirstOrDefault();
+    }
+
+    protected virtual Expression BindNewArraySize(NewArraySizeExpression newArraySize, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var targetType = context.TargetType;
+            context = context.WithTargetType(null);
+            var elementType = newArraySize.ElementType != null ? BindExpression(newArraySize.ElementType, context) : null;
+            var size = BindExpression(newArraySize.Size, context);
+
+            var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
+            var elementTypeSymbol = elementType?.ReferencedSymbol as TypeSymbol
+                ?? targetElementType;
+            var resultType = elementTypeSymbol != null ? _symbols.GetArray(elementTypeSymbol) : null;
+
+            if (elementTypeSymbol == null)
+            {
+                diagnostics.Add(BindingDiagnostics.CannotInferElementType().WithLocation(newArraySize.Location));
+            }
+
+            if (elementType == newArraySize.ElementType
+                && size == newArraySize.Size
+                && resultType == newArraySize.ResultType
+                && diagnostics.Count == 0)
+                return newArraySize;
+
+            return new NewArraySizeExpression(
+                elementType,
+                size,
+                newArraySize.Location,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+
+    protected virtual Expression BindNewArrayInit(NewArrayInitExpression newArrayInit, BindingContext context)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var targetType = context.TargetType;
+            context = context.WithTargetType(null);
+            var elementType = newArrayInit.ElementType != null ? BindExpression(newArrayInit.ElementType, context) : null;
+            var expressions = BindExpressionList(newArrayInit.Expressions, context);
+
+            var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
+            var elementTypeSymbol = elementType?.ReferencedSymbol as TypeSymbol
+                ?? targetElementType
+                ?? GetBestCommonType(expressions);
+            var resultType = elementTypeSymbol != null ? _symbols.GetArray(elementTypeSymbol) : null;
+
+            if (elementTypeSymbol == null)
+            {
+                diagnostics.Add(BindingDiagnostics.CannotInferElementType().WithLocation(newArrayInit.Location));
+            }
+
+            if (elementType == newArrayInit.ElementType
+                && expressions == newArrayInit.Expressions
+                && resultType == newArrayInit.ResultType
+                && diagnostics.Count == 0)
+                return newArrayInit;
+
+            return new NewArrayInitExpression(
+                elementType,
+                expressions,
+                newArrayInit.Location,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
 
     protected virtual Expression BindTypeReference(SymbolReferenceExpression reference, BindingContext context)

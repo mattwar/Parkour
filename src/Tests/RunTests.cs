@@ -88,7 +88,7 @@ public class RunTests
     public void TestConstructType()
     {
         TestRun(
-            Symbol("System.Collections.Generic.List`1").Construct([Symbol(_symbols.Int32)]),
+            Symbol("System.Collections.Generic.List`1").WithTypeArguments([Symbol(_symbols.Int32)]),
             typeof(List<int>));
     }
 
@@ -244,7 +244,7 @@ public class RunTests
         if (!(expression is LambdaExpression))
             expression = Lambda(expression);
 
-        args ??= Array.Empty<object>();
+        args ??= System.Array.Empty<object>();
 
         var binder = new ExpressionBinder(_symbols.GlobalNamespace);
         var bound = (LambdaExpression)binder.Bind(expression, scope ?? _defaultTestScope);

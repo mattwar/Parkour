@@ -77,4 +77,10 @@ internal static class BindingDiagnostics
 
     public static Diagnostic NoReferencedSymbolsHaveMatchingArity() =>
         new Diagnostic("No referenced symbol have mathing arity.");
+
+    public static Diagnostic CannotInferElementType() =>
+        new Diagnostic("Cannot infer element type.");
+
+    public static Diagnostic ReferencedSymbolNotType() =>
+        new Diagnostic("The referenced Symbol is not a type.");
 }

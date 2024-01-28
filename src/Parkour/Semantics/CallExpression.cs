@@ -15,7 +15,7 @@ public sealed class CallExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            expression.State 
+            State(expression) 
             | CombineState(arguments)
             | NotNullState(calledSymbol)
             | NotNullState(resultType),

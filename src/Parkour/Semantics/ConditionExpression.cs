@@ -16,9 +16,9 @@ public sealed class ConditionExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            test.State 
-            | whenTrue.State 
-            | whenFalse.State
+            State(test)
+            | State(whenTrue)
+            | State(whenFalse)
             | NotNullState(resultType),
             location,
             resultType,

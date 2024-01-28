@@ -41,7 +41,7 @@ public record struct BindingScope(ImmutableList<Symbol> Containers, ImmutableLis
         // look at container members
         foreach (var container in this.Containers)
         {
-            if (container is NamespaceOrTypeSymbol nsOrType)
+            if (container is ContainerSymbol nsOrType)
             {
                 foreach (var members in nsOrType.Members)
                 {
@@ -68,7 +68,7 @@ public record struct BindingScope(ImmutableList<Symbol> Containers, ImmutableLis
     {
         foreach (var container in this.Containers)
         {
-            if (container is NamespaceOrTypeSymbol nsOrType)
+            if (container is ContainerSymbol nsOrType)
             {
                 foreach (var member in nsOrType.Members)
                 {

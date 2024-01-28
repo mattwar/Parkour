@@ -23,7 +23,7 @@ public class LabelExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            OptionalState(receivingType)
+            State(receivingType)
             | NotNullState(labelSymbol)
             | NotNullState(resultType),
             location,

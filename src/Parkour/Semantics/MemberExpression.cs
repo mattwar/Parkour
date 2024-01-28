@@ -16,7 +16,7 @@ public sealed class MemberExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            expression.State 
+            State(expression)
             | NotNullOrDiagnosticState(referencedSymbol, diagnostics)
             | NotNullState(resultType),
             location,

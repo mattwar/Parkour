@@ -29,6 +29,34 @@ public class ExpressionTests
     }
 
     [TestMethod]
+    public void TestArray()
+    {
+        TestBinding(
+            Symbol("System.Int32").Array(),
+            expectedReferencedSymbol: _symbols.GetArray(_symbols.Int32));
+    }
+
+    [TestMethod]
+    public void TestArity()
+    {
+        TestBinding(
+            Symbol("System.Collections.Generic").Member("List").WithArity(1),
+            expectedReferencedSymbol: _symbols.GetSymbol("System.Collections.Generic.List`1"));
+    }
+
+    [TestMethod]
+    public void TestTypeArguments()
+    {
+        TestBinding(
+            Symbol("System.Collections.Generic").Member("List").WithTypeArguments([Symbol(_symbols.Int32)]),
+            expectedReferencedSymbol:
+                _symbols.GetConstructed(
+                    _symbols.GetSymbol("System.Collections.Generic.List`1"),
+                    [_symbols.Int32])
+                );
+    }
+
+    [TestMethod]
     public void TestAssign()
     {
         TestBinding(
@@ -176,20 +204,6 @@ public class ExpressionTests
     public void TestConstant()
     {
         TestBinding(Constant(1), _symbols.Int32);
-    }
-
-    [TestMethod]
-    public void TestConstructType()
-    {
-        var listT = (TypeSymbol?)_symbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
-        Assert.IsNotNull(listT);
-        var listInt32 = _symbols.GetOrConstruct(listT, [_symbols.Int32]);
-        Assert.IsNotNull(listInt32);
-
-        TestBinding(
-            Construct(Symbol(listT), [Symbol(_symbols.Int32)]),
-            expectedReferencedSymbol: listInt32
-            );
     }
 
     [TestMethod]
@@ -508,13 +522,48 @@ public class ExpressionTests
             );
 
         var listInt32 =
-            (TypeSymbol)_symbols.GetOrConstruct(
+            (TypeSymbol)_symbols.GetConstructed(
                 _symbols.GetSymbol("System.Collections.Generic.List`1")!,
                 [_symbols.Int32]);
 
         TestBinding(
-            New(Symbol("System.Collections.Generic.List`1").Construct([Symbol("System.Int32")])),
+            New(Symbol("System.Collections.Generic.List`1").WithTypeArguments([Symbol("System.Int32")])),
             expectedResultType: listInt32               
+            );
+    }
+
+    [TestMethod]
+    public void TestNewArraySize()
+    {
+        TestBinding(
+            NewArray(Symbol(_symbols.Int32), Constant(10)),
+            expectedResultType: _symbols.GetArray(_symbols.Int32)
+            );
+    }
+
+    [TestMethod]
+    public void TestNewArrayInit()
+    {
+        TestBinding(
+            NewArray(Symbol(_symbols.Int32), [Constant(1), Constant(2), Constant(3)]),
+            expectedResultType: _symbols.GetArray(_symbols.Int32)
+            );
+
+        // infered from value types
+        TestBinding(
+            NewArray([Constant(1), Constant(2), Constant(3)]),
+            expectedResultType: _symbols.GetArray(_symbols.Int32)
+            );
+
+        TestBinding(
+            NewArray([Constant(1), Constant(2L), Constant(3)]),
+            expectedResultType: _symbols.GetArray(_symbols.Int64)
+            );
+
+        // inferred from target type
+        TestBinding(
+            Variable(Symbol(_symbols.Int32).Array(), "x", NewArray([Constant(1), Constant(2), Constant(3)])),
+            expectedResultType: _symbols.GetArray(_symbols.Int32)
             );
     }
 
@@ -548,7 +597,7 @@ public class ExpressionTests
         TestBinding(Not(Constant(true)), _symbols.Boolean);
 
         // string
-        TestBinding(Add(Constant("one"), Constant("two")), _symbols.String);
+        TestBinding(Add(Constant("one"), Constant("two")), _symbols.String); 
         TestBinding(Equal(Constant("one"), Constant("two")), _symbols.Boolean);
     }
 

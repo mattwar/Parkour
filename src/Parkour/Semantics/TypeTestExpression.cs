@@ -13,8 +13,8 @@ public class TypeTestExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic> diagnostics)
         : base(
-            expression.State
-            | OptionalState(typeExpression)
+            State(expression)
+            | State(typeExpression)
             | NotNullState(resultType),
             location,
             resultType,

@@ -47,7 +47,7 @@ public sealed class ExpressionTranslator
                 return TranslateCondition(condition);
             case ConstantExpression constant:
                 return TranslateConstant(constant);
-            case ConstructExpression construct:
+            case TypeArgumentsExpression construct:
                 return TranslateConstruct(construct);
             case ConvertExpression convert:
                 return TranslateConvert(convert);
@@ -274,7 +274,7 @@ public sealed class ExpressionTranslator
                 return member.Expression;
             case ArityExpression arity:
                 return null;
-            case ConstructExpression construct:
+            case TypeArgumentsExpression construct:
                 return GetCallInstance(construct);
             default:
                 return expression;
@@ -447,7 +447,7 @@ public sealed class ExpressionTranslator
         return TranslateReferencedSymbol(arity.ReferencedSymbol);
     }
 
-    private L.Expression TranslateConstruct(ConstructExpression construct)
+    private L.Expression TranslateConstruct(TypeArgumentsExpression construct)
     {
         return TranslateReferencedSymbol(construct.ReferencedSymbol);
     }

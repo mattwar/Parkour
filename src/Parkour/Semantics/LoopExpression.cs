@@ -15,7 +15,7 @@ public sealed class LoopExpression : Expression
         LabelSymbol? continueTarget,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            body.State
+            State(body)
             | NotNullState(resultType)
             | NotNullState(breakTarget)
             | NotNullState(continueTarget), 

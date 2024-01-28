@@ -11,7 +11,8 @@ public sealed class AssignExpression : Expression
         ISourceLocation? location,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            target.State | source.State, 
+            State(target)
+            | State(source), 
             location,
             target.ResultType,
             diagnostics)

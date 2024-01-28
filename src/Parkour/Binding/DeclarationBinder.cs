@@ -134,7 +134,7 @@ public class DeclarationBinder
     private void Map(Declaration declaration, Symbol symbol)
     {
         _declToSymbolMap[declaration] = symbol;
-        _symbolToDeclsMap[symbol] = ImmutableList.Create(declaration);
+        _symbolToDeclsMap[symbol] = [declaration];
     }
 
     private void Map(IEnumerable<Declaration> declarations, Symbol symbol)
@@ -183,7 +183,7 @@ public class DeclarationBinder
 
         var otherMemberSymbols =
             otherMembers
-            .Select(d => CreateSymbol(null, d, scope))
+            .Select(d => CreateDeclarationSymbol(null, d, scope))
             .OfType<Symbol>()
             .ToList();
 
@@ -192,8 +192,11 @@ public class DeclarationBinder
         return newMembers.ToImmutableList();
     }
 
-    private Symbol? CreateSymbol(
-        MemberSymbol? container,
+    /// <summary>
+    /// Creates the symbol associated with the declaration.
+    /// </summary>
+    protected virtual Symbol? CreateDeclarationSymbol(
+        Symbol? declaringSymbol,
         Declaration declaration,
         BindingScope scope)
     {
@@ -210,13 +213,13 @@ public class DeclarationBinder
             case ClassDeclaration cd:
                 symbol = new TypeSymbol(
                     cd.Name,
-                    container,
+                    declaringSymbol,
                     cd.Access,
                     cd.Modifiers,
-                    me => cd.TypeParameters.Select(tp => (TypeParameterSymbol)CreateSymbol(me, tp, scope)!).ToImmutableList()!,
+                    me => cd.TypeParameters.Select(tp => (TypeParameterSymbol)CreateDeclarationSymbol(me, tp, scope)!).ToImmutableList()!,
                     () => ImmutableList<TypeSymbol>.Empty,
                     () => cd.BaseTypes.Select(bt => GetType(bt)).ToImmutableList()!,
-                    me => cd.Declarations.Select(d => CreateSymbol(me, d, scope)).Where(s => s != null).ToImmutableList()!,
+                    me => cd.Declarations.Select(d => CreateDeclarationSymbol(me, d, scope)).Where(s => s != null).ToImmutableList()!,
                     constructedFrom: null,
                     runtimeType: null);
                 break;
@@ -224,12 +227,12 @@ public class DeclarationBinder
             case MethodDeclaration md:
                 symbol = new MethodSymbol(
                     md.Name,
-                    container,
+                    declaringSymbol,
                     md.Access,
                     md.Modifiers,
                     me => ImmutableList<TypeParameterSymbol>.Empty,
                     () => ImmutableList<TypeSymbol>.Empty,
-                    me => md.Parameters.Select(p => (ParameterSymbol)CreateSymbol(me, p, scope)!).ToImmutableList()!,
+                    me => md.Parameters.Select(p => (ParameterSymbol)CreateDeclarationSymbol(me, p, scope)!).ToImmutableList()!,
                     () => GetType(md.ReturnType),
                     constructedFrom: null,
                     runtimeInfo: null
@@ -239,7 +242,7 @@ public class DeclarationBinder
             case ParameterDeclaration pd:
                 symbol = new ParameterSymbol(
                     pd.Name,
-                    container,
+                    declaringSymbol,
                     () => pd.ParameterType != null ? GetType(pd.ParameterType) : SpecialSymbols.Any,
                     runtimeParameter: null
                     );
@@ -248,7 +251,7 @@ public class DeclarationBinder
             case FieldDeclaration fd:
                 symbol = new FieldSymbol(
                     fd.Name,
-                    container as TypeSymbol,
+                    declaringSymbol as TypeSymbol,
                     fd.Access,
                     fd.Modifiers,
                     () => GetType(fd.FieldType),
@@ -259,16 +262,16 @@ public class DeclarationBinder
             case PropertyDeclaration pd:
                 symbol = new PropertySymbol(
                     pd.Name,
-                    container as TypeSymbol,
+                    declaringSymbol as TypeSymbol,
                     pd.Access,
                     pd.Modifiers,
                     () => GetType(pd.PropertyType),
                     pd.BackingField != null 
-                        ? me => (FieldSymbol)CreateSymbol(me, pd.BackingField, scope)!
+                        ? me => (FieldSymbol)CreateDeclarationSymbol(me, pd.BackingField, scope)!
                         : null,
-                    me => (MethodSymbol)CreateSymbol(me, pd.GetMethod, scope)!,
+                    me => (MethodSymbol)CreateDeclarationSymbol(me, pd.GetMethod, scope)!,
                     pd.SetMethod != null 
-                        ? me => (MethodSymbol)CreateSymbol(me, pd.SetMethod, scope)!
+                        ? me => (MethodSymbol)CreateDeclarationSymbol(me, pd.SetMethod, scope)!
                         : null,
                     runtimeInfo: null
                 );
@@ -286,12 +289,12 @@ public class DeclarationBinder
     private TypeSymbol GetType(Expression typeExpression) =>
         _binder!.GetType(typeExpression) ?? SpecialSymbols.Unknown;
 
-    private Expression BindExpression(Expression expr, BindingScope scope)
+    protected virtual Expression BindExpression(Expression expr, BindingScope scope)
     {
         return _binder!.Bind(expr, scope);
     }
 
-    private ImmutableList<TExpression> BindExpressions<TExpression>(ImmutableList<TExpression> list, BindingScope scope)
+    protected virtual ImmutableList<TExpression> BindExpressions<TExpression>(ImmutableList<TExpression> list, BindingScope scope)
         where TExpression : Expression
     {
         return _binder!.BindList(list, scope);
@@ -300,52 +303,46 @@ public class DeclarationBinder
     /// <summary>
     /// Binds declarations and related expressions
     /// </summary>
-    internal virtual Declaration BindDeclaration(Declaration declaration, BindingScope scope)
+    protected virtual Declaration BindDeclaration(Declaration declaration, BindingScope scope)
     {
-        var symbol = _declToSymbolMap[declaration];
-
-        switch (declaration)
+        if (_declToSymbolMap.TryGetValue(declaration, out var symbol))
         {
-            case FieldDeclaration fd:
-                return BindField(fd, (FieldSymbol)symbol, scope);
-            case PropertyDeclaration pd:
-                return BindProperty(pd, (PropertySymbol)symbol, scope);
-            case ParameterDeclaration prd:
-                return BindParameter(prd, (ParameterSymbol)symbol, scope);
-            case MethodDeclaration md:
-                return BindMethod(md, (MethodSymbol)symbol, scope);
-            case ClassDeclaration cld:
-                return BindClass(cld, (TypeSymbol)symbol, scope);
-            case NamespaceDeclaration nd:
-                return BindNamespace(nd, (NamespaceSymbol)symbol, scope);
-            default:
-                break;
+            switch (declaration)
+            {
+                case FieldDeclaration fd:
+                    return BindField(fd, (FieldSymbol)symbol, scope);
+                case PropertyDeclaration pd:
+                    return BindProperty(pd, (PropertySymbol)symbol, scope);
+                case ParameterDeclaration prd:
+                    return BindParameter(prd, (ParameterSymbol)symbol, scope);
+                case MethodDeclaration md:
+                    return BindMethod(md, (MethodSymbol)symbol, scope);
+                case ClassDeclaration cld:
+                    return BindClass(cld, (TypeSymbol)symbol, scope);
+                case NamespaceDeclaration nd:
+                    return BindNamespace(nd, (NamespaceSymbol)symbol, scope);
+                case TypeParameterDeclaration tp:
+                    return BindTypeParameter(tp, (TypeParameterSymbol)symbol, scope);
+                default:
+                    throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(DeclarationBinder)}.{nameof(BindDeclaration)}");
+            }
         }
-
-        return declaration;
+        else
+        {
+            switch (declaration)
+            {
+                case UsingDeclaration ud:
+                    return BindUsing(ud, scope);
+                default:
+                    throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(DeclarationBinder)}.{nameof(BindDeclaration)}");
+            }
+        }
     }
 
     protected virtual ImmutableList<TDeclaration> BindDeclarations<TDeclaration>(ImmutableList<TDeclaration> list, BindingScope scope)
         where TDeclaration : Declaration
     {
-        List<TDeclaration>? newList = null;
-
-        for (int i = 0; i < list.Count; i++)
-        {
-            var decl = list[i];
-
-            var bound = (TDeclaration)BindDeclaration(decl, scope);
-            if (bound != decl || newList != null)
-            {
-                if (newList == null)
-                    newList = [.. list.Take(i)];
-                newList.Add(bound);
-            }
-        }
-
-        return newList != null
-            ? newList.ToImmutableList()
-            : list;
+        return list.Rewrite(d => (TDeclaration)BindDeclaration(d, scope));
     }
 
     protected virtual FieldDeclaration BindField(FieldDeclaration fd, FieldSymbol symbol, BindingScope scope)
@@ -444,7 +441,7 @@ public class DeclarationBinder
             );
     }
 
-    private ClassDeclaration BindClass(ClassDeclaration cd, TypeSymbol symbol, BindingScope scope)
+    protected virtual ClassDeclaration BindClass(ClassDeclaration cd, TypeSymbol symbol, BindingScope scope)
     {
         var typeParameters = BindDeclarations(cd.TypeParameters, scope);
         var baseTypes = BindExpressions(cd.BaseTypes, scope);
@@ -455,6 +452,11 @@ public class DeclarationBinder
             .AddSymbol(symbol);
 
         var declarations = BindDeclarations(cd.Declarations, bodyScope);
+
+        if (typeParameters == cd.TypeParameters
+            && baseTypes == cd.BaseTypes
+            && declarations == cd.Declarations)
+            return cd;
 
         return new ClassDeclaration(
             cd.Name,
@@ -469,13 +471,44 @@ public class DeclarationBinder
             );
     }
 
-    private NamespaceDeclaration BindNamespace(NamespaceDeclaration nd, NamespaceSymbol symbol, BindingScope scope)
+    protected virtual TypeParameterDeclaration BindTypeParameter(TypeParameterDeclaration tp, TypeParameterSymbol symbol, BindingScope scope)
+    {
+        if (tp.TypeParameterSymbol == symbol)
+            return tp;
+
+        return new TypeParameterDeclaration(
+            tp.Name,
+            tp.Location,
+            symbol,
+            tp.Diagnostics);
+    }
+
+    protected virtual NamespaceDeclaration BindNamespace(NamespaceDeclaration nd, NamespaceSymbol symbol, BindingScope scope)
     {
         var bodyScope = scope
             .AddSymbolMembers(symbol)
             .AddSymbol(symbol);
 
-        var declarations = BindDeclarations(nd.Declarations, bodyScope);
+        var (declarations, finalScope) = nd.Declarations.Rewrite(bodyScope, (d, _scope) => 
+        {            
+            var nd = BindDeclaration(d, _scope);
+
+            // handle using declarations
+            if (nd is UsingDeclaration ud
+                && ud.Expression.ReferencedSymbol != null)
+            {
+                if (ud.AliasedSymbol != null)
+                {
+                    _scope = _scope.AddSymbol(ud.AliasedSymbol);
+                }
+                else if (ud.Expression.ReferencedSymbol is NamespaceSymbol ns)
+                {
+                    _scope = _scope.AddSymbol(ns).AddSymbolMembers(ns);
+                }
+            }
+
+            return (nd, _scope);
+        });
 
         return new NamespaceDeclaration(
             nd.Name,
@@ -484,5 +517,26 @@ public class DeclarationBinder
             symbol,
             nd.Diagnostics
             );
+    }
+
+    protected virtual UsingDeclaration BindUsing(UsingDeclaration ud, BindingScope scope)
+    {
+        var expression = BindExpression(ud.Expression, scope);
+
+        if (expression == ud.Expression)
+            return ud;
+
+        var aliasedSymbol = expression.ReferencedSymbol as ContainerSymbol;
+
+        var aliasSymbol = ud.Name.Length > 0 && aliasedSymbol != null
+            ? new AliasSymbol(ud.Name, aliasedSymbol)
+            : null;
+
+        return new UsingDeclaration(
+            ud.Name,
+            expression,
+            ud.Location,
+            aliasSymbol,
+            null);
     }
 }

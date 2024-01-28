@@ -2,17 +2,15 @@
 using Symbols;
 
 /// <summary>
-/// Filters referenced symbols to only those matching the arity.
+/// Converts referenced types to an arrays of that type.
 /// </summary>
-public class ArityExpression : AdjustedReferenceExpression
+public class ArrayExpression : AdjustedReferenceExpression
 {
     public override Expression Expression { get; }
-    public int Arity { get; }
     public override Symbol? ReferencedSymbol { get; }
 
-    public ArityExpression(
+    public ArrayExpression(
         Expression expression,
-        int arity,
         ISourceLocation? location,
         Symbol? referencedSymbol,
         TypeSymbol? resultType,
@@ -25,7 +23,6 @@ public class ArityExpression : AdjustedReferenceExpression
             diagnostics)
     {
         this.Expression = expression;
-        this.Arity = arity;
         this.ReferencedSymbol = referencedSymbol;
     }
 

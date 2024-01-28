@@ -3,9 +3,15 @@
 public static class SemanticFactoryExtensions
 {
     /// <summary>
+    /// Converts the referenced symbol to an array of that element type.
+    /// </summary>
+    public static ArrayExpression Array(this Expression expression, ISourceLocation? location = null) =>
+        SemanticFactory.Array(expression, location);
+
+    /// <summary>
     /// Filter the referenced symbol(s) to only those with matching arity.
     /// </summary>
-    public static ArityExpression Arity(this Expression expression, int arity, ISourceLocation? location = null) =>
+    public static ArityExpression WithArity(this Expression expression, int arity, ISourceLocation? location = null) =>
         SemanticFactory.Arity(expression, arity, location);
 
     /// <summary>
@@ -33,10 +39,11 @@ public static class SemanticFactoryExtensions
         SemanticFactory.Call(target, arguments);
 
     /// <summary>
-    /// Construct the referenced type or method with the specified type arguments.
+    /// Converts the referenced symbol to a constructed version of that symbol
+    /// with the specified type arguments.
     /// </summary>
-    public static ConstructExpression Construct(this Expression expression, ImmutableList<Expression> typeArguments) =>
-        SemanticFactory.Construct(expression, typeArguments);
+    public static TypeArgumentsExpression WithTypeArguments(this Expression expression, ImmutableList<Expression> typeArguments) =>
+        SemanticFactory.TypeArguments(expression, typeArguments);
 
     /// <summary>
     /// Converts an expression to a specific type.

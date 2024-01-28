@@ -17,8 +17,8 @@ public sealed class ConvertExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            expression.State
-            | OptionalState(convertedType)
+            State(expression)
+            | State(convertedType)
             | NotNullState(resultType), 
             location,
             resultType, 

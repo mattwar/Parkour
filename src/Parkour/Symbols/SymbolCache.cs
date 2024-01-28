@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace Parkour.Symbols;
 
@@ -160,127 +161,148 @@ public class SymbolCache
         _objectType ??= GetOrCreateType(typeof(System.Object));
 
     /// <summary>
-    /// Gets the <see cref="TypeSymbol"/> based on equivalent runtime type.
-    /// </summary>
-    public virtual TypeSymbol? GetType(Type type) =>
-       GetType(type.FullName!)!;
-
-    /// <summary>
-    /// Gets the type given the dotted path name: "System.String". 
-    /// If multiple types with the same name are found, the first is returned.
-    /// </summary>
-    public virtual TypeSymbol? GetType(string dottedName) =>
-        GetSymbol<TypeSymbol>(dottedName) as TypeSymbol;
-
-    /// <summary>
-    /// Get the symbol associated with the dotted path name: "Namespace.MyType.Method"
-    /// If multiple symbols are found with the same name, the first is returned.
-    /// </summary>
-    public virtual TSymbol? GetSymbol<TSymbol>(string dottedName)
-        where TSymbol : Symbol =>
-        this.GlobalNamespace.GetFirstSymbolFromPath<TSymbol>(dottedName);
-
-    /// <summary>
-    /// Get the symbol associated with the dotted path name: "Namespace.MyType.Method"
-    /// If multiple symbols are found with the same name, the first is returned.
-    /// </summary>
-    public virtual Symbol? GetSymbol(string dottedName) =>
-        GetSymbol<Symbol>(dottedName);
-
-    /// <summary>
-    /// Gets all the symbols associated with the dotted path name.
-    /// </summary>
-    public virtual void GetSymbols(string dottedName, List<Symbol> symbols) =>
-        this.GlobalNamespace.GetSymbolsFromPath(dottedName, symbols);
-
-    /// <summary>
-    /// Gets or creates the <see cref="TypeSymbol"/> associated with the runtime type.
-    /// If the type is not found in the global namespace, a proxy with no members is supplied.
+    /// Gets or creates the <see cref="TypeSymbol"/> for the equivalent runtime type.
+    /// If the type is not found, a proxy with no members is supplied.
     /// </summary>
     private TypeSymbol GetOrCreateType(Type type) =>
-        GetType(type) ?? new TypeSymbol(type);
+        TryGetType(type, out var typeSymbol)
+            ? typeSymbol
+            : new TypeSymbol(type);
 
     /// <summary>
-    /// Gets an array of the specified element type.
+    /// Gets the <see cref="TypeSymbol"/> for the equivalent runtime type.
     /// </summary>
-    public virtual ArraySymbol GetArray(TypeSymbol elementType) =>
-        new ArraySymbol(elementType);
+    public virtual TypeSymbol GetType(Type type) =>
+       TryGetType(type, out var typeSymbol)
+            ? typeSymbol
+            : throw new InvalidOperationException($"type {type.FullName ?? type.Name} not found");
 
     /// <summary>
-    /// Gets the union or individual type from a list of types.
+    /// Gets the <see cref="TypeSymbol"/> for the equivalent runtime type.
     /// </summary>
-    public virtual TypeSymbol GetUnion(IEnumerable<TypeSymbol> types)
+    public virtual bool TryGetType(Type type, [NotNullWhen(true)] out TypeSymbol typeSymbol)
     {
-        if (!types.Any())
-            return Void;
-
-        if (types is IReadOnlyList<TypeSymbol> roTypes
-            && roTypes.Count == 1)
+        if (type.IsArray 
+            && type.GetElementType() is Type elementType
+            && TryGetType(elementType, out var elementTypeSymbol))
         {
-            return roTypes[0];
+            typeSymbol = GetArray(elementTypeSymbol);
+            return true;
         }
-
-        var immutableTypes = types as ImmutableList<TypeSymbol>;
-        if (immutableTypes != null
-            && _listToUnionMap.TryGetValue(immutableTypes, out var union))
+        else if (type.IsConstructedGenericType
+            && TryGetType(type.GetGenericTypeDefinition(), out var definitionSymbol)
+            && TryGetTypes(type.GetGenericArguments(), out var typeArgSymbols))
         {
-            return union;
+            typeSymbol = GetConstructed(definitionSymbol, typeArgSymbols);
+            return true;
         }
-
-        types = FlattenUnions(types).ToList();
-
-        var hasUnknown = types.Any(t => t == Unknown);
-        var hasAny = types.Any(t => t == Any);
-        var hasVoid = types.Any(t => t == Void);
-        var hasNull = types.Any(t => t == Null);
-
-        var canonicalTypes = types
-            .Where(t =>
-                t == Unknown
-                || t == Any && !hasUnknown
-                || t == Null && !hasUnknown
-                || t == Void && !hasUnknown
-                || (!hasUnknown || !hasAny))
-            .DistinctBy(t => t, TypeEqualityComparer.Instance)
-            .OrderBy(t => t.Name)
-            .ToImmutableList();
-
-        if (canonicalTypes.Count == 1)
-            return canonicalTypes[0];
-
-        union = _listToUnionMap.GetValue(canonicalTypes, _newTypes => new UnionSymbol(_newTypes));
-
-        // also associate union with original list, if it was immutable
-        if (immutableTypes != null)
+        else if (type.FullName != null
+            && TryGetType(type.FullName, out var declaredType))
         {
-            _listToUnionMap.GetValue(immutableTypes, _ => union);
+            typeSymbol = declaredType;
+            return true;
         }
-
-        return union;
-
-        static IEnumerable<TypeSymbol> FlattenUnions(IEnumerable<TypeSymbol> types)
+        else
         {
-            foreach (var type in types)
-            {
-                if (type is UnionSymbol union)
-                {
-                    foreach (var unionType in union.Types)
-                        yield return unionType;
-                }
-
-                yield return type;
-            }
+            typeSymbol = null!;
+            return false;
         }
     }
 
     /// <summary>
-    /// Gets the union or individual type from a list of types.
+    /// Gets the type symbols for the list of runtime types.
     /// </summary>
-    public virtual TypeSymbol GetUnion(params TypeSymbol[] types) =>
-        GetUnion((IEnumerable<TypeSymbol>)types);
+    public bool TryGetTypes(IReadOnlyList<Type> types, [NotNullWhen(true)] out ImmutableList<TypeSymbol> typeSymbols)
+    {
+        var list = new List<TypeSymbol>();
+
+        foreach (var type in types)
+        {
+            if (!TryGetType(type, out var typeSymbol))
+            {
+                typeSymbols = null!;
+                return false;
+            }
+
+            list.Add(typeSymbol);
+        }
+
+        typeSymbols = list.ToImmutableList();
+        return true;
+    }
 
     /// <summary>
-    /// Gets the group or individual symbol for the specified symbols.
+    /// Gets the declared type given its full name.
+    /// If multiple types with the same name are found, the first is returned.
+    /// </summary>
+    public TypeSymbol GetType(string dottedName) =>
+        TryGetType(dottedName, out var type)
+            ? type
+            : throw new InvalidOperationException($"type {dottedName} not found");
+
+    /// <summary>
+    /// Gets the declared type given the type's full name.
+    /// If multiple types with the same full name are found, the first is returned.
+    /// </summary>
+    public virtual bool TryGetType(string dottedName, [NotNullWhen(true)] out TypeSymbol type) =>
+        TryGetSymbol(dottedName, out type);
+
+    /// <summary>
+    /// Get the declared symbol given the symbol's full name.
+    /// If multiple symbols are found with the same full name, the first is returned.
+    /// </summary>
+    public virtual TSymbol GetSymbol<TSymbol>(string dottedName)
+        where TSymbol : Symbol =>
+        TryGetSymbol<TSymbol>(dottedName, out var symbol)
+            ? symbol
+            : throw new InvalidOperationException($"symbol {dottedName} not found");
+
+    /// <summary>
+    /// Get the declared symbol with the full name.
+    /// If multiple symbols are found with the same name, the first is returned.
+    /// </summary>
+    public virtual Symbol GetSymbol(string dottedName) =>
+        GetSymbol<Symbol>(dottedName);
+
+    /// <summary>
+    /// Get the declared symbol with the full name.
+    /// If multiple symbols are found with the same full name, the first is returned.
+    /// </summary>
+    public virtual bool TryGetSymbol<TSymbol>(string dottedName, [NotNullWhen(true)] out TSymbol symbol)
+        where TSymbol : Symbol
+    {
+        var tmp = this.GlobalNamespace.GetFirstSymbolFromPath<TSymbol>(dottedName);
+        if (tmp != null)
+        {
+            symbol = tmp;
+            return true;
+        }
+        else
+        {
+            symbol = default!;
+            return false;
+        }
+    }
+
+    private ConditionalWeakTable<TypeSymbol, ArraySymbol> _symbolToArrayMap =
+        new ConditionalWeakTable<TypeSymbol, ArraySymbol>();
+
+    /// <summary>
+    /// Gets an array of the specified element type.
+    /// </summary>
+    public virtual ArraySymbol GetArray(TypeSymbol elementType)
+    {
+        if (!_symbolToArrayMap.TryGetValue(elementType, out var arrayType))
+        {
+            arrayType = _symbolToArrayMap.GetValue(elementType, _et => new ArraySymbol(_et));
+        }
+
+        return arrayType;
+    }
+
+    /// <summary>
+    /// Gets the group when multiple distinct symbols (or none) are specified, 
+    /// otherwise returns the one distinct symbol.
     /// </summary>
     public virtual Symbol GetGroup(IEnumerable<Symbol> symbols)
     {
@@ -328,7 +350,7 @@ public class SymbolCache
     /// <summary>
     /// Gets or constructs a constructable symbol with the specified type arguments.
     /// </summary>
-    public TSymbol GetOrConstruct<TSymbol>(
+    public TSymbol GetConstructed<TSymbol>(
         TSymbol constructableSymbol, 
         ImmutableList<TypeSymbol> typeArguments)
         where TSymbol : Symbol
@@ -448,4 +470,79 @@ public class SymbolCache
             return newList != null ? newList.ToImmutableList() : symbols;
         }
     }
+
+#if false
+    /// <summary>
+    /// Gets the union or individual type from a list of types.
+    /// </summary>
+    public virtual TypeSymbol GetUnion(IEnumerable<TypeSymbol> types)
+    {
+        if (!types.Any())
+            return Void;
+
+        if (types is IReadOnlyList<TypeSymbol> roTypes
+            && roTypes.Count == 1)
+        {
+            return roTypes[0];
+        }
+
+        var immutableTypes = types as ImmutableList<TypeSymbol>;
+        if (immutableTypes != null
+            && _listToUnionMap.TryGetValue(immutableTypes, out var union))
+        {
+            return union;
+        }
+
+        types = FlattenUnions(types).ToList();
+
+        var hasUnknown = types.Any(t => t == Unknown);
+        var hasAny = types.Any(t => t == Any);
+        var hasVoid = types.Any(t => t == Void);
+        var hasNull = types.Any(t => t == Null);
+
+        var canonicalTypes = types
+            .Where(t =>
+                t == Unknown
+                || t == Any && !hasUnknown
+                || t == Null && !hasUnknown
+                || t == Void && !hasUnknown
+                || (!hasUnknown || !hasAny))
+            .DistinctBy(t => t, TypeEqualityComparer.Instance)
+            .OrderBy(t => t.Name)
+            .ToImmutableList();
+
+        if (canonicalTypes.Count == 1)
+            return canonicalTypes[0];
+
+        union = _listToUnionMap.GetValue(canonicalTypes, _newTypes => new UnionSymbol(_newTypes));
+
+        // also associate union with original list, if it was immutable
+        if (immutableTypes != null)
+        {
+            _listToUnionMap.GetValue(immutableTypes, _ => union);
+        }
+
+        return union;
+
+        static IEnumerable<TypeSymbol> FlattenUnions(IEnumerable<TypeSymbol> types)
+        {
+            foreach (var type in types)
+            {
+                if (type is UnionSymbol union)
+                {
+                    foreach (var unionType in union.Types)
+                        yield return unionType;
+                }
+
+                yield return type;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the union or individual type from a list of types.
+    /// </summary>
+    public virtual TypeSymbol GetUnion(params TypeSymbol[] types) =>
+        GetUnion((IEnumerable<TypeSymbol>)types);
+#endif
 }

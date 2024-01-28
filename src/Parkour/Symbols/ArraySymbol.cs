@@ -1,7 +1,10 @@
 ﻿namespace Parkour.Symbols;
 
+[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public sealed class ArraySymbol : TypeSymbol
 {
+    private string DebugText => $"{GetType().Name}: {ElementType.FullName}[]";
+
     private Func<TypeSymbol>? _fnElementType;
     private TypeSymbol? _elementType;
 

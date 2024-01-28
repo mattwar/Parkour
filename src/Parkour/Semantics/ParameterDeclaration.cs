@@ -14,7 +14,7 @@ public sealed class ParameterDeclaration : Declaration
         ParameterSymbol? parameterSymbol,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            OptionalState(parameterType)
+            State(parameterType)
             | NotNullState(parameterSymbol), 
             name, 
             location,

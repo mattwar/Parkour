@@ -74,6 +74,30 @@ public class DeclarationTests
             ["C", "C.P"]);
     }
 
+    [TestMethod]
+    public void TestBindUsing()
+    {
+        TestBind([
+            Using(Symbol("System")),
+
+            Class("C", [
+                Property("P", Name("Int32"))
+                ])
+            ],
+            ["C.P"]
+            );
+
+        TestBind([
+            Using("X", Symbol("System")),
+
+            Class("C", [
+                Property("P", Name("X").Member("Int32"))
+                ])
+            ],
+            ["C.P"]
+            );
+    }
+
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
         var binding = new DeclarationBinder().Bind(declarations, _runtimeGlobalNamespace);

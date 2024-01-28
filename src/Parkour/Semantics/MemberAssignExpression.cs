@@ -18,8 +18,8 @@ public class WithExpression : Expression
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            scope.State
-            | expression.State
+            State(scope)
+            | State(expression)
             | NotNullState(resultType),
             location,
             resultType,

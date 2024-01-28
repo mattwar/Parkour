@@ -23,8 +23,8 @@ public class MethodDeclaration : MemberDeclaration
         : base(
             CombineState(typeParameters)
             | CombineState(parameters) 
-            | body.State
-            | returnType.State
+            | State(body)
+            | State(returnType)
             | NotNullState(methodSymbol),
             name, 
             access, 

@@ -20,7 +20,7 @@ public class ConstructorDeclaration : MemberDeclaration
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(parameters) 
-            | body.State
+            | State(body)
             | NotNullState(constructorSymbol),
             (modifiers & SymbolModifier.Static) == 0 ? ".ctor" : ".cctor",
             access,

@@ -5,6 +5,12 @@ using Symbols;
 public static class SemanticFactory
 {
     /// <summary>
+    /// Converts the referenced symbol to an array of that type.
+    /// </summary>
+    public static ArrayExpression Array(Expression expression, ISourceLocation? location = null) =>
+        new ArrayExpression(expression, location, null, null, null);
+
+    /// <summary>
     /// Filter the referenced symbol(s) to only those with the specified arity.
     /// </summary>
     public static ArityExpression Arity(Expression expression, int arity, ISourceLocation? location = null) =>
@@ -85,8 +91,8 @@ public static class SemanticFactory
     /// <summary>
     /// Constructs the type or method with the specified type arguments.
     /// </summary>
-    public static ConstructExpression Construct(Expression expression, ImmutableList<Expression> typeArguments, ISourceLocation? location = null) =>
-        new ConstructExpression(expression, typeArguments, location, null, null, null);
+    public static TypeArgumentsExpression TypeArguments(Expression expression, ImmutableList<Expression> typeArguments, ISourceLocation? location = null) =>
+        new TypeArgumentsExpression(expression, typeArguments, location, null, null, null);
 
     /// <summary>
     /// Branches to the loop's continue location.
@@ -222,6 +228,30 @@ public static class SemanticFactory
     /// </summary>
     public static NewExpression New(ISourceLocation? location = null) =>
         new NewExpression(null, null, location, null, null, null);
+
+    /// <summary>
+    /// Creates a new array instance with the specified values.
+    /// </summary>
+    public static NewArrayInitExpression NewArray(Expression elementType, ImmutableList<Expression> values, ISourceLocation? location = null) =>
+        new NewArrayInitExpression(elementType, values, location, null, null);
+
+    /// <summary>
+    /// Creates a new array instance with the specified values, with inferred element type.
+    /// </summary>
+    public static NewArrayInitExpression NewArray(ImmutableList<Expression> values, ISourceLocation? location = null) =>
+        new NewArrayInitExpression(null, values, location, null, null);
+
+    /// <summary>
+    /// Creates a new array instance of the specified size.
+    /// </summary>
+    public static NewArraySizeExpression NewArray(Expression elementType, Expression size, ISourceLocation? location = null) =>
+        new NewArraySizeExpression(elementType, size, location, null, null);
+
+    /// <summary>
+    /// Creates a new array instance of the specified size, with inferred element type.
+    /// </summary>
+    public static NewArraySizeExpression NewArray(Expression size, ISourceLocation? location = null) =>
+        new NewArraySizeExpression(null, size, location, null, null);
 
     /// <summary>
     /// Reference a declared symbol.
@@ -417,4 +447,10 @@ public static class SemanticFactory
 
     public static TypeParameterDeclaration TypeParameter(string name, ISourceLocation? location = null) =>
         new TypeParameterDeclaration(name, location, null, null);
+
+    public static UsingDeclaration Using(string name, Expression @namespace, ISourceLocation? location = null) =>
+        new UsingDeclaration(name, @namespace, location, null, null);
+
+    public static UsingDeclaration Using(Expression @namespace, ISourceLocation? location = null) =>
+        new UsingDeclaration("", @namespace, location, null, null);
 }
