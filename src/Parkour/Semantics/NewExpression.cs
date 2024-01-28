@@ -43,23 +43,27 @@ public class NewArraySizeExpression : Expression
 {
     public Expression? ElementType { get; }
     public Expression Size { get; }
+    public TypeSymbol? ElementTypeSymbol { get; }
 
     public NewArraySizeExpression(
         Expression? elementType,
         Expression size,
         ISourceLocation? location,
+        TypeSymbol? elementTypeSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             State(elementType)
             | State(size)
+            | NotNullOrDiagnosticState(elementTypeSymbol, diagnostics)
             | NotNullState(resultType),
             location,
             resultType,
             diagnostics)
     {
-        this.ElementType = elementType;
-        this.Size = size;
+        ElementType = elementType;
+        Size = size;
+        ElementTypeSymbol = elementTypeSymbol;
     }
 
     public override int ChildCount => 2;
@@ -77,23 +81,27 @@ public class NewArrayInitExpression : Expression
 {
     public Expression? ElementType { get; }
     public ImmutableList<Expression> Expressions { get; }
+    public TypeSymbol? ElementTypeSymbol { get; }
 
     public NewArrayInitExpression(
         Expression? elementType,
         ImmutableList<Expression> expressions,
         ISourceLocation? location,
+        TypeSymbol? elementTypeSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             State(elementType)
             | CombineState(expressions)
+            | NotNullOrDiagnosticState(elementTypeSymbol, diagnostics)
             | NotNullState(resultType),
             location,
             resultType,
             diagnostics)
     {
-        this.ElementType = elementType;
-        this.Expressions = expressions;
+        ElementType = elementType;
+        Expressions = expressions;
+        ElementTypeSymbol = elementTypeSymbol;
     }
 
     public override int ChildCount => 

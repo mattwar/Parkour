@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Reflection;
 using Parkour;
 using Parkour.Binding;
 using Parkour.Semantics;
@@ -85,7 +87,7 @@ public class RunTests
     }
 
     [TestMethod]
-    public void TestConstructType()
+    public void TestTypeArgs()
     {
         TestRun(
             Symbol("System.Collections.Generic.List`1").WithTypeArguments([Symbol(_symbols.Int32)]),
@@ -152,6 +154,41 @@ public class RunTests
                     Break(Constant(1)),
                     Break(Constant(2L)))),
             1L);
+    }
+
+    [TestMethod]
+    public void TestNew()
+    {
+        TestRun(
+            New(Symbol("System.Object")),
+            expectedResult: new object()
+            );
+
+        TestRun(
+            New(Symbol("System.Collections.Generic.List`1").WithTypeArguments([Symbol("System.Int32")])),
+            expectedResult: new List<int>()
+            );
+    }
+
+    [TestMethod]
+    public void TestNewArraySize()
+    {
+        TestRun(
+            NewArray(Symbol("System.Int32"), Constant(3)),
+            expectedResult: new int[3]);
+    }
+
+    [TestMethod]
+    public void TestNewArrayInit()
+    {
+        TestRun(
+            NewArray(Symbol("System.Int32"), [Constant(1), Constant(2), Constant(3)]),
+            expectedResult: new int[] {1, 2, 3});
+
+        // infer element type
+        TestRun(
+            NewArray([Constant(1), Constant(2), Constant(3)]),
+            expectedResult: new int[] { 1, 2, 3 });
     }
 
     [TestMethod]
@@ -264,6 +301,75 @@ public class RunTests
         var compiled = translated.Compile();
 
         var actualResult = compiled.DynamicInvoke(args);
-        Assert.AreEqual(expectedResult, actualResult);
+
+        AssertAreEquivalent(expectedResult, actualResult);
+    }
+
+    private static void AssertAreEquivalent(object? expected, object? actual)
+    {
+        // they are same instance?
+        if (expected == actual)
+            return;
+
+        if (expected is null)
+        {
+            Assert.IsNull(actual, "expected null");
+            return;
+        }
+
+        Assert.IsNotNull(actual, "expected not null");
+
+        var expectedType = expected.GetType();
+        var actualType = actual.GetType();
+
+        if (expectedType != actualType)
+        {
+            Assert.Fail($"expected type: '{expectedType.Name}' actual type: '{actualType.Name}'");
+        }
+
+        if (expected is ICollection eCollection && actual is ICollection aCollection)
+        {
+            Assert.AreEqual(eCollection.Count, aCollection.Count, "collection count");
+        }
+
+        if (expected is IEnumerable eEnumerable && actual is IEnumerable aEnumerable)
+        {
+            var eEnumerator = eEnumerable.GetEnumerator();
+            var aEnumerator = aEnumerable.GetEnumerator();
+
+            while (eEnumerator.MoveNext())
+            {
+                if (!aEnumerator.MoveNext())
+                    Assert.Fail("actual collection contains too few elements");
+
+                AssertAreEquivalent(eEnumerator.Current, aEnumerator.Current);
+            }
+
+            if (aEnumerator.MoveNext())
+                Assert.Fail("actual collection contains too many elements");
+        }
+        else if (expectedType.IsPrimitive || expectedType == typeof(Type))
+        {
+            Assert.AreEqual(expected, actual);
+        }
+        else
+        {
+            var typeCode = Type.GetTypeCode(expectedType);
+            if (typeCode == TypeCode.Object)
+            {
+                var fields = expectedType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+
+                foreach (var field in fields)
+                {
+                    var eValue = field.GetValue(expected);
+                    var aValue = field.GetValue(actual);
+                    AssertAreEquivalent(eValue, aValue);
+                }
+            }
+            else
+            {
+                Assert.AreEqual(expected, actual);
+            }
+        }
     }
 }

@@ -322,8 +322,11 @@ public class RuntimeSymbols
         return (TypeSymbol)GetOrCreateSymbol(type, null)!;
     }
 
+    public static IReadOnlyList<MemberInfo> GetMembers(Type runtimeType) =>
+        runtimeType.GetMembers(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly);
+
     private ImmutableList<Symbol> CreateMembers(Type runtimeType, MemberSymbol? container) =>
-        runtimeType.GetMembers(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly)
+        GetMembers(runtimeType)
             .Select(m => GetOrCreateSymbol(m, container) is Symbol s ? s : null)
             .Where(s => s != null)
             .ToImmutableList()!;

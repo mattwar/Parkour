@@ -233,25 +233,25 @@ public static class SemanticFactory
     /// Creates a new array instance with the specified values.
     /// </summary>
     public static NewArrayInitExpression NewArray(Expression elementType, ImmutableList<Expression> values, ISourceLocation? location = null) =>
-        new NewArrayInitExpression(elementType, values, location, null, null);
+        new NewArrayInitExpression(elementType, values, location, null, null, null);
 
     /// <summary>
     /// Creates a new array instance with the specified values, with inferred element type.
     /// </summary>
     public static NewArrayInitExpression NewArray(ImmutableList<Expression> values, ISourceLocation? location = null) =>
-        new NewArrayInitExpression(null, values, location, null, null);
+        new NewArrayInitExpression(null, values, location, null, null, null);
 
     /// <summary>
     /// Creates a new array instance of the specified size.
     /// </summary>
     public static NewArraySizeExpression NewArray(Expression elementType, Expression size, ISourceLocation? location = null) =>
-        new NewArraySizeExpression(elementType, size, location, null, null);
+        new NewArraySizeExpression(elementType, size, location, null, null, null);
 
     /// <summary>
     /// Creates a new array instance of the specified size, with inferred element type.
     /// </summary>
     public static NewArraySizeExpression NewArray(Expression size, ISourceLocation? location = null) =>
-        new NewArraySizeExpression(null, size, location, null, null);
+        new NewArraySizeExpression(null, size, location, null, null, null);
 
     /// <summary>
     /// Reference a declared symbol.

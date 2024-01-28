@@ -1460,6 +1460,7 @@ public class ExpressionBinder
 
             if (elementType == newArraySize.ElementType
                 && size == newArraySize.Size
+                && elementTypeSymbol == newArraySize.ElementTypeSymbol
                 && resultType == newArraySize.ResultType
                 && diagnostics.Count == 0)
                 return newArraySize;
@@ -1468,6 +1469,7 @@ public class ExpressionBinder
                 elementType,
                 size,
                 newArraySize.Location,
+                elementTypeSymbol,
                 resultType,
                 diagnostics.ToImmutableList());
         }
@@ -1500,6 +1502,7 @@ public class ExpressionBinder
 
             if (elementType == newArrayInit.ElementType
                 && expressions == newArrayInit.Expressions
+                && elementTypeSymbol == newArrayInit.ElementTypeSymbol
                 && resultType == newArrayInit.ResultType
                 && diagnostics.Count == 0)
                 return newArrayInit;
@@ -1508,6 +1511,7 @@ public class ExpressionBinder
                 elementType,
                 expressions,
                 newArrayInit.Location,
+                elementTypeSymbol,
                 resultType,
                 diagnostics.ToImmutableList());
         }

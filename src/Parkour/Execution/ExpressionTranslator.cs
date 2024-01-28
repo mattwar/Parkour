@@ -5,11 +5,12 @@ namespace Parkour.Execution;
 using Binding;
 using Semantics;
 using Symbols;
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Translates <see cref="Expression"/> to LINQ expressions.
 /// </summary>
-public sealed class ExpressionTranslator
+public class ExpressionTranslator
 {
     public ExpressionTranslator()
     {
@@ -26,13 +27,15 @@ public sealed class ExpressionTranslator
         return (L.Expression<TDelegate>)TranslateToLambda(expression, typeof(TDelegate));
     }
 
-    public L.Expression Translate(Expression expression)
+    public virtual L.Expression Translate(Expression expression)
     {
         if (expression.IsUnbound)
             throw new InvalidOperationException("Cannot translation unbound expressions");
 
         switch (expression)
         {
+            case ArrayExpression array:
+                return TranslateArray(array);
             case ArityExpression arity:
                 return TranslateArity(arity);
             case AssignExpression assign:
@@ -47,8 +50,6 @@ public sealed class ExpressionTranslator
                 return TranslateCondition(condition);
             case ConstantExpression constant:
                 return TranslateConstant(constant);
-            case TypeArgumentsExpression construct:
-                return TranslateConstruct(construct);
             case ConvertExpression convert:
                 return TranslateConvert(convert);
             case DefaultExpression dex:
@@ -63,8 +64,16 @@ public sealed class ExpressionTranslator
                 return TranslateMember(path);
             case NameReferenceExpression nameRef:
                 return TranslateNameReference(nameRef);
+            case NewExpression @new:
+                return TranslateNew(@new);
+            case NewArraySizeExpression newArraySize:
+                return TranslateNewArraySize(newArraySize);
+            case NewArrayInitExpression newArrayInit:
+                return TranslateNewArrayInit(newArrayInit);
             case SymbolReferenceExpression symbolRef:
                 return TranslateSymbolReference(symbolRef);
+            case TypeArgumentsExpression typeArgs:
+                return TranslateTypeArguments(typeArgs);
             case VariableExpression variable:
                 return TranslateVariable(variable);
             case VoidExpression @void:
@@ -83,13 +92,7 @@ public sealed class ExpressionTranslator
         if (type.RuntimeType != null)
             return type.RuntimeType;
 
-        if (type is TypeSymbol ts && ts.ConstructedFrom != null)
-        {
-            var typeDef = TranslateType(ts.ConstructedFrom);
-            var typeArgs = ts.TypeArguments.Select(ta => TranslateType(ta)).ToArray();
-            return typeDef.MakeGenericType(typeArgs);
-        }
-        else if (type is ArraySymbol array)
+        if (type is ArraySymbol array)
         {
             var elementType = TranslateType(array.ElementType);
             return elementType.MakeArrayType();
@@ -100,9 +103,38 @@ public sealed class ExpressionTranslator
             list.AddRange(fs.Parameters.Select(p => TranslateType(p.ParameterType)));
             list.Add(TranslateType(fs.ReturnType));
             return L.Expression.GetDelegateType(list.ToArray());
-        };
+        }
+        else if (type.ConstructedFrom != null)
+        {
+            var typeDef = TranslateType(type.ConstructedFrom);
+            var typeArgs = type.TypeArguments.Select(ta => TranslateType(ta)).ToArray();
+            return typeDef.MakeGenericType(typeArgs);
+        }
+        else if (TryGetRuntimeInfo<Type>(type, out var runtimeType))
+        {
+            return runtimeType;
+        }
 
         throw new InvalidOperationException($"Unhandled type '{type.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateType)}");
+    }
+
+    private bool TryGetRuntimeInfo<TInfo>(MemberSymbol symbol, [NotNullWhen(true)] out TInfo info)
+        where TInfo : MemberInfo
+    {
+        if (symbol.DeclaringSymbol is TypeSymbol ts)
+        {
+            var runtimeType = TranslateType(ts);
+            var index = ts.Members.IndexOf(symbol);
+            if (index >= 0)
+            {
+                var members = RuntimeSymbols.GetMembers(runtimeType);
+                info = (members[index] as TInfo)!;
+                return info is not null;
+            }
+        }
+
+        info = null!;
+        return false;
     }
 
     private MethodInfo TranslateMethod(MethodSymbol method)
@@ -117,13 +149,18 @@ public sealed class ExpressionTranslator
             var typeArgs = method.TypeArguments.Select(ta => TranslateType(ta)).ToArray();
             return methodDef.MakeGenericMethod(typeArgs);
         }
+        else if (TryGetRuntimeInfo(method, out info))
+        {
+            return info;
+        }
 
         throw new InvalidOperationException($"Non-translatable method '{method.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMethod)}");
     }
 
     private ConstructorInfo TranslateConstructor(ConstructorSymbol constructor)
     {
-        if (constructor.RuntimeInfo is ConstructorInfo info)
+        if (constructor.RuntimeInfo is ConstructorInfo info
+            || TryGetRuntimeInfo(constructor, out info))
         {
             return info;
         }
@@ -133,7 +170,8 @@ public sealed class ExpressionTranslator
 
     private FieldInfo TranslateField(FieldSymbol field)
     {
-        if (field.RuntimeInfo is FieldInfo info)
+        if (field.RuntimeInfo is FieldInfo info
+            || TryGetRuntimeInfo(field, out info))
         {
             return info;
         }
@@ -143,7 +181,8 @@ public sealed class ExpressionTranslator
 
     private PropertyInfo TranslateProperty(PropertySymbol property)
     {
-        if (property.RuntimeInfo is PropertyInfo info)
+        if (property.RuntimeInfo is PropertyInfo info
+            || TryGetRuntimeInfo(property, out info))
         {
             return info;
         }
@@ -272,10 +311,8 @@ public sealed class ExpressionTranslator
         {
             case MemberExpression member:
                 return member.Expression;
-            case ArityExpression arity:
-                return null;
-            case TypeArgumentsExpression construct:
-                return GetCallInstance(construct);
+            case AdjustedReferenceExpression adjust:
+                return GetCallInstance(adjust.Expression);
             default:
                 return expression;
         }
@@ -432,6 +469,26 @@ public sealed class ExpressionTranslator
         }
     }
 
+    private L.Expression TranslateNew(NewExpression @new)
+    {
+        var constructor = TranslateConstructor(@new.ConstructorSymbol!);
+        return L.Expression.New(constructor);
+    }
+
+    private L.Expression TranslateNewArraySize(NewArraySizeExpression newArray)
+    {
+        var elementType = TranslateType(newArray.ElementTypeSymbol!);
+        var size = Translate(newArray.Size);
+        return L.Expression.NewArrayBounds(elementType, size);
+    }
+
+    private L.Expression TranslateNewArrayInit(NewArrayInitExpression newArray)
+    {
+        var elementType = TranslateType(newArray.ElementTypeSymbol!);
+        var expressions = newArray.Expressions.Select(e => Translate(e)).ToArray();
+        return L.Expression.NewArrayInit(elementType, expressions);
+    }
+
     private L.Expression TranslateNameReference(NameReferenceExpression rex)
     {
         return TranslateReferencedSymbol(rex.ReferencedSymbol);
@@ -447,9 +504,14 @@ public sealed class ExpressionTranslator
         return TranslateReferencedSymbol(arity.ReferencedSymbol);
     }
 
-    private L.Expression TranslateConstruct(TypeArgumentsExpression construct)
+    private L.Expression TranslateArray(ArrayExpression array)
     {
-        return TranslateReferencedSymbol(construct.ReferencedSymbol);
+        return TranslateReferencedSymbol(array.ReferencedSymbol);
+    }
+
+    private L.Expression TranslateTypeArguments(TypeArgumentsExpression typeArgs)
+    {
+        return TranslateReferencedSymbol(typeArgs.ReferencedSymbol);
     }
 
     private L.Expression TranslateReferencedSymbol(Symbol? symbol)
