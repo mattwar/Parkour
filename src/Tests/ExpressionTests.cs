@@ -20,12 +20,7 @@ public class ExpressionTests
 
     public static BindingScope CreateBindingScope(SymbolCache symbols)
     {
-        return BindingScope.Default.AddSymbolMembers(
-            new[]
-            {
-                symbols.GlobalNamespace,
-                symbols.System
-            });
+        return BindingScope.Default.AddMembers([symbols.GlobalNamespace, symbols.System]);
     }
 
     [TestMethod]

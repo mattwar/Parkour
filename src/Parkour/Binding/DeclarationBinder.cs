@@ -10,6 +10,7 @@ public class DeclarationBinder
 
     public DeclarationBinder()
     {
+        _scope = BindingScope.Default;
     }
 
     public DeclarationBinding Bind(
@@ -44,7 +45,7 @@ public class DeclarationBinder
             });
 
         //_globals = globals;
-        _scope = new BindingScope().AddSymbolMembers(combinedSymbols);
+        _scope = BindingScope.Default.AddMembers(combinedSymbols);
         _binder = new ExpressionBinder(combinedSymbols);
 
         // force evaluation of declarationNamespace
@@ -170,7 +171,7 @@ public class DeclarationBinder
                 me =>
                 {
                     Map(g, me);
-                    var newScope = scope.AddSymbolMembers((Symbol)me).AddSymbol(me);
+                    var newScope = scope.AddMembers(me).AddSymbol(me);
                     return CombineMembers(me, g.SelectMany(n => n.Declarations), newScope);
                 }))
             .ToList();
@@ -448,7 +449,7 @@ public class DeclarationBinder
 
         // add all class members to scope
         var bodyScope = scope
-            .AddSymbolMembers(symbol)
+            .AddMembers(symbol)
             .AddSymbol(symbol);
 
         var declarations = BindDeclarations(cd.Declarations, bodyScope);
@@ -486,7 +487,7 @@ public class DeclarationBinder
     protected virtual NamespaceDeclaration BindNamespace(NamespaceDeclaration nd, NamespaceSymbol symbol, BindingScope scope)
     {
         var bodyScope = scope
-            .AddSymbolMembers(symbol)
+            .AddMembers(symbol)
             .AddSymbol(symbol);
 
         var (declarations, finalScope) = nd.Declarations.Rewrite(bodyScope, (d, _scope) => 
@@ -503,7 +504,7 @@ public class DeclarationBinder
                 }
                 else if (ud.Expression.ReferencedSymbol is NamespaceSymbol ns)
                 {
-                    _scope = _scope.AddSymbol(ns).AddSymbolMembers(ns);
+                    _scope = _scope.AddSymbol(ns).AddMembers(ns);
                 }
             }
 

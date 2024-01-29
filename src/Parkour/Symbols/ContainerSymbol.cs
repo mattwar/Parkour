@@ -67,8 +67,8 @@ public abstract class ContainerSymbol : MemberSymbol
     /// <summary>
     /// Gets all the symbols that match the name and the predicate.
     /// </summary>
-    public virtual void GetMembers(string name, Func<Symbol, bool>? fnMatch, List<Symbol> symbols) =>
-        GetMembers(name, 0, name.Length, fnMatch, symbols);
+    public virtual void GetMembers(string name, Func<Symbol, bool>? predicate, List<Symbol> symbols) =>
+        GetMembers(name, 0, name.Length, predicate, symbols);
 
     /// <summary>
     /// Gets all the symbols that match the name.
@@ -79,15 +79,19 @@ public abstract class ContainerSymbol : MemberSymbol
     /// <summary>
     /// Gets the first symbol that matches the predicate.
     /// </summary>
-    public virtual TSymbol? GetFirstMember<TSymbol>(Func<TSymbol, bool> predicate)
+    public virtual TSymbol? GetFirstMember<TSymbol>(string? name, Func<TSymbol, bool>? predicate)
         where TSymbol : Symbol
     {
         if (Members.Count > 0)
         {
             foreach (var member in Members)
             {
-                if (member is TSymbol tmember && predicate(tmember))
+                if (member is TSymbol tmember 
+                    && (name == null || member.Name == name)
+                    && (predicate == null || predicate(tmember)))
+                {
                     return tmember;
+                }
             }
         }
 
@@ -98,18 +102,18 @@ public abstract class ContainerSymbol : MemberSymbol
     /// Gets all the first symbol that matches the predicate.
     /// </summary>
     public Symbol? GetFirstMember(Func<Symbol, bool> predicate) =>
-        GetFirstMember<Symbol>(predicate);
+        GetFirstMember<Symbol>(null, predicate);
 
     /// <summary>
     /// Gets the first symbol with the specified name.
     /// </summary>
     public TSymbol? GetFirstMember<TSymbol>(string name)
         where TSymbol : Symbol =>
-        GetFirstMember<TSymbol>(m => m.Name == name);
+        GetFirstMember<TSymbol>(name, null);
 
     /// <summary>
     /// Gets the first symbol with the specified name.
     /// </summary>
     public Symbol? GetFirstMember(string name) =>
-        GetFirstMember<Symbol>(m => m.Name == name);
+        GetFirstMember<Symbol>(name);
 }
