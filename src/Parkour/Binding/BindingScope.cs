@@ -7,7 +7,7 @@ public abstract class BindingScope
     /// A default binding scope.
     /// </summary>
     public static BindingScope Default =
-        new DefaultBindingScope(null, null, null);
+        new SimpleBindingScope(null, null, null);
 
     /// <summary>
     /// An additional outer scope
@@ -96,90 +96,4 @@ public enum FindScope
     /// Finds symbols in all scopes with matches
     /// </summary>
     All
-}
-
-public class DefaultBindingScope : BindingScope
-{
-    private readonly ImmutableList<Symbol> _symbols;
-    private readonly ImmutableList<ContainerSymbol> _containers;
-    public override BindingScope? OuterScope { get; }
-
-    public DefaultBindingScope(
-        ImmutableList<Symbol>? symbols, 
-        ImmutableList<ContainerSymbol>? containers,
-        BindingScope? outerScope)
-    {
-        _symbols = symbols ?? ImmutableList<Symbol>.Empty;
-        _containers = containers ?? ImmutableList<ContainerSymbol>.Empty;
-        OuterScope = outerScope;
-    }
-
-    public override BindingScope AddMembers(ContainerSymbol container) =>
-        new DefaultBindingScope(_symbols, _containers.Add(container), this.OuterScope);
-
-    public override BindingScope AddMembers(IEnumerable<ContainerSymbol> containers) =>
-        new DefaultBindingScope(_symbols, _containers.AddRange(containers), this.OuterScope);
-
-    public override BindingScope AddSymbols(IEnumerable<Symbol> symbols) =>
-        new DefaultBindingScope(_symbols.AddRange(symbols), _containers, this.OuterScope);
-
-    public override BindingScope AddSymbol(Symbol symbol) =>
-        new DefaultBindingScope(_symbols.Add(symbol), _containers, this.OuterScope);
-
-    public override BindingScope NewScope() =>
-        new DefaultBindingScope(null, null, this);
-
-    public override void FindMatchingSymbols(string? name, Func<Symbol, bool>? predicate, List<Symbol> list)
-    {
-        // look at container members
-        foreach (var container in _containers)
-        {
-            if (name != null)
-            {
-                container.GetMembers(name, predicate, list);
-            }
-            else if (predicate != null)
-            {
-                container.GetMembers(predicate, list);
-            }
-            else
-            {
-                list.AddRange(container.Members);
-            }
-        }
-
-        // look at symbols
-        for (int i = _symbols.Count - 1; i >= 0; i--)
-        {
-            var symbol = _symbols[i];
-            if ((name == null || symbol.Name == name)
-                && (predicate == null || predicate(symbol)))
-            {
-                list.Add(symbol);
-            }
-        }
-    }
-
-    public override TSymbol FindMatchingSymbol<TSymbol>(string? name, Func<TSymbol, bool>? predicate) 
-    {
-        foreach (var container in _containers)
-        {
-            var symbol = container.GetFirstMember(name, predicate);
-            if (symbol != null)
-                return symbol;
-        }
-
-        for (int i = _symbols.Count - 1; i >= 0; i--)
-        {
-            var symbol = _symbols[i];
-            if (symbol is TSymbol tsymbol 
-                && (name == null || symbol.Name == name)
-                && (predicate == null || predicate(tsymbol)))
-            {
-                return tsymbol;
-            }
-        }
-
-        return null!;
-    }
 }

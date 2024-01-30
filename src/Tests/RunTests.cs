@@ -283,8 +283,8 @@ public class RunTests
 
         args ??= System.Array.Empty<object>();
 
-        var binder = new ExpressionBinder(_symbols.GlobalNamespace);
-        var bound = (LambdaExpression)binder.Bind(expression, scope ?? _defaultTestScope);
+        var binder = new SemanticBinder();
+        var bound = (LambdaExpression)binder.BindExpression(expression, _symbols.GlobalNamespace, scope ?? _defaultTestScope);
 
         if (bound.ContainsDiagnostics)
         {

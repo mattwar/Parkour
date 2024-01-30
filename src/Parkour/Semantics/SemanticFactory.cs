@@ -295,88 +295,88 @@ public static class SemanticFactory
     /// Applies the Add operator to two values.
     /// </summary>
     public static CallExpression Add(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.Add), [left, right], location);
+        Call(Operator(OperatorKind.Add), [left, right], location);
 
     /// <summary>
     /// Applies the Subtract operator to two values.
     /// </summary>
     public static CallExpression Subtract(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.Subtract), [left, right], location);
+        Call(Operator(OperatorKind.Subtract), [left, right], location);
 
     /// <summary>
     /// Applies the Multiply operator to two values.
     /// </summary>
     public static CallExpression Multiply(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.Multiply), [left, right], location);
+        Call(Operator(OperatorKind.Multiply), [left, right], location);
 
     /// <summary>
     /// Applies the Divide operator to two values.
     /// </summary>
     public static CallExpression Divide(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.Divide), [left, right], location);
+        Call(Operator(OperatorKind.Divide), [left, right], location);
 
     /// <summary>
     /// Applies the Remainder operator to two values.
     /// </summary>
     public static CallExpression Remainder(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.Remainder), [left, right], location);
+        Call(Operator(OperatorKind.Remainder), [left, right], location);
 
     /// <summary>
     /// Applies the Negate operator to a value.
     /// </summary>
     public static CallExpression Negate(Expression operand, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.Negate), [operand], location);
+        Call(Operator(OperatorKind.Negate), [operand], location);
 
     public static CallExpression BitwiseAnd(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.BitwiseAnd), [left, right], location);
+        Call(Operator(OperatorKind.BitwiseAnd), [left, right], location);
 
     public static CallExpression BitwiseOr(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.BitwiseOr), [left, right], location);
+        Call(Operator(OperatorKind.BitwiseOr), [left, right], location);
 
     public static CallExpression BitwiseXor(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.BitwiseXor), [left, right], location);
+        Call(Operator(OperatorKind.BitwiseXor), [left, right], location);
 
     public static CallExpression BitwiseNot(Expression operand, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.BitwiseNot), [operand], location);
+        Call(Operator(OperatorKind.BitwiseNot), [operand], location);
 
     public static CallExpression ShiftLeft(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.ShiftLeft), [left, right], location);
+        Call(Operator(OperatorKind.ShiftLeft), [left, right], location);
 
     public static CallExpression ShiftRight(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.ShiftRight), [left, right], location);
+        Call(Operator(OperatorKind.ShiftRight), [left, right], location);
 
     public static CallExpression Equal(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.Equal), [left, right], location);
+        Call(Operator(OperatorKind.Equal), [left, right], location);
 
     public static CallExpression NotEqual(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.NotEqual), [left, right], location);
+        Call(Operator(OperatorKind.NotEqual), [left, right], location);
 
     public static CallExpression LessThan(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.LessThan), [left, right], location);
+        Call(Operator(OperatorKind.LessThan), [left, right], location);
 
     public static CallExpression LessThanOrEqual(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.LessThanOrEqual), [left, right], location);
+        Call(Operator(OperatorKind.LessThanOrEqual), [left, right], location);
 
     public static CallExpression GreaterThan(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.GreaterThan), [left, right], location);
+        Call(Operator(OperatorKind.GreaterThan), [left, right], location);
 
     public static CallExpression GreaterThanOrEqual(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.GreaterThanOrEqual), [left, right], location);
+        Call(Operator(OperatorKind.GreaterThanOrEqual), [left, right], location);
 
     public static CallExpression And(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.LogicalAnd), [left, right], location);
+        Call(Operator(OperatorKind.LogicalAnd), [left, right], location);
 
     public static CallExpression AndAlso(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.LogicalAndAlso), [left, right], location);
+        Call(Operator(OperatorKind.LogicalAndAlso), [left, right], location);
 
     public static CallExpression Or(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.LogicalOr), [left, right], location);
+        Call(Operator(OperatorKind.LogicalOr), [left, right], location);
 
     public static CallExpression OrElse(Expression left, Expression right, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.LogicalOrElse), [left, right], location);
+        Call(Operator(OperatorKind.LogicalOrElse), [left, right], location);
 
     public static CallExpression Not(Expression operand, ISourceLocation? location = null) =>
-        Call(Operator(OperatorKinds.LogicalNot), [operand], location);
+        Call(Operator(OperatorKind.LogicalNot), [operand], location);
 
     public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, ISourceLocation? location = null) =>
         new ParameterDeclaration(name, parameterType, location, null, null);

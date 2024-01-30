@@ -8,6 +8,9 @@ namespace Parkour.Symbols;
 /// </summary>
 public class SymbolCache
 {
+    /// <summary>
+    /// The global namespace for all declared and external symbols.
+    /// </summary>
     public NamespaceSymbol GlobalNamespace { get; }
 
     public NamespaceSymbol? _systemNs;

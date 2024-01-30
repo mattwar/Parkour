@@ -25,10 +25,29 @@ public class DeclarationTests
     }
 
     [TestMethod]
+    public void TestBindClassWithReferencesToSelf()
+    {
+        //// base types (illegal, but should find reference)
+        //TestBind(
+        //    [Class("C", [Name("C")], [])],
+        //    ["C"]);
+
+        // field that refers to self
+        TestBind(
+            Class("C", [Field("F", Name("C"))]),
+            ["C.F"]);
+
+        TestBind(
+            Namespace("N", 
+                [Class("C", [Field("F", Name("C"))])]),
+            ["N.C.F"]);
+    }
+
+    [TestMethod]
     public void TestBindClassWithTypeParameters()
     {
         TestBind(
-            [Class("C", 
+            [Class("C",
                 [TypeParameter("T")],
                 [],
                 [])
@@ -98,15 +117,20 @@ public class DeclarationTests
             );
     }
 
+    private void TestBind(Declaration declaration, string[] expectedSymbols)
+    {
+        TestBind([declaration], expectedSymbols);
+    }
+
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
-        var binding = new DeclarationBinder().Bind(declarations, _runtimeGlobalNamespace);
+        var binding = new SemanticBinder().BindDeclarations(declarations, _runtimeGlobalNamespace);
 
         Assert.AreEqual(declarations.Length, binding.BoundDeclarations.Count, "bound declarations count");
 
         foreach (var path in expectedSymbols)
         {
-            var symbol = binding.CombindedSymbols.GetFirstSymbolFromPath(path);
+            var symbol = binding.GlobalNamespace.GetFirstSymbolFromPath(path);
             Assert.IsNotNull(symbol, $"symbol '{path}' not found");
         }
     }

@@ -9,7 +9,7 @@ public abstract class DeclarationBinding
     public abstract ImmutableList<Declaration> BoundDeclarations { get; }
     public abstract NamespaceSymbol ExternalSymbols { get; }
     public abstract NamespaceSymbol DeclarationSymbols { get; }
-    public abstract NamespaceSymbol CombindedSymbols { get; }
+    public abstract NamespaceSymbol GlobalNamespace { get; }
 
     public virtual Declaration? GetBoundDeclaration(Declaration unboundDeclaration)
     {

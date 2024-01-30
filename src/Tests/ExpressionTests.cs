@@ -20,7 +20,7 @@ public class ExpressionTests
 
     public static BindingScope CreateBindingScope(SymbolCache symbols)
     {
-        return BindingScope.Default.AddMembers([symbols.GlobalNamespace, symbols.System]);
+        return SimpleBindingScope.Empty.AddMembers([symbols.GlobalNamespace, symbols.System]);
     }
 
     [TestMethod]
@@ -663,8 +663,8 @@ public class ExpressionTests
         bool containsDiagnostics = false,
         BindingScope? scope = null)
     {
-        var binder = new ExpressionBinder(_symbols.GlobalNamespace);
-        var bound = binder.Bind(expression, scope ?? _defaultTestScope);
+        var binder = new SemanticBinder();
+        var bound = binder.BindExpression(expression, _symbols.GlobalNamespace, scope ?? _defaultTestScope);
 
         Assert.IsFalse(bound.IsUnbound, "expression contains unbound elements after binding");
 

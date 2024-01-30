@@ -616,45 +616,45 @@ public class ExpressionTranslator
     {
         switch (opsym.Kind)
         {
-            case OperatorKinds.Add:
+            case OperatorKind.Add:
                 return L.Expression.Add(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.Subtract:
+            case OperatorKind.Subtract:
                 return L.Expression.Subtract(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.Multiply:
+            case OperatorKind.Multiply:
                 return L.Expression.Multiply(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.Divide:
+            case OperatorKind.Divide:
                 return L.Expression.Divide(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.Remainder:
+            case OperatorKind.Remainder:
                 return L.Expression.Modulo(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.Negate:
+            case OperatorKind.Negate:
                 return L.Expression.Negate(Translate(c.Arguments[0]));
-            case OperatorKinds.BitwiseAnd:
+            case OperatorKind.BitwiseAnd:
                 return L.Expression.And(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.BitwiseOr:
+            case OperatorKind.BitwiseOr:
                 return L.Expression.Or(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.BitwiseNot:
+            case OperatorKind.BitwiseNot:
                 return L.Expression.Not(Translate(c.Arguments[0]));
-            case OperatorKinds.Equal:
+            case OperatorKind.Equal:
                 return L.Expression.Equal(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.NotEqual:
+            case OperatorKind.NotEqual:
                 return L.Expression.NotEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.LessThan:
+            case OperatorKind.LessThan:
                 return L.Expression.LessThan(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.LessThanOrEqual:
+            case OperatorKind.LessThanOrEqual:
                 return L.Expression.LessThanOrEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.GreaterThan:
+            case OperatorKind.GreaterThan:
                 return L.Expression.GreaterThan(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.GreaterThanOrEqual:
+            case OperatorKind.GreaterThanOrEqual:
                 return L.Expression.GreaterThanOrEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.LogicalAnd:
+            case OperatorKind.LogicalAnd:
                 return L.Expression.And(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.LogicalAndAlso:
+            case OperatorKind.LogicalAndAlso:
                 return L.Expression.AndAlso(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.LogicalOr:
+            case OperatorKind.LogicalOr:
                 return L.Expression.Or(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.LogicalOrElse:
+            case OperatorKind.LogicalOrElse:
                 return L.Expression.OrElse(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKinds.LogicalNot:
+            case OperatorKind.LogicalNot:
                 return L.Expression.Not(Translate(c.Arguments[0]));
         }
 

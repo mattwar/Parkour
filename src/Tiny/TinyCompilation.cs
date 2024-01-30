@@ -27,7 +27,7 @@ public class TinyCompilation : ExpressionCompilation
     {
         var tinyTree = (SyntaxTree)tree;
         var unbound = new TinyTranslator().Translate(tinyTree.Root);
-        var bound = new ExpressionBinder(externalSymbols).Bind(unbound);
+        var bound = new SemanticBinder().BindExpression(unbound, externalSymbols);
         return new ExpressionBinding(unbound, bound, externalSymbols);
     }
 }
