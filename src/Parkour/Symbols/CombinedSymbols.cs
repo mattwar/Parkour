@@ -1,6 +1,4 @@
-﻿namespace Parkour.Binding;
-
-using Symbols;
+﻿namespace Parkour.Symbols;
 
 public class CombinedSymbols
 {

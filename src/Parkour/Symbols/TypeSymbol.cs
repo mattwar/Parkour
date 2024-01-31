@@ -123,6 +123,11 @@ public class TypeSymbol : ContainerSymbol
         IsGeneric && this.TypeArguments.Count > 0;
 
     /// <summary>
+    /// True if the type is an interface
+    /// </summary>
+    public virtual bool IsInterface => false;
+
+    /// <summary>
     /// The type this type is constructed from.
     /// </summary>
     public TypeSymbol? ConstructedFrom { get; }

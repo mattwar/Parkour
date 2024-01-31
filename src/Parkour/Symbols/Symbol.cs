@@ -8,6 +8,8 @@ public abstract class Symbol
 
     public string Name { get; }
 
+    public virtual string FullName => Name;
+
     protected Symbol(string name)
     {
         Name = name;

@@ -1,7 +1,7 @@
 ﻿using L=System.Linq.Expressions;
 using System.Reflection;
 
-namespace Parkour.Execution;
+namespace Parkour.Emit;
 using Binding;
 using Semantics;
 using Symbols;

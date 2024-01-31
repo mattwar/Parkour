@@ -4,19 +4,19 @@ using Parkour;
 using Parkour.Binding;
 using Parkour.Semantics;
 using Parkour.Symbols;
-using Parkour.Execution;
+using Parkour.Emit;
 using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;
 
 [TestClass]
-public class RunTests
+public class LINQTranslationTests
 {
     private readonly RuntimeSymbols _runtimeSymbols;
     private readonly SymbolCache _symbols;
     private readonly BindingScope _defaultTestScope;
 
-    public RunTests()
+    public LINQTranslationTests()
     {
         _runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
         _symbols = _runtimeSymbols.Symbols;

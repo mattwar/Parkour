@@ -47,7 +47,7 @@ public abstract class MemberSymbol : Symbol
 
     private string? _fullName;
     
-    public string FullName
+    public override string FullName
     {
         get
         {

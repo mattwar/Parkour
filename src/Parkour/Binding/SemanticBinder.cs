@@ -75,7 +75,8 @@ public class SemanticBinder
             context.DeclarationContext,
             externalSymbols,
             declarationSymbols,
-            declarations.ToImmutableList());
+            declarations.ToImmutableList(),
+            context.GetSymbolToUnboundDeclarationMap());
     }
 
     /// <summary>
@@ -83,7 +84,7 @@ public class SemanticBinder
     /// combining same named namespace declaration symbols.
     /// </summary>
     private ImmutableList<Symbol> CreateAndCombineDeclarationSymbols(
-        NamespaceSymbol container,
+        NamespaceSymbol @namespace,
         IEnumerable<Declaration> declarations,
         SymbolContext context)
     {
@@ -97,7 +98,7 @@ public class SemanticBinder
         var newMemberNamespaces = namespaceMemberGroups
             .Select(g => new NamespaceSymbol(
                 g.Key,
-                container,
+                @namespace,
                 me =>
                 {
                     context.Map(g, me);
@@ -114,7 +115,7 @@ public class SemanticBinder
 
         var otherMemberSymbols =
             otherMembers
-            .Select(d => CreateAndMapDeclarationSymbol(null, d, context))
+            .Select(d => CreateAndMapDeclarationSymbol(@namespace, d, context))
             .OfType<Symbol>() // filter out nulls
             .ToList();
 
@@ -2692,30 +2693,32 @@ public class SemanticBinder
         /// <summary>
         /// The namespace including only external symbols
         /// </summary>
-        public override NamespaceSymbol ExternalSymbols { get; }
+        public override GlobalNamespaceSymbol ExternalSymbols { get; }
 
         /// <summary>
         /// The namespace including only declared symbols
         /// </summary>
-        public override NamespaceSymbol DeclarationSymbols { get; }
+        public override GlobalNamespaceSymbol DeclarationSymbols { get; }
 
         /// <summary>
         /// The namespace including both declared and external symbol.
         /// </summary>
-        public override NamespaceSymbol GlobalNamespace => _context.GlobalNamespace;
+        public override GlobalNamespaceSymbol GlobalNamespace => _context.GlobalNamespace;
 
         public DeferredBinding(
             SemanticBinder binder,
             DeclarationContext context,
-            NamespaceSymbol externalSymbols,
-            NamespaceSymbol declarationSymbols,
-            ImmutableList<Declaration> unboundDeclarations)
+            GlobalNamespaceSymbol externalSymbols,
+            GlobalNamespaceSymbol declarationSymbols,
+            ImmutableList<Declaration> unboundDeclarations,
+            ImmutableDictionary<Symbol, ImmutableList<Declaration>> symbolToUnboundDeclarationMap)
         {
             _binder = binder;
             _context = context;
             ExternalSymbols = externalSymbols;
             DeclarationSymbols = declarationSymbols;
             UnboundDeclarations = unboundDeclarations;
+            _symbolToUnboundDeclarationMap = symbolToUnboundDeclarationMap;
         }
 
         private ImmutableList<Declaration>? _boundDeclarations;
@@ -2752,6 +2755,51 @@ public class SemanticBinder
             }
 
             return boundDeclaration;
+        }
+
+        public readonly ImmutableDictionary<Symbol, ImmutableList<Declaration>> _symbolToUnboundDeclarationMap;
+
+        public ImmutableDictionary<Symbol, ImmutableList<Declaration>> _symbolToBoundDeclarationMap =
+            ImmutableDictionary<Symbol, ImmutableList<Declaration>>.Empty;
+
+        /// <summary>
+        /// Get the bound declarations associated with a declared symbol.
+        /// </summary>
+        public override ImmutableList<Declaration> GetBoundSymbolDeclarations(Symbol symbol)
+        {
+            if (!_symbolToBoundDeclarationMap.TryGetValue(symbol, out var boundDeclarations))
+            {
+                if (_symbolToUnboundDeclarationMap.TryGetValue(symbol, out var unboundDeclarations))
+                {
+                    var tmp = unboundDeclarations.Select(u => GetBoundDeclaration(u)!).ToImmutableList();
+                    boundDeclarations = ImmutableInterlocked.GetOrAdd(ref _symbolToBoundDeclarationMap, symbol, tmp);
+                }
+
+            }
+
+            return UnboundDeclarations;
+        }
+
+        private ImmutableList<Diagnostic>? _diagnostics;
+
+        public override ImmutableList<Diagnostic> Diagnostics
+        {
+            get
+            {
+                if (_diagnostics == null)
+                {
+                    var dxs = new List<Diagnostic>();
+                    
+                    foreach (var bd in this.BoundDeclarations)
+                    {
+                        bd.GetContainedDiagnostics(dxs);
+                    }
+
+                    Interlocked.CompareExchange(ref _diagnostics, dxs.ToImmutableList(), null);
+                }
+
+                return _diagnostics;
+            }
         }
     }
     #endregion
@@ -2839,6 +2887,13 @@ public class SemanticBinder
 
                 return _declContext;
             }
+        }
+
+        internal ImmutableDictionary<Symbol, ImmutableList<Declaration>> GetSymbolToUnboundDeclarationMap()
+        {
+            return _map
+                .GroupBy(kvp => kvp.Value)
+                .ToImmutableDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToImmutableList());
         }
 
         private class DeclContext : DeclarationContext

@@ -2,8 +2,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace Parkour.Binding;
-using Symbols;
+namespace Parkour.Symbols;
 
 public class RuntimeSymbols
 {
@@ -479,8 +478,20 @@ public class RuntimeSymbols
     /// <summary>
     /// Tries to get the runtime info (Type, MemberInfo, ParameterInfo) associated with the <see cref="Symbol"/>.
     /// </summary>
-    public bool TryGetRuntimeInfo(Symbol symbol, [NotNullWhen(true)] out object? runtimeInfo)
+    public bool TryGetRuntimeInfo(Symbol symbol, [NotNullWhen(true)] out object? runtimeInfo) =>
+        TryGetRuntimeInfo(symbol, out runtimeInfo, null);
+
+    /// <summary>
+    /// Tries to get the runtime info (Type, MemberInfo, ParameterInfo) associated with the <see cref="Symbol"/>.
+    /// </summary>
+    public bool TryGetRuntimeInfo(Symbol symbol, [NotNullWhen(true)] out object? runtimeInfo, Func<Symbol, object?>? alternateSource)
     {
+        if (alternateSource?.Invoke(symbol) is object altInfo)
+        {
+            runtimeInfo = altInfo;
+            return true;
+        }
+
         if (symbol is TypeSymbol typeSymbol
             && TryGetRuntimeType(typeSymbol, out var runtimeType))
         {
@@ -520,8 +531,20 @@ public class RuntimeSymbols
     /// <summary>
     /// Tries to get the <see cref="Type"/> associated with the <see cref="TypeSymbol"/>
     /// </summary>
-    public bool TryGetRuntimeType(TypeSymbol typeSymbol, [NotNullWhen(true)] out Type? runtimeType)
+    public bool TryGetRuntimeType(TypeSymbol typeSymbol, [NotNullWhen(true)] out Type? runtimeType) =>
+        TryGetRuntimeType(typeSymbol, out runtimeType, null);
+
+    /// <summary>
+    /// Tries to get the <see cref="Type"/> associated with the <see cref="TypeSymbol"/>
+    /// </summary>
+    public bool TryGetRuntimeType(TypeSymbol typeSymbol, [NotNullWhen(true)] out Type? runtimeType, Func<Symbol, object?>? alternateSource)
     {
+        if (alternateSource?.Invoke(typeSymbol) is Type altType)
+        {
+            runtimeType = altType;
+            return true;
+        }
+
         if (_symbolToRuntimeInfoMap.TryGetValue(typeSymbol, out var runtimeInfo)
             && runtimeInfo is Type rt)
         {
@@ -544,22 +567,22 @@ public class RuntimeSymbols
         }
 
         if (typeSymbol is ArraySymbol array
-            && TryGetRuntimeType(array.ElementType, out var elementType))
+            && TryGetRuntimeType(array.ElementType, out var elementType, alternateSource))
         {
             runtimeType = elementType.MakeArrayType();
             return true;
         }
         else if (typeSymbol is LambdaSymbol lambda
-            && TryGetRuntimeTypes(lambda.Parameters.Select(p => p.ParameterType), out var parameterTypes)
-            && TryGetRuntimeType(lambda.ReturnType, out var returnType))
+            && TryGetRuntimeTypes(lambda.Parameters.Select(p => p.ParameterType), out var parameterTypes, alternateSource)
+            && TryGetRuntimeType(lambda.ReturnType, out var returnType, alternateSource))
         {
             Type[] types = [.. parameterTypes, returnType];
             runtimeType = System.Linq.Expressions.Expression.GetDelegateType(types);
             return true;
         }
         else if (typeSymbol.ConstructedFrom != null
-            && TryGetRuntimeType(typeSymbol.ConstructedFrom, out var typeDef)
-            && TryGetRuntimeTypes(typeSymbol.TypeArguments, out var typeArgs))
+            && TryGetRuntimeType(typeSymbol.ConstructedFrom, out var typeDef, alternateSource)
+            && TryGetRuntimeTypes(typeSymbol.TypeArguments, out var typeArgs, alternateSource))
         {
             runtimeType = typeDef.MakeGenericType(typeArgs.ToArray());
             return true;
@@ -590,13 +613,13 @@ public class RuntimeSymbols
     /// <summary>
     /// Tries to get the list of <see cref="Type"/> associated with the list of <see cref="TypeSymbol"/>
     /// </summary>
-    private bool TryGetRuntimeTypes(IEnumerable<TypeSymbol> typeSymbols, [NotNullWhen(true)] out IReadOnlyList<Type>? types)
+    private bool TryGetRuntimeTypes(IEnumerable<TypeSymbol> typeSymbols, [NotNullWhen(true)] out IReadOnlyList<Type>? types, Func<Symbol, object?>? alternateSource)
     {
         var list = new List<Type>();
 
         foreach (var typeSymbol in typeSymbols)
         {
-            if (!TryGetRuntimeType(typeSymbol, out var rt))
+            if (!TryGetRuntimeType(typeSymbol, out var rt, alternateSource))
             {
                 types = null;
                 return false;
@@ -612,8 +635,20 @@ public class RuntimeSymbols
     /// <summary>
     /// Tries to get the <see cref="MemberInfo"/> associated with the <see cref="MemberSymbol"/>
     /// </summary>
-    public bool TryGetRuntimeMember(MemberSymbol memberSymbol, [NotNullWhen(true)] out MemberInfo? memberInfo)
+    public bool TryGetRuntimeMember(MemberSymbol memberSymbol, [NotNullWhen(true)] out MemberInfo? memberInfo) =>
+        TryGetRuntimeMember(memberSymbol, out memberInfo, null);
+
+    /// <summary>
+    /// Tries to get the <see cref="MemberInfo"/> associated with the <see cref="MemberSymbol"/>
+    /// </summary>
+    private bool TryGetRuntimeMember(MemberSymbol memberSymbol, [NotNullWhen(true)] out MemberInfo? memberInfo, Func<Symbol, object?>? alternateSource)
     {
+        if (alternateSource?.Invoke(memberSymbol) is MemberInfo ami)
+        {
+            memberInfo = ami;
+            return true;
+        }
+
         if (_symbolToRuntimeInfoMap.TryGetValue(memberSymbol, out var runtimeInfo)
             && runtimeInfo is MemberInfo mi)
         {
@@ -622,7 +657,7 @@ public class RuntimeSymbols
         }
 
         if (memberSymbol is TypeSymbol typeSymbol
-            && TryGetRuntimeType(typeSymbol, out var runtimeType))
+            && TryGetRuntimeType(typeSymbol, out var runtimeType, alternateSource))
         {
             memberInfo = runtimeType;
             return true;
@@ -630,9 +665,9 @@ public class RuntimeSymbols
         }
         else if (memberSymbol is MethodSymbol methodSymbol
             && methodSymbol.ConstructedFrom != null
-            && TryGetRuntimeMember(methodSymbol.ConstructedFrom, out var methodDef)
+            && TryGetRuntimeMember(methodSymbol.ConstructedFrom, out var methodDef, alternateSource)
             && methodDef is MethodInfo methodInfo
-            && TryGetRuntimeTypes(methodSymbol.TypeArguments, out var typeArgs))
+            && TryGetRuntimeTypes(methodSymbol.TypeArguments, out var typeArgs, alternateSource))
         {
             memberInfo = methodInfo.MakeGenericMethod(typeArgs.ToArray());
             return true;
@@ -640,7 +675,7 @@ public class RuntimeSymbols
 
         // find member via declaring type
         if (memberSymbol.DeclaringSymbol is TypeSymbol declaringTypeSymbol
-            && TryGetRuntimeType(declaringTypeSymbol, out var declaringType))
+            && TryGetRuntimeType(declaringTypeSymbol, out var declaringType, alternateSource))
         {
             // assume member index in current symbol is same as index in runtime type's members
             // (since using same function to fetch them)
