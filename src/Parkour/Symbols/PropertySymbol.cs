@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace Parkour.Symbols;
+﻿namespace Parkour.Symbols;
 
 public sealed class PropertySymbol : MemberSymbol
 {
@@ -76,8 +74,6 @@ public sealed class PropertySymbol : MemberSymbol
         }
     }
 
-    public PropertyInfo? RuntimeInfo { get; }
-
     public PropertySymbol(
         string name,
         Symbol? declaringSymbol,
@@ -86,15 +82,13 @@ public sealed class PropertySymbol : MemberSymbol
         Func<TypeSymbol> fnPropertyType,
         Func<PropertySymbol, FieldSymbol>? fnBackingField,
         Func<PropertySymbol, MethodSymbol>? fnGetMethod,
-        Func<PropertySymbol, MethodSymbol>? fnSetMethod,
-        PropertyInfo? runtimeInfo)
+        Func<PropertySymbol, MethodSymbol>? fnSetMethod)
         : base(name, declaringSymbol, access, modifiers)
     {
         _fnBackingField = fnBackingField;
         _fnPropertyType = fnPropertyType;
         _fnGetMethod = fnGetMethod;
         _fnSetMethod = fnSetMethod;
-        RuntimeInfo = runtimeInfo;
     }
 
     public PropertySymbol(
@@ -105,8 +99,7 @@ public sealed class PropertySymbol : MemberSymbol
         TypeSymbol propertyType,
         FieldSymbol? backingField,
         MethodSymbol? getMethod,
-        MethodSymbol? setMethod,
-        PropertyInfo? runtimeInfo)
+        MethodSymbol? setMethod)
         : this(
             name,
             declaringSymbol,
@@ -115,8 +108,7 @@ public sealed class PropertySymbol : MemberSymbol
             () => propertyType,
             backingField != null ? me => backingField : null,
             getMethod != null ? me => getMethod : null,
-            setMethod != null ? me => setMethod : null,
-            runtimeInfo)
+            setMethod != null ? me => setMethod : null)
     {
     }
 
@@ -146,7 +138,6 @@ public sealed class PropertySymbol : MemberSymbol
                 : null,
             this.SetMethod != null
                 ? me => context.Substitute(this.SetMethod)
-                : null,
-            null);
+                : null);
     }
 }

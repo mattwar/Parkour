@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace Parkour.Symbols;
+﻿namespace Parkour.Symbols;
 
 public class ConstructorSymbol : MemberSymbol
 {
@@ -40,16 +38,12 @@ public class ConstructorSymbol : MemberSymbol
         }
     }
 
-
-    public ConstructorInfo? RuntimeInfo { get; }
-
     public ConstructorSymbol(
         Symbol? declaringSymbol,
         SymbolAccess access, 
         SymbolModifier modifiers, 
         Func<ConstructorSymbol, ImmutableList<ParameterSymbol>> fnParameters,
-        Func<TypeSymbol> fnReturnType,
-        ConstructorInfo? runtimeInfo)
+        Func<TypeSymbol> fnReturnType)
         : base(
             (modifiers & SymbolModifier.Static) != 0 ? ".cctor" : ".ctor", 
             declaringSymbol, 
@@ -58,7 +52,6 @@ public class ConstructorSymbol : MemberSymbol
     {
         _fnParameters = fnParameters;
         _fnReturnType = fnReturnType;
-        RuntimeInfo = runtimeInfo;
     }
 
     public ConstructorSymbol(
@@ -66,15 +59,13 @@ public class ConstructorSymbol : MemberSymbol
         SymbolAccess access,
         SymbolModifier modifiers,
         ImmutableList<ParameterSymbol> parameters,
-        TypeSymbol returnType,
-        ConstructorInfo? runtimeInfo)
+        TypeSymbol returnType)
         : this(
               declaringSymbol,
               access,
               modifiers,
               me => parameters,
-              () => returnType,
-              runtimeInfo)
+              () => returnType)
     {
     }
 
@@ -91,7 +82,6 @@ public class ConstructorSymbol : MemberSymbol
             this.Access,
             this.Modifiers,
             me => context.Substitute(this.Parameters, me),
-            () => declaringSymbol as TypeSymbol ?? this.ReturnType,
-            null);
+            () => declaringSymbol as TypeSymbol ?? this.ReturnType);
     }
 }

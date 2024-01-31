@@ -1,7 +1,4 @@
-﻿using System.Collections.Immutable;
-using System.Reflection;
-
-namespace Parkour.Symbols;
+﻿namespace Parkour.Symbols;
 
 public sealed class ParameterSymbol : Symbol
 {
@@ -25,30 +22,24 @@ public sealed class ParameterSymbol : Symbol
         }
     }
 
-    public ParameterInfo? RuntimeParameter { get; }
-
     public ParameterSymbol(
         string name, 
         Symbol? declaringSymbol,
-        Func<TypeSymbol> fnParameterType, 
-        ParameterInfo? runtimeParameter)
+        Func<TypeSymbol> fnParameterType)
         : base(name)
     {
         DeclaringSymbol = declaringSymbol;
         _fnParameterType = fnParameterType;
-        RuntimeParameter = runtimeParameter;
     }
 
     public ParameterSymbol(
         string name, 
         Symbol? declaringSymbol,
-        TypeSymbol parameterType, 
-        ParameterInfo? runtimeParameter)
+        TypeSymbol parameterType)
         : this(
               name,
               declaringSymbol,
-              () => parameterType,
-              runtimeParameter)
+              () => parameterType)
     {
     }
 
@@ -57,7 +48,6 @@ public sealed class ParameterSymbol : Symbol
         return new ParameterSymbol(
             this.Name,
             declaringSymbol ?? this.DeclaringSymbol,
-            () => context.Substitute(this.ParameterType),
-            null);
+            () => context.Substitute(this.ParameterType));
     }
 }

@@ -2,8 +2,8 @@
 
 public class TypeParameterSymbol : TypeSymbol
 {
-    public TypeParameterSymbol(string name, Type? runtimeType = null)
-        : base(name, runtimeType)
+    public TypeParameterSymbol(string name)
+        : base(name)
     {
     }
 }

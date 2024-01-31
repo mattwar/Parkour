@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace Parkour.Symbols;
+﻿namespace Parkour.Symbols;
 
 public sealed class FieldSymbol : MemberSymbol
 {
@@ -22,19 +20,15 @@ public sealed class FieldSymbol : MemberSymbol
         }
     }
 
-    public FieldInfo? RuntimeInfo { get; }
-
     public FieldSymbol(
         string name, 
         Symbol? declaringSymbol, 
         SymbolAccess access, 
         SymbolModifier modifiers, 
-        Func<TypeSymbol> fnFieldType, 
-        FieldInfo? runtimeInfo)
+        Func<TypeSymbol> fnFieldType)
         : base(name, declaringSymbol, access, modifiers)
     {
         _fnFieldType = fnFieldType;
-        RuntimeInfo = runtimeInfo;
     }
 
     public FieldSymbol(
@@ -42,15 +36,13 @@ public sealed class FieldSymbol : MemberSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        TypeSymbol fieldType,
-        FieldInfo? runtimeInfo)
+        TypeSymbol fieldType)
         : this(
             name, 
             declaringSymbol, 
             access, 
             modifiers, 
-            () => fieldType, 
-            runtimeInfo)
+            () => fieldType)
     {
     }
 
@@ -61,7 +53,6 @@ public sealed class FieldSymbol : MemberSymbol
             declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            () => context.Substitute(this.FieldType),
-            null);
+            () => context.Substitute(this.FieldType));
     }
 }

@@ -12,12 +12,14 @@ namespace Tests;
 [TestClass]
 public class RunTests
 {
+    private readonly RuntimeSymbols _runtimeSymbols;
     private readonly SymbolCache _symbols;
     private readonly BindingScope _defaultTestScope;
 
     public RunTests()
     {
-        _symbols = RuntimeSymbols.GetOrCreateCache();
+        _runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
+        _symbols = _runtimeSymbols.Symbols;
         _defaultTestScope = ExpressionTests.CreateBindingScope(_symbols);
     }
 
@@ -297,7 +299,7 @@ public class RunTests
         Assert.IsFalse(bound.ContainsDiagnostics, "expression contains diagnostics");
         Assert.IsFalse(bound.IsUnbound, "expression still contains unbound elements after binding.");
 
-        var translated = new ExpressionTranslator().TranslateToLambda(bound);
+        var translated = new ExpressionTranslator(_runtimeSymbols).TranslateToLambda(bound);
         var compiled = translated.Compile();
 
         var actualResult = compiled.DynamicInvoke(args);

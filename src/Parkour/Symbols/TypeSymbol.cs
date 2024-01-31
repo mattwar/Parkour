@@ -20,8 +20,7 @@ public class TypeSymbol : ContainerSymbol
         Func<ImmutableList<TypeSymbol>> fnTypeArguments,
         Func<ImmutableList<TypeSymbol>> fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>> fnMembers,
-        TypeSymbol? constructedFrom,
-        Type? runtimeType)
+        TypeSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
         _fnTypeParameters = fnTypeParameters;
@@ -29,7 +28,6 @@ public class TypeSymbol : ContainerSymbol
         _fnBaseTypes = fnBaseTypes;
         _fnMembers = fnMembers;
         ConstructedFrom = constructedFrom;
-        RuntimeType = runtimeType;
     }
 
     public TypeSymbol(
@@ -41,8 +39,7 @@ public class TypeSymbol : ContainerSymbol
         ImmutableList<TypeSymbol> typeArguments,
         ImmutableList<TypeSymbol> baseTypes,
         ImmutableList<Symbol> members,
-        TypeSymbol? constructedFrom,
-        Type? runtimeType)
+        TypeSymbol? constructedFrom)
         : this(
               name,
               declaringSymbol,
@@ -52,12 +49,11 @@ public class TypeSymbol : ContainerSymbol
               () => typeArguments,
               () => baseTypes,
               me => members,
-              constructedFrom,
-              runtimeType)
+              constructedFrom)
     {
     }
 
-    public TypeSymbol(string name, Type? runtimeType = null)
+    public TypeSymbol(string name)
         : this(
             name,
             declaringSymbol: null,
@@ -67,15 +63,7 @@ public class TypeSymbol : ContainerSymbol
             ImmutableList<TypeSymbol>.Empty,
             ImmutableList<TypeSymbol>.Empty,
             ImmutableList<Symbol>.Empty,
-            constructedFrom: null,
-            runtimeType)
-    {
-    }
-
-    public TypeSymbol(Type runtimeType)
-        : this(
-            runtimeType.Name,
-            runtimeType)
+            constructedFrom: null)
     {
     }
 
@@ -207,8 +195,7 @@ public class TypeSymbol : ContainerSymbol
             () => context.TypeArguments,
             () => subContext.Substitute(this.BaseTypes),
             me => subContext.Substitute(this.Members, me),
-            definition,
-            null);
+            definition);
     }
 
     internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
@@ -222,8 +209,6 @@ public class TypeSymbol : ContainerSymbol
             () => context.Substitute(this.TypeArguments),
             () => context.Substitute(this.BaseTypes),
             me => context.Substitute(this.Members),
-            this.ConstructedFrom,
-            null
-            );
+            this.ConstructedFrom);
     }
 }

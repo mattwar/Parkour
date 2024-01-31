@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Parkour.Binding;
@@ -6,55 +7,73 @@ using Symbols;
 
 public class RuntimeSymbols
 {
-    private NamespaceSymbol _globalNamespace;
+    public SymbolCache Symbols { get; }
+    public NamespaceSymbol Namespace => Symbols.GlobalNamespace;
+    public ImmutableList<Assembly> Assemblies { get; }
 
-    private RuntimeSymbols(NamespaceSymbol globalNamespace)
+    private RuntimeSymbols(NamespaceSymbol globalNamespace, ImmutableList<Assembly> assemblies)
     {
-        _globalNamespace = globalNamespace;
+        Symbols = SymbolCache.From(globalNamespace);
+        Assemblies = assemblies;
     }
 
-    private static NamespaceSymbol? _defaultNamespace;
-    public static NamespaceSymbol DefaultGlobalNamespace =>
-        _defaultNamespace ??= GetOrCreateGlobalNamespace();
+    /// <summary>
+    /// The <see cref="RuntimeSymbols"/> associated with the current mscorlib assembly.
+    /// </summary>
+    public static RuntimeSymbols CurrentMscorlib => 
+        GetOrCreate(_mscorlibAssemblies);
 
-    private static readonly ConditionalWeakTable<ImmutableList<Assembly>, NamespaceSymbol> _map =
-        new ConditionalWeakTable<ImmutableList<Assembly>, NamespaceSymbol>();
-
-    private static ImmutableList<Assembly> _defaultAssemblies =
+    private static ImmutableList<Assembly> _mscorlibAssemblies =
         [typeof(int).Assembly];
 
-    public static NamespaceSymbol GetOrCreateGlobalNamespace(ImmutableList<Assembly>? assemblies = null)
-    {
-        assemblies ??= _defaultAssemblies;
+    private static readonly ConditionalWeakTable<ImmutableList<Assembly>, RuntimeSymbols> _assemblyToRuntimeSymbolsMap =
+        new ConditionalWeakTable<ImmutableList<Assembly>, RuntimeSymbols>();
 
-        if (!_map.TryGetValue(assemblies, out var ns))
+    private static readonly ConditionalWeakTable<NamespaceSymbol, RuntimeSymbols> _namespaceToRuntimeSymbolsMap =
+        new ConditionalWeakTable<NamespaceSymbol, RuntimeSymbols>();
+
+    /// <summary>
+    /// Gets or creates the <see cref="RuntimeSymbols"/> associated with the assemblies
+    /// </summary>
+    public static RuntimeSymbols GetOrCreate(ImmutableList<Assembly> assemblies)
+    {
+        if (!_assemblyToRuntimeSymbolsMap.TryGetValue(assemblies, out var runtimeSymbols))
         {
-            ns = _map.GetValue(assemblies, CreateGlobalNamespace);
+            runtimeSymbols = _assemblyToRuntimeSymbolsMap.GetValue(assemblies, CreateRuntimeSymbols);
+            _namespaceToRuntimeSymbolsMap.TryAdd(runtimeSymbols.Namespace, runtimeSymbols);
         }
 
-        return ns;
+        return runtimeSymbols;
     }
 
-    public static SymbolCache GetOrCreateCache(ImmutableList<Assembly>? assemblies = null)
+    /// <summary>
+    /// Get the <see cref="RuntimeSymbols"/> with the specified global namespace instance.
+    /// </summary>
+    public static bool TryGet(NamespaceSymbol @namespace, [NotNullWhen(true)] out RuntimeSymbols? runtimeSymbols)
     {
-        return SymbolCache.From(GetOrCreateGlobalNamespace(assemblies));
+        return _namespaceToRuntimeSymbolsMap.TryGetValue(@namespace, out runtimeSymbols);
     }
 
-    private static NamespaceSymbol CreateGlobalNamespace(ImmutableList<Assembly>? assemblies)
+    private static RuntimeSymbols CreateRuntimeSymbols(ImmutableList<Assembly>? assemblies)
     {
-        assemblies = assemblies ?? _defaultAssemblies;
+        assemblies = assemblies ?? _mscorlibAssemblies;
         var types = assemblies.SelectMany(a => a.GetTypes()).ToList();
 
-        return new NamespaceSymbol("", null, _ns =>
+        RuntimeSymbols? runtimeSymbols = null;
+
+        var ns = new NamespaceSymbol("", null, _ns =>
         {
-            return new RuntimeSymbols(_ns).GetNamespaceMembers(_ns, "", "", types);
+            return runtimeSymbols!.GetNamespaceMembers(_ns, "", "", types);
         });
+
+        runtimeSymbols = new RuntimeSymbols(ns, assemblies);
+        return runtimeSymbols;
     }
 
     private ImmutableList<Symbol> GetNamespaceMembers(
-        NamespaceSymbol? declaringNamespace, 
-        string containingNamespace, 
-        string namespaceName, 
+        NamespaceSymbol? declaringNamespace,
+        string containingNamespace,
+        string namespaceName,
         IEnumerable<Type> types)
     {
         var list = new List<Symbol>();
@@ -108,23 +127,27 @@ public class RuntimeSymbols
         return fullName.Substring(start);
     }
 
-    private readonly ConditionalWeakTable<object, Symbol> _symbolMap =
+    private readonly ConditionalWeakTable<object, Symbol> _runtimeInfoToSymbolMap =
         new ConditionalWeakTable<object, Symbol>();
+
+    private readonly ConditionalWeakTable<Symbol, object> _symbolToRuntimeInfoMap =
+        new ConditionalWeakTable<Symbol, object>();
 
     private Symbol? GetSymbol(object runtimeSymbol)
     {
-        _symbolMap.TryGetValue(runtimeSymbol, out var symbol);
+        _runtimeInfoToSymbolMap.TryGetValue(runtimeSymbol, out var symbol);
         return symbol;
     }
 
     private Symbol? GetOrCreateSymbol(object runtimeSymbol, Symbol? declaringSymbol)
     {
-        if (!_symbolMap.TryGetValue(runtimeSymbol, out var symbol))
+        if (!_runtimeInfoToSymbolMap.TryGetValue(runtimeSymbol, out var symbol))
         {
             var tmp = CreateSymbol(runtimeSymbol, declaringSymbol);
             if (tmp != null)
             {
-                symbol = _symbolMap.GetValue(runtimeSymbol, _ => tmp);
+                symbol = _runtimeInfoToSymbolMap.GetValue(runtimeSymbol, _ => tmp);
+                _symbolToRuntimeInfoMap.TryAdd(symbol, runtimeSymbol);
             }
         }
 
@@ -139,7 +162,7 @@ public class RuntimeSymbols
                 {
                     declaringSymbol ??=
                         (type.DeclaringType != null) ? GetOrCreateSymbol(type.DeclaringType, null) as MemberSymbol
-                        : (type.Namespace != null) ? _globalNamespace.GetFirstSymbolFromPath<NamespaceSymbol>(type.Name)
+                        : (type.Namespace != null) ? this.Namespace.GetFirstSymbolFromPath<NamespaceSymbol>(type.Name)
                         : null;
                 }
                 else if (runtimeSymbol is MemberInfo member)
@@ -158,8 +181,7 @@ public class RuntimeSymbols
                         declaringSymbol as TypeSymbol,
                         GetAccess(field),
                         GetModifiers(field),
-                        () => GetType(field.FieldType),
-                        field);
+                        () => GetType(field.FieldType));
 
                 case PropertyInfo property:
                     return new PropertySymbol(
@@ -174,8 +196,7 @@ public class RuntimeSymbols
                             : null,
                         property.GetSetMethod() is MethodInfo smi
                             ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
-                            : null,
-                        property);
+                            : null);
 
                 case MethodInfo method:
                     if (method.IsConstructedGenericMethod)
@@ -190,8 +211,7 @@ public class RuntimeSymbols
                             () => GetTypes(method.GetGenericArguments()),
                             me => CreateParameters(me, method),
                             () => GetType(method.ReturnType),
-                            constructedFrom,
-                            method);
+                            constructedFrom);
                     }
                     else if (method.IsGenericMethod)
                     {
@@ -205,8 +225,7 @@ public class RuntimeSymbols
                             () => ImmutableList<TypeSymbol>.Empty,
                             me => CreateParameters(me, method),
                             () => GetType(method.ReturnType),
-                            null,
-                            method);
+                            null);
                     }
                     else
                     {
@@ -219,8 +238,7 @@ public class RuntimeSymbols
                             () => ImmutableList<TypeSymbol>.Empty,
                             me => CreateParameters(me, method),
                             () => GetType(method.ReturnType),
-                            null,
-                            method);
+                            null);
                     }
 
                 case ConstructorInfo constructor:
@@ -229,15 +247,13 @@ public class RuntimeSymbols
                         GetAccess(constructor),
                         GetModifiers(constructor),
                         me => CreateParameters(me, constructor),
-                        () => (TypeSymbol)declaringSymbol!,
-                        constructor);
+                        () => (TypeSymbol)declaringSymbol!);
 
                 case ParameterInfo parameter:
                     return new ParameterSymbol(
                         parameter.Name ?? "",
                         declaringSymbol,
-                        () => GetType(parameter.ParameterType),
-                        parameter);
+                        () => GetType(parameter.ParameterType));
 
                 case Type type:
                     var name = type.Name;
@@ -248,7 +264,7 @@ public class RuntimeSymbols
                     }
                     else if (type.IsGenericTypeParameter)
                     {
-                        return new TypeParameterSymbol(type.Name, type);
+                        return new TypeParameterSymbol(type.Name);
                     }
                     else if (type.IsConstructedGenericType)
                     {
@@ -262,8 +278,7 @@ public class RuntimeSymbols
                             () => GetTypes(type.GenericTypeArguments),
                             () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
                             _type => CreateMembers(type, (MemberSymbol)_type),
-                            typeDef,
-                            type);
+                            typeDef);
                     }
                     else if (type.IsGenericType)
                     {
@@ -277,8 +292,7 @@ public class RuntimeSymbols
                             () => ImmutableList<TypeSymbol>.Empty,
                             () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
                             me => CreateMembers(type, me),
-                            null,
-                            type);
+                            null);
                     }
                     else
                     {
@@ -291,8 +305,7 @@ public class RuntimeSymbols
                             () => ImmutableList<TypeSymbol>.Empty,
                             () => GetBaseTypes(type.BaseType, type.GetInterfaces()),
                             me => CreateMembers(type, me),
-                            null,
-                            type);
+                            null);
                     }
             }
 
@@ -406,14 +419,13 @@ public class RuntimeSymbols
 
     private Symbol? FindSymbol(object runtimeSymbol)
     {
-        if (runtimeSymbol is Type type && type.FullName != null)
+        if (runtimeSymbol is Type type)
         {
-            return _globalNamespace.GetFirstSymbolFromPath<TypeSymbol>(type.FullName);
+            return this.Namespace.GetFirstSymbolFromPath<TypeSymbol>(GetFullName(type));
         }
-        else if (runtimeSymbol is MemberInfo member && member.DeclaringType != null)
+        else if (runtimeSymbol is MemberInfo member)
         {
-            var dottedName = member.DeclaringType.FullName + "." + member.Name;
-            return _globalNamespace.GetFirstSymbolFromPath(dottedName);
+            return this.Namespace.GetFirstSymbolFromPath(GetFullName(member));
         }
 
         return null;
@@ -424,5 +436,227 @@ public class RuntimeSymbols
         if (!types.Any())
             return ImmutableList<TypeSymbol>.Empty;
         return types.Select(GetType).ToImmutableList();
+    }
+
+    /// <summary>
+    /// Gets the full name of a symbol compatible with searching for that symbol
+    /// from the global namespace.
+    /// </summary>
+    private static string GetFullName(object runtimeInfo)
+    {
+        if (runtimeInfo is Type type)
+        {
+            if (type.DeclaringType != null)
+            {
+                return GetFullName(type.DeclaringType) + "." + type.Name;
+            }
+            else if (type.Namespace != null)
+            {
+                return type.Namespace + "." + type.Name;
+            }
+            else
+            {
+                return type.Name;
+            }
+        }
+        else if (runtimeInfo is MemberInfo member)
+        {
+            if (member.DeclaringType != null)
+            {
+                return GetFullName(member.DeclaringType) + "." + member.Name;
+            }
+            else
+            {
+                return member.Name;
+            }
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unhandled runtime info: '{runtimeInfo.GetType().Name}' in {nameof(RuntimeSymbols)}.{nameof(GetFullName)}");
+        }
+    }
+
+    /// <summary>
+    /// Tries to get the runtime info (Type, MemberInfo, ParameterInfo) associated with the <see cref="Symbol"/>.
+    /// </summary>
+    public bool TryGetRuntimeInfo(Symbol symbol, [NotNullWhen(true)] out object? runtimeInfo)
+    {
+        if (symbol is TypeSymbol typeSymbol
+            && TryGetRuntimeType(typeSymbol, out var runtimeType))
+        {
+            runtimeInfo = runtimeType;
+            return true;
+        }
+        else if (symbol is MemberSymbol memberSymbol
+            && TryGetRuntimeMember(memberSymbol, out var memberInfo))
+        {
+            runtimeInfo = memberInfo;
+            return true;
+        }
+        else if (symbol is ParameterSymbol parameterSymbol
+            && parameterSymbol.DeclaringSymbol is MemberSymbol declaringMemberSymbol
+            && TryGetRuntimeMember(declaringMemberSymbol, out var declaringMemberInfo)
+            && declaringMemberInfo is MethodBase declaringMethodBase)
+        {
+            var index = declaringMemberSymbol switch
+            {
+                MethodSymbol ms => ms.Parameters.IndexOf(parameterSymbol),
+                ConstructorSymbol cs => cs.Parameters.IndexOf(parameterSymbol),
+                _ => -1
+            };
+
+            var parameterInfos = declaringMethodBase.GetParameters();
+            if (index >= 0 && index < parameterInfos.Length)
+            {
+                runtimeInfo = parameterInfos[index];
+                return true;
+            }
+        }
+
+        runtimeInfo = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to get the <see cref="Type"/> associated with the <see cref="TypeSymbol"/>
+    /// </summary>
+    public bool TryGetRuntimeType(TypeSymbol typeSymbol, [NotNullWhen(true)] out Type? runtimeType)
+    {
+        if (_symbolToRuntimeInfoMap.TryGetValue(typeSymbol, out var runtimeInfo)
+            && runtimeInfo is Type rt)
+        {
+            runtimeType = rt;
+            return true;
+        }
+
+        if (typeSymbol == SpecialSymbols.Void
+            || typeSymbol == SpecialSymbols.DoesNotReturn)
+        {
+            runtimeType = typeof(void);
+            return true;
+        }
+        else if (typeSymbol == SpecialSymbols.Any
+            || typeSymbol == SpecialSymbols.Null
+            || typeSymbol == SpecialSymbols.Unknown)
+        {
+            runtimeType = typeof(object);
+            return true;
+        }
+
+        if (typeSymbol is ArraySymbol array
+            && TryGetRuntimeType(array.ElementType, out var elementType))
+        {
+            runtimeType = elementType.MakeArrayType();
+            return true;
+        }
+        else if (typeSymbol is LambdaSymbol lambda
+            && TryGetRuntimeTypes(lambda.Parameters.Select(p => p.ParameterType), out var parameterTypes)
+            && TryGetRuntimeType(lambda.ReturnType, out var returnType))
+        {
+            Type[] types = [.. parameterTypes, returnType];
+            runtimeType = System.Linq.Expressions.Expression.GetDelegateType(types);
+            return true;
+        }
+        else if (typeSymbol.ConstructedFrom != null
+            && TryGetRuntimeType(typeSymbol.ConstructedFrom, out var typeDef)
+            && TryGetRuntimeTypes(typeSymbol.TypeArguments, out var typeArgs))
+        {
+            runtimeType = typeDef.MakeGenericType(typeArgs.ToArray());
+            return true;
+        }
+
+        // find type via declaring type
+        if (typeSymbol.DeclaringSymbol is TypeSymbol declaringTypeSymbol
+            && TryGetRuntimeType(declaringTypeSymbol, out var declaringType))
+        {
+            // assume member index in current symbol is same as index in runtime type's members
+            // (since using same function to fetch them)
+            var index = declaringTypeSymbol.Members.IndexOf(typeSymbol);
+            if (index >= 0)
+            {
+                var members = GetMembers(declaringType);
+                if (members[index] is Type mt)
+                {
+                    runtimeType = mt;
+                    return true;
+                }
+            }
+        }
+
+        runtimeType = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to get the list of <see cref="Type"/> associated with the list of <see cref="TypeSymbol"/>
+    /// </summary>
+    private bool TryGetRuntimeTypes(IEnumerable<TypeSymbol> typeSymbols, [NotNullWhen(true)] out IReadOnlyList<Type>? types)
+    {
+        var list = new List<Type>();
+
+        foreach (var typeSymbol in typeSymbols)
+        {
+            if (!TryGetRuntimeType(typeSymbol, out var rt))
+            {
+                types = null;
+                return false;
+            }
+
+            list.Add(rt);
+        }
+
+        types = list;
+        return true;
+    }
+
+    /// <summary>
+    /// Tries to get the <see cref="MemberInfo"/> associated with the <see cref="MemberSymbol"/>
+    /// </summary>
+    public bool TryGetRuntimeMember(MemberSymbol memberSymbol, [NotNullWhen(true)] out MemberInfo? memberInfo)
+    {
+        if (_symbolToRuntimeInfoMap.TryGetValue(memberSymbol, out var runtimeInfo)
+            && runtimeInfo is MemberInfo mi)
+        {
+            memberInfo = mi;
+            return true;
+        }
+
+        if (memberSymbol is TypeSymbol typeSymbol
+            && TryGetRuntimeType(typeSymbol, out var runtimeType))
+        {
+            memberInfo = runtimeType;
+            return true;
+
+        }
+        else if (memberSymbol is MethodSymbol methodSymbol
+            && methodSymbol.ConstructedFrom != null
+            && TryGetRuntimeMember(methodSymbol.ConstructedFrom, out var methodDef)
+            && methodDef is MethodInfo methodInfo
+            && TryGetRuntimeTypes(methodSymbol.TypeArguments, out var typeArgs))
+        {
+            memberInfo = methodInfo.MakeGenericMethod(typeArgs.ToArray());
+            return true;
+        }
+
+        // find member via declaring type
+        if (memberSymbol.DeclaringSymbol is TypeSymbol declaringTypeSymbol
+            && TryGetRuntimeType(declaringTypeSymbol, out var declaringType))
+        {
+            // assume member index in current symbol is same as index in runtime type's members
+            // (since using same function to fetch them)
+            var index = declaringTypeSymbol.Members.IndexOf(memberSymbol);
+            if (index >= 0)
+            {
+                var members = GetMembers(declaringType);
+                if (members[index] is MemberInfo minfo)
+                {
+                    memberInfo = minfo;
+                    return true;
+                }
+            }
+        }
+
+        memberInfo = null;
+        return false;
     }
 }

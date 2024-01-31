@@ -9,11 +9,11 @@ namespace Tests;
 [TestClass]
 public class DeclarationTests
 {
-    private readonly NamespaceSymbol _runtimeGlobalNamespace;
+    private readonly RuntimeSymbols _runtimeSymbols;
 
     public DeclarationTests()
     {
-        _runtimeGlobalNamespace = RuntimeSymbols.GetOrCreateGlobalNamespace();
+        _runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
     }   
 
     [TestMethod]
@@ -124,7 +124,7 @@ public class DeclarationTests
 
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
-        var binding = new SemanticBinder().BindDeclarations(declarations, _runtimeGlobalNamespace);
+        var binding = new SemanticBinder().BindDeclarations(declarations, _runtimeSymbols.Namespace);
 
         Assert.AreEqual(declarations.Length, binding.BoundDeclarations.Count, "bound declarations count");
 

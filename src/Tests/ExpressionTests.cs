@@ -9,13 +9,15 @@ namespace Tests;
 [TestClass]
 public class ExpressionTests
 {
+    private readonly RuntimeSymbols _runtimeSymbols;
     private readonly SymbolCache _symbols;
     private readonly BindingScope _defaultTestScope;
 
     public ExpressionTests()
     {       
-        _symbols = RuntimeSymbols.GetOrCreateCache();
-        _defaultTestScope = CreateBindingScope(_symbols);
+        _runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
+        _symbols = _runtimeSymbols.Symbols;
+        _defaultTestScope = CreateBindingScope(_runtimeSymbols.Symbols);
     }
 
     public static BindingScope CreateBindingScope(SymbolCache symbols)
@@ -28,7 +30,7 @@ public class ExpressionTests
     {
         TestBinding(
             Symbol("System.Int32").Array(),
-            expectedReferencedSymbol: _symbols.GetArray(_symbols.Int32));
+            expectedReferencedSymbol: _runtimeSymbols.Symbols.GetArray(_symbols.Int32));
     }
 
     [TestMethod]

@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace Parkour.Symbols;
+﻿namespace Parkour.Symbols;
 
 public class MethodSymbol : MemberSymbol
 {
@@ -13,8 +11,6 @@ public class MethodSymbol : MemberSymbol
     private Func<TypeSymbol>? _fnReturnType;
     private TypeSymbol? _returnType;
 
-    public MethodInfo? RuntimeInfo { get; }
-
     public MethodSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -24,8 +20,7 @@ public class MethodSymbol : MemberSymbol
         Func<ImmutableList<TypeSymbol>> fnTypeArguments,
         Func<MethodSymbol, ImmutableList<ParameterSymbol>> fnParameters,
         Func<TypeSymbol> fnReturnType,
-        MethodSymbol? constructedFrom,
-        MethodInfo? runtimeInfo)
+        MethodSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
         _fnTypeParameters = fnTypeParameters;
@@ -33,7 +28,6 @@ public class MethodSymbol : MemberSymbol
         _fnParameters = fnParameters;
         _fnReturnType = fnReturnType;
         ConstructedFrom = constructedFrom;
-        RuntimeInfo = runtimeInfo;
     }
 
     public MethodSymbol(
@@ -45,8 +39,7 @@ public class MethodSymbol : MemberSymbol
         ImmutableList<TypeSymbol> typeArguments,
         ImmutableList<ParameterSymbol> parameters,
         TypeSymbol returnType,
-        MethodSymbol? constructedFrom,
-        MethodInfo? runtimeInfo)
+        MethodSymbol? constructedFrom)
         : this(
               name,
               declaringSymbol,
@@ -56,8 +49,7 @@ public class MethodSymbol : MemberSymbol
               () => typeArguments,
               me => parameters,
               () => returnType,
-              constructedFrom,
-              runtimeInfo)
+              constructedFrom)
     {
     }
 
@@ -187,8 +179,7 @@ public class MethodSymbol : MemberSymbol
             () => context.TypeArguments,
             me => subContext.Substitute(this.Parameters, me),
             () => subContext.Substitute(this.ReturnType),
-            definition,
-            null);
+            definition);
     }
 
     internal protected override MethodSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
@@ -202,7 +193,6 @@ public class MethodSymbol : MemberSymbol
             () => context.Substitute(this.TypeArguments),
             me => context.Substitute(this.Parameters),
             () => context.Substitute(this.ReturnType),
-            this.ConstructedFrom,
-            null);
+            this.ConstructedFrom);
     }
 }

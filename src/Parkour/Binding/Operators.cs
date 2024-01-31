@@ -29,7 +29,7 @@ public sealed class Operators
         new OperatorSymbol(
             name, 
             kind, 
-            me => ImmutableList.Create(new ParameterSymbol("operand", me, operandType, null)),
+            me => ImmutableList.Create(new ParameterSymbol("operand", me, operandType)),
             () => resultType
             );
 
@@ -41,8 +41,8 @@ public sealed class Operators
             name,
             kind,
             me => ImmutableList.Create(
-                new ParameterSymbol("left", me, leftType, null),
-                new ParameterSymbol("right", me, rightType, null)
+                new ParameterSymbol("left", me, leftType),
+                new ParameterSymbol("right", me, rightType)
                 ),
             () => resultType
             );

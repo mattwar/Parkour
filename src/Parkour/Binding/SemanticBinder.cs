@@ -122,9 +122,7 @@ public class SemanticBinder
         switch (declaration)
         {
             case TypeParameterDeclaration tp:
-                symbol = new TypeParameterSymbol(
-                    tp.Name,
-                    runtimeType: null);
+                symbol = new TypeParameterSymbol(tp.Name);
                 break;
 
             case ClassDeclaration cd:
@@ -138,8 +136,7 @@ public class SemanticBinder
                     () => ImmutableList<TypeSymbol>.Empty,
                     () => cd.BaseTypes.Select(bt => GetType(bt, classContext) ?? SpecialSymbols.Unknown).ToImmutableList()!,
                     me => cd.Declarations.Select(d => CreateDeclarationSymbol(me, d, classContext)).Where(s => s != null).ToImmutableList()!,
-                    constructedFrom: null,
-                    runtimeType: null);
+                    constructedFrom: null);
 
                 classContext = classContext.WithScope(
                     classContext.Scope
@@ -160,8 +157,7 @@ public class SemanticBinder
                     () => ImmutableList<TypeSymbol>.Empty,
                     me => md.Parameters.Select(p => (ParameterSymbol)CreateDeclarationSymbol(me, p, context)!).ToImmutableList()!,
                     () => GetType(md.ReturnType, context) ?? SpecialSymbols.Unknown,
-                    constructedFrom: null,
-                    runtimeInfo: null
+                    constructedFrom: null
                     );
                 break;
 
@@ -171,8 +167,7 @@ public class SemanticBinder
                     declaringSymbol,
                     () => pd.ParameterType != null 
                         ? GetType(pd.ParameterType, context) ?? SpecialSymbols.Unknown 
-                        : SpecialSymbols.Any,
-                    runtimeParameter: null
+                        : SpecialSymbols.Any
                     );
                 break;
 
@@ -182,8 +177,7 @@ public class SemanticBinder
                     declaringSymbol as TypeSymbol,
                     fd.Access,
                     fd.Modifiers,
-                    () => GetType(fd.FieldType, context) ?? SpecialSymbols.Unknown,
-                    runtimeInfo: null
+                    () => GetType(fd.FieldType, context) ?? SpecialSymbols.Unknown
                     );
                 break;
 
@@ -200,8 +194,7 @@ public class SemanticBinder
                     me => (MethodSymbol)CreateDeclarationSymbol(me, pd.GetMethod, context)!,
                     pd.SetMethod != null
                         ? me => (MethodSymbol)CreateDeclarationSymbol(me, pd.SetMethod, context)!
-                        : null,
-                    runtimeInfo: null
+                        : null
                 );
                 break;
         }
@@ -1830,7 +1823,7 @@ public class SemanticBinder
                 {
                     var type = p.ParameterType != null ? BindExpression(p.ParameterType, context) : null;
                     var ptype = type?.ReferencedSymbol as TypeSymbol ?? SpecialSymbols.Any;
-                    var psymbol = new ParameterSymbol(p.Name, declaringSymbol, ptype, runtimeParameter: null);
+                    var psymbol = new ParameterSymbol(p.Name, declaringSymbol, ptype);
                     var pdecl = new ParameterDeclaration(p.Name, type, p.Location, psymbol, null);
                     symbols.Add(psymbol);
                     declarations.Add(pdecl);

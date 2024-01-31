@@ -5,15 +5,17 @@ namespace Parkour.Execution;
 using Binding;
 using Semantics;
 using Symbols;
-using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Translates <see cref="Expression"/> to LINQ expressions.
 /// </summary>
 public class ExpressionTranslator
 {
-    public ExpressionTranslator()
+    private readonly RuntimeSymbols _runtimeSymbols;
+
+    public ExpressionTranslator(RuntimeSymbols runtimeSymbols)
     {
+        _runtimeSymbols = runtimeSymbols;
     }
 
     public L.LambdaExpression TranslateToLambda(LambdaExpression expression, Type? delegateType = null)
@@ -83,111 +85,56 @@ public class ExpressionTranslator
         }
     }
 
-    private Type TranslateType(TypeSymbol type)
+    private Type TranslateType(TypeSymbol typeSymbol)
     {
-        if (type == SpecialSymbols.Void
-            || type == SpecialSymbols.DoesNotReturn)
-            return typeof(void);
+        if (_runtimeSymbols.TryGetRuntimeType(typeSymbol, out var type))
+            return type;
 
-        if (type.RuntimeType != null)
-            return type.RuntimeType;
-
-        if (type is ArraySymbol array)
-        {
-            var elementType = TranslateType(array.ElementType);
-            return elementType.MakeArrayType();
-        }
-        else if (type is LambdaSymbol fs)
-        {
-            var list = new List<Type>();
-            list.AddRange(fs.Parameters.Select(p => TranslateType(p.ParameterType)));
-            list.Add(TranslateType(fs.ReturnType));
-            return L.Expression.GetDelegateType(list.ToArray());
-        }
-        else if (type.ConstructedFrom != null)
-        {
-            var typeDef = TranslateType(type.ConstructedFrom);
-            var typeArgs = type.TypeArguments.Select(ta => TranslateType(ta)).ToArray();
-            return typeDef.MakeGenericType(typeArgs);
-        }
-        else if (TryGetRuntimeInfo<Type>(type, out var runtimeType))
-        {
-            return runtimeType;
-        }
-
-        throw new InvalidOperationException($"Unhandled type '{type.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateType)}");
+        throw new InvalidOperationException($"Could not determine runtime type for symbol '{typeSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateType)}");
     }
 
-    private bool TryGetRuntimeInfo<TInfo>(MemberSymbol symbol, [NotNullWhen(true)] out TInfo info)
-        where TInfo : MemberInfo
+    private MethodInfo TranslateMethod(MethodSymbol methodSymbol)
     {
-        if (symbol.DeclaringSymbol is TypeSymbol ts)
+        if (_runtimeSymbols.TryGetRuntimeMember(methodSymbol, out var memberInfo)
+            && memberInfo is MethodInfo methodInfo)
         {
-            var runtimeType = TranslateType(ts);
-            var index = ts.Members.IndexOf(symbol);
-            if (index >= 0)
-            {
-                var members = RuntimeSymbols.GetMembers(runtimeType);
-                info = (members[index] as TInfo)!;
-                return info is not null;
-            }
+            return methodInfo;
         }
 
-        info = null!;
-        return false;
+        throw new InvalidOperationException($"Could not determine runtime method for symbol '{methodSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMethod)}");
     }
 
-    private MethodInfo TranslateMethod(MethodSymbol method)
+    private ConstructorInfo TranslateConstructor(ConstructorSymbol constructorSymbol)
     {
-        if (method.RuntimeInfo is MethodInfo info)
+        if (_runtimeSymbols.TryGetRuntimeMember(constructorSymbol, out var memberInfo)
+            && memberInfo is ConstructorInfo constructorInfo)
         {
-            return info;
-        }
-        else if (method.ConstructedFrom != null)
-        {
-            var methodDef = TranslateMethod(method.ConstructedFrom);
-            var typeArgs = method.TypeArguments.Select(ta => TranslateType(ta)).ToArray();
-            return methodDef.MakeGenericMethod(typeArgs);
-        }
-        else if (TryGetRuntimeInfo(method, out info))
-        {
-            return info;
+            return constructorInfo;
         }
 
-        throw new InvalidOperationException($"Non-translatable method '{method.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMethod)}");
+        throw new InvalidOperationException($"Could not determine runtime constructor for symbol '{constructorSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateConstructor)}");
     }
 
-    private ConstructorInfo TranslateConstructor(ConstructorSymbol constructor)
+    private FieldInfo TranslateField(FieldSymbol fieldSymbol)
     {
-        if (constructor.RuntimeInfo is ConstructorInfo info
-            || TryGetRuntimeInfo(constructor, out info))
+        if (_runtimeSymbols.TryGetRuntimeMember(fieldSymbol, out var memberInfo)
+            && memberInfo is FieldInfo fieldInfo)
         {
-            return info;
+            return fieldInfo;
         }
 
-        throw new InvalidOperationException($"Non-translatable constructor for type '{constructor.DeclaringSymbol?.Name ?? ""}' in {nameof(ExpressionTranslator)}.{nameof(TranslateConstructor)}");
+        throw new InvalidOperationException($"Could not determine runtime field for symbol '{fieldSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateField)}");
     }
 
-    private FieldInfo TranslateField(FieldSymbol field)
+    private PropertyInfo TranslateProperty(PropertySymbol propertySymbol)
     {
-        if (field.RuntimeInfo is FieldInfo info
-            || TryGetRuntimeInfo(field, out info))
+        if (_runtimeSymbols.TryGetRuntimeMember(propertySymbol, out var memberInfo)
+            && memberInfo is PropertyInfo propertyInfo)
         {
-            return info;
+            return propertyInfo;
         }
 
-        throw new InvalidOperationException($"Non-translatable field '{field.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateField)}");
-    }
-
-    private PropertyInfo TranslateProperty(PropertySymbol property)
-    {
-        if (property.RuntimeInfo is PropertyInfo info
-            || TryGetRuntimeInfo(property, out info))
-        {
-            return info;
-        }
-
-        throw new InvalidOperationException($"Non-translatable property '{property.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateProperty)}");
+        throw new InvalidOperationException($"Could not determine runtime property for symbol '{propertySymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateProperty)}");
     }
 
     private L.Expression TranslateAssign(AssignExpression assign)
