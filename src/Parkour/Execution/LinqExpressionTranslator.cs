@@ -7,28 +7,42 @@ using Semantics;
 using Symbols;
 
 /// <summary>
-/// Translates <see cref="Expression"/> to LINQ expressions.
+/// Translates <see cref="Expression"/> elements into LINQ expressions.
 /// </summary>
-public class ExpressionTranslator
+public class LinqExpressionTranslator
 {
     private readonly RuntimeSymbols _runtimeSymbols;
 
-    public ExpressionTranslator(RuntimeSymbols runtimeSymbols)
+    /// <summary>
+    /// Constructs a <see cref="LinqExpressionTranslator"/>
+    /// that translates <see cref="Expression"/> instances into <see cref="L.Expression"/> types.
+    /// </summary>
+    public LinqExpressionTranslator(RuntimeSymbols runtimeSymbols)
     {
         _runtimeSymbols = runtimeSymbols;
     }
 
+    /// <summary>
+    /// Translate <see cref="LambdaExpression"/> to LINQ <see cref="L.LambdaExpression"/> type,
+    /// optionally specifying the delegate type to use.
+    /// </summary>
     public L.LambdaExpression TranslateToLambda(LambdaExpression expression, Type? delegateType = null)
     {
         return (L.LambdaExpression)Translate(expression);
     }
 
+    /// <summary>
+    /// Translates <see cref="LambdaExpression"/> to LINQ <see cref="L.Expression{TDelegate}"/> type.
+    /// </summary>
     public L.Expression<TDelegate> TranslateToLambda<TDelegate>(LambdaExpression expression)
         where TDelegate : Delegate
     {
         return (L.Expression<TDelegate>)TranslateToLambda(expression, typeof(TDelegate));
     }
 
+    /// <summary>
+    /// Translates <see cref="Expression"/> to LINQ <see cref="L.Expression"/> type.
+    /// </summary>
     public virtual L.Expression Translate(Expression expression)
     {
         if (expression.IsUnbound)
@@ -81,7 +95,7 @@ public class ExpressionTranslator
             case VoidExpression @void:
                 return TranslateVoid(@void);
             default:
-                throw new InvalidOperationException($"Unhandled semantic type '{expression.GetType().Name}' in {nameof(ExpressionTranslator)}.Translate");
+                throw new InvalidOperationException($"Unhandled semantic type '{expression.GetType().Name}' in {nameof(LinqExpressionTranslator)}.Translate");
         }
     }
 
@@ -90,7 +104,7 @@ public class ExpressionTranslator
         if (_runtimeSymbols.TryGetRuntimeType(typeSymbol, out var type))
             return type;
 
-        throw new InvalidOperationException($"Could not determine runtime type for symbol '{typeSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateType)}");
+        throw new InvalidOperationException($"Could not determine runtime type for symbol '{typeSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateType)}");
     }
 
     private MethodInfo TranslateMethod(MethodSymbol methodSymbol)
@@ -101,7 +115,7 @@ public class ExpressionTranslator
             return methodInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime method for symbol '{methodSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMethod)}");
+        throw new InvalidOperationException($"Could not determine runtime method for symbol '{methodSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateMethod)}");
     }
 
     private ConstructorInfo TranslateConstructor(ConstructorSymbol constructorSymbol)
@@ -112,7 +126,7 @@ public class ExpressionTranslator
             return constructorInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime constructor for symbol '{constructorSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateConstructor)}");
+        throw new InvalidOperationException($"Could not determine runtime constructor for symbol '{constructorSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateConstructor)}");
     }
 
     private FieldInfo TranslateField(FieldSymbol fieldSymbol)
@@ -123,7 +137,7 @@ public class ExpressionTranslator
             return fieldInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime field for symbol '{fieldSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateField)}");
+        throw new InvalidOperationException($"Could not determine runtime field for symbol '{fieldSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateField)}");
     }
 
     private PropertyInfo TranslateProperty(PropertySymbol propertySymbol)
@@ -134,7 +148,7 @@ public class ExpressionTranslator
             return propertyInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime property for symbol '{propertySymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateProperty)}");
+        throw new InvalidOperationException($"Could not determine runtime property for symbol '{propertySymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateProperty)}");
     }
 
     private L.Expression TranslateAssign(AssignExpression assign)
@@ -412,7 +426,7 @@ public class ExpressionTranslator
             default:
                 if (member.ReferencedSymbol == null)
                     throw new InvalidOperationException($"The reference has no symbol");
-                throw new InvalidOperationException($"Unhandled symbol '{member.ReferencedSymbol?.Name ?? "?"}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMember)}");
+                throw new InvalidOperationException($"Unhandled symbol '{member.ReferencedSymbol?.Name ?? "?"}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateMember)}");
         }
     }
 
@@ -490,7 +504,7 @@ public class ExpressionTranslator
                 throw new InvalidOperationException("Reference has no symbol");
 
             default:
-                throw new InvalidOperationException($"Unhandled symbol '{symbol.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateReferencedSymbol)}");
+                throw new InvalidOperationException($"Unhandled symbol '{symbol.Name}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateReferencedSymbol)}");
         }
     }
 

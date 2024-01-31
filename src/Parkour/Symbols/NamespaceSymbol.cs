@@ -32,3 +32,12 @@ public class NamespaceSymbol : ContainerSymbol
     public override int DeclarationCount => this.Members.Count;
     public override Symbol? GetDeclaration(int index) => this.Members[index];
 }
+
+public class GlobalNamespaceSymbol : NamespaceSymbol
+{
+    public GlobalNamespaceSymbol(
+        Func<GlobalNamespaceSymbol, ImmutableList<Symbol>> fnMembers)
+        : base("", null, ns => fnMembers((GlobalNamespaceSymbol)ns))
+    {
+    }
+}

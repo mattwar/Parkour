@@ -7,11 +7,10 @@ public class CombinedSymbols
     /// <summary>
     /// Creates a new global namespace from a set of namespaces.
     /// </summary>
-    public static NamespaceSymbol CreateCombinedGlobalNamespace(
-        Func<NamespaceSymbol, ImmutableList<NamespaceSymbol>> fnCreateGlobalNamespaces)
+    public static GlobalNamespaceSymbol CreateCombinedGlobalNamespace(
+        Func<NamespaceSymbol, ImmutableList<GlobalNamespaceSymbol>> fnCreateGlobalNamespaces)
     {
-        return new NamespaceSymbol("",
-            declaringSymbol: null,
+        return new GlobalNamespaceSymbol(
             ns =>
             {
                 var globalNamespaces = fnCreateGlobalNamespaces(ns);

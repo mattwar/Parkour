@@ -6,12 +6,12 @@ public class ExpressionBinding
 {
     public Expression UnboundExpression { get; }
     public Expression BoundExpression { get; }
-    public NamespaceSymbol ExternalSymbols { get; }
+    public GlobalNamespaceSymbol ExternalSymbols { get; }
 
     public ExpressionBinding(
         Expression unbound, 
         Expression bound,
-        NamespaceSymbol externalSymbols)
+        GlobalNamespaceSymbol externalSymbols)
     {
         this.UnboundExpression = unbound;
         this.BoundExpression = bound;

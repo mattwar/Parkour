@@ -11,7 +11,7 @@ public class SymbolCache
     /// <summary>
     /// The global namespace for all declared and external symbols.
     /// </summary>
-    public NamespaceSymbol GlobalNamespace { get; }
+    public GlobalNamespaceSymbol GlobalNamespace { get; }
 
     public NamespaceSymbol? _systemNs;
     public TypeSymbol? _typeType;
@@ -27,16 +27,13 @@ public class SymbolCache
     private TypeSymbol? _stringType;
     private TypeSymbol? _objectType;
 
-    private static readonly ConditionalWeakTable<NamespaceSymbol, SymbolCache> _namespaceMap =
-        new ConditionalWeakTable<NamespaceSymbol, SymbolCache>();
+    private static readonly ConditionalWeakTable<GlobalNamespaceSymbol, SymbolCache> _namespaceMap =
+        new ConditionalWeakTable<GlobalNamespaceSymbol, SymbolCache>();
 
     private readonly ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol> _listToGroupMap =
         new ConditionalWeakTable<ImmutableList<Symbol>, GroupSymbol>();
 
-    private readonly ConditionalWeakTable<ImmutableList<TypeSymbol>, UnionSymbol> _listToUnionMap =
-        new ConditionalWeakTable<ImmutableList<TypeSymbol>, UnionSymbol>();
-
-    private SymbolCache(NamespaceSymbol globalNamespace)
+    private SymbolCache(GlobalNamespaceSymbol globalNamespace)
     {
         this.GlobalNamespace = globalNamespace;
     }
@@ -44,7 +41,7 @@ public class SymbolCache
     /// <summary>
     /// Gets or creates the <see cref="SymbolCache"/> associated with the <see cref="NamespaceSymbol"/>
     /// </summary>
-    public static SymbolCache From(NamespaceSymbol globalNamespace)
+    public static SymbolCache From(GlobalNamespaceSymbol globalNamespace)
     {
         if (!_namespaceMap.TryGetValue(globalNamespace, out var commonSymbols))
         {

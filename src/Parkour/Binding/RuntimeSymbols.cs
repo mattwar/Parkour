@@ -8,10 +8,10 @@ using Symbols;
 public class RuntimeSymbols
 {
     public SymbolCache Symbols { get; }
-    public NamespaceSymbol Namespace => Symbols.GlobalNamespace;
+    public GlobalNamespaceSymbol GlobalNamespace => Symbols.GlobalNamespace;
     public ImmutableList<Assembly> Assemblies { get; }
 
-    private RuntimeSymbols(NamespaceSymbol globalNamespace, ImmutableList<Assembly> assemblies)
+    private RuntimeSymbols(GlobalNamespaceSymbol globalNamespace, ImmutableList<Assembly> assemblies)
     {
         Symbols = SymbolCache.From(globalNamespace);
         Assemblies = assemblies;
@@ -40,7 +40,7 @@ public class RuntimeSymbols
         if (!_assemblyToRuntimeSymbolsMap.TryGetValue(assemblies, out var runtimeSymbols))
         {
             runtimeSymbols = _assemblyToRuntimeSymbolsMap.GetValue(assemblies, CreateRuntimeSymbols);
-            _namespaceToRuntimeSymbolsMap.TryAdd(runtimeSymbols.Namespace, runtimeSymbols);
+            _namespaceToRuntimeSymbolsMap.TryAdd(runtimeSymbols.GlobalNamespace, runtimeSymbols);
         }
 
         return runtimeSymbols;
@@ -49,9 +49,9 @@ public class RuntimeSymbols
     /// <summary>
     /// Get the <see cref="RuntimeSymbols"/> with the specified global namespace instance.
     /// </summary>
-    public static bool TryGet(NamespaceSymbol @namespace, [NotNullWhen(true)] out RuntimeSymbols? runtimeSymbols)
+    public static bool TryGet(GlobalNamespaceSymbol globalNamespace, [NotNullWhen(true)] out RuntimeSymbols? runtimeSymbols)
     {
-        return _namespaceToRuntimeSymbolsMap.TryGetValue(@namespace, out runtimeSymbols);
+        return _namespaceToRuntimeSymbolsMap.TryGetValue(globalNamespace, out runtimeSymbols);
     }
 
     private static RuntimeSymbols CreateRuntimeSymbols(ImmutableList<Assembly>? assemblies)
@@ -61,7 +61,7 @@ public class RuntimeSymbols
 
         RuntimeSymbols? runtimeSymbols = null;
 
-        var ns = new NamespaceSymbol("", null, _ns =>
+        var ns = new GlobalNamespaceSymbol(_ns =>
         {
             return runtimeSymbols!.GetNamespaceMembers(_ns, "", "", types);
         });
@@ -162,7 +162,7 @@ public class RuntimeSymbols
                 {
                     declaringSymbol ??=
                         (type.DeclaringType != null) ? GetOrCreateSymbol(type.DeclaringType, null) as MemberSymbol
-                        : (type.Namespace != null) ? this.Namespace.GetFirstSymbolFromPath<NamespaceSymbol>(type.Name)
+                        : (type.Namespace != null) ? this.GlobalNamespace.GetFirstSymbolFromPath<NamespaceSymbol>(type.Name)
                         : null;
                 }
                 else if (runtimeSymbol is MemberInfo member)
@@ -421,11 +421,11 @@ public class RuntimeSymbols
     {
         if (runtimeSymbol is Type type)
         {
-            return this.Namespace.GetFirstSymbolFromPath<TypeSymbol>(GetFullName(type));
+            return this.GlobalNamespace.GetFirstSymbolFromPath<TypeSymbol>(GetFullName(type));
         }
         else if (runtimeSymbol is MemberInfo member)
         {
-            return this.Namespace.GetFirstSymbolFromPath(GetFullName(member));
+            return this.GlobalNamespace.GetFirstSymbolFromPath(GetFullName(member));
         }
 
         return null;

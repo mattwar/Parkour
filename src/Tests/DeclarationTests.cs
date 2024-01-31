@@ -124,7 +124,7 @@ public class DeclarationTests
 
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
-        var binding = new SemanticBinder().BindDeclarations(declarations, _runtimeSymbols.Namespace);
+        var binding = new SemanticBinder().BindDeclarations(declarations, _runtimeSymbols.GlobalNamespace);
 
         Assert.AreEqual(declarations.Length, binding.BoundDeclarations.Count, "bound declarations count");
 

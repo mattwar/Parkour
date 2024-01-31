@@ -34,7 +34,7 @@ namespace Tests
         {
             // attempt to iterate though all declared symbols reachable from global namespace
             var rs = RuntimeSymbols.CurrentMscorlib;
-            EnumerateMembers(rs.Namespace);
+            EnumerateMembers(rs.GlobalNamespace);
 
             void EnumerateMembers(Symbol symbol)
             {
@@ -48,7 +48,7 @@ namespace Tests
             var rs = RuntimeSymbols.CurrentMscorlib;
 
             //TestFindSymbol(ns, "System.Int32");
-            TestFindSymbol(rs.Namespace, "System.Collections.Generic.List`1");
+            TestFindSymbol(rs.GlobalNamespace, "System.Collections.Generic.List`1");
         }
 
         private void TestFindSymbol(NamespaceSymbol symbol, string pathName)
@@ -61,7 +61,7 @@ namespace Tests
         public void TestConstruct()
         {
             var runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
-            var listT = (TypeSymbol?)runtimeSymbols.Namespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
+            var listT = (TypeSymbol?)runtimeSymbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
             Assert.IsNotNull(listT);
             var listInt32 = runtimeSymbols.Symbols.GetConstructed(listT, [runtimeSymbols.Symbols.Int32]);
             Assert.IsNotNull(listInt32);

@@ -299,7 +299,8 @@ public class RunTests
         Assert.IsFalse(bound.ContainsDiagnostics, "expression contains diagnostics");
         Assert.IsFalse(bound.IsUnbound, "expression still contains unbound elements after binding.");
 
-        var translated = new ExpressionTranslator(_runtimeSymbols).TranslateToLambda(bound);
+        var translated = new LinqExpressionTranslator(_runtimeSymbols).TranslateToLambda(bound);
+
         var compiled = translated.Compile();
 
         var actualResult = compiled.DynamicInvoke(args);

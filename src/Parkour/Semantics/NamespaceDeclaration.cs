@@ -25,6 +25,9 @@ public class NamespaceDeclaration : MemberDeclaration
         this.NamespaceSymbol = namespaceSymbol;
     }
 
+    public bool IsGlobalNamespace => 
+        this.Name == "";
+
     public override int ChildCount =>
         this.Declarations.Count;
 
