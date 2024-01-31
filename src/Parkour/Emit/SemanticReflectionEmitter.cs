@@ -10,55 +10,67 @@ using Symbols;
 
 public class SemanticReflectionEmitter
 {
-    private readonly RuntimeSymbols _runtimeSymbols;
-
-    public SemanticReflectionEmitter(
-        RuntimeSymbols runtimeSymbols)
+    public SemanticReflectionEmitter()
     {
-        _runtimeSymbols = runtimeSymbols;
     }
 
-    public AssemblyBuilder EmitAssembly(DeclarationBinding binding, string assemblyName)
+    public virtual AssemblyBuilder Emit(
+        DeclarationBinding binding, 
+        string assemblyName)
     {
         var builder = AssemblyBuilder.DefineDynamicAssembly(
             new AssemblyName(assemblyName),
             AssemblyBuilderAccess.RunAndCollect);
 
-        EmitIntoAssembly(binding, builder);
+        var moduleName = "Module" + builder.GetModules().Length;
+        EmitIntoAssembly(binding, builder, moduleName);
 
         return builder;
     }
 
-    public void EmitIntoAssembly(DeclarationBinding binding, AssemblyBuilder builder)
+    public virtual void EmitIntoAssembly(
+        DeclarationBinding binding, 
+        AssemblyBuilder builder, 
+        string moduleName)
     {
-        var moduleName = "Module_" + builder.GetModules().Length;
         var moduleBuilder = builder.DefineDynamicModule(moduleName);
-        DefineTypeBuilders(moduleBuilder, binding.DeclarationSymbols);
-        DefineTypeBuilderMembers(binding.DeclarationSymbols);
-        EmitExpressionBodies(binding, binding.DeclarationSymbols);
-        ResolveBuilders(binding.DeclarationSymbols);
+
+        if (RuntimeSymbols.TryGet(binding.ExternalSymbols, out var runtimeSymbols))
+        {
+            var context = new EmitContext(runtimeSymbols);
+            DefineTypeBuilders(context, moduleBuilder, binding.DeclarationSymbols);
+            DefineTypeBuilderMembers(context, binding.DeclarationSymbols);
+            EmitExpressionBodies(context, binding, binding.DeclarationSymbols);
+            ResolveBuilders(context, binding.DeclarationSymbols);
+        }
     }
 
-    private void DefineTypeBuilders(ModuleBuilder moduleBuilder, NamespaceSymbol namespaceSymbol)
+    protected virtual void DefineTypeBuilders(
+        EmitContext context,
+        ModuleBuilder moduleBuilder, 
+        NamespaceSymbol namespaceSymbol)
     {
         foreach (var member in namespaceSymbol.Members)
         {
             if (member is NamespaceSymbol ns)
             {
-                DefineTypeBuilders(moduleBuilder, ns);
+                DefineTypeBuilders(context, moduleBuilder, ns);
             }
             else if (member is TypeSymbol ts)
             {
-                DefineTypeBuilders(moduleBuilder, ts);
+                DefineTypeBuilders(context, moduleBuilder, ts);
             }
         }
     }
 
-    private void DefineTypeBuilders(ModuleBuilder moduleBuilder, TypeSymbol typeSymbol)
+    protected virtual void DefineTypeBuilders(
+        EmitContext context, 
+        ModuleBuilder moduleBuilder, 
+        TypeSymbol typeSymbol)
     {
         var name = typeSymbol.FullName;
         TypeBuilder typeBuilder = moduleBuilder.DefineType(name, GetTypeAttributes(typeSymbol));
-        AddBuilder(typeSymbol, typeBuilder);
+        context.AddBuilder(typeSymbol, typeBuilder);
 
         // declare type parameters
         if (typeSymbol.TypeParameters.Count > 0)
@@ -66,21 +78,24 @@ public class SemanticReflectionEmitter
             var typeParamBuilders = typeBuilder.DefineGenericParameters(typeSymbol.TypeParameters.Select(tp => tp.Name).ToArray());
             for (int i = 0; i < typeParamBuilders.Length; i++)
             {
-                AddBuilder(typeSymbol.TypeParameters[i], typeParamBuilders[i]);
+                context.AddBuilder(typeSymbol.TypeParameters[i], typeParamBuilders[i]);
             }
         }
 
         foreach (var nestedType in typeSymbol.Members.OfType<TypeSymbol>())
         {
-            DefineNestedTypeBuilders(typeBuilder, nestedType);
+            DefineNestedTypeBuilders(context, typeBuilder, nestedType);
         }
     }
 
-    private void DefineNestedTypeBuilders(TypeBuilder containerTypeBuilder, TypeSymbol nestedTypeSymbol)
+    protected virtual void DefineNestedTypeBuilders(
+        EmitContext context,
+        TypeBuilder containerTypeBuilder, 
+        TypeSymbol nestedTypeSymbol)
     {
         var name = nestedTypeSymbol.FullName;
         var nestedTypeBuilder = containerTypeBuilder.DefineNestedType(name, GetTypeAttributes(nestedTypeSymbol));
-        AddBuilder(nestedTypeSymbol, containerTypeBuilder);
+        context.AddBuilder(nestedTypeSymbol, containerTypeBuilder);
 
         // declare type parameters
         if (nestedTypeSymbol.TypeParameters.Count > 0)
@@ -90,40 +105,44 @@ public class SemanticReflectionEmitter
 
             for (int i = 0; i < typeParamBuilders.Length; i++)
             {
-                AddBuilder(nestedTypeSymbol.TypeParameters[i], typeParamBuilders[i]);
+                context.AddBuilder(nestedTypeSymbol.TypeParameters[i], typeParamBuilders[i]);
             }
         }
 
         foreach (var nestedType in nestedTypeSymbol.Members.OfType<TypeSymbol>())
         {
-            DefineNestedTypeBuilders(nestedTypeBuilder, nestedType);
+            DefineNestedTypeBuilders(context, nestedTypeBuilder, nestedType);
         }
     }
 
-    private void DefineTypeBuilderMembers(NamespaceSymbol namespaceSymbol)
+    protected virtual void DefineTypeBuilderMembers(
+        EmitContext context, 
+        NamespaceSymbol namespaceSymbol)
     {
         foreach (var member in namespaceSymbol.Members)
         {
             if (member is NamespaceSymbol nestedNamespaceSymbol)
             {
-                DefineTypeBuilderMembers(nestedNamespaceSymbol);
+                DefineTypeBuilderMembers(context, nestedNamespaceSymbol);
             }
             else if (member is TypeSymbol typeSymbol)
             {
-                DefineTypeMemberBuilders(typeSymbol);
+                DefineTypeMemberBuilders(context, typeSymbol);
             }
         }
     }
 
-    private void DefineTypeMemberBuilders(TypeSymbol typeSymbol)
+    protected virtual void DefineTypeMemberBuilders(
+        EmitContext context,
+        TypeSymbol typeSymbol)
     {
-        if (TryGetBuilder<TypeBuilder>(typeSymbol, out var typeBuilder))
+        if (context.TryGetBuilder<TypeBuilder>(typeSymbol, out var typeBuilder))
         {
             // set base type for type now
             var baseTypeSymbol = typeSymbol.BaseTypes.FirstOrDefault(t => !t.IsInterface);
             if (baseTypeSymbol != null)
             {
-                typeBuilder.SetParent(GetRuntimeType(baseTypeSymbol));
+                typeBuilder.SetParent(context.GetRuntimeType(baseTypeSymbol));
             }
 
             // define members
@@ -132,21 +151,20 @@ public class SemanticReflectionEmitter
                 switch (member)
                 {
                     case FieldSymbol fieldSymbol:
-                        var fieldType = GetRuntimeType(fieldSymbol.FieldType);
+                        var fieldType = context.GetRuntimeType(fieldSymbol.FieldType);
                         var fieldAttrs = GetFieldAttributes(fieldSymbol);
                         var fieldBuilder = typeBuilder.DefineField(
                             fieldSymbol.Name, 
                             fieldType, 
                             fieldAttrs);
-
-                        AddBuilder(fieldSymbol, fieldBuilder);
+                        context.AddBuilder(fieldSymbol, fieldBuilder);
                         break;
 
                     case MethodSymbol methodSymbol:
                         var methodBuilder = typeBuilder.DefineMethod(
                             methodSymbol.Name,
                             GetMethodAttributes(methodSymbol));
-                        AddBuilder(methodSymbol, methodBuilder);
+                        context.AddBuilder(methodSymbol, methodBuilder);
 
                         // define type parameters
                         if (methodSymbol.TypeParameters.Count > 0)
@@ -156,21 +174,24 @@ public class SemanticReflectionEmitter
 
                             for (int i = 0; i < typeParameterBuilders.Length; i++)
                             {
-                                AddBuilder(methodSymbol.TypeParameters[i], typeParameterBuilders[i]);
+                                context.AddBuilder(methodSymbol.TypeParameters[i], typeParameterBuilders[i]);
                             }
                         }
 
                         // set return type after defining type parameters
-                        methodBuilder.SetReturnType(GetRuntimeType(methodSymbol.ReturnType));
+                        methodBuilder.SetReturnType(context.GetRuntimeType(methodSymbol.ReturnType));
 
                         // set parameter types after defining type parametres
-                        methodBuilder.SetParameters(methodSymbol.Parameters.Select(p => GetRuntimeType(p.ParameterType)).ToArray());
+                        methodBuilder.SetParameters(
+                            methodSymbol.Parameters
+                            .Select(p => context.GetRuntimeType(p.ParameterType))
+                            .ToArray());
 
                         for (int i = 0; i < methodSymbol.Parameters.Count; i++)
                         {
                             var parameterSymbol = methodSymbol.Parameters[i];
                             var parameterBuilder = methodBuilder.DefineParameter(i, GetParameterAttributes(parameterSymbol), parameterSymbol.Name);
-                            AddBuilder(parameterSymbol, parameterBuilder);
+                            context.AddBuilder(parameterSymbol, parameterBuilder);
                         }
                         break;
 
@@ -178,14 +199,14 @@ public class SemanticReflectionEmitter
                         var constructorBuilder = typeBuilder.DefineConstructor(
                             GetMethodAttributes(constructor),
                             CallingConventions.Standard,
-                            constructor.Parameters.Select(p => GetRuntimeType(p.ParameterType)).ToArray()
+                            constructor.Parameters.Select(p => context.GetRuntimeType(p.ParameterType)).ToArray()
                             );
-                        AddBuilder(constructor, constructorBuilder);
+                        context.AddBuilder(constructor, constructorBuilder);
                         for (int i = 0; i < constructor.Parameters.Count; i++)
                         {
                             var parameterSymbol = constructor.Parameters[i];
                             var parameterBuilder = constructorBuilder.DefineParameter(i, GetParameterAttributes(parameterSymbol), parameterSymbol.Name);
-                            AddBuilder(parameterSymbol, parameterBuilder);
+                            context.AddBuilder(parameterSymbol, parameterBuilder);
                         }
                         break;
                 }
@@ -193,62 +214,68 @@ public class SemanticReflectionEmitter
         }
     }
 
-    private void ResolveBuilders(Symbol symbol)
+    protected virtual void ResolveBuilders(EmitContext context, Symbol symbol)
     {
         switch (symbol)
         {
             case NamespaceSymbol ns:
                 foreach (var member in ns.Members)
                 {
-                    ResolveBuilders(member);
+                    ResolveBuilders(context, member);
                 }
                 break;
 
             case TypeSymbol ts:
-                if (TryGetBuilder<TypeBuilder>(ts, out var typeBuilder))
+                if (context.TryGetBuilder<TypeBuilder>(ts, out var typeBuilder))
                 {
                     _ = typeBuilder.CreateType();
                 }
 
                 foreach (var member in ts.Members)
                 {
-                    ResolveBuilders(member);
+                    ResolveBuilders(context, member);
                 }
                 break;
         }
     }
 
-    private void EmitExpressionBodies(DeclarationBinding binding, Symbol symbol)
+    protected virtual void EmitExpressionBodies(
+        EmitContext context, 
+        DeclarationBinding binding, 
+        Symbol symbol)
     {
         switch (symbol)
         {
             case NamespaceSymbol ns:
                 foreach (var member in ns.Members)
                 {
-                    EmitExpressionBodies(binding, member);
+                    EmitExpressionBodies(context, binding, member);
                 }
                 break;
 
             case TypeSymbol ts:
                 foreach (var member in ts.Members)
                 {
-                    EmitExpressionBodies(binding, member);
+                    EmitExpressionBodies(context, binding, member);
                 }
                 break;
 
             case ConstructorSymbol constructor:
-                EmitConstructorBody(binding, constructor);
+                EmitConstructorBody(context, binding, constructor);
                 break;
 
             case MethodSymbol method:
-                EmitMethodBody(binding, method);
+                EmitMethodBody(context, binding, method);
                 break;
         }
     }
 
-    private void EmitConstructorBody(DeclarationBinding binding, ConstructorSymbol symbol)
+    protected virtual void EmitConstructorBody(
+        EmitContext context,
+        DeclarationBinding binding, 
+        ConstructorSymbol symbol)
     {
-        if (TryGetBuilder<ConstructorBuilder>(symbol, out var builder))
+        if (context.TryGetBuilder<ConstructorBuilder>(symbol, out var builder))
         {
             var decl = binding.GetBoundSymbolDeclarations(symbol)
                 .OfType<ConstructorDeclaration>()
@@ -256,14 +283,17 @@ public class SemanticReflectionEmitter
             if (decl != null)
             {
                 var generator = builder.GetILGenerator();
-                EmitExpression(generator, decl.Body);
+                EmitExpression(context, generator, decl.Body);
             }
         }
     }
 
-    private void EmitMethodBody(DeclarationBinding binding, MethodSymbol symbol)
+    protected virtual void EmitMethodBody(
+        EmitContext context,
+        DeclarationBinding binding, 
+        MethodSymbol symbol)
     {
-        if (TryGetBuilder<MethodBuilder>(symbol, out var builder))
+        if (context.TryGetBuilder<MethodBuilder>(symbol, out var builder))
         {
             var decl = binding.GetBoundSymbolDeclarations(symbol)
                 .OfType<MethodDeclaration>()
@@ -271,79 +301,17 @@ public class SemanticReflectionEmitter
             if (decl != null)
             {
                 var generator = builder.GetILGenerator();
-                EmitExpression(generator, decl.Body);
+                EmitExpression(context, generator, decl.Body);
             }
         }
     }
 
-    private void EmitExpression(ILGenerator gen, Expression expression)
+    protected virtual void EmitExpression(EmitContext context, ILGenerator gen, Expression expression)
     {
         throw new NotImplementedException();
     }
 
-    private Type GetRuntimeType(TypeSymbol typeSymbol) =>
-        GetRuntimeInfo<TypeInfo>(typeSymbol);
-
-    private FieldInfo GetFieldInfo(FieldSymbol fieldSymbol) =>
-        GetRuntimeInfo<FieldInfo>(fieldSymbol);
-
-    private MethodInfo GetMethodInfo(MethodSymbol methodSymbol) =>
-        GetRuntimeInfo<MethodInfo>(methodSymbol);
-
-    private TInfo GetRuntimeInfo<TInfo>(Symbol symbol)
-        where TInfo : class
-    {
-        var info = GetRuntimeInfo(symbol);
-        if (info != null && info is TInfo tinfo)
-        {
-            return tinfo;
-        }
-        else
-        {
-            throw new InvalidOperationException($"Could not convert symbol '{symbol.FullName}' to runtime type");
-        }
-    }
-
-    private object? GetRuntimeInfo(Symbol symbol)
-    {
-        _runtimeSymbols.TryGetRuntimeInfo(symbol, out var info, GetFromBuilders);
-        return info;
-
-        object? GetFromBuilders(Symbol symbol)
-        {
-            return TryGetBuilder(symbol, out var builder)
-                && builder is MemberInfo info
-                ? info
-                : null;
-        }
-    }
-
-    private readonly Dictionary<Symbol, object> _symbolToBuilderMap =
-        new Dictionary<Symbol, object>();
-
-    private void AddBuilder(Symbol symbol, object builder)
-    {
-        _symbolToBuilderMap.Add(symbol, builder);
-    }
-
-    private bool TryGetBuilder(Symbol symbol, [NotNullWhen(true)] out object? builder)
-    {
-        return _symbolToBuilderMap.TryGetValue(symbol, out builder);
-    }
-
-    private bool TryGetBuilder<TBuilder>(Symbol symbol, [NotNullWhen(true)] out TBuilder? builder)
-    {
-        if (TryGetBuilder(symbol, out var obuilder) 
-            && obuilder is TBuilder tbuilder)
-        {
-            builder = tbuilder;
-            return true;
-        }
-        builder = default!;
-        return false;
-    }
-
-    private static TypeAttributes GetTypeAttributes(TypeSymbol ts)
+    protected virtual TypeAttributes GetTypeAttributes(TypeSymbol ts)
     {
         TypeAttributes attrs = default;
 
@@ -380,7 +348,7 @@ public class SemanticReflectionEmitter
         return attrs;
     }
        
-    private FieldAttributes GetFieldAttributes(FieldSymbol field)
+    protected virtual FieldAttributes GetFieldAttributes(FieldSymbol field)
     {
         FieldAttributes attrs = default;
 
@@ -415,7 +383,7 @@ public class SemanticReflectionEmitter
         return attrs;
     }
 
-    private MethodAttributes GetMethodAttributes(MemberSymbol method)
+    protected virtual MethodAttributes GetMethodAttributes(MemberSymbol method)
     {
         MethodAttributes attrs = default;
 
@@ -450,8 +418,79 @@ public class SemanticReflectionEmitter
         return attrs;
     }
 
-    private ParameterAttributes GetParameterAttributes(ParameterSymbol parameter)
+    protected virtual ParameterAttributes GetParameterAttributes(ParameterSymbol parameter)
     {
         return ParameterAttributes.None;
+    }
+
+    protected class EmitContext
+    {
+        private RuntimeSymbols _runtimeSymbols;
+        private readonly Dictionary<Symbol, object> _symbolToBuilderMap =
+            new Dictionary<Symbol, object>();
+
+        public EmitContext(RuntimeSymbols runtimeSymbols)
+        {
+            _runtimeSymbols = runtimeSymbols;
+        }
+
+        public void AddBuilder(Symbol symbol, object builder)
+        {
+            _symbolToBuilderMap.Add(symbol, builder);
+        }
+
+        public bool TryGetBuilder(Symbol symbol, [NotNullWhen(true)] out object? builder)
+        {
+            return _symbolToBuilderMap.TryGetValue(symbol, out builder);
+        }
+
+        public bool TryGetBuilder<TBuilder>(Symbol symbol, [NotNullWhen(true)] out TBuilder? builder)
+        {
+            if (TryGetBuilder(symbol, out var obuilder)
+                && obuilder is TBuilder tbuilder)
+            {
+                builder = tbuilder;
+                return true;
+            }
+            builder = default!;
+            return false;
+        }
+
+        public Type GetRuntimeType(TypeSymbol typeSymbol) =>
+            GetRuntimeInfo<TypeInfo>(typeSymbol);
+
+        public FieldInfo GetFieldInfo(FieldSymbol fieldSymbol) =>
+            GetRuntimeInfo<FieldInfo>(fieldSymbol);
+
+        public MethodInfo GetMethodInfo(MethodSymbol methodSymbol) =>
+            GetRuntimeInfo<MethodInfo>(methodSymbol);
+
+        public TInfo GetRuntimeInfo<TInfo>(Symbol symbol)
+            where TInfo : class
+        {
+            var info = GetRuntimeInfo(symbol);
+            if (info != null && info is TInfo tinfo)
+            {
+                return tinfo;
+            }
+            else
+            {
+                throw new InvalidOperationException($"Could not convert symbol '{symbol.FullName}' to runtime type");
+            }
+        }
+
+        public object? GetRuntimeInfo(Symbol symbol)
+        {
+            _runtimeSymbols.TryGetRuntimeInfo(symbol, out var info, GetFromBuilders);
+            return info;
+
+            object? GetFromBuilders(Symbol symbol)
+            {
+                return TryGetBuilder(symbol, out var builder)
+                    && builder is MemberInfo info
+                    ? info
+                    : null;
+            }
+        }
     }
 }

@@ -43,8 +43,8 @@ public class ReflectionEmitTests
         var binding = binder.BindDeclarations(declarations, runtimeSymbols.GlobalNamespace);
         Assert.AreEqual(0, binding.Diagnostics.Count, "diagnostics");
 
-        var emitter = new SemanticReflectionEmitter(runtimeSymbols);
-        var assembly = emitter.EmitAssembly(binding, "test_assembly");
+        var emitter = new SemanticReflectionEmitter();
+        var assembly = emitter.Emit(binding, "test_assembly");
 
         // verify all delared symbols are represented in the assembly
         VerifySymbols(assembly, binding.DeclarationSymbols);
