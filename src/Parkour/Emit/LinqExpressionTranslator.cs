@@ -356,16 +356,16 @@ public class LinqExpressionTranslator
         if (lambda.ReturnType == SpecialSymbols.Void
             || lambda.ReturnType == null)
         {
-            var returnTarget = L.Expression.Label(lambda.ReturnTarget!.Name);
-            SetCurrentBranchTarget(lambda.ReturnTarget!, returnTarget);
+            var returnTarget = L.Expression.Label(lambda.ReturnLabel!.Name);
+            SetCurrentBranchTarget(lambda.ReturnLabel!, returnTarget);
             var body = Translate(lambda.Body);
             lambdaBody = L.Expression.Block(body, L.Expression.Label(returnTarget));
         }
         else
         {
             var returnType = TranslateType(lambda.ReturnType);
-            var returnTarget = L.Expression.Label(returnType, lambda.ReturnTarget!.Name);
-            SetCurrentBranchTarget(lambda.ReturnTarget, returnTarget);
+            var returnTarget = L.Expression.Label(returnType, lambda.ReturnLabel!.Name);
+            SetCurrentBranchTarget(lambda.ReturnLabel, returnTarget);
 
             var body = Translate(lambda.Body);
             

@@ -8,6 +8,7 @@ public class MethodDeclaration : MemberDeclaration
     public Expression Body { get; }
     public Expression ReturnType { get; }
     public MethodSymbol? MethodSymbol { get; }
+    public LabelSymbol? ReturnLabel { get; }
 
     public MethodDeclaration(
         string name, 
@@ -19,6 +20,7 @@ public class MethodDeclaration : MemberDeclaration
         Expression returnType,
         ISourceLocation? location,
         MethodSymbol? methodSymbol,
+        LabelSymbol? returnLabel,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(typeParameters)
@@ -37,6 +39,7 @@ public class MethodDeclaration : MemberDeclaration
         this.Body = body;
         this.ReturnType = returnType;
         this.MethodSymbol = methodSymbol;
+        this.ReturnLabel = returnLabel;
     }
 
     public override int ChildCount =>

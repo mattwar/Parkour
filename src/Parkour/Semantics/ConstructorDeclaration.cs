@@ -9,6 +9,7 @@ public class ConstructorDeclaration : MemberDeclaration
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
     public ConstructorSymbol? ConstructorSymbol { get; }
+    public LabelSymbol? ReturnLabel { get; }
 
     public ConstructorDeclaration(
         SymbolAccess access,
@@ -17,6 +18,7 @@ public class ConstructorDeclaration : MemberDeclaration
         Expression body,
         ISourceLocation? location,
         ConstructorSymbol? constructorSymbol,
+        LabelSymbol? returnLabel,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(parameters) 
@@ -31,6 +33,7 @@ public class ConstructorDeclaration : MemberDeclaration
         this.Parameters = parameters;
         this.Body = body;
         this.ConstructorSymbol = constructorSymbol;
+        this.ReturnLabel = returnLabel;
     }
 
     public override int ChildCount =>

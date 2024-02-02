@@ -382,16 +382,16 @@ public static class SemanticFactory
         new ParameterDeclaration(name, parameterType, location, null, null);
 
     public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
-        new MethodDeclaration(name, access, modifiers, typeParameters, parameters, body, returnType, location, null, null);
+        new MethodDeclaration(name, access, modifiers, typeParameters, parameters, body, returnType, location, null, null, null);
 
     public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
-        Method(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, parameters, body, returnType, location);
+        Method(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, parameters, returnType, body, location);
 
     public static MethodDeclaration Method(string name, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
         Method(name, SymbolAccess.Public, SymbolModifier.None, parameters, returnType, body, location);
 
     public static ConstructorDeclaration Constructor(SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
-        new ConstructorDeclaration(access, modifiers, parameters, body, location, null, null);
+        new ConstructorDeclaration(access, modifiers, parameters, body, location, null, null, null);
 
     public static ConstructorDeclaration Constructor(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
         Constructor(SymbolAccess.Public, SymbolModifier.None, parameters, body, location);

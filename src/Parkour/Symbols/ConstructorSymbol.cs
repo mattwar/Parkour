@@ -20,52 +20,33 @@ public class ConstructorSymbol : MemberSymbol
         }
     }
 
-    private Func<TypeSymbol>? _fnReturnType;
-    private TypeSymbol? _returnType;
-
-    public TypeSymbol ReturnType
-    {
-        get
-        {
-            if (_returnType == null && _fnReturnType is { } fn)
-            {
-                _fnReturnType = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _returnType, tmp, null);
-            }
-
-            return _returnType!;
-        }
-    }
+    public TypeSymbol ReturnType => (TypeSymbol)this.DeclaringSymbol!;
 
     public ConstructorSymbol(
-        Symbol? declaringSymbol,
+        TypeSymbol declaringType,
         SymbolAccess access, 
         SymbolModifier modifiers, 
-        Func<ConstructorSymbol, ImmutableList<ParameterSymbol>> fnParameters,
-        Func<TypeSymbol> fnReturnType)
+        Func<ConstructorSymbol, ImmutableList<ParameterSymbol>> fnParameters)
         : base(
             (modifiers & SymbolModifier.Static) != 0 ? ".cctor" : ".ctor", 
-            declaringSymbol, 
+            declaringType, 
             access, 
             modifiers)
     {
         _fnParameters = fnParameters;
-        _fnReturnType = fnReturnType;
     }
 
     public ConstructorSymbol(
-        Symbol? declaringSymbol,
+        TypeSymbol declaringType,
         SymbolAccess access,
         SymbolModifier modifiers,
         ImmutableList<ParameterSymbol> parameters,
         TypeSymbol returnType)
         : this(
-              declaringSymbol,
+              declaringType,
               access,
               modifiers,
-              me => parameters,
-              () => returnType)
+              me => parameters)
     {
     }
 
@@ -78,10 +59,9 @@ public class ConstructorSymbol : MemberSymbol
     internal protected override ConstructorSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new ConstructorSymbol(
-            declaringSymbol ?? this.DeclaringSymbol,
+            declaringSymbol as TypeSymbol ?? this.ReturnType,
             this.Access,
             this.Modifiers,
-            me => context.Substitute(this.Parameters, me),
-            () => declaringSymbol as TypeSymbol ?? this.ReturnType);
+            me => context.Substitute(this.Parameters, me));
     }
 }

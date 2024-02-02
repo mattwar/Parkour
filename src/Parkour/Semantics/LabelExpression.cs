@@ -11,6 +11,11 @@ public class LabelExpression : Expression
     public Expression? ReceivingType { get; }
 
     /// <summary>
+    /// The default value the branch recieves when branched to without a value.
+    /// </summary>
+    public Expression? DefaultValue { get; }
+
+    /// <summary>
     /// The <see cref="Symbols.LabelSymbol"/> associated with this label.
     /// </summary>
     public LabelSymbol? LabelSymbol { get; }
@@ -44,4 +49,3 @@ public class LabelExpression : Expression
             _ => null
         };
 }
-

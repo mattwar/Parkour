@@ -13,7 +13,7 @@ namespace Tests;
 public class ReflectionEmitTests
 {
     [TestMethod]
-    public void TestEmtpyClass()
+    public void TestEmptyClass()
     {
         TestEmit(
             Class("C", [])
@@ -29,6 +29,18 @@ public class ReflectionEmitTests
     {
         TestEmit(
             Class("C", [Field("F", Symbol("System.Int32"))])
+            );
+    }
+
+    [TestMethod]
+    public void TestClassWithMethod()
+    {
+        TestEmit(
+            Class("C", [Method("M", [], Void(), Block())])
+            );
+
+        TestEmit(
+            Class("C", [Method("M", [], Void(), Block(Variable("x", Constant(1))))])
             );
     }
 

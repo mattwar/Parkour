@@ -242,11 +242,10 @@ public class RuntimeSymbols
 
                 case ConstructorInfo constructor:
                     return new ConstructorSymbol(
-                        declaringSymbol as TypeSymbol,
+                        (TypeSymbol)declaringSymbol!,
                         GetAccess(constructor),
                         GetModifiers(constructor),
-                        me => CreateParameters(me, constructor),
-                        () => (TypeSymbol)declaringSymbol!);
+                        me => CreateParameters(me, constructor));
 
                 case ParameterInfo parameter:
                     return new ParameterSymbol(

@@ -91,69 +91,89 @@ public class ExpressionTests
     [TestMethod]
     public void TestBranch()
     {
-        // branch w/o expression to label w/o type
+        // branch with expression to label w/o type (void)
         TestBinding(
             Block(
-                Condition(
-                    Constant(true),
-                    Branch("label")),
-                Constant("3"),
+                Branch("label", Constant(1)),
                 Label("label")
-                ));
+                ),
+            expectedResultType: SpecialSymbols.Void);
 
-        // branch with expression & label with matching type
         TestBinding(
             Block(
-                Condition(
-                    Constant(true),
-                    Branch("label", Constant(1))),
-                Constant(2),
-                Label("label", Symbol(_symbols.Int32))
-                ));
+                Label("label"),
+                Branch("label", Constant(1))
+                ),
+            expectedResultType: SpecialSymbols.DoesNotReturn);
 
-        // branch with expression & label with convertable type
+        // branch w/o expression to label with type
         TestBinding(
             Block(
-                Condition(
-                    Constant(true),
-                    Branch("label", Constant(1))),
-                Constant(2),
+                Branch("label"),
+                Label("label", Symbol("System.Int32"))
+                ),
+            expectedResultType: _symbols.Int32);
+
+        TestBinding(
+            Block(
+                Label("label", Symbol("System.Int32")),
+                Branch("label")
+                ),
+            expectedResultType: SpecialSymbols.DoesNotReturn);
+
+        // branch with expression to label with convertable type
+        TestBinding(
+            Block(
+                Branch("label", Constant(1)),
                 Label("label", Symbol(_symbols.Int64))
                 ));
 
-        // branch with expression & label with non-convertable type
         TestBinding(
             Block(
-                Condition(
-                    Constant(true),
-                    Branch("label", Constant(1))),
-                Constant(2),
+                Label("label", Symbol(_symbols.Int64)),
+                Branch("label", Constant(1))
+                ));
+
+        // branch with expression to label with non-convertable type
+        TestBinding(
+            Block(
+                Branch("label", Constant(1)),
                 Label("label", Symbol(_symbols.String))
                 ),
                 containsDiagnostics: true);
 
-        // infinite loop
         TestBinding(
             Block(
-                Label("label"),
-                Condition(
-                    Constant(true),
-                    Branch("label")),
-                Constant("3")
-                ));
+                Label("label", Symbol(_symbols.String)),
+                Branch("label", Constant(1))
+                ),
+                containsDiagnostics: true);
 
-        // branch alone?  this is error, but check result type
+        // branch alone to unknown target
         TestBinding(
             Branch("label"),
             _symbols.DoesNotReturn,
             containsDiagnostics: true);
 
-        // branch at end of block to valid target
+        // branch in block to unknown target
+        TestBinding(
+            Block(Branch("label")),
+            _symbols.DoesNotReturn,
+            containsDiagnostics: true);
+
+        // branch to outer label
         TestBinding(
             Block(
-                Label("label"),
-                Branch("label")),
-            _symbols.DoesNotReturn);
+                If(Constant(true), Branch("label")),
+                Label("label")),
+            SpecialSymbols.Void);
+
+        // branch to label in outer block
+        TestBinding(
+            Block(
+                Block(Branch("label")),
+                Label("label")),
+            SpecialSymbols.Void);
     }
 
     [TestMethod]
@@ -235,45 +255,15 @@ public class ExpressionTests
             Block(Label("x")),
             expectedResultType: _symbols.Void);
 
-        // void label with inflowing value okay (can be ignored)
+        // lone label with receiving type okay
         TestBinding(
-            Block(
-                Constant(1),
-                Label("x")),
-            expectedResultType: _symbols.Void);
-
-        // can flow compatible value type into label expecting a type
-        TestBinding(
-            Block(
-                Constant(1),
-                Label("x", Symbol(_symbols.Int32))
-                ),
+            Label("x", Symbol("System.Int32")),
             expectedResultType: _symbols.Int32);
 
-        // can flow compatible value type into label expecting a type
+        // label in block with receiving type okay
         TestBinding(
-            Block(
-                Constant(1),
-                Label("x", Symbol(_symbols.Int64))
-                ),
-            expectedResultType: _symbols.Int64);
-
-        // cannot flow void into label expecting type
-        TestBinding(
-            Label("x", Symbol(_symbols.Int32)),
-            expectedResultType: _symbols.Int32,
-            containsDiagnostics: true);
-
-        // cannot flow incompatible value type into label expecting a type
-        TestBinding(
-            Block(
-                Constant("one"),
-                Label("x", Symbol(_symbols.Int32))
-                ),
-            expectedResultType: _symbols.Int32,
-            containsDiagnostics: true);
-
-        // TODO: should be able to branch with value to void label. though probably doing something wrong.
+            Block(Label("x", Symbol("System.Int32"))),
+            expectedResultType: _symbols.Int32);
     }
 
 

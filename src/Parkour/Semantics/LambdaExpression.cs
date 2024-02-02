@@ -9,7 +9,7 @@ public sealed class LambdaExpression : Expression
     public Expression Body { get; }
     public LambdaSymbol? LambdaSymbol { get; }
     public TypeSymbol? ReturnType { get; }
-    public LabelSymbol? ReturnTarget { get; }
+    public LabelSymbol? ReturnLabel { get; }
 
     public LambdaExpression(
         string name,
@@ -18,14 +18,14 @@ public sealed class LambdaExpression : Expression
         ISourceLocation? location,
         TypeSymbol? returnType,
         LambdaSymbol? lambdaSymbol,
-        LabelSymbol? returnTarget,
+        LabelSymbol? returnLabel,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(parameters)
             | State(body)
             | NotNullState(returnType)
             | NotNullState(lambdaSymbol)
-            | NotNullState(returnTarget),
+            | NotNullState(returnLabel),
             location,
             lambdaSymbol,
             diagnostics)
@@ -35,7 +35,7 @@ public sealed class LambdaExpression : Expression
         this.Body = body;
         this.LambdaSymbol = lambdaSymbol;
         this.ReturnType = returnType;
-        this.ReturnTarget = returnTarget;
+        this.ReturnLabel = returnLabel;
     }
 
     public override int ChildCount =>
