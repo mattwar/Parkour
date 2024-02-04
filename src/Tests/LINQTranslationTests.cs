@@ -4,7 +4,7 @@ using Parkour;
 using Parkour.Binding;
 using Parkour.Semantics;
 using Parkour.Symbols;
-using Parkour.Emit;
+using Parkour.Emitting;
 using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;

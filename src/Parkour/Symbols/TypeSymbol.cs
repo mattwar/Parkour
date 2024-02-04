@@ -53,17 +53,30 @@ public class TypeSymbol : ContainerSymbol
     {
     }
 
-    public TypeSymbol(string name)
+    public TypeSymbol(
+        string name,
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers)
         : this(
             name,
-            declaringSymbol: null,
-            SymbolAccess.Public,
-            SymbolModifier.None,
+            declaringSymbol,
+            access,
+            modifiers,
             ImmutableList<TypeParameterSymbol>.Empty,
             ImmutableList<TypeSymbol>.Empty,
             ImmutableList<TypeSymbol>.Empty,
             ImmutableList<Symbol>.Empty,
             constructedFrom: null)
+    {
+    }
+
+    public TypeSymbol(string name)
+        : this(
+            name,
+            declaringSymbol: null,
+            SymbolAccess.Public,
+            SymbolModifier.None)
     {
     }
 
@@ -123,14 +136,16 @@ public class TypeSymbol : ContainerSymbol
         IsGeneric && this.TypeArguments.Count > 0;
 
     /// <summary>
+    /// The type this type is constructed from.
+    /// </summary>
+    public TypeSymbol? ConstructedFrom { get; }
+
+    /// <summary>
     /// True if the type is an interface
     /// </summary>
     public virtual bool IsInterface => false;
 
-    /// <summary>
-    /// The type this type is constructed from.
-    /// </summary>
-    public TypeSymbol? ConstructedFrom { get; }
+    public virtual bool IsValueType => false;
 
     /// <summary>
     /// The base type and interfaces of this type.

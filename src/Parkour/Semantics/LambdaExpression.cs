@@ -1,13 +1,12 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
 
 public sealed class LambdaExpression : Expression
 {
     public string Name { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
-    public LambdaSymbol? LambdaSymbol { get; }
+    public FunctionSymbol? FunctionSymbol { get; }
     public TypeSymbol? ReturnType { get; }
     public LabelSymbol? ReturnLabel { get; }
 
@@ -17,23 +16,23 @@ public sealed class LambdaExpression : Expression
         Expression body,
         ISourceLocation? location,
         TypeSymbol? returnType,
-        LambdaSymbol? lambdaSymbol,
+        FunctionSymbol? functionSymbol,
         LabelSymbol? returnLabel,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(parameters)
             | State(body)
             | NotNullState(returnType)
-            | NotNullState(lambdaSymbol)
+            | NotNullState(functionSymbol)
             | NotNullState(returnLabel),
             location,
-            lambdaSymbol,
+            functionSymbol,
             diagnostics)
     {
         this.Name = name;
         this.Parameters = parameters;
         this.Body = body;
-        this.LambdaSymbol = lambdaSymbol;
+        this.FunctionSymbol = functionSymbol;
         this.ReturnType = returnType;
         this.ReturnLabel = returnLabel;
     }

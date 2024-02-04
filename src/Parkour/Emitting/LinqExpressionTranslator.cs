@@ -1,7 +1,7 @@
 ﻿using L=System.Linq.Expressions;
 using System.Reflection;
 
-namespace Parkour.Emit;
+namespace Parkour.Emitting;
 using Binding;
 using Semantics;
 using Symbols;
@@ -169,7 +169,7 @@ public class LinqExpressionTranslator
         var variables = new List<L.ParameterExpression>();
         foreach (var decl in variableDecls)
         {
-            var v = DeclareVariable(decl.Variable!, decl.Variable!.VariableType);
+            var v = DeclareVariable(decl.VariableSymbol!, decl.VariableSymbol!.VariableType);
             variables.Add(v);
         }
 
@@ -254,7 +254,7 @@ public class LinqExpressionTranslator
             case OperatorSymbol opsym:
                 return TranslateOperatorCall(call, opsym);
 
-            case LambdaSymbol function:
+            case FunctionSymbol function:
                 {
                     var fn = Translate(call.Expression);
                     var parameterTypes = function.Parameters.Select(p => TranslateType(p.ParameterType)).ToArray();
@@ -347,7 +347,7 @@ public class LinqExpressionTranslator
 
     private L.Expression TranslateLambda(LambdaExpression lambda)
     {
-        var parameters = lambda.LambdaSymbol!.Parameters
+        var parameters = lambda.FunctionSymbol!.Parameters
             .Select(p => DeclareVariable(p, p.ParameterType))
             .ToArray();
 
@@ -510,7 +510,7 @@ public class LinqExpressionTranslator
 
     private L.Expression TranslateVariable(VariableExpression declaration)
     {
-        var variable = GetVariable(declaration.Variable!);
+        var variable = GetVariable(declaration.VariableSymbol!);
         if (variable == null)
         {
             // variable must be associated with a block or parameter,

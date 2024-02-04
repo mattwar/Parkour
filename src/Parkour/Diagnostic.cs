@@ -16,7 +16,7 @@ public class Diagnostic
     }
 
     public Diagnostic(string message)
-        : this("", "Error", message, null)
+        : this("", DiagnosticSeverity.Error, message, null)
     {
     }
 
@@ -49,4 +49,11 @@ public class Diagnostic
 
         return message;
     }
+}
+
+public static class DiagnosticSeverity
+{
+    public static string Error = nameof(Error);
+    public static string Warning = nameof(Warning);
+    public static string Suggestion = nameof(Suggestion);
 }

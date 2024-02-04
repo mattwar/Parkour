@@ -180,11 +180,13 @@ public class SemanticBinder
                     );
 
             case MethodDeclaration md:
+                var mmods = md.Modifiers
+                    | (declaringSymbol is NamespaceSymbol ? SymbolModifier.Static : SymbolModifier.None);
                 return new MethodSymbol(
                     md.Name,
                     declaringSymbol,
                     md.Access,
-                    md.Modifiers,
+                    mmods,
                     me => ImmutableList<TypeParameterSymbol>.Empty,
                     () => ImmutableList<TypeSymbol>.Empty,
                     me => md.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(me, p, context)!).ToImmutableList()!,
@@ -945,12 +947,12 @@ public class SemanticBinder
                 var boundExpression = BindExpression(expression, _context);
 
                 if (boundExpression is VariableExpression decl
-                    && decl.Variable != null)
+                    && decl.VariableSymbol != null)
                 {
                     // if the declaration changes then the variable is now different 
                     // so the rest of the block needs to be rebound in case it references the old variable
                     _context = _context.WithRebind(context.Rebind || boundExpression != expression);
-                    _context = _context.WithScope(context.Scope.AddSymbol(decl.Variable));
+                    _context = _context.WithScope(context.Scope.AddSymbol(decl.VariableSymbol));
                 }
 
                 return (boundExpression, _context);
@@ -1072,9 +1074,9 @@ public class SemanticBinder
 
             if (expression is LambdaExpression lambda)
             {
-                if (lambda.LambdaSymbol != null)
+                if (lambda.FunctionSymbol != null)
                 {
-                    candidates.Add(lambda.LambdaSymbol);
+                    candidates.Add(lambda.FunctionSymbol);
                 }
             }
             else
@@ -1161,7 +1163,7 @@ public class SemanticBinder
     /// True if the symbol is callable by a <see cref="CallExpression"/>
     /// </summary>
     protected virtual bool IsCallableSymbol(Symbol symbol) =>
-        symbol is LambdaSymbol or MethodSymbol or ConstructorSymbol;
+        symbol is FunctionSymbol or MethodSymbol or ConstructorSymbol;
 
     /// <summary>
     /// Gets a called symbol's return type.
@@ -1169,9 +1171,9 @@ public class SemanticBinder
     protected virtual TypeSymbol? GetCalledSymbolReturnType(Symbol symbol) =>
         symbol switch
         {
-            LambdaSymbol f => f.ReturnType,
+            FunctionSymbol f => f.ReturnType,
             MethodSymbol m => m.ReturnType,
-            ConstructorSymbol c => c.ReturnType,
+            ConstructorSymbol c => c.ConstructedType,
             _ => null
         };
 
@@ -1209,7 +1211,7 @@ public class SemanticBinder
     protected virtual ImmutableList<ParameterSymbol> GetCallableSymbolParameters(Symbol callableSymbol) =>
         callableSymbol switch
         {
-            LambdaSymbol function => function.Parameters,
+            FunctionSymbol function => function.Parameters,
             MethodSymbol method => method.Parameters,
             ConstructorSymbol constructor => constructor.Parameters,
             _ => ImmutableList<ParameterSymbol>.Empty
@@ -1646,7 +1648,7 @@ public class SemanticBinder
     {
         return conversionSymbol switch
         {
-            LambdaSymbol function =>
+            FunctionSymbol function =>
                 function.ReturnType == target
                 && function.Parameters.Count == 1
                 && HasConversion(ConversionKind.Widening, source, function.Parameters[0].ParameterType, context),
@@ -1764,7 +1766,7 @@ public class SemanticBinder
         var types = _typeListPool.AllocateFromPool();
         try
         {
-            LambdaSymbol? lambdaSymbol = lambda.LambdaSymbol;
+            FunctionSymbol? lambdaSymbol = lambda.FunctionSymbol;
             LabelSymbol? returnLabel = lambda.ReturnLabel
                 ?? new LabelSymbol(LabelSymbol.ReturnLabelName, SpecialSymbols.Any);
             ImmutableList<ParameterDeclaration> parameters = lambda.Parameters;
@@ -1782,8 +1784,8 @@ public class SemanticBinder
 
             if (parameters == lambda.Parameters
                 && body == lambda.Body
-                && lambda.LambdaSymbol != null
-                && lambda.LambdaSymbol.ReturnType == body.ResultType
+                && lambda.FunctionSymbol != null
+                && lambda.FunctionSymbol.ReturnType == body.ResultType
                 && lambda.ReturnType == returnType
                 && diagnostics.Count == 0)
                 return lambda;
@@ -1801,18 +1803,18 @@ public class SemanticBinder
             void BindLambdaSymbol(ExpressionContext context)
             {
                 // bind and evalute new function symbol at the same time
-                lambdaSymbol = new LambdaSymbol(
+                lambdaSymbol = new FunctionSymbol(
                     lambda.Name,
+                    null,
                     me =>
                     {
                         var pms = CreateParameterSymbols(me, context);
                         BindBodyAndReturnType(pms, context);
                         return pms;
                     },
-                    () => returnType!,
-                    null);
+                    () => returnType!);
                 // force eval of deferred parameters and return type
-                // for side-effect assignment to locals  (Erik Meijer said it was okay.)
+                // for side-effect assignment to locals  (Erik Meijer said it was okay)
                 var _ = lambdaSymbol.Parameters;
                 returnType = lambdaSymbol.ReturnType;
             }
@@ -2152,7 +2154,7 @@ public class SemanticBinder
                 }
             }
 
-            var resultType = constructorSymbol?.ReturnType;
+            var resultType = constructorSymbol?.ConstructedType;
 
             if (typeExpression == nex.TypeExpression
                 && arguments == nex.Arguments
@@ -2355,7 +2357,7 @@ public class SemanticBinder
             ParameterSymbol p => p.ParameterType,
             FieldSymbol f => f.FieldType,
             PropertySymbol p => p.PropertyType,
-            LambdaSymbol f => f,
+            FunctionSymbol f => f,
             GroupSymbol g => g,
             MethodSymbol => SpecialSymbols.Void,
             TypeSymbol => context.Symbols.Type,
@@ -2508,16 +2510,16 @@ public class SemanticBinder
 
             if (variableType == declaration.VariableType
                 && initializer == declaration.Initializer
-                && declaration.Variable != null
-                && declaration.Variable.VariableType == vtype
+                && declaration.VariableSymbol != null
+                && declaration.VariableSymbol.VariableType == vtype
                 && declaration.ResultType == vtype)
             {
                 return declaration;
             }
 
-            var variable = declaration.Variable != null
-                && declaration.Variable.VariableType == vtype
-                ? declaration.Variable
+            var variable = declaration.VariableSymbol != null
+                && declaration.VariableSymbol.VariableType == vtype
+                ? declaration.VariableSymbol
                 : new VariableSymbol(declaration.Name, vtype ?? SpecialSymbols.Any);
 
             return new VariableExpression(

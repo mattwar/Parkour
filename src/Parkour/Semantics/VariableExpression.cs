@@ -9,7 +9,7 @@ public sealed class VariableExpression : Expression
     public string Name { get; }
     public Expression? VariableType { get; }
     public Expression? Initializer { get; }
-    public VariableSymbol? Variable { get; }
+    public VariableSymbol? VariableSymbol { get; }
 
     public VariableExpression(
         string name,
@@ -31,7 +31,7 @@ public sealed class VariableExpression : Expression
         this.Name = name;
         this.VariableType = variableType;
         this.Initializer = initializer;
-        this.Variable = variable;
+        this.VariableSymbol = variable;
     }
 
     public override int ChildCount => 2;

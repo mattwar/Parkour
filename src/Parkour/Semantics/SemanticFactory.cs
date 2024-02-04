@@ -71,6 +71,12 @@ public static class SemanticFactory
         Call(target, arguments.ToImmutableList());
 
     /// <summary>
+    /// Invokes a delegate, lambda function or method.
+    /// </summary>
+    public static CallExpression Call(string name, params Expression[] arguments) =>
+        Call(Name(name), arguments);
+
+    /// <summary>
     /// Evaluates the whenTrue expression if the test expression results in true or otherwise evaluates the whenFalse expression.
     /// </summary>
     public static ConditionExpression Condition(Expression test, Expression whenTrue, Expression whenFalse, ISourceLocation? location = null) =>

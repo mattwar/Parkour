@@ -39,6 +39,12 @@ public static class SemanticFactoryExtensions
         SemanticFactory.Call(target, arguments);
 
     /// <summary>
+    /// Invokes a delegate, lambda function or method.
+    /// </summary>
+    public static CallExpression Call(this Expression target, string name, params Expression[] arguments) =>
+        SemanticFactory.Call(target.Member(name), arguments);
+
+    /// <summary>
     /// Converts the referenced symbol to a constructed version of that symbol
     /// with the specified type arguments.
     /// </summary>

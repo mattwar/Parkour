@@ -1,10 +1,8 @@
-﻿using System.Reflection;
+﻿namespace Parkour.Symbols;
 
-namespace Parkour.Symbols;
-
-public class LambdaSymbol : TypeSymbol
+public class FunctionSymbol : TypeSymbol
 {
-    private Func<LambdaSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
+    private Func<FunctionSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
     private ImmutableList<ParameterSymbol>? _parameters;
 
     public ImmutableList<ParameterSymbol> Parameters
@@ -40,18 +38,36 @@ public class LambdaSymbol : TypeSymbol
         }
     }
 
-    public MethodBase? RuntimeMethod { get; }
-
-    public LambdaSymbol(
-        string name, 
-        Func<LambdaSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
-        Func<TypeSymbol> fnReturnType, 
-        MethodBase? runtimeMethod)
-        : base(name)
+    public FunctionSymbol(
+        string name,
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers,
+        Func<FunctionSymbol, ImmutableList<ParameterSymbol>> fnParameters,
+        Func<TypeSymbol> fnReturnType)
+        : base(
+            name,
+            declaringSymbol,
+            access,
+            modifiers)
     {
         _fnParameters = fnParameters;
         _fnReturnType = fnReturnType;
-        RuntimeMethod = runtimeMethod;
+    }
+
+    public FunctionSymbol(
+        string name,
+        Symbol? declaringSymbol,
+        Func<FunctionSymbol, ImmutableList<ParameterSymbol>> fnParameters,
+        Func<TypeSymbol> fnReturnType)
+        : base(
+            name,
+            declaringSymbol,
+            SymbolAccess.Public,
+            SymbolModifier.None)
+    {
+        _fnParameters = fnParameters;
+        _fnReturnType = fnReturnType;
     }
 
     public override int DeclarationCount =>

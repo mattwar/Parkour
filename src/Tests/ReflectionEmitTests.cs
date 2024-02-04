@@ -2,7 +2,7 @@
 using System.Reflection.Emit;
 using Parkour;
 using Parkour.Binding;
-using Parkour.Emit;
+using Parkour.Emitting;
 using Parkour.Semantics;
 using Parkour.Symbols;
 using static Parkour.Semantics.SemanticFactory;
@@ -36,30 +36,58 @@ public class ReflectionEmitTests
     public void TestClassWithMethod()
     {
         TestEmit(
-            Class("C", [Method("M", [], Void(), Block())])
-            );
-
-        TestEmit(
-            Class("C", [Method("M", [], Void(), Block(Variable("x", Constant(1))))])
+            Class("C", [Method("M", SymbolAccess.Public, SymbolModifier.Static, [], Symbol("System.Int32"), Block(Constant(1)))]),
+            test: Call(Symbol("C.M")),
+            expectedResult: 1
             );
     }
 
-    private void TestEmit(Declaration declaration) =>
-        TestEmit([declaration]);
+    [TestMethod]
+    public void TestGlobalMethod()
+    {
+        TestEmit(
+            Method("M", [], Symbol("System.Int32"), Block(Constant(1))),
+            Call(Name("M")),
+            expectedResult: 1
+            );
+    }
 
-    private void TestEmit(Declaration[] declarations)
+    private void TestEmit(Declaration declaration, Expression? test = null, object? expectedResult = null) =>
+        TestEmit([declaration], test, expectedResult);
+
+    private void TestEmit(List<Declaration> declarations, Expression? test = null, object? expectedResult = null)
     {
         var binder = new SemanticBinder();
         var runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
-        
+
+        if (test != null)
+            declarations.Add(Method("TestRun", [], Symbol("System.Object"), test));
+
         var binding = binder.BindDeclarations(declarations, runtimeSymbols.GlobalNamespace);
         Assert.AreEqual(0, binding.Diagnostics.Count, "diagnostics");
 
-        var emitter = new SemanticReflectionEmitter();
-        var assembly = emitter.Emit(binding, "test_assembly");
+        var emitter = new ReflectionSemanticEmitter();
+        var result = emitter.Emit(binding, "test_assembly");
+
+        if (result.Diagnostics.Count > 0)
+        {
+            Assert.Fail($"Unexpected diagnostic: {result.Diagnostics[0]}");
+        }
+
+        Assert.IsNotNull(result.Assembly, "output assembly not produced");
 
         // verify all delared symbols are represented in the assembly
-        VerifySymbols(assembly, binding.DeclarationSymbols);
+        VerifySymbols(result.Assembly, binding.DeclarationSymbols);
+
+        if (result.Module is Module m && test != null)
+        {
+            var testMethod = result.Module.GetMethod("TestRun");
+            if (testMethod != null)
+            {
+                var testResult = testMethod.Invoke(null, []);
+                Assert.AreEqual(expectedResult, testResult);
+            }
+        }
     }
 
     private void VerifySymbols(Assembly assembly, Symbol symbol)

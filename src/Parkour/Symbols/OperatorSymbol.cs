@@ -1,19 +1,19 @@
 ﻿namespace Parkour.Symbols;
 
-public class OperatorSymbol : LambdaSymbol
+public class OperatorSymbol : FunctionSymbol
 {
     public string Kind { get; }
 
     public OperatorSymbol(
         string name, 
         string kind, 
-        Func<LambdaSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
+        Func<FunctionSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
         Func<TypeSymbol> fnReturnType)
         : base(
-            name, 
+            name,
+            null,
             fnParameters,
-            fnReturnType,
-            null)
+            fnReturnType)
     {
         this.Kind = kind;
     }

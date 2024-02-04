@@ -20,7 +20,7 @@ public class ConstructorSymbol : MemberSymbol
         }
     }
 
-    public TypeSymbol ReturnType => (TypeSymbol)this.DeclaringSymbol!;
+    public TypeSymbol ConstructedType => (TypeSymbol)this.DeclaringSymbol!;
 
     public ConstructorSymbol(
         TypeSymbol declaringType,
@@ -59,7 +59,7 @@ public class ConstructorSymbol : MemberSymbol
     internal protected override ConstructorSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new ConstructorSymbol(
-            declaringSymbol as TypeSymbol ?? this.ReturnType,
+            declaringSymbol as TypeSymbol ?? this.ConstructedType,
             this.Access,
             this.Modifiers,
             me => context.Substitute(this.Parameters, me));
