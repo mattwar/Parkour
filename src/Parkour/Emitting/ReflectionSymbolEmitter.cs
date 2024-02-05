@@ -166,7 +166,7 @@ public class ReflectionSymbolEmitter : SymbolEmitter
         }
     }
 
-    public override void EmitBody<TSymbol>(TSymbol symbol, Action<TSymbol, ILEmitter> fnEmitBody)
+    public override void EmitBody<TSymbol>(TSymbol symbol, Action<TSymbol, SymbolILEmitter> fnEmitBody)
     {
         if (_symbolToBuilder.TryGetValue(symbol, out var builder))
         {
@@ -345,7 +345,7 @@ public class ReflectionSymbolEmitter : SymbolEmitter
     }
 
 
-    private class ReflectionILEmitter : ILEmitter
+    private class ReflectionILEmitter : SymbolILEmitter
     {
         private readonly ReflectionSymbolEmitter _emitter;
         private readonly ILGenerator _ilgen;

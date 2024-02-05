@@ -1,6 +1,4 @@
 ﻿using System.Reflection;
-using System.Reflection.Emit;
-using Parkour;
 using Parkour.Binding;
 using Parkour.Emitting;
 using Parkour.Semantics;

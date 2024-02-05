@@ -3,13 +3,12 @@ using System.Reflection.Emit;
 
 namespace Parkour.Emitting;
 using Binding;
-using Semantics;
 using Symbols;
 
 /// <summary>
 /// Emits declarations and expressions into a dynamic assembly.
 /// </summary>
-public class ReflectionSemanticEmitter : SemanticEmitter
+public class ReflectionSemanticEmitter
 {
     public ReflectionSemanticEmitter()
     {
@@ -38,10 +37,9 @@ public class ReflectionSemanticEmitter : SemanticEmitter
         var moduleBuilder = assemblyBuilder.DefineDynamicModule(moduleName);
         var diagnostics = new List<Diagnostic>();
         var symbolEmitter = new ReflectionSymbolEmitter(moduleBuilder, runtimeSymbols, diagnostics);
-        var symbols = SymbolCache.From(binding.GlobalNamespace);
-        var context = new SymbolEmitContext(symbols, binding, symbolEmitter, diagnostics);
-        
-        this.Emit(context);
+        var context = new SymbolEmitContext(binding, symbolEmitter, diagnostics);
+        var emitter = new SemanticEmitter();
+        emitter.Emit(context);
 
         return new EmitResult(assemblyBuilder, moduleBuilder, diagnostics.ToImmutableList());
     }

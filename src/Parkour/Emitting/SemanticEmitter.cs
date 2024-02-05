@@ -5,64 +5,22 @@ using Binding;
 using Semantics;
 using Symbols;
 
-public abstract class SemanticEmitter
+/// <summary>
+/// Emits bound <see cref="Declaration"/> into a <see cref="SymbolEmitter"/>
+/// </summary>
+public class SemanticEmitter
 {
     public SemanticEmitter()
     {
     }
 
-    protected virtual void Emit(
-        SymbolEmitContext context)
+    public virtual void Emit(SymbolEmitContext context)
     {
         DefineTypeSymbols(context, context.Binding.DeclarationSymbols);
         DefineMemberSymbols(context, context.Binding.DeclarationSymbols);
         EmitSymbolBodies(context, context.Binding.DeclarationSymbols);
 
         context.Emitter.EmitDefinedTypesAndMembers();
-    }
-
-    public class SymbolEmitContext
-    {
-        public SymbolCache Symbols { get; }
-        public DeclarationBinding Binding { get; }
-        public SymbolEmitter Emitter { get; }
-
-        private readonly List<Diagnostic> _diagnostics;
-
-        public SymbolEmitContext(
-            SymbolCache symbols, 
-            DeclarationBinding binding,
-            SymbolEmitter emitter,
-            List<Diagnostic> diagnostics
-            )
-        {
-            Symbols = symbols;
-            Binding = binding;
-            Emitter = emitter;
-            _diagnostics = diagnostics;
-        }
-
-        public void ReportDiagnostic(Diagnostic diagnostic)
-        {
-            _diagnostics.Add(diagnostic);
-        }
-
-        public virtual ILEmitContext CreateILEmitContext(ILEmitter ilEmitter) =>
-            new ILEmitContext(this.Symbols, ilEmitter);
-    }
-
-    public class ILEmitContext
-    {
-        public SymbolCache Symbols { get; }
-        public ILEmitter Emitter { get; }
-
-        public ILEmitContext(
-            SymbolCache symbols,
-            ILEmitter emitter)
-        {
-            Symbols = symbols;
-            Emitter = emitter;
-        }
     }
 
     #region Define Types
@@ -399,7 +357,7 @@ public abstract class SemanticEmitter
         EmitValue(context.Emitter, constant.Value);
     }
 
-    private void EmitValue(ILEmitter emitter, object? value)
+    private void EmitValue(SymbolILEmitter emitter, object? value)
     {
         switch (value)
         {
@@ -493,4 +451,47 @@ public abstract class SemanticEmitter
     #endregion
 
     #endregion
+}
+
+public class SymbolEmitContext
+{
+    public SymbolCache Symbols { get; }
+    public DeclarationBinding Binding { get; }
+    public SymbolEmitter Emitter { get; }
+
+    private readonly List<Diagnostic> _diagnostics;
+
+    public SymbolEmitContext(
+        DeclarationBinding binding,
+        SymbolEmitter emitter,
+        List<Diagnostic> diagnostics
+        )
+    {
+        Symbols = SymbolCache.From(binding.GlobalNamespace);
+        Binding = binding;
+        Emitter = emitter;
+        _diagnostics = diagnostics;
+    }
+
+    public void ReportDiagnostic(Diagnostic diagnostic)
+    {
+        _diagnostics.Add(diagnostic);
+    }
+
+    public virtual ILEmitContext CreateILEmitContext(SymbolILEmitter ilEmitter) =>
+        new ILEmitContext(this.Symbols, ilEmitter);
+}
+
+public class ILEmitContext
+{
+    public SymbolCache Symbols { get; }
+    public SymbolILEmitter Emitter { get; }
+
+    public ILEmitContext(
+        SymbolCache symbols,
+        SymbolILEmitter emitter)
+    {
+        Symbols = symbols;
+        Emitter = emitter;
+    }
 }

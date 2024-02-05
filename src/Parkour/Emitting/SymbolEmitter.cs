@@ -1,6 +1,9 @@
 ﻿namespace Parkour.Emitting;
 using Symbols;
 
+/// <summary>
+/// Emits symbol declarations and bodies (IL)
+/// </summary>
 public abstract class SymbolEmitter
 {
     /// <summary>
@@ -16,15 +19,18 @@ public abstract class SymbolEmitter
     /// <summary>
     /// Emit member body IL instructions.
     /// </summary>
-    public abstract void EmitBody<TSymbol>(TSymbol symbol, Action<TSymbol, ILEmitter> fnEmitBody) where TSymbol : Symbol;
+    public abstract void EmitBody<TSymbol>(TSymbol symbol, Action<TSymbol, SymbolILEmitter> fnEmitBody) where TSymbol : Symbol;
 
     /// <summary>
-    /// Emit defined type and members into assembly
+    /// Finishes emitting defined type and members into output
     /// </summary>
     public abstract void EmitDefinedTypesAndMembers();
 }
 
-public abstract class ILEmitter
+/// <summary>
+/// Emits IL instructions using symbol abstraction.
+/// </summary>
+public abstract class SymbolILEmitter
 {
     /// <summary>
     /// Declares the start of a variable's use.
