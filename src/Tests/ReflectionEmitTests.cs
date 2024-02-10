@@ -110,6 +110,14 @@ public class ReflectionEmitTests
         TestEmit(NotEqual(Constant(1), Constant(1)), false);
     }
 
+    [TestMethod]
+    public void TestCondition()
+    {
+        TestEmit(Condition(Constant(true), Constant(1), Constant(2)), 1);
+        TestEmit(Condition(Constant(false), Constant(1), Constant(2)), 2);
+        TestEmit(Condition(Constant(false), Constant(1), Default(Symbol("System.Int32"))), 0);
+    }
+
     private void TestEmit(Expression test, object? expectedResult = null) =>
         TestEmit([], test, expectedResult);
 

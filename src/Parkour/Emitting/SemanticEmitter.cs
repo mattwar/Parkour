@@ -203,6 +203,10 @@ public class SemanticEmitter
                 EmitCall(context, call);
                 break;
 
+            case ConditionExpression condition:
+                EmitCondition(context, condition, asAddress);
+                break;
+
             case ConstantExpression constant:
                 EmitConstant(context, constant);
                 break;
@@ -467,6 +471,35 @@ public class SemanticEmitter
     protected virtual void EmitArgument(ILEmitContext context, ParameterSymbol parameter, Expression argument)
     {
         EmitExpressionAsType(context, argument, parameter.ParameterType);
+    }
+
+    #endregion
+
+    #region Condition Emit
+
+    protected virtual void EmitCondition(ILEmitContext context, ConditionExpression condition, bool asAddress)
+    {
+        var whenFalseLabel = new LabelSymbol("whenFalse");
+        var endLabel = new LabelSymbol("conditionEnd");
+
+        EmitExpressionAsType(context, condition.Test, context.Symbols.Boolean);
+        context.Emitter.EmitBranchFalse(whenFalseLabel);
+
+        if (asAddress)
+            EmitExpression(context, condition.WhenTrue, asAddress);
+        else
+            EmitExpressionAsType(context, condition.WhenTrue, condition.ResultType);
+
+        context.Emitter.EmitBranch(endLabel);
+
+        context.Emitter.MarkLabel(whenFalseLabel);
+
+        if (asAddress)
+            EmitExpression(context, condition.WhenFalse, asAddress);
+        else
+            EmitExpressionAsType(context, condition.WhenFalse, condition.ResultType);
+
+        context.Emitter.MarkLabel(endLabel);
     }
 
     #endregion
