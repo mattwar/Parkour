@@ -3,7 +3,6 @@
 namespace Parkour.Binding;
 using Semantics;
 using Symbols;
-using System.Reflection.Metadata;
 
 /// <summary>
 /// Converts unbound declarations and expressions into bound declarations and expressions,
@@ -284,7 +283,7 @@ public class SemanticBinder
                             : new[] { d })
                         .ToImmutableList();
 
-                    return CreateAndCombineDeclarationSymbols(me, topLevelDeclarations, context!);
+                    return CreateAndCombineDeclarationSymbols(context!, me, topLevelDeclarations);
                 });
 
                 // return both declared and external global namespaces to be combined.
@@ -318,9 +317,9 @@ public class SemanticBinder
     /// combining same named namespace declaration symbols.
     /// </summary>
     private ImmutableList<Symbol> CreateAndCombineDeclarationSymbols(
+        SymbolContext context,
         NamespaceSymbol @namespace,
-        IEnumerable<Declaration> declarations,
-        SymbolContext context)
+        IEnumerable<Declaration> declarations)
     {
         var newMembers = new List<Symbol>();
 
@@ -337,7 +336,7 @@ public class SemanticBinder
                 {
                     context.Map(g, me);
                     var newContext = context.WithScope(context.Scope.AddMembers(me).AddSymbol(me));
-                    return CreateAndCombineDeclarationSymbols(me, g.SelectMany(n => n.Declarations), newContext);
+                    return CreateAndCombineDeclarationSymbols(newContext, me, g.SelectMany(n => n.Declarations));
                 }))
             .ToList();
 
@@ -349,7 +348,7 @@ public class SemanticBinder
 
         var otherMemberSymbols =
             otherMembers
-            .Select(d => CreateAndMapDeclarationSymbol(@namespace, d, context))
+            .Select(d => CreateAndMapDeclarationSymbol(context, @namespace, d))
             .OfType<Symbol>() // filter out nulls
             .ToList();
 
@@ -359,11 +358,11 @@ public class SemanticBinder
     }
 
     protected Symbol? CreateAndMapDeclarationSymbol(
+        SymbolContext context,
         Symbol? declaringSymbol,
-        Declaration declaration,
-        SymbolContext context)
+        Declaration declaration)
     {
-        var symbol = CreateDeclarationSymbol(declaringSymbol, declaration, context);
+        var symbol = CreateDeclarationSymbol(context, declaringSymbol, declaration);
         if (symbol != null)
         {
             context.Map(declaration, symbol);
@@ -375,9 +374,9 @@ public class SemanticBinder
     /// Creates the corresponding symbol for the declaration.
     /// </summary>
     protected virtual Symbol? CreateDeclarationSymbol(
+        SymbolContext context,
         Symbol? declaringSymbol,
-        Declaration declaration,
-        SymbolContext context)
+        Declaration declaration)
     {
         switch (declaration)
         {
@@ -391,10 +390,10 @@ public class SemanticBinder
                     declaringSymbol,
                     cd.Access,
                     cd.Modifiers,
-                    me => cd.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(me, tp, context)!).ToImmutableList()!,
+                    me => cd.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
                     () => ImmutableList<TypeSymbol>.Empty,
-                    () => cd.BaseTypes.Select(bt => GetType(bt, classContext) ?? SpecialSymbols.Unknown).ToImmutableList()!,
-                    me => cd.Declarations.Select(d => CreateAndMapDeclarationSymbol(me, d, classContext)).Where(s => s != null).ToImmutableList()!,
+                    () => cd.BaseTypes.Select(bt => GetType(classContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
+                    me => cd.Declarations.Select(d => CreateAndMapDeclarationSymbol(classContext, me, d)).Where(s => s != null).ToImmutableList()!,
                     constructedFrom: null);
 
                 classContext = classContext.WithScope(
@@ -410,7 +409,7 @@ public class SemanticBinder
                     (TypeSymbol)declaringSymbol!,
                     cd.Access,
                     cd.Modifiers,
-                    me => cd.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(me, p, context)!).ToImmutableList()!
+                    me => cd.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!).ToImmutableList()!
                     );
 
             case MethodDeclaration md:
@@ -423,8 +422,8 @@ public class SemanticBinder
                     mmods,
                     me => ImmutableList<TypeParameterSymbol>.Empty,
                     () => ImmutableList<TypeSymbol>.Empty,
-                    me => md.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(me, p, context)!).ToImmutableList()!,
-                    () => GetType(md.ReturnType, context) ?? SpecialSymbols.Unknown,
+                    me => md.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!).ToImmutableList()!,
+                    () => GetType(context, md.ReturnType) ?? SpecialSymbols.Unknown,
                     constructedFrom: null
                     );
 
@@ -433,7 +432,7 @@ public class SemanticBinder
                     pd.Name,
                     declaringSymbol,
                     () => pd.ParameterType != null 
-                        ? GetType(pd.ParameterType, context) ?? SpecialSymbols.Unknown 
+                        ? GetType(context, pd.ParameterType) ?? SpecialSymbols.Unknown 
                         : SpecialSymbols.Any
                     );
 
@@ -443,7 +442,7 @@ public class SemanticBinder
                     declaringSymbol as TypeSymbol,
                     fd.Access,
                     fd.Modifiers,
-                    () => GetType(fd.FieldType, context) ?? SpecialSymbols.Unknown
+                    () => GetType(context, fd.FieldType) ?? SpecialSymbols.Unknown
                     );
 
             case PropertyDeclaration pd:
@@ -452,13 +451,13 @@ public class SemanticBinder
                     declaringSymbol as TypeSymbol,
                     pd.Access,
                     pd.Modifiers,
-                    () => GetType(pd.PropertyType, context) ?? SpecialSymbols.Unknown,
+                    () => GetType(context, pd.PropertyType) ?? SpecialSymbols.Unknown,
                     pd.BackingField != null
-                        ? me => (FieldSymbol)CreateAndMapDeclarationSymbol(me, pd.BackingField, context)!
+                        ? me => (FieldSymbol)CreateAndMapDeclarationSymbol(context, me, pd.BackingField)!
                         : null,
-                    me => (MethodSymbol)CreateAndMapDeclarationSymbol(me, pd.GetMethod, context)!,
+                    me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, me, pd.GetMethod)!,
                     pd.SetMethod != null
-                        ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(me, pd.SetMethod, context)!
+                        ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, me, pd.SetMethod)!
                         : null
                 );
 
@@ -475,29 +474,29 @@ public class SemanticBinder
     /// Binds a declaration to its associated symbol
     /// </summary>
     protected virtual Declaration BindDeclaration(
-        Declaration declaration,
-        DeclarationContext context)
+        DeclarationContext context,
+        Declaration declaration)
     {
         switch (declaration)
         {
             case ClassDeclaration cld:
-                return BindClass(cld, context);
+                return BindClass(context, cld);
             case ConstructorDeclaration cd:
-                return BindConstructor(cd, context);
+                return BindConstructor(context, cd);
             case FieldDeclaration fd:
-                return BindField(fd, context);
+                return BindField(context, fd);
             case MethodDeclaration md:
-                return BindMethod(md, context);
+                return BindMethod(context, md);
             case NamespaceDeclaration nd:
-                return BindNamespace(nd, context);
+                return BindNamespace(context, nd);
             case ParameterDeclaration prd:
-                return BindParameter(prd, context);
+                return BindParameter(context, prd);
             case PropertyDeclaration pd:
-                return BindProperty(pd, context);
+                return BindProperty(context, pd);
             case TypeParameterDeclaration tp:
-                return BindTypeParameter(tp, context);
+                return BindTypeParameter(context, tp);
             case UsingDeclaration ud:
-                return BindUsing(ud, context);
+                return BindUsing(context, ud);
             default:
                 throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(SemanticBinder)}.{nameof(BindDeclaration)}");
         }
@@ -507,11 +506,11 @@ public class SemanticBinder
     /// Binds a list of declarations
     /// </summary>
     protected virtual ImmutableList<TDeclaration> BindDeclarations<TDeclaration>(
-        ImmutableList<TDeclaration> list, 
-        DeclarationContext context)
+        DeclarationContext context,
+        ImmutableList<TDeclaration> list)
         where TDeclaration : Declaration
     {
-        return list.Rewrite(d => (TDeclaration)BindDeclaration(d, context));
+        return list.Rewrite(d => (TDeclaration)BindDeclaration(context, d));
     }
 
     #region Class Declaration
@@ -519,19 +518,19 @@ public class SemanticBinder
     /// Binds <see cref="ClassDeclaration"/>
     /// </summary>
     protected virtual ClassDeclaration BindClass(
-        ClassDeclaration cd,
-        DeclarationContext context)
+        DeclarationContext context,
+        ClassDeclaration cd)
     {
         var classSymbol = context.TryGetSymbol(cd, out var symbol) ? symbol as TypeSymbol : null;
 
-        var typeParameters = BindDeclarations(cd.TypeParameters, context);
+        var typeParameters = BindDeclarations(context, cd.TypeParameters);
 
         // put class symbol in scope for baseTypes and members
         var classContext = classSymbol != null
             ? context.WithScope(context.Scope.AddMembers(classSymbol).AddSymbol(classSymbol))
             : context;
 
-        var baseTypes = BindExpressionList(cd.BaseTypes, classContext.ExpressionContext);
+        var baseTypes = BindExpressionList(classContext.ExpressionContext, cd.BaseTypes);
 
         // add all class members to scope
         var bodyContext = classContext;
@@ -540,7 +539,7 @@ public class SemanticBinder
             bodyContext = bodyContext.WithScope(bodyContext.Scope.AddMembers(classSymbol).AddSymbol(classSymbol));
         }
 
-        var declarations = BindDeclarations(cd.Declarations, bodyContext);
+        var declarations = BindDeclarations(bodyContext, cd.Declarations);
 
         if (typeParameters == cd.TypeParameters
             && baseTypes == cd.BaseTypes
@@ -562,11 +561,11 @@ public class SemanticBinder
     #endregion
 
     protected virtual ConstructorDeclaration BindConstructor(
-        ConstructorDeclaration cd,
-        DeclarationContext context)
+        DeclarationContext context,
+        ConstructorDeclaration cd)
     {
         var constructorSymbol = context.TryGetSymbol(cd, out var symbol) ? symbol as ConstructorSymbol : null;
-        var parameters = BindDeclarations(cd.Parameters, context);
+        var parameters = BindDeclarations(context, cd.Parameters);
         var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, SpecialSymbols.Void);
         var bodyContext = context.ExpressionContext.WithScope(context.Scope.AddSymbol(returnLabel));
 
@@ -577,7 +576,7 @@ public class SemanticBinder
             bodyContext = bodyContext.WithScope(bodyContext.Scope.AddSymbols(constructorSymbol.Parameters));
         }
 
-        var body = BindExpression(cd.Body, bodyContext);
+        var body = BindExpression(bodyContext, cd.Body);
 
         return new ConstructorDeclaration(
             cd.Access,
@@ -596,13 +595,13 @@ public class SemanticBinder
     /// Binds <see cref="FieldDeclaration"/>
     /// </summary>
     protected virtual FieldDeclaration BindField(
-        FieldDeclaration fd, 
-        DeclarationContext context)
+        DeclarationContext context,
+        FieldDeclaration fd)
     {
         var fieldSymbol = context.TryGetSymbol(fd, out var symbol) ? symbol as FieldSymbol : null;
-        var fieldType = BindExpression(fd.FieldType, context.ExpressionContext);
+        var fieldType = BindExpression(context.ExpressionContext, fd.FieldType);
         var initializer = fd.Initializer != null
-            ? BindExpression(fd.Initializer, context.ExpressionContext)
+            ? BindExpression(context.ExpressionContext, fd.Initializer)
             : null;
         return new FieldDeclaration(
             fd.Name,
@@ -622,14 +621,14 @@ public class SemanticBinder
     /// Binds <see cref="MethodDeclaration"/>
     /// </summary>
     protected virtual MethodDeclaration BindMethod(
-        MethodDeclaration md,
-        DeclarationContext context)
+        DeclarationContext context,
+        MethodDeclaration md)
     {
         var methodSymbol = context.TryGetSymbol(md, out var symbol) ? symbol as MethodSymbol : null;
 
-        var typeParameters = BindDeclarations(md.TypeParameters, context);
-        var parameters = BindDeclarations(md.Parameters, context);
-        var returnType = BindExpression(md.ReturnType, context.ExpressionContext);
+        var typeParameters = BindDeclarations(context, md.TypeParameters);
+        var parameters = BindDeclarations(context, md.Parameters);
+        var returnType = BindExpression(context.ExpressionContext, md.ReturnType);
         var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, methodSymbol?.ReturnType ?? SpecialSymbols.Void);
 
         var bodyContext = context.ExpressionContext.WithScope(context.Scope.AddSymbol(returnLabel));
@@ -641,7 +640,7 @@ public class SemanticBinder
             bodyContext = bodyContext.WithScope(bodyContext.Scope.AddSymbols(methodSymbol.Parameters));
         }
 
-        var body = BindExpression(md.Body, bodyContext);
+        var body = BindExpression(bodyContext, md.Body);
 
         return new MethodDeclaration(
             md.Name,
@@ -664,8 +663,8 @@ public class SemanticBinder
     /// Binds <see cref="NamespaceDeclaration"/>
     /// </summary>
     protected virtual NamespaceDeclaration BindNamespace(
-        NamespaceDeclaration nd,
-        DeclarationContext context)
+        DeclarationContext context,
+        NamespaceDeclaration nd)
     {
         var nsSymbol = context.TryGetSymbol(nd, out var symbol) ? symbol as NamespaceSymbol : null;
 
@@ -677,7 +676,7 @@ public class SemanticBinder
 
         var (declarations, finalContext) = nd.Declarations.Rewrite(bodyContext, (d, _context) =>
         {
-            var nd = BindDeclaration(d, _context);
+            var nd = BindDeclaration(_context, d);
 
             // handle using declarations
             if (nd is UsingDeclaration ud
@@ -711,13 +710,13 @@ public class SemanticBinder
     /// Binds <see cref="ParameterDeclaration"/>
     /// </summary>
     protected virtual ParameterDeclaration BindParameter(
-        ParameterDeclaration pd,
-        DeclarationContext context)
+        DeclarationContext context,
+        ParameterDeclaration pd)
     {
         var parameterSymbol = context.TryGetSymbol(pd, out var symbol) ? symbol as ParameterSymbol : null;
 
         var parameterType = pd.ParameterType != null
-            ? BindExpression(pd.ParameterType, context.ExpressionContext)
+            ? BindExpression(context.ExpressionContext, pd.ParameterType)
             : null;
 
         return new ParameterDeclaration(
@@ -735,15 +734,15 @@ public class SemanticBinder
     /// Binds <see cref="PropertyDeclaration"/>
     /// </summary>
     protected virtual PropertyDeclaration BindProperty(
-        PropertyDeclaration pd, 
-        DeclarationContext context)
+        DeclarationContext context,
+        PropertyDeclaration pd)
     {
         var propertySymbol = context.TryGetSymbol(pd, out var symbol) ? symbol as PropertySymbol : null;
 
-        var propertyType = BindExpression(pd.PropertyType, context.ExpressionContext);
+        var propertyType = BindExpression(context.ExpressionContext, pd.PropertyType);
 
         var backingField = pd.BackingField != null
-            ? (FieldDeclaration)BindDeclaration(pd.BackingField, context)
+            ? (FieldDeclaration)BindDeclaration(context, pd.BackingField)
             : null;
 
         var methodContext = context;
@@ -754,10 +753,10 @@ public class SemanticBinder
                 methodContext.Scope.AddSymbol(propertySymbol.BackingField));
         }
 
-        var getMethod = (MethodDeclaration)BindDeclaration(pd.GetMethod, methodContext);
+        var getMethod = (MethodDeclaration)BindDeclaration(methodContext, pd.GetMethod);
 
         var setMethod = pd.SetMethod != null
-            ? (MethodDeclaration)BindDeclaration(pd.SetMethod, methodContext)
+            ? (MethodDeclaration)BindDeclaration(methodContext, pd.SetMethod)
             : null;
 
         return new PropertyDeclaration(
@@ -779,12 +778,9 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="TypeParameterDeclaration"/>
     /// </summary>
-    /// <param name="tp"></param>
-    /// <param name="context"></param>
-    /// <returns></returns>
     protected virtual TypeParameterDeclaration BindTypeParameter(
-        TypeParameterDeclaration tp,
-        DeclarationContext context)
+        DeclarationContext context,
+        TypeParameterDeclaration tp)
     {
         var tpSymbol = context.TryGetSymbol(tp, out var symbol) ? symbol as TypeParameterSymbol : null;
 
@@ -804,10 +800,10 @@ public class SemanticBinder
     /// Binds <see cref="UsingDeclaration"/>
     /// </summary>
     protected virtual UsingDeclaration BindUsing(
-        UsingDeclaration ud, 
-        DeclarationContext context)
+        DeclarationContext context,
+        UsingDeclaration ud)
     {
-        var expression = BindExpression(ud.Expression, context.ExpressionContext);
+        var expression = BindExpression(context.ExpressionContext, ud.Expression);
 
         if (expression == ud.Expression)
             return ud;
@@ -850,13 +846,13 @@ public class SemanticBinder
         BindingScope scope)
     {
         var context = new ExpressionContext(globalNamespace, scope);
-        return BindExpression(expression, context);
+        return BindExpression(context, expression);
     }
 
     /// <summary>
     /// Binds all unbound expressions
     /// </summary>
-    protected virtual Expression BindExpression(Expression expression, ExpressionContext context)
+    protected virtual Expression BindExpression(ExpressionContext context, Expression expression)
     {
         if (!(context.Rebind || expression.IsUnbound))
             return expression;
@@ -864,73 +860,73 @@ public class SemanticBinder
         switch (expression)
         {
             case ArrayExpression array:
-                return BindArray(array, context);
+                return BindArray(context, array);
 
             case ArityExpression arity:
-                return BindArity(arity, context);
+                return BindArity(context, arity);
 
             case AssignExpression assign:
-                return BindAssign(assign, context);
+                return BindAssign(context, assign);
 
             case BlockExpression block:
-                return BindBlock(block, context);
+                return BindBlock(context, block);
 
             case BranchExpression branch:
-                return BindBranch(branch, context);
+                return BindBranch(context, branch);
 
             case CallExpression call:
-                return BindCall(call, context);
+                return BindCall(context, call);
 
             case ConditionExpression condition:
-                return BindCondition(condition, context);
+                return BindCondition(context, condition);
 
             case ConstantExpression constant:
-                return BindConstant(constant, context);
+                return BindConstant(context, constant);
 
             case ConvertExpression convert:
-                return BindConvert(convert, context);
+                return BindConvert(context, convert);
 
             case DefaultExpression dex:
-                return BindDefault(dex, context);
+                return BindDefault(context, dex);
 
             case LabelExpression label:
-                return BindLabel(label, context);
+                return BindLabel(context, label);
 
             case LambdaExpression lambda:
-                return BindLambda(lambda, context);
+                return BindLambda(context, lambda);
 
             case LoopExpression loop:
-                return BindLoop(loop, context);
+                return BindLoop(context, loop);
 
             case MemberExpression member:
-                return BindMember(member, context);
+                return BindMember(context, member);
 
             case NameReferenceExpression nameRef:
-                return BindNameReference(nameRef, context);
+                return BindNameReference(context, nameRef);
 
             case NewExpression @new:
-                return BindNew(@new, context);
+                return BindNew(context, @new);
 
             case NewArrayInitExpression newArrayInit:
-                return BindNewArrayInit(newArrayInit, context);
+                return BindNewArrayInit(context, newArrayInit);
 
             case NewArraySizeExpression newArraySize:
-                return BindNewArraySize(newArraySize, context);
+                return BindNewArraySize(context, newArraySize);
 
             case OperatorExpression opex:
-                return BindOperator(opex, context);
+                return BindOperator(context, opex);
 
             case SymbolReferenceExpression symbolRef:
-                return BindSymbolReference(symbolRef, context);
+                return BindSymbolReference(context, symbolRef);
 
             case TypeArgumentsExpression typeArgs:
-                return BindTypeArguments(typeArgs, context);
+                return BindTypeArguments(context, typeArgs);
 
             case VariableExpression variable:
-                return BindVariable(variable, context);
+                return BindVariable(context, variable);
 
             case VoidExpression vex:
-                return BindVoid(vex, context);
+                return BindVoid(context, vex);
 
             default:
                 throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(SemanticBinder)}.BindExpression");
@@ -959,42 +955,42 @@ public class SemanticBinder
         where TExpression : Expression
     {
         var context = new ExpressionContext(globalNamespace, scope);
-        return BindExpressionList(expressions, context);
+        return BindExpressionList(context, expressions);
     }
 
     /// <summary>
     /// Binds a list of <see cref="Expression"/>
     /// </summary>
     protected virtual ImmutableList<TExpression> BindExpressionList<TExpression>(
-        ImmutableList<TExpression> expressions, ExpressionContext context)
+        ExpressionContext context, ImmutableList<TExpression> expressions)
         where TExpression : Expression
     {
         if (expressions.Count == 0)
             return expressions;
-        return expressions.Rewrite(e => (TExpression)BindExpression(e, context));
+        return expressions.Rewrite(e => (TExpression)BindExpression(context, e));
     }
 
     /// <summary>
     /// Gets the bound type of a type expression
     /// </summary>
-    protected virtual TypeSymbol? GetType(Expression typeExpression, ExpressionContext context)
+    protected virtual TypeSymbol? GetType(ExpressionContext context, Expression typeExpression)
     {
         if (typeExpression.IsUnbound)
-            typeExpression = BindExpression(typeExpression, context);
+            typeExpression = BindExpression(context, typeExpression);
         return typeExpression.ReferencedSymbol as TypeSymbol;
     }
 
     /// <summary>
     /// Gets the bound type of a type expression
     /// </summary>
-    protected TypeSymbol? GetType(Expression typeExpression, DeclarationContext context) =>
-        GetType(typeExpression, context.ExpressionContext);
+    protected TypeSymbol? GetType(DeclarationContext context, Expression typeExpression) =>
+        GetType(context.ExpressionContext, typeExpression);
 
     /// <summary>
     /// Gets the bound type of a type expression
     /// </summary>
-    protected TypeSymbol? GetType(Expression typeExpression, SymbolContext context) =>
-        GetType(typeExpression, context.DeclarationContext);
+    protected TypeSymbol? GetType(SymbolContext context, Expression typeExpression) =>
+        GetType(context.DeclarationContext, typeExpression);
 
     /// <summary>
     /// Gets an empty <see cref="BindingScope"/>.
@@ -1007,15 +1003,15 @@ public class SemanticBinder
     /// Binds <see cref="ArrayExpression"/>,
     /// converting referenced symbols into arrays of those symbols.
     /// </summary>
-    protected virtual Expression BindArray(ArrayExpression array, ExpressionContext context)
+    protected virtual Expression BindArray(ExpressionContext context, ArrayExpression array)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(array.Expression, context);
+            var expression = BindExpression(context, array.Expression);
             var elementType = expression.ReferencedSymbol as TypeSymbol;
             var referencedSymbol = elementType != null ? context.Symbols.GetArray(elementType) : null;
-            var resultType = GetReferenceResultType(referencedSymbol, context);
+            var resultType = GetReferenceResultType(context, referencedSymbol);
 
             if (elementType == null)
             {
@@ -1048,12 +1044,12 @@ public class SemanticBinder
     /// Binds <see cref="ArityExpression"/>,
     /// filtering referenced symbols to only those matching the specified arity.
     /// </summary>
-    protected virtual Expression BindArity(ArityExpression arity, ExpressionContext context)
+    protected virtual Expression BindArity(ExpressionContext context, ArityExpression arity)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(arity.Expression, context);
+            var expression = BindExpression(context, arity.Expression);
 
             Symbol? referencedSymbol = null;
             if (expression.ReferencedSymbol is GroupSymbol group)
@@ -1070,7 +1066,7 @@ public class SemanticBinder
                 diagnostics.Add(BindingDiagnostics.NoReferencedSymbolsHaveMatchingArity().WithLocation(arity.Location));
             }
 
-            var resultType = GetReferenceResultType(referencedSymbol, context);
+            var resultType = GetReferenceResultType(context, referencedSymbol);
 
             if (expression == arity.Expression
                 && referencedSymbol == arity.ReferencedSymbol
@@ -1097,15 +1093,15 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="AssignExpression"/>
     /// </summary>
-    protected virtual Expression BindAssign(AssignExpression assign, ExpressionContext context)
+    protected virtual Expression BindAssign(ExpressionContext context, AssignExpression assign)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var target = BindExpression(assign.Target, context.WithTargetType(null));
-            var assignType = GetReferenceResultType(target.ReferencedSymbol, context) ?? context.Symbols.Object;
-            var source = BindExpression(assign.Source, context.WithTargetType(assignType));
-            source = ConvertTo(source, assignType, context);
+            var target = BindExpression(context.WithTargetType(null), assign.Target);
+            var assignType = GetReferenceResultType(context, target.ReferencedSymbol) ?? context.Symbols.Object;
+            var source = BindExpression(context.WithTargetType(assignType), assign.Source);
+            source = ConvertTo(context, source, assignType);
 
             if (IsValidAssignmentTarget(assign.ReferencedSymbol))
             {
@@ -1149,7 +1145,7 @@ public class SemanticBinder
     /// <summary>
     /// Binds a <see cref="BlockExpression"/>
     /// </summary>
-    protected virtual Expression BindBlock(BlockExpression block, ExpressionContext context)
+    protected virtual Expression BindBlock(ExpressionContext context, BlockExpression block)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var labelSymbols = _symbolListPool.AllocateFromPool();
@@ -1165,7 +1161,7 @@ public class SemanticBinder
                 if (expr is LabelExpression label)
                 {
                     var type = label.ReceivingType != null 
-                        ? GetType(label.ReceivingType, labelContext) 
+                        ? GetType(labelContext, label.ReceivingType)
                         : context.Symbols.Void;
                     var labelSymbol = label.LabelSymbol ?? new LabelSymbol(label.Name, type);
                     labelSymbols.Add(labelSymbol);
@@ -1178,7 +1174,7 @@ public class SemanticBinder
             // bind expressions 
             (var boundExpressions, _) = block.Expressions.Rewrite(context, (expression, _context) =>
             {
-                var boundExpression = BindExpression(expression, _context);
+                var boundExpression = BindExpression(_context, expression);
 
                 if (boundExpression is VariableExpression decl
                     && decl.VariableSymbol != null)
@@ -1238,15 +1234,15 @@ public class SemanticBinder
     /// <summary>
     /// Binds a <see cref="BranchExpression"/> 
     /// </summary>
-    protected virtual Expression BindBranch(BranchExpression branch, ExpressionContext context)
+    protected virtual Expression BindBranch(ExpressionContext context, BranchExpression branch)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var labelSymbol = GetLabel(branch.LabelName, context);
+            var labelSymbol = GetLabel(context, branch.LabelName);
 
             var expression = branch.Expression != null
-                ? BindExpression(branch.Expression, context.WithTargetType(labelSymbol?.Type))
+                ? BindExpression(context.WithTargetType(labelSymbol?.Type), branch.Expression)
                 : null;
 
             var expressionType = expression != null 
@@ -1259,8 +1255,8 @@ public class SemanticBinder
             }
             else if (expression != null && expressionType != labelSymbol.Type)
             {
-                expression = ConvertTo(expression, labelSymbol.Type, context);
-                expression = BindExpression(expression, context.WithRebind(true));
+                expression = ConvertTo(context, expression, labelSymbol.Type);
+                expression = BindExpression(context.WithRebind(true), expression);
             }
 
             if (expression == branch.Expression
@@ -1285,7 +1281,7 @@ public class SemanticBinder
     /// <summary>
     /// Gets the label matching the name.
     /// </summary>
-    protected virtual LabelSymbol? GetLabel(string name, ExpressionContext context)
+    protected virtual LabelSymbol? GetLabel(ExpressionContext context, string name)
     {
         return context.Scope.FindMatchingSymbol<LabelSymbol>(name, null);
     }
@@ -1295,7 +1291,7 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="CallExpression"/>
     /// </summary>
-    protected virtual Expression BindCall(CallExpression call, ExpressionContext context)
+    protected virtual Expression BindCall(ExpressionContext context, CallExpression call)
     {
         var candidates = _symbolListPool.AllocateFromPool();
         var diagnostics = _diagnosticListPool.AllocateFromPool();
@@ -1303,8 +1299,8 @@ public class SemanticBinder
         {
             context = context.WithTargetType(null);
 
-            var expression = BindExpression(call.Expression, context);
-            var arguments = BindExpressionList(call.Arguments, context);
+            var expression = BindExpression(context, call.Expression);
+            var arguments = BindExpressionList(context, call.Arguments);
 
             if (expression is LambdaExpression lambda)
             {
@@ -1318,7 +1314,7 @@ public class SemanticBinder
                 var referencedSymbol = expression.ReferencedSymbol;
                 if (referencedSymbol != null)
                 {
-                    GetCalledSymbolCandidates(referencedSymbol, arguments, context, candidates);
+                    GetCalledSymbolCandidates(context, referencedSymbol, arguments, candidates);
                 }
             }
 
@@ -1331,7 +1327,7 @@ public class SemanticBinder
             }
             else
             {
-                calledSymbol = GetBestCalledSymbol(arguments, candidates, context);
+                calledSymbol = GetBestCalledSymbol(context, arguments, candidates);
 
                 if (calledSymbol == null)
                 {
@@ -1346,7 +1342,7 @@ public class SemanticBinder
                     }
                     else
                     {
-                        arguments = ConvertArguments(parameters, arguments, context);
+                        arguments = ConvertArguments(context, parameters, arguments);
                     }
                 }
             }
@@ -1415,14 +1411,14 @@ public class SemanticBinder
     /// Gets the list of candidate symbols for a call with the supplied arguments
     /// </summary>
     protected virtual void GetCalledSymbolCandidates(
+        ExpressionContext context,
         Symbol symbol,
         ImmutableList<Expression> arguments,
-        ExpressionContext context,
         List<Symbol> candidates)
     {
         if (symbol is GroupSymbol group)
         {
-            candidates.AddRange(group.Symbols.Where(s => IsCallableSymbol(s) && MatchesParameters(s, arguments, context)));
+            candidates.AddRange(group.Symbols.Where(s => IsCallableSymbol(s) && MatchesParameters(context, s, arguments)));
         }
         else if (IsCallableSymbol(symbol))
         {
@@ -1433,10 +1429,10 @@ public class SemanticBinder
     /// <summary>
     /// Gets the best called symbol from a set of symbols relative to the supplied arguments.
     /// </summary>
-    protected virtual Symbol? GetBestCalledSymbol(ImmutableList<Expression> arguments, List<Symbol> candidates, ExpressionContext context)
+    protected virtual Symbol? GetBestCalledSymbol(ExpressionContext context, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
         // todo: be better
-        return candidates.FirstOrDefault(c => MatchesParameters(c, arguments, context));
+        return candidates.FirstOrDefault(c => MatchesParameters(context, c, arguments));
     }
 
     /// <summary>
@@ -1455,18 +1451,18 @@ public class SemanticBinder
     /// Returns true if the callable symbol has parameters that are compatible with the arguments
     /// </summary>
     protected virtual bool MatchesParameters(
-        Symbol callableSymbol, 
-        ImmutableList<Expression> arguments,
-        ExpressionContext context) =>
-        MatchesParameters(GetSymbolParameters(callableSymbol), arguments, context);
+        ExpressionContext context,
+        Symbol callableSymbol,
+        ImmutableList<Expression> arguments) =>
+        MatchesParameters(context, GetSymbolParameters(callableSymbol), arguments);
 
     /// <summary>
     /// Returns true if the set of arguments matches the parameters.
     /// </summary>
     protected virtual bool MatchesParameters(
-        ImmutableList<ParameterSymbol> parameters, 
-        ImmutableList<Expression> arguments,
-        ExpressionContext context)
+        ExpressionContext context,
+        ImmutableList<ParameterSymbol> parameters,
+        ImmutableList<Expression> arguments)
     {
         if (parameters.Count != arguments.Count)
             return false;
@@ -1484,15 +1480,15 @@ public class SemanticBinder
     /// Converts a set of arguments to their corresponding parameter types.
     /// </summary>
     protected virtual ImmutableList<Expression> ConvertArguments(
+        ExpressionContext context,
         ImmutableList<ParameterSymbol> parameters,
-        ImmutableList<Expression> arguments,
-        ExpressionContext context)
+        ImmutableList<Expression> arguments)
     {
         for (int i = 0; i < parameters.Count; i++)
         {
             var parameter = parameters[i];
             var argument = arguments[i];
-            var convertedArg = ConvertTo(argument, parameter.ParameterType, context);
+            var convertedArg = ConvertTo(context, argument, parameter.ParameterType);
             arguments = arguments.SetItem(i, convertedArg);
         }
 
@@ -1504,16 +1500,16 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="ConditionExpression"/>
     /// </summary>
-    protected virtual Expression BindCondition(ConditionExpression condition, ExpressionContext context)
+    protected virtual Expression BindCondition(ExpressionContext context, ConditionExpression condition)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var test = BindExpression(condition.Test, context.WithTargetType(context.Symbols.Boolean));
-            test = ConvertTo(test, context.Symbols.Boolean, context);
+            var test = BindExpression(context.WithTargetType(context.Symbols.Boolean), condition.Test);
+            test = ConvertTo(context, test, context.Symbols.Boolean);
 
-            var whenTrue = BindExpression(condition.WhenTrue, context);
-            var whenFalse = BindExpression(condition.WhenFalse, context);
+            var whenTrue = BindExpression(context, condition.WhenTrue);
+            var whenFalse = BindExpression(context, condition.WhenFalse);
 
             var resultType = GetBestCommonType(context, [whenTrue.ResultType, whenFalse.ResultType, context.TargetType], voidIsBetter: false);
             if (resultType == null)
@@ -1522,8 +1518,8 @@ public class SemanticBinder
                 resultType = context.Symbols.Object;
             }
 
-            whenTrue = ConvertTo(whenTrue, resultType, context);
-            whenFalse = ConvertTo(whenFalse, resultType, context);
+            whenTrue = ConvertTo(context, whenTrue, resultType);
+            whenFalse = ConvertTo(context, whenFalse, resultType);
 
             if (test == condition.Test
                 && whenTrue == condition.WhenTrue
@@ -1551,7 +1547,7 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="ConstantExpectedAttribute"/>
     /// </summary>
-    protected virtual Expression BindConstant(ConstantExpression constant, ExpressionContext context)
+    protected virtual Expression BindConstant(ExpressionContext context, ConstantExpression constant)
     {
         var resultType = constant.Value == null
             ? SpecialSymbols.Null
@@ -1572,25 +1568,25 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="ConvertExpression"/>
     /// </summary>
-    protected virtual Expression BindConvert(ConvertExpression convert, ExpressionContext context)
+    protected virtual Expression BindConvert(ExpressionContext context, ConvertExpression convert)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var candidates = _symbolListPool.AllocateFromPool();
         try
         {
             var convertedType = convert.ConvertedType != null
-                ? BindExpression(convert.ConvertedType, context.WithTargetType(null))
+                ? BindExpression(context.WithTargetType(null), convert.ConvertedType)
                 : null;
 
             var type = convertedType != null
                 ? convertedType.ReferencedSymbol as TypeSymbol
                 : convert.ResultType;
 
-            var expression = BindExpression(convert.Expression, context.WithTargetType(type));
+            var expression = BindExpression(context.WithTargetType(type), convert.Expression);
 
             if (convert.ConvertedType == null
                 && convert.ResultType != null
-                && IsAssignableWithoutConversion(expression.ResultType, convert.ResultType, context))
+                && IsAssignableWithoutConversion(context, expression.ResultType, convert.ResultType))
             {
                 // remove unnecessary non-explicit conversion
                 return expression;
@@ -1625,7 +1621,7 @@ public class SemanticBinder
     /// <summary>
     /// Injects a <see cref="ConvertExpression"/> if the expression's type if a conversion is necessary.
     /// </summary>
-    protected virtual Expression ConvertTo(Expression expression, TypeSymbol type, ExpressionContext context)
+    protected virtual Expression ConvertTo(ExpressionContext context, Expression expression, TypeSymbol type)
     {
         // ignore void
         if (type == SpecialSymbols.Void
@@ -1635,12 +1631,12 @@ public class SemanticBinder
         // remove unnecessary conversions added by this method on prior bindings
         while (expression is ConvertExpression ce
             && ce.ConvertedType == null // added by binding
-            && IsAssignableWithoutConversion(ce.Expression.ResultType, type, context))
+            && IsAssignableWithoutConversion(context, ce.Expression.ResultType, type))
         {
             expression = ce.Expression;
         }
 
-        if (IsAssignableWithoutConversion(expression.ResultType, type, context))
+        if (IsAssignableWithoutConversion(context, expression.ResultType, type))
             return expression;
 
         // wrap expression with widening conversion and bind it.
@@ -1652,7 +1648,7 @@ public class SemanticBinder
             resultType: type,
             diagnostics: null);
 
-        return BindConvert(convert, context);
+        return BindConvert(context, convert);
     }
 
     /// <summary>
@@ -1695,7 +1691,7 @@ public class SemanticBinder
             }
             else
             {
-                GetConversionOperatorCandidates(sourceType, targetType, context, candidates);
+                GetConversionOperatorCandidates(context, sourceType, targetType, candidates);
                 conversionSymbol = GetBestConversionOperator(context, sourceType, targetType, candidates);
 
                 if (conversionSymbol == null)
@@ -1819,7 +1815,7 @@ public class SemanticBinder
     /// <summary>
     /// Returns true if the source type is assignable to the target type without conversion.
     /// </summary>
-    protected virtual bool IsAssignableWithoutConversion(TypeSymbol sourceType, TypeSymbol targetType, ExpressionContext context)
+    protected virtual bool IsAssignableWithoutConversion(ExpressionContext context, TypeSymbol sourceType, TypeSymbol targetType)
     {
         if (sourceType == targetType)
             return true;
@@ -1840,9 +1836,9 @@ public class SemanticBinder
     /// Gets all candidates for custom conversion
     /// </summary>
     protected virtual void GetConversionOperatorCandidates(
-        TypeSymbol source, 
-        TypeSymbol target, 
         ExpressionContext context,
+        TypeSymbol source,
+        TypeSymbol target,
         List<Symbol> operators,
         bool includeExplicit = false)
     {
@@ -1853,6 +1849,11 @@ public class SemanticBinder
         {
             GetMatchingTypeMembers(source, "op_Explicit", s => IsMatchingConversionOperator(context, s, target, source), operators);
             GetMatchingTypeMembers(target, "op_Explicit", s => IsMatchingConversionOperator(context, s, target, source), operators);
+        }
+
+        if (target == context.Symbols.Boolean)
+        {
+            GetMatchingTypeMembers(source, "op_True", s => IsMatchingConversionOperator(context, s, target, source), operators);
         }
     }
 
@@ -1898,7 +1899,7 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="DefaultExpression"/>
     /// </summary>
-    protected virtual Expression BindDefault(DefaultExpression dex, ExpressionContext context)
+    protected virtual Expression BindDefault(ExpressionContext context, DefaultExpression dex)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
@@ -1908,7 +1909,7 @@ public class SemanticBinder
 
             if (dex.TypeExpression != null)
             {
-                typeExpr = dex.TypeExpression != null ? BindExpression(dex.TypeExpression, context.WithTargetType(null)) : null;
+                typeExpr = dex.TypeExpression != null ? BindExpression(context.WithTargetType(null), dex.TypeExpression) : null;
                 resultType = typeExpr != null ? typeExpr.ReferencedSymbol as TypeSymbol : null;
             }
             else if (context.TargetType != null)
@@ -1939,13 +1940,13 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="LabelExpression"/>
     /// </summary>
-    protected virtual Expression BindLabel(LabelExpression label, ExpressionContext context)
+    protected virtual Expression BindLabel(ExpressionContext context, LabelExpression label)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
             var receivingType = label.ReceivingType != null 
-                ? BindExpression(label.ReceivingType, context) 
+                ? BindExpression(context, label.ReceivingType)
                 : null;
 
             var resultType = receivingType != null 
@@ -1979,7 +1980,7 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="LambdaExpression"/>
     /// </summary>
-    protected virtual Expression BindLambda(LambdaExpression lambda, ExpressionContext context)
+    protected virtual Expression BindLambda(ExpressionContext context, LambdaExpression lambda)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var types = _typeListPool.AllocateFromPool();
@@ -2052,7 +2053,7 @@ public class SemanticBinder
 
                 foreach (var p in parameters)
                 {
-                    var type = p.ParameterType != null ? BindExpression(p.ParameterType, context) : null;
+                    var type = p.ParameterType != null ? BindExpression(context, p.ParameterType) : null;
                     var ptype = type?.ReferencedSymbol as TypeSymbol ?? SpecialSymbols.Any;
                     var psymbol = new ParameterSymbol(p.Name, declaringSymbol, ptype);
                     var pdecl = new ParameterDeclaration(p.Name, type, p.Location, psymbol, null);
@@ -2070,8 +2071,8 @@ public class SemanticBinder
                     context.Scope
                         .AddSymbols(parameters)
                         .AddSymbol(returnLabel));
-                body = BindExpression(lambda.Body, bodyContext);
-                returnType = GetLambdaReturnType(body, returnLabel, context, diagnostics);
+                body = BindExpression(bodyContext, lambda.Body);
+                returnType = GetLambdaReturnType(context, body, returnLabel, diagnostics);
             }
         }
         finally
@@ -2085,9 +2086,9 @@ public class SemanticBinder
     /// Determines the return type of a <see cref="LambdaExpression"/>
     /// </summary>
     protected virtual TypeSymbol GetLambdaReturnType(
-        Expression body, 
-        LabelSymbol returnTarget, 
         ExpressionContext context,
+        Expression body,
+        LabelSymbol returnTarget,
         List<Diagnostic> diagnostics)
     {
         var types = _typeListPool.AllocateFromPool();
@@ -2109,7 +2110,7 @@ public class SemanticBinder
     /// <summary>
     /// Bind <see cref="LoopExpression"/>
     /// </summary>
-    protected virtual Expression BindLoop(LoopExpression loop, ExpressionContext context)
+    protected virtual Expression BindLoop(ExpressionContext context, LoopExpression loop)
     {
         var diagostics = _diagnosticListPool.AllocateFromPool();
         var types = _typeListPool.AllocateFromPool();
@@ -2121,7 +2122,7 @@ public class SemanticBinder
             var bodyContext = context.WithScope(
                 context.Scope.AddSymbols(new[] { breakTarget, continueTarget }));
 
-            var body = BindExpression(loop.Body, bodyContext);
+            var body = BindExpression(bodyContext, loop.Body);
 
             // result type is the common type of all the break branches.
             GetBranchExpressionTypes(body, breakTarget, types);
@@ -2133,7 +2134,7 @@ public class SemanticBinder
                 bodyContext = context
                     .WithRebind(true)
                     .WithScope(context.Scope.AddSymbols(new[] { breakTarget, continueTarget }));
-                body = BindExpression(loop.Body, bodyContext);
+                body = BindExpression(bodyContext, loop.Body);
             }
 
             if (body == loop.Body
@@ -2163,13 +2164,13 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="OperatorExpression"/>
     /// </summary>
-    protected virtual Expression BindOperator(OperatorExpression opex, ExpressionContext context)
+    protected virtual Expression BindOperator(ExpressionContext context, OperatorExpression opex)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         var candidates = _symbolListPool.AllocateFromPool();
         try
         {
-            var arguments = BindExpressionList(opex.Arguments, context);
+            var arguments = BindExpressionList(context, opex.Arguments);
 
             GetCandidateOperators(context, opex.Kind, arguments, candidates);
 
@@ -2195,7 +2196,7 @@ public class SemanticBinder
                     }
                     else
                     {
-                        arguments = ConvertArguments(parameters, arguments, context);
+                        arguments = ConvertArguments(context, parameters, arguments);
                     }
                 }
             }
@@ -2241,7 +2242,7 @@ public class SemanticBinder
     protected virtual Symbol? GetBestOperatorCandidate(ExpressionContext context, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
         // todo: be better
-        return candidates.FirstOrDefault(c => MatchesParameters(c, arguments, context));
+        return candidates.FirstOrDefault(c => MatchesParameters(context, c, arguments));
     }
 
     private static string? GetOperatorName(string opKind)
@@ -2285,19 +2286,19 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="MemberExpression"/>
     /// </summary>
-    protected virtual Expression BindMember(MemberExpression member, ExpressionContext context)
+    protected virtual Expression BindMember(ExpressionContext context, MemberExpression member)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(member.Instance, context.WithTargetType(null));
+            var expression = BindExpression(context.WithTargetType(null), member.Instance);
 
             if (expression.ResultType is GroupSymbol)
                 diagnostics.Add(BindingDiagnostics.UnknownName(member.Name).WithLocation(member.Location));
 
-            var referencedSymbol = GetReferencedMember(expression, member.Name, context, diagnostics);
+            var referencedSymbol = GetReferencedMember(context, expression, member.Name, diagnostics);
 
-            var resultType = GetReferenceResultType(referencedSymbol, context);
+            var resultType = GetReferenceResultType(context, referencedSymbol);
 
             if (member.Instance == expression
                 && member.ReferencedSymbol == referencedSymbol
@@ -2320,9 +2321,9 @@ public class SemanticBinder
     }
 
     protected virtual Symbol? GetReferencedMember(
+        ExpressionContext context,
         Expression expression,
         string name,
-        ExpressionContext context,
         List<Diagnostic>? diagnositcs)
     {
         var members = _symbolListPool.AllocateFromPool();
@@ -2365,12 +2366,12 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="NameReferenceExpression"/>
     /// </summary>
-    protected virtual Expression BindNameReference(NameReferenceExpression nameRef, ExpressionContext context)
+    protected virtual Expression BindNameReference(ExpressionContext context, NameReferenceExpression nameRef)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var referencedSymbol = GetNameReference(nameRef.Name, context);
+            var referencedSymbol = GetNameReference(context, nameRef.Name);
 
             if (referencedSymbol != null && referencedSymbol == nameRef.ReferencedSymbol)
                 return nameRef;
@@ -2378,7 +2379,7 @@ public class SemanticBinder
             if (referencedSymbol == null)
                 diagnostics.Add(BindingDiagnostics.UnknownName(nameRef.Name).WithLocation(nameRef.Location));
 
-            var resultType = GetReferenceResultType(referencedSymbol, context) ?? context.Symbols.Object;
+            var resultType = GetReferenceResultType(context, referencedSymbol) ?? context.Symbols.Object;
 
             return new NameReferenceExpression(
                 nameRef.Name,
@@ -2396,7 +2397,7 @@ public class SemanticBinder
     /// <summary>
     /// Get the symbol that is referenced by the name.
     /// </summary>
-    protected virtual Symbol? GetNameReference(string name, ExpressionContext context)
+    protected virtual Symbol? GetNameReference(ExpressionContext context, string name)
     {
         var symbols = _symbolListPool.AllocateFromPool();
         try
@@ -2415,7 +2416,7 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="NewExpression"/>
     /// </summary>
-    protected virtual Expression BindNew(NewExpression nex, ExpressionContext context)
+    protected virtual Expression BindNew(ExpressionContext context, NewExpression nex)
     {
         var candidates = _symbolListPool.AllocateFromPool();
         var diagnostics = _diagnosticListPool.AllocateFromPool();
@@ -2423,12 +2424,12 @@ public class SemanticBinder
         {
             var argContext = context.WithTargetType(null);
 
-            var typeExpression = nex.TypeExpression != null ? BindExpression(nex.TypeExpression, argContext) : null;
-            var arguments = BindExpressionList(nex.Arguments, argContext);
+            var typeExpression = nex.TypeExpression != null ? BindExpression(argContext, nex.TypeExpression) : null;
+            var arguments = BindExpressionList(argContext, nex.Arguments);
             var referencedType = (typeExpression?.ReferencedSymbol ?? context.TargetType) as TypeSymbol;
 
             if (referencedType != null)
-                GetConstructorCandidates(referencedType, arguments, context, candidates);
+                GetConstructorCandidates(context, referencedType, arguments, candidates);
 
             var location = nex.Location;
             ConstructorSymbol? constructorSymbol = null;
@@ -2451,7 +2452,7 @@ public class SemanticBinder
                 }
                 else
                 {
-                    arguments = ConvertArguments(constructorSymbol.Parameters, arguments, context);
+                    arguments = ConvertArguments(context, constructorSymbol.Parameters, arguments);
                 }
             }
 
@@ -2483,9 +2484,9 @@ public class SemanticBinder
     /// Gets the list of candidate symbols for a call with the supplied arguments
     /// </summary>
     protected virtual void GetConstructorCandidates(
+        ExpressionContext context,
         TypeSymbol type,
         ImmutableList<Expression> arguments,
-        ExpressionContext context,
         List<Symbol> candidates)
     {
         var symbols = _symbolListPool.AllocateFromPool();
@@ -2496,7 +2497,7 @@ public class SemanticBinder
             candidates.AddRange(
                 symbols
                 .OfType<ConstructorSymbol>()
-                .Where(c => !c.IsStatic && MatchesParameters(c, arguments, context))
+                .Where(c => !c.IsStatic && MatchesParameters(context, c, arguments))
                 );
         }
         finally
@@ -2516,15 +2517,15 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="NewArraySizeExpression"/>
     /// </summary>
-    protected virtual Expression BindNewArraySize(NewArraySizeExpression newArraySize, ExpressionContext context)
+    protected virtual Expression BindNewArraySize(ExpressionContext context, NewArraySizeExpression newArraySize)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
             var targetType = context.TargetType;
             context = context.WithTargetType(null);
-            var elementType = newArraySize.ElementType != null ? BindExpression(newArraySize.ElementType, context) : null;
-            var size = BindExpression(newArraySize.Size, context);
+            var elementType = newArraySize.ElementType != null ? BindExpression(context, newArraySize.ElementType) : null;
+            var size = BindExpression(context, newArraySize.Size);
 
             var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
             var elementTypeSymbol = elementType?.ReferencedSymbol as TypeSymbol
@@ -2562,15 +2563,15 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="NewArrayInitExpression"/>
     /// </summary>
-    protected virtual Expression BindNewArrayInit(NewArrayInitExpression newArrayInit, ExpressionContext context)
+    protected virtual Expression BindNewArrayInit(ExpressionContext context, NewArrayInitExpression newArrayInit)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
             var targetType = context.TargetType;
             context = context.WithTargetType(null);
-            var elementType = newArrayInit.ElementType != null ? BindExpression(newArrayInit.ElementType, context) : null;
-            var expressions = BindExpressionList(newArrayInit.Expressions, context);
+            var elementType = newArrayInit.ElementType != null ? BindExpression(context, newArrayInit.ElementType) : null;
+            var expressions = BindExpressionList(context, newArrayInit.Expressions);
 
             var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
             var elementTypeSymbol = elementType?.ReferencedSymbol as TypeSymbol
@@ -2609,15 +2610,12 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="SymbolReferenceExpression"/>
     /// </summary>
-    /// <param name="symbolRef"></param>
-    /// <param name="context"></param>
-    /// <returns></returns>
-    protected virtual Expression BindSymbolReference(SymbolReferenceExpression symbolRef, ExpressionContext context)
+    protected virtual Expression BindSymbolReference(ExpressionContext context, SymbolReferenceExpression symbolRef)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var referencedSymbol = GetSymbolReference(symbolRef.FullName, context);
+            var referencedSymbol = GetSymbolReference(context, symbolRef.FullName);
 
             if (referencedSymbol != null && referencedSymbol == symbolRef.ReferencedSymbol)
                 return symbolRef;
@@ -2625,7 +2623,7 @@ public class SemanticBinder
             if (referencedSymbol == null)
                 diagnostics.Add(BindingDiagnostics.UnknownName(symbolRef.FullName).WithLocation(symbolRef.Location));
 
-            var resultType = GetReferenceResultType(referencedSymbol, context) ?? context.Symbols.Object;
+            var resultType = GetReferenceResultType(context, referencedSymbol) ?? context.Symbols.Object;
 
             return new SymbolReferenceExpression(
                 symbolRef.FullName,
@@ -2643,7 +2641,7 @@ public class SemanticBinder
     /// <summary>
     /// Gets the symbol from the symbol's full name
     /// </summary>
-    protected virtual Symbol? GetSymbolReference(string fullName, ExpressionContext context)
+    protected virtual Symbol? GetSymbolReference(ExpressionContext context, string fullName)
     {
         return context.Symbols.GetSymbol<Symbol>(fullName);
     }
@@ -2651,7 +2649,7 @@ public class SemanticBinder
     /// <summary>
     /// Determines the result type of a referenced <see cref="Symbol"/>.
     /// </summary>
-    protected virtual TypeSymbol? GetReferenceResultType(Symbol? referencedSymbol, ExpressionContext context) =>
+    protected virtual TypeSymbol? GetReferenceResultType(ExpressionContext context, Symbol? referencedSymbol) =>
         referencedSymbol switch
         {
             VariableSymbol v => v.VariableType,
@@ -2673,26 +2671,26 @@ public class SemanticBinder
     /// agumenting filtering referencdd symbols by the corresponding arity
     /// and applying the specified type arguments.
     /// </summary>
-    protected virtual Expression BindTypeArguments(TypeArgumentsExpression construct, ExpressionContext context)
+    protected virtual Expression BindTypeArguments(ExpressionContext context, TypeArgumentsExpression construct)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(construct.Expression, context);
-            var typeArguments = BindExpressionList(construct.TypeArguments, context);
+            var expression = BindExpression(context, construct.Expression);
+            var typeArguments = BindExpressionList(context, construct.TypeArguments);
 
             Symbol? constructedSymbol = null;
             if (expression.ReferencedSymbol is Symbol symbol)
             {
                 var typeArgs = typeArguments
-                    .Select(ta => GetType(ta, context))
+                    .Select(ta => GetType(context, ta))
                     .OfType<TypeSymbol>()
                     .ToImmutableList();
 
-                constructedSymbol = AppyTypeArguments(symbol, typeArgs, context, construct.Location, diagnostics);
+                constructedSymbol = AppyTypeArguments(context, symbol, typeArgs, construct.Location, diagnostics);
             }
 
-            var resultType = GetReferenceResultType(constructedSymbol, context);
+            var resultType = GetReferenceResultType(context, constructedSymbol);
 
             if (expression == construct.Expression
                 && typeArguments == construct.TypeArguments
@@ -2719,9 +2717,9 @@ public class SemanticBinder
     /// Makes a constructed symbol from a generic type definition
     /// </summary>
     protected virtual Symbol? AppyTypeArguments(
+        ExpressionContext context,
         Symbol symbol,
         ImmutableList<TypeSymbol> typeArguments,
-        ExpressionContext context,
         ISourceLocation? location = null,
         List<Diagnostic>? diagnostics = null)
     {
@@ -2737,7 +2735,7 @@ public class SemanticBinder
 
             var constructedSymbols =
                 group.Symbols
-                .Select(s => AppyTypeArguments(s, typeArguments, context))
+                .Select(s => AppyTypeArguments(context, s, typeArguments))
                 .OfType<Symbol>()
                 .ToImmutableList();
 
@@ -2778,7 +2776,7 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="VariableExpression"/>
     /// </summary>
-    protected virtual Expression BindVariable(VariableExpression declaration, ExpressionContext context)
+    protected virtual Expression BindVariable(ExpressionContext context, VariableExpression declaration)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
@@ -2789,18 +2787,18 @@ public class SemanticBinder
 
             if (declaration.VariableType != null)
             {
-                variableType = BindExpression(declaration.VariableType, context.WithTargetType(null));
+                variableType = BindExpression(context.WithTargetType(null), declaration.VariableType);
                 vtype = variableType?.ReferencedSymbol as TypeSymbol ?? context.Symbols.Object;
                 if (declaration.Initializer != null)
                 {
-                    initializer = BindExpression(declaration.Initializer, context.WithTargetType(vtype));
-                    initializer = ConvertTo(initializer, vtype, context);
+                    initializer = BindExpression(context.WithTargetType(vtype), declaration.Initializer);
+                    initializer = ConvertTo(context, initializer, vtype);
                 }
             }
             else if (declaration.Initializer != null)
             {
                 // target type can carry through declaration
-                initializer = BindExpression(declaration.Initializer, context);
+                initializer = BindExpression(context, declaration.Initializer);
                 vtype = initializer.ResultType;
             }
             else
@@ -2843,7 +2841,7 @@ public class SemanticBinder
     /// <summary>
     /// Binds <see cref="VoidExpression"/>
     /// </summary>
-    protected virtual VoidExpression BindVoid(VoidExpression vex, ExpressionContext context)
+    protected virtual VoidExpression BindVoid(ExpressionContext context, VoidExpression vex)
     {
         // nothing to actually bind
         return vex;
@@ -3063,7 +3061,7 @@ public class SemanticBinder
         {
             if (!_unboundToBoundMap.TryGetValue(unboundDeclaration, out var boundDeclaration))
             {
-                var tmp = _binder.BindDeclaration(unboundDeclaration, _context);
+                var tmp = _binder.BindDeclaration(_context, unboundDeclaration);
                 boundDeclaration = ImmutableInterlocked.GetOrAdd(ref _unboundToBoundMap, unboundDeclaration, tmp);
             }
 
@@ -3115,7 +3113,6 @@ public class SemanticBinder
         }
     }
     #endregion
-
 
     #region pools
     private readonly ObjectPool<List<Symbol>> _symbolListPool =
