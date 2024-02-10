@@ -17,9 +17,13 @@ public class SymbolCache
     public TypeSymbol? _typeType;
     private TypeSymbol? _booleanType;
     private TypeSymbol? _byteType;
+    private TypeSymbol? _sbyteType;
     private TypeSymbol? _int16Type;
+    private TypeSymbol? _uint16Type;
     private TypeSymbol? _int32Type;
+    private TypeSymbol? _uint32Type;
     private TypeSymbol? _int64Type;
+    private TypeSymbol? _uint64Type;
     private TypeSymbol? _singleType;
     private TypeSymbol? _doubleType;
     private TypeSymbol? _decimalType;
@@ -107,10 +111,22 @@ public class SymbolCache
         _byteType ??= GetOrCreateType(typeof(System.Byte));
 
     /// <summary>
+    /// The <see cref="System.SByte"/> type.
+    /// </summary>
+    public TypeSymbol SByte =>
+        _sbyteType ??= GetOrCreateType(typeof(System.SByte));
+
+    /// <summary>
     /// The <see cref="System.Int16"/> type.
     /// </summary>
     public TypeSymbol Int16 => 
         _int16Type ??= GetOrCreateType(typeof(System.Int16));
+
+    /// <summary>
+    /// The <see cref="System.UInt16"/> type.
+    /// </summary>
+    public TypeSymbol UInt16 =>
+        _uint16Type ??= GetOrCreateType(typeof(System.UInt16));
 
     /// <summary>
     /// The <see cref="System.Int32"/> type.
@@ -119,10 +135,22 @@ public class SymbolCache
         _int32Type ??= GetOrCreateType(typeof(System.Int32));
 
     /// <summary>
+    /// The <see cref="System.UInt32"/> type.
+    /// </summary>
+    public TypeSymbol UInt32 =>
+        _uint32Type ??= GetOrCreateType(typeof(System.UInt32));
+
+    /// <summary>
     /// The <see cref="System.Int64"/> type.
     /// </summary>
     public TypeSymbol Int64 => 
         _int64Type ??= GetOrCreateType(typeof(System.Int64));
+
+    /// <summary>
+    /// The <see cref="System.UInt64"/> type.
+    /// </summary>
+    public TypeSymbol UInt64 =>
+        _uint64Type ??= GetOrCreateType(typeof(System.UInt64));
 
     /// <summary>
     /// The <see cref="System.Single"/> type.

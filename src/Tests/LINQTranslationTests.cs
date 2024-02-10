@@ -217,11 +217,11 @@ public class LINQTranslationTests
         TestRun(GreaterThanOrEqual(Constant(1), Constant(2)), 1 >= 2);
 
         // boolean operators
-        TestRun(And(Constant(true), Constant(false)), true & false);
-        TestRun(AndAlso(Constant(true), Constant(false)), true && false);
-        TestRun(Or(Constant(true), Constant(false)), true | false);
-        TestRun(OrElse(Constant(true), Constant(false)), true || false);
-        TestRun(Not(Constant(true)), !true);
+        TestRun(LogicalAnd(Constant(true), Constant(false)), true & false);
+        TestRun(LogicalAndAlso(Constant(true), Constant(false)), true && false);
+        TestRun(LogicalOr(Constant(true), Constant(false)), true | false);
+        TestRun(LogicalOrElse(Constant(true), Constant(false)), true || false);
+        TestRun(LogicalNot(Constant(true)), !true);
     }
 
     [TestMethod]

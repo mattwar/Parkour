@@ -4,23 +4,27 @@ using Symbols;
 public class OperatorExpression : Expression
 {
     public string Kind { get; }
-    public override Symbol? ReferencedSymbol { get; }
+    public ImmutableList<Expression> Arguments { get; }
+    public Symbol? OperatorSymbol { get; }
 
     public OperatorExpression(
         string kind, 
+        ImmutableList<Expression> arguments,
         ISourceLocation? location,
-        Symbol? referencedSymbol,
+        Symbol? operatorSymbol,
         TypeSymbol? resultType, 
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            NotNullOrDiagnosticState(referencedSymbol, diagnostics)
+            CombineState(arguments)
+            | NotNullOrDiagnosticState(operatorSymbol, diagnostics)
             | NotNullState(resultType), 
             location,
             resultType, 
             diagnostics)
     {
         this.Kind = kind;
-        this.ReferencedSymbol = referencedSymbol;
+        this.Arguments = arguments;
+        this.OperatorSymbol = operatorSymbol;
     }
 
     public override int ChildCount => 0;

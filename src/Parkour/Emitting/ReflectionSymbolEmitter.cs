@@ -1300,6 +1300,18 @@ public class ReflectionSymbolEmitter : SymbolEmitter
             _ilgen.Emit(OpCodes.Neg);
         }
 
+        public override void EmitIncrement(TypeSymbol operandType, bool isChecked)
+        {
+            EmitLoadInt32(1);
+            EmitAdd(operandType, isChecked);
+        }
+
+        public override void EmitDecrement(TypeSymbol operandType, bool isChecked)
+        {
+            EmitLoadInt32(1);
+            EmitSubtract(operandType, isChecked);
+        }
+
         public override void EmitAnd()
         {
             _ilgen.Emit(OpCodes.And);
@@ -1338,12 +1350,12 @@ public class ReflectionSymbolEmitter : SymbolEmitter
             _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Shr_Un : OpCodes.Shr);
         }
 
-        public override void EmitEquals(TypeSymbol operandTypeSymbol)
+        public override void EmitEqual(TypeSymbol operandTypeSymbol)
         {
             _ilgen.Emit(OpCodes.Ceq);
         }
 
-        public override void EmitNotEquals(TypeSymbol operandTypeSymbol)
+        public override void EmitNotEqual(TypeSymbol operandTypeSymbol)
         {
             var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             if (operandType == typeof(bool))
@@ -1379,7 +1391,7 @@ public class ReflectionSymbolEmitter : SymbolEmitter
             _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Cgt_Un : OpCodes.Cgt);
         }
 
-        public override void EmitGreaterThanOrEquals(TypeSymbol operandTypeSymbol)
+        public override void EmitGreaterThanOrEqual(TypeSymbol operandTypeSymbol)
         {
             var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? OpCodes.Clt_Un : OpCodes.Clt);

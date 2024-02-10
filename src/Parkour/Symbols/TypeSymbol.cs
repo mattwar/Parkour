@@ -183,8 +183,6 @@ public class TypeSymbol : ContainerSymbol
         }
     }
 
-    public Type? RuntimeType { get; }
-
     public override int Arity =>
         IsConstructed
             ? this.TypeArguments.Count
@@ -230,5 +228,19 @@ public class TypeSymbol : ContainerSymbol
             () => context.Substitute(this.BaseTypes),
             me => context.Substitute(this.Members),
             this.ConstructedFrom);
+    }
+
+    public bool IsSubTypeOf(TypeSymbol baseType)
+    {
+        foreach (var bt in this.BaseTypes)
+        {
+            if (bt == baseType 
+                || bt.IsSubTypeOf(baseType))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

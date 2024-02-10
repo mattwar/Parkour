@@ -208,6 +208,16 @@ public abstract class SymbolILEmitter
     public abstract void EmitNegate(TypeSymbol operandType);
 
     /// <summary>
+    /// Increments the primitive numberic value on the top of the execution stack.
+    /// </summary>
+    public abstract void EmitIncrement(TypeSymbol operandType, bool isChecked);
+
+    /// <summary>
+    /// Decrements the primitive numberic value on the top of the execution stack.
+    /// </summary>
+    public abstract void EmitDecrement(TypeSymbol operandType, bool isChecked);
+
+    /// <summary>
     /// Performs a bitwise and with the top two integer values on the execution stack.
     /// </summary>
     public abstract void EmitAnd();
@@ -240,12 +250,12 @@ public abstract class SymbolILEmitter
     /// <summary>
     /// Compares the top two values on the execution stack for equality.
     /// </summary>
-    public abstract void EmitEquals(TypeSymbol operandType);
+    public abstract void EmitEqual(TypeSymbol operandType);
 
     /// <summary>
     /// Compares the top two values on the execution stack for inequality.
     /// </summary>
-    public abstract void EmitNotEquals(TypeSymbol operandType);
+    public abstract void EmitNotEqual(TypeSymbol operandType);
 
     /// <summary>
     /// Compares the top two numeric values on the execution stack for less than.
@@ -265,7 +275,7 @@ public abstract class SymbolILEmitter
     /// <summary>
     /// Compares the top two numeric values on the execution stack for greater than or equals.
     /// </summary>
-    public abstract void EmitGreaterThanOrEquals(TypeSymbol operandType);
+    public abstract void EmitGreaterThanOrEqual(TypeSymbol operandType);
 
     /// <summary>
     /// Throw an <see cref="InvalidOperationException"/> at runtime.

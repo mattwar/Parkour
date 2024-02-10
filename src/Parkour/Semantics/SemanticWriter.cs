@@ -239,7 +239,7 @@ public class SemanticWriter
                 break;
 
             case MemberExpression member:
-                Write(member.Expression);
+                Write(member.Instance);
                 Write(".");
                 Write(member.Name);
                 break;

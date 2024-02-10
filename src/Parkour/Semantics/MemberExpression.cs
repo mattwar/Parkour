@@ -4,26 +4,26 @@ namespace Parkour.Semantics;
 
 public sealed class MemberExpression : Expression
 {
-    public Expression Expression { get; }
+    public Expression Instance { get; }
     public string Name { get; }
     public override Symbol? ReferencedSymbol { get; }
 
     public MemberExpression(
-        Expression expression,
+        Expression instance,
         string name,
         ISourceLocation? location,
         Symbol? referencedSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            State(expression)
+            State(instance)
             | NotNullOrDiagnosticState(referencedSymbol, diagnostics)
             | NotNullState(resultType),
             location,
             resultType,
             diagnostics)
     {
-        this.Expression = expression;
+        this.Instance = instance;
         this.Name = name;
         this.ReferencedSymbol = referencedSymbol;
     }
@@ -33,7 +33,7 @@ public sealed class MemberExpression : Expression
     public override SemanticElement? GetChild(int index) =>
         index switch
         {
-            0 => this.Expression,
+            0 => this.Instance,
             _ => null
         };
 }

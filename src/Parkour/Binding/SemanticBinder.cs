@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
 namespace Parkour.Binding;
-
 using Semantics;
 using Symbols;
+using System.Reflection.Metadata;
 
 /// <summary>
 /// Converts unbound declarations and expressions into bound declarations and expressions,
@@ -21,6 +21,240 @@ public class SemanticBinder
     public SemanticBinder()
     {
     }
+
+    #region BindingContext
+
+    protected abstract class BindingContext
+    {
+        /// <summary>
+        /// A cache of common symbols.
+        /// </summary>
+        public abstract SymbolCache Symbols { get; }
+
+        /// <summary>
+        /// The global namespace for all declared and external symbols
+        /// </summary>
+        public GlobalNamespaceSymbol GlobalNamespace => this.Symbols.GlobalNamespace;
+
+        /// <summary>
+        /// The current binding scope.
+        /// </summary>
+        public abstract BindingScope Scope { get; }
+
+        public abstract BindingContext WithScope(BindingScope scope);
+    }
+
+    /// <summary>
+    /// Contains useful state for binding declarations.
+    /// </summary>
+    protected abstract class DeclarationContext : BindingContext
+    {
+        public abstract bool TryGetSymbol(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol);
+        public abstract ExpressionContext ExpressionContext { get; }
+
+        public override DeclarationContext WithScope(BindingScope scope)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Contains useful state for creating symbols for declarations.
+    /// </summary>
+    protected class SymbolContext : BindingContext
+    {
+        public override SymbolCache Symbols { get; }
+        public override BindingScope Scope { get; }
+        private readonly Dictionary<Declaration, Symbol> _map;
+
+        private SymbolContext(SymbolCache symbols, BindingScope scope, Dictionary<Declaration, Symbol> map)
+        {
+            Symbols = symbols;
+            Scope = scope;
+            _map = map;
+        }
+
+        public SymbolContext(SymbolCache symbols, BindingScope scope)
+            : this(symbols, scope, new Dictionary<Declaration, Symbol>())
+        {
+        }
+
+        public override SymbolContext WithScope(BindingScope scope)
+        {
+            return new SymbolContext(this.Symbols, scope, _map);
+        }
+
+        public void Map(Declaration declaration, Symbol symbol)
+        {
+            _map.Add(declaration, symbol);
+        }
+
+        public void Map(IEnumerable<Declaration> declarations, Symbol symbol)
+        {
+            foreach (var decl in declarations)
+            {
+                Map(decl, symbol);
+            }
+        }
+
+        private DeclContext? _declContext;
+
+        public DeclarationContext DeclarationContext
+        {
+            get
+            {
+                if (_declContext == null)
+                {
+                    var tmp = new DeclContext(this.Symbols, this.Scope, _map);
+                    Interlocked.CompareExchange(ref _declContext, tmp, null);
+                }
+
+                return _declContext;
+            }
+        }
+
+        internal ImmutableDictionary<Symbol, ImmutableList<Declaration>> GetSymbolToUnboundDeclarationMap()
+        {
+            return _map
+                .GroupBy(kvp => kvp.Value)
+                .ToImmutableDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToImmutableList());
+        }
+
+        private class DeclContext : DeclarationContext
+        {
+            public override SymbolCache Symbols { get; }
+            public override BindingScope Scope { get; }
+            private readonly Dictionary<Declaration, Symbol> _map;
+
+            public DeclContext(
+                SymbolCache symbols,
+                BindingScope scope,
+                Dictionary<Declaration, Symbol> map)
+            {
+                Symbols = symbols;
+                Scope = scope;
+                _map = map;
+            }
+
+            public override DeclarationContext WithScope(BindingScope scope)
+            {
+                if (scope == this.Scope)
+                    return this;
+                return new DeclContext(this.Symbols, scope, _map);
+                throw new NotImplementedException();
+            }
+
+            public override bool TryGetSymbol(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol)
+            {
+                return _map.TryGetValue(declaration, out symbol);
+            }
+
+            private ExpressionContext? _exprContext;
+
+            public override ExpressionContext ExpressionContext
+            {
+                get
+                {
+                    if (_exprContext == null)
+                    {
+                        var tmp = new ExpressionContext(this.Symbols, this.Scope);
+                        Interlocked.CompareExchange(ref _exprContext, tmp, null);
+                    }
+
+                    return _exprContext;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Contains useful state for binding expressions.
+    /// </summary>
+    protected class ExpressionContext : BindingContext
+    {
+        /// <summary>
+        /// A cache of common symbols.
+        /// </summary>
+        public override SymbolCache Symbols { get; }
+
+        /// <summary>
+        /// The current binding scope.
+        /// </summary>
+        public override BindingScope Scope { get; }
+
+        /// <summary>
+        /// If true the binder will attempt to rebind an already bound semantic subtree.
+        /// </summary>
+        public bool Rebind { get; }
+
+        /// <summary>
+        /// The current target type available for an expression.
+        /// </summary>
+        public TypeSymbol? TargetType { get; }
+
+        private readonly Dictionary<LabelExpression, LabelSymbol> _labelToSymbolMap;
+
+        private ExpressionContext(
+            SymbolCache symbols,
+            BindingScope scope,
+            bool rebind,
+            TypeSymbol? targetType,
+            Dictionary<LabelExpression, LabelSymbol>? labelToSymbolMap)
+        {
+            this.Symbols = symbols;
+            this.Scope = scope;
+            this.Rebind = rebind;
+            this.TargetType = targetType;
+            _labelToSymbolMap = labelToSymbolMap ?? new Dictionary<LabelExpression, LabelSymbol>();
+
+        }
+
+        public ExpressionContext(SymbolCache symbols, BindingScope scope)
+            : this(symbols, scope, false, null, null)
+        {
+        }
+
+        public ExpressionContext(GlobalNamespaceSymbol globalNamespace, BindingScope scope)
+            : this(SymbolCache.From(globalNamespace), scope)
+        {
+        }
+
+        /// <summary>
+        /// Create a new instance with <see cref="Scope"/> assigned.
+        /// </summary>
+        public override ExpressionContext WithScope(BindingScope scope) =>
+            new ExpressionContext(this.Symbols, scope, this.Rebind, this.TargetType, _labelToSymbolMap);
+
+        /// <summary>
+        /// Creates a new instance with <see cref="Rebind"/> assigned.
+        /// </summary>
+        public ExpressionContext WithRebind(bool rebind) =>
+            new ExpressionContext(this.Symbols, this.Scope, this.Rebind, this.TargetType, _labelToSymbolMap);
+
+        /// <summary>
+        /// Createsa  new instance with <see cref="TargetType"/> assigned.
+        /// </summary>
+        public ExpressionContext WithTargetType(TypeSymbol? targetType) =>
+            new ExpressionContext(this.Symbols, this.Scope, this.Rebind, targetType, _labelToSymbolMap);
+
+        /// <summary>
+        /// Sets the <see cref="LabelSymbol"/> associated with its declaring <see cref="LabelExpression"/>
+        /// </summary>
+        public void SetLabelSymbol(LabelExpression label, LabelSymbol symbol)
+        {
+            _labelToSymbolMap[label] = symbol;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="LabelSymbol"/> associated to the declaring <see cref="LabelExpression"/>
+        /// </summary>
+        public LabelSymbol? GetLabelSymbol(LabelExpression label)
+        {
+            _labelToSymbolMap.TryGetValue(label, out var target);
+            return target;
+        }
+    };
+    #endregion
 
     #region Declarations
     /// <summary>
@@ -1105,7 +1339,7 @@ public class SemanticBinder
                 }
                 else
                 {
-                    var parameters = GetCallableSymbolParameters(calledSymbol);
+                    var parameters = GetSymbolParameters(calledSymbol);
                     if (parameters.Count != arguments.Count)
                     {
                         diagnostics.Add(BindingDiagnostics.IncorrectNumberOfArguments().WithLocation(location));
@@ -1151,7 +1385,7 @@ public class SemanticBinder
         switch (expression)
         {
             case MemberExpression member:
-                return member.Expression;
+                return member.Instance;
             case AdjustedReferenceExpression filter:
                 return GetCallInstance(filter.Expression);
             default:
@@ -1206,10 +1440,10 @@ public class SemanticBinder
     }
 
     /// <summary>
-    /// Get the <see cref="ParameterSymbol"/> declarations for the callable symbol
+    /// Get the parameter symbols for the symbol.
     /// </summary>
-    protected virtual ImmutableList<ParameterSymbol> GetCallableSymbolParameters(Symbol callableSymbol) =>
-        callableSymbol switch
+    protected virtual ImmutableList<ParameterSymbol> GetSymbolParameters(Symbol symbol) =>
+        symbol switch
         {
             FunctionSymbol function => function.Parameters,
             MethodSymbol method => method.Parameters,
@@ -1224,7 +1458,7 @@ public class SemanticBinder
         Symbol callableSymbol, 
         ImmutableList<Expression> arguments,
         ExpressionContext context) =>
-        MatchesParameters(GetCallableSymbolParameters(callableSymbol), arguments, context);
+        MatchesParameters(GetSymbolParameters(callableSymbol), arguments, context);
 
     /// <summary>
     /// Returns true if the set of arguments matches the parameters.
@@ -1239,25 +1473,11 @@ public class SemanticBinder
 
         for (int i = 0; i < parameters.Count; i++)
         {
-            if (!MatchesParameter(parameters[i], arguments[i], context))
+            if (GetConversion(context, arguments[i].ResultType, parameters[i].ParameterType) == ConversionKind.None)
                 return false;
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Returns true if the argument can be assigned or converted to the parameter type.
-    /// </summary>
-    protected virtual bool MatchesParameter(
-        ParameterSymbol parameter, 
-        Expression argument, 
-        ExpressionContext context)
-    {
-        return parameter.ParameterType == SpecialSymbols.Any
-            || argument.ResultType == SpecialSymbols.Unknown
-            || argument.ResultType == parameter.ParameterType
-            || HasConversion(ConversionKind.Widening, argument.ResultType, parameter.ParameterType, context);
     }
 
     /// <summary>
@@ -1370,13 +1590,13 @@ public class SemanticBinder
 
             if (convert.ConvertedType == null
                 && convert.ResultType != null
-                && IsAssignableTo(expression.ResultType, convert.ResultType, context))
+                && IsAssignableWithoutConversion(expression.ResultType, convert.ResultType, context))
             {
                 // remove unnecessary non-explicit conversion
                 return expression;
             }
 
-            TryGetConversion(convert.Kind, expression.ResultType, type, context, out var conversionSymbol, expression.Location, diagnostics);
+            _ = GetConversion(context, expression.ResultType, type, out var conversionSymbol, expression.Location, diagnostics);
 
             if (convert.Expression == expression
                 && convert.ConvertedType == convertedType
@@ -1388,7 +1608,6 @@ public class SemanticBinder
             }
 
             return new ConvertExpression(
-                convert.Kind,
                 expression,
                 convertedType,
                 convert.Location,
@@ -1416,17 +1635,16 @@ public class SemanticBinder
         // remove unnecessary conversions added by this method on prior bindings
         while (expression is ConvertExpression ce
             && ce.ConvertedType == null // added by binding
-            && IsAssignableTo(ce.Expression.ResultType, type, context))
+            && IsAssignableWithoutConversion(ce.Expression.ResultType, type, context))
         {
             expression = ce.Expression;
         }
 
-        if (IsAssignableTo(expression.ResultType, type, context))
+        if (IsAssignableWithoutConversion(expression.ResultType, type, context))
             return expression;
 
         // wrap expression with widening conversion and bind it.
         var convert = new ConvertExpression(
-            ConversionKind.Widening,
             expression,
             convertedType: null,
             expression.Location,
@@ -1438,14 +1656,24 @@ public class SemanticBinder
     }
 
     /// <summary>
+    /// Returns true if conversion is possible between the source and target type.
+    /// </summary>
+    protected virtual ConversionKind GetConversion(
+        ExpressionContext context,
+        TypeSymbol sourceType,
+        TypeSymbol targetType)
+    {
+        return GetConversion(context, sourceType, targetType, out _, null, null);
+    }
+
+    /// <summary>
     /// Determines if a conversion if possible between the two types 
     /// and returns the symbol to use to preform the conversion if one is required.
     /// </summary>
-    protected virtual bool TryGetConversion(
-        ConversionKind kind,
+    protected virtual ConversionKind GetConversion(
+        ExpressionContext context,
         TypeSymbol sourceType,
         TypeSymbol? targetType,
-        ExpressionContext context,
         out Symbol? conversionSymbol,
         ISourceLocation? location,
         List<Diagnostic>? diagnostics)
@@ -1457,25 +1685,30 @@ public class SemanticBinder
             {
                 diagnostics?.Add(BindingDiagnostics.CannotConvert(sourceType, SpecialSymbols.Unknown).WithLocation(location));
                 conversionSymbol = null;
-                return false;
+                return ConversionKind.None;
             }
-            else if (HasIntrinsicConversion(kind, sourceType, targetType, context))
+            else if (GetIntrinsicConversion(context, sourceType, targetType) is ConversionKind intrinsicConversion
+                && intrinsicConversion != ConversionKind.None)
             {
                 conversionSymbol = null;
-                return true;
+                return intrinsicConversion;
             }
             else
             {
-                GetConversionOperatorCandidates(kind, sourceType, targetType, context, candidates);
-                conversionSymbol = GetBestConversionOperator(sourceType, targetType, context, candidates);
+                GetConversionOperatorCandidates(sourceType, targetType, context, candidates);
+                conversionSymbol = GetBestConversionOperator(context, sourceType, targetType, candidates);
 
                 if (conversionSymbol == null)
                 {
                     diagnostics?.Add(BindingDiagnostics.CannotConvert(sourceType, targetType ?? SpecialSymbols.Unknown).WithLocation(location));
-                    return false;
+                    return ConversionKind.None;
                 }
-
-                return true;
+                else
+                {
+                    return conversionSymbol.Name == "op_Implicit"
+                        ? ConversionKind.CustomImplicit
+                        : ConversionKind.CustomExplicit;
+                }
             }
         }
         finally
@@ -1485,53 +1718,45 @@ public class SemanticBinder
     }
 
     /// <summary>
-    /// Returns true if conversion is possible between the source and target type.
+    /// Determines if the conversion can be done through intrinsic means (not a custom conversion).
     /// </summary>
-    protected virtual bool HasConversion(
-        ConversionKind kind, 
+    protected virtual ConversionKind GetIntrinsicConversion(
+        ExpressionContext context,
         TypeSymbol sourceType, 
-        TypeSymbol targetType,
-        ExpressionContext context)
+        TypeSymbol targetType)
     {
-        return TryGetConversion(kind, sourceType, targetType, context, out _, null, null);
-    }
+        if (sourceType == targetType)
+            return ConversionKind.SameType;
 
-    /// <summary>
-    /// Determines if the conversion can be done through intrinsic means (not custom conversion).
-    /// </summary>
-    protected virtual bool HasIntrinsicConversion(
-        ConversionKind kind, 
-        TypeSymbol sourceType, 
-        TypeSymbol targetType,
-        ExpressionContext context)
-    {
-        if (IsAssignableTo(sourceType, targetType, context))
-            return true;
+        if (sourceType == SpecialSymbols.DoesNotReturn)
+            return ConversionKind.DoesNotReturn;
 
-        if (CanDownCast(sourceType, targetType, context))
-            return true;
+        if (targetType == SpecialSymbols.Any)
+            return ConversionKind.Any;
 
-        if (kind == ConversionKind.Narrowing)
-        {
-            return IsAssignableTo(targetType, sourceType, context)
-                || CanUpCast(sourceType, targetType, context);
-        }
+        if (targetType == SpecialSymbols.Unknown)
+            return ConversionKind.Unknown;
 
-        return sourceType == targetType
-            || CanWiden(sourceType, targetType, context);
+        if (CanDownCast(context, sourceType, targetType))
+            return ConversionKind.BaseType;
+
+        if (CanWiden(context, sourceType, targetType))
+            return ConversionKind.Widening;
+
+        return ConversionKind.None;
     }
 
     /// <summary>
     /// Returns true if the source type can be down cast to the target type.
     /// </summary>
-    protected virtual bool CanDownCast(TypeSymbol source, TypeSymbol target, ExpressionContext context)
+    protected virtual bool CanDownCast(ExpressionContext context, TypeSymbol source, TypeSymbol target)
     {
         if (source == target)
             return true;
 
         foreach (var sbt in source.BaseTypes)
         {
-            if (CanDownCast(sbt, target, context))
+            if (CanDownCast(context, sbt, target))
                 return true;
         }
 
@@ -1541,14 +1766,14 @@ public class SemanticBinder
     /// <summary>
     /// Returns true if it is possible to upcast the source type to the target type.
     /// </summary>
-    protected virtual bool CanUpCast(TypeSymbol source, TypeSymbol target, ExpressionContext context)
+    protected virtual bool CanUpCast(ExpressionContext context, TypeSymbol source, TypeSymbol target)
     {
         if (target == source)
             return true;
 
         foreach (var tbt in target.BaseTypes)
         {
-            if (CanUpCast(source, tbt, context))
+            if (CanUpCast(context, source, tbt))
                 return true;
         }
 
@@ -1558,7 +1783,7 @@ public class SemanticBinder
     /// <summary>
     /// Returns true if the source type can be widened to the target type; like int to long.
     /// </summary>
-    protected virtual bool CanWiden(TypeSymbol source, TypeSymbol target, ExpressionContext context)
+    protected virtual bool CanWiden(ExpressionContext context, TypeSymbol source, TypeSymbol target)
     {
         if (target == context.Symbols.Int64)
         {
@@ -1578,15 +1803,15 @@ public class SemanticBinder
         else if (target == context.Symbols.Double)
         {
             return source == context.Symbols.Single
-                || CanWiden(source, context.Symbols.Int64, context);
+                || CanWiden(context, source, context.Symbols.Int64);
         }
         else if (target == context.Symbols.Single)
         {
-            return CanWiden(source, context.Symbols.Int64, context);
+            return CanWiden(context, source, context.Symbols.Int64);
         }
         else if (target == context.Symbols.Decimal)
         {
-            return CanWiden(source, context.Symbols.Double, context);
+            return CanWiden(context, source, context.Symbols.Double);
         }
         return false;
     }
@@ -1594,7 +1819,7 @@ public class SemanticBinder
     /// <summary>
     /// Returns true if the source type is assignable to the target type without conversion.
     /// </summary>
-    protected virtual bool IsAssignableTo(TypeSymbol sourceType, TypeSymbol targetType, ExpressionContext context)
+    protected virtual bool IsAssignableWithoutConversion(TypeSymbol sourceType, TypeSymbol targetType, ExpressionContext context)
     {
         if (sourceType == targetType)
             return true;
@@ -1605,12 +1830,7 @@ public class SemanticBinder
         if (targetType == SpecialSymbols.Any)
             return true;
 
-        if (sourceType.RuntimeType != null
-            && targetType.RuntimeType != null
-            && sourceType.RuntimeType.IsAssignableTo(targetType.RuntimeType))
-            return true;
-
-        if (CanDownCast(sourceType, targetType, context))
+        if (CanDownCast(context, sourceType, targetType))
             return true;
 
         return false;
@@ -1620,19 +1840,19 @@ public class SemanticBinder
     /// Gets all candidates for custom conversion
     /// </summary>
     protected virtual void GetConversionOperatorCandidates(
-        ConversionKind kind, 
         TypeSymbol source, 
         TypeSymbol target, 
         ExpressionContext context,
-        List<Symbol> operators)
+        List<Symbol> operators,
+        bool includeExplicit = false)
     {
-        GetMatchingTypeMembers(source, "op_Implicit", s => IsMatchingConversionOperator(s, kind, source, target, context), operators);
-        GetMatchingTypeMembers(target, "op_Implicit", s => IsMatchingConversionOperator(s, kind, source, target, context), operators);
+        GetMatchingTypeMembers(source, "op_Implicit", s => IsMatchingConversionOperator(context, s, target, source), operators);
+        GetMatchingTypeMembers(target, "op_Implicit", s => IsMatchingConversionOperator(context, s, target, source), operators);
 
-        if (kind == ConversionKind.Narrowing)
+        if (includeExplicit)
         {
-            GetMatchingTypeMembers(source, "op_Explicit", s => IsMatchingConversionOperator(s, kind, source, target, context), operators);
-            GetMatchingTypeMembers(target, "op_Explicit", s => IsMatchingConversionOperator(s, kind, source, target, context), operators);
+            GetMatchingTypeMembers(source, "op_Explicit", s => IsMatchingConversionOperator(context, s, target, source), operators);
+            GetMatchingTypeMembers(target, "op_Explicit", s => IsMatchingConversionOperator(context, s, target, source), operators);
         }
     }
 
@@ -1640,23 +1860,22 @@ public class SemanticBinder
     /// Returns true if the custom conversion symbol can perform a conversion between the source type and the target type.
     /// </summary>
     protected virtual bool IsMatchingConversionOperator(
+        ExpressionContext context,
         Symbol conversionSymbol,
-        ConversionKind kind,
         TypeSymbol source,
-        TypeSymbol target,
-        ExpressionContext context)
+        TypeSymbol target)
     {
         return conversionSymbol switch
         {
             FunctionSymbol function =>
                 function.ReturnType == target
                 && function.Parameters.Count == 1
-                && HasConversion(ConversionKind.Widening, source, function.Parameters[0].ParameterType, context),
+                && GetConversion(context, source, function.Parameters[0].ParameterType) != ConversionKind.None,
             MethodSymbol method =>
                 method.IsStatic
                 && method.ReturnType == target
                 && method.Parameters.Count == 1
-                && HasConversion(ConversionKind.Widening, source, method.Parameters[0].ParameterType, context),
+                && GetConversion(context, source, method.Parameters[0].ParameterType) != ConversionKind.None,
             _ => false
         };
     }
@@ -1665,9 +1884,9 @@ public class SemanticBinder
     /// Determines the best custom conversion symbol from a set of candidate conversion symbols.
     /// </summary>
     protected virtual Symbol? GetBestConversionOperator(
-        TypeSymbol sourceType, 
-        TypeSymbol targetType, 
         ExpressionContext context,
+        TypeSymbol sourceType,
+        TypeSymbol targetType,
         IReadOnlyList<Symbol> candidates)
     {
         // todo: do better
@@ -1947,38 +2166,120 @@ public class SemanticBinder
     protected virtual Expression BindOperator(OperatorExpression opex, ExpressionContext context)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
+        var candidates = _symbolListPool.AllocateFromPool();
         try
         {
-            var ops = GetOperators(opex.Kind, context);
-            var referencedSymbol = context.Symbols.GetGroup(ops);
+            var arguments = BindExpressionList(opex.Arguments, context);
 
-            if (referencedSymbol != null && referencedSymbol == opex.ReferencedSymbol)
+            GetCandidateOperators(context, opex.Kind, arguments, candidates);
+
+            Symbol? operatorSymbol = null;
+
+            if (candidates.Count == 0)
+            {
+                diagnostics.Add(BindingDiagnostics.NoOperatorDefined().WithLocation(opex.Location));
+            }
+            else
+            {
+                operatorSymbol = GetBestOperatorCandidate(context, arguments, candidates);
+                if (operatorSymbol == null)
+                {
+                    diagnostics.Add(BindingDiagnostics.OperatorIsAmbiguous().WithLocation(opex.Location));
+                }
+                else
+                {
+                    var parameters = GetSymbolParameters(operatorSymbol);
+                    if (parameters.Count != arguments.Count)
+                    {
+                        diagnostics.Add(BindingDiagnostics.IncorrectNumberOfOperands().WithLocation(opex.Location));
+                    }
+                    else
+                    {
+                        arguments = ConvertArguments(parameters, arguments, context);
+                    }
+                }
+            }
+
+            var resultType = operatorSymbol != null
+                ? GetCalledSymbolReturnType(operatorSymbol)
+                : null;
+
+            if (arguments == opex.Arguments
+                && operatorSymbol == opex.OperatorSymbol
+                && resultType == opex.ResultType
+                && diagnostics.Count == 0)
                 return opex;
-
-            if (referencedSymbol == null)
-                diagnostics.Add(BindingDiagnostics.UnknownOperator(opex.Kind).WithLocation(opex.Location));
-
-            var resultType = GetReferenceResultType(referencedSymbol, context) ?? context.Symbols.Object;
 
             return new OperatorExpression(
                 opex.Kind,
+                arguments,
                 opex.Location,
-                referencedSymbol,
+                operatorSymbol,
                 resultType,
                 diagnostics.ToImmutableList());
         }
         finally
         {
             _diagnosticListPool.ReturnToPool(diagnostics);
+            _symbolListPool.ReturnToPool(candidates);
         }
     }
 
-    protected virtual ImmutableList<OperatorSymbol> GetOperators(string operatorKind, ExpressionContext context)
+    protected virtual void GetCandidateOperators(ExpressionContext context, string operatorKind, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
-        var operators = Operators.From(context.Symbols);
-        return operators.GetOperators(operatorKind);
+        // 
+        var ops = Operators.From(context.Symbols);
+        candidates.AddRange(ops.GetIntrinsicOperators(operatorKind));
+
+        var opName = GetOperatorName(operatorKind);
+        foreach (var arg in arguments)
+        {
+            GetMatchingTypeMembers(arg.ResultType, opName, s => s is MemberSymbol ms && ms.IsStatic, candidates);
+        }
     }
-    #endregion
+
+    protected virtual Symbol? GetBestOperatorCandidate(ExpressionContext context, ImmutableList<Expression> arguments, List<Symbol> candidates)
+    {
+        // todo: be better
+        return candidates.FirstOrDefault(c => MatchesParameters(c, arguments, context));
+    }
+
+    private static string? GetOperatorName(string opKind)
+    {
+        return opKind switch
+        {
+            OperatorKind.Add => "op_Addition",
+            OperatorKind.Subtract => "op_Subtraction",
+            OperatorKind.Multiply => "op_Multiply",
+            OperatorKind.Divide => "op_Division",
+            OperatorKind.Remainder => "op_Modulus",
+            OperatorKind.Negate => "op_Negation",
+            OperatorKind.UnaryPlus => "op_UnaryPlus",
+            OperatorKind.ShiftLeft => "op_ShiftLeft",
+            OperatorKind.ShiftRight => "op_ShiftRight",
+            OperatorKind.BitwiseAnd => "op_BitwiseAnd",
+            OperatorKind.BitwiseOr => "op_BitwiseOr",
+            OperatorKind.BitwiseXor => "op_ExclusiveOr",
+            OperatorKind.BitwiseNot => "op_OnesCompliment",
+            OperatorKind.LogicalAnd => "op_BitwiseAnd",
+            OperatorKind.LogicalOr => "op_BitwiseOr",
+            OperatorKind.LogicalNot => "op_LogicalNot",
+            OperatorKind.LogicalXor => "op_ExclusiveOr",
+            OperatorKind.Equal => "op_Equality",
+            OperatorKind.NotEqual => "op_Inequality",
+            OperatorKind.LessThan => "op_LessThan",
+            OperatorKind.LessThanOrEqual => "op_LessThanOrEqual",
+            OperatorKind.GreaterThan => "op_GreaterThan",
+            OperatorKind.GreaterThanOrEqual => "op_GreaterThanOrEqual",
+            OperatorKind.True => "op_True",
+            OperatorKind.False => "op_False",
+            OperatorKind.Increment => "op_Increment",
+            OperatorKind.Decrement => "op_Decrement",
+            _ => null
+        };
+    }
+
+#endregion
 
     #region Member Expression
     /// <summary>
@@ -1989,7 +2290,7 @@ public class SemanticBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(member.Expression, context.WithTargetType(null));
+            var expression = BindExpression(member.Instance, context.WithTargetType(null));
 
             if (expression.ResultType is GroupSymbol)
                 diagnostics.Add(BindingDiagnostics.UnknownName(member.Name).WithLocation(member.Location));
@@ -1998,7 +2299,7 @@ public class SemanticBinder
 
             var resultType = GetReferenceResultType(referencedSymbol, context);
 
-            if (member.Expression == expression
+            if (member.Instance == expression
                 && member.ReferencedSymbol == referencedSymbol
                 && member.ResultType == resultType
                 && diagnostics.Count == 0)
@@ -2549,7 +2850,7 @@ public class SemanticBinder
     }
     #endregion
 
-    #endregion
+#endregion
 
     #region Misc
     /// <summary>
@@ -2672,8 +2973,8 @@ public class SemanticBinder
             }
 
             // if type cannot be assigned to best
-            if (!HasConversion(ConversionKind.Widening, type, best, context)
-                && HasConversion(ConversionKind.Widening, best, type, context))
+            if (GetConversion(context, type, best) == ConversionKind.None
+                && GetConversion(context, best, type) != ConversionKind.None)
             {
                 return true;
             }
@@ -2815,239 +3116,6 @@ public class SemanticBinder
     }
     #endregion
 
-    #region BindingContext
-
-    protected abstract class BindingContext
-    {
-        /// <summary>
-        /// A cache of common symbols.
-        /// </summary>
-        public abstract SymbolCache Symbols { get; }
-
-        /// <summary>
-        /// The global namespace for all declared and external symbols
-        /// </summary>
-        public GlobalNamespaceSymbol GlobalNamespace => this.Symbols.GlobalNamespace;
-
-        /// <summary>
-        /// The current binding scope.
-        /// </summary>
-        public abstract BindingScope Scope { get; }
-
-        public abstract BindingContext WithScope(BindingScope scope);
-    }
-
-    /// <summary>
-    /// Contains useful state for binding declarations.
-    /// </summary>
-    protected abstract class DeclarationContext : BindingContext
-    {
-        public abstract bool TryGetSymbol(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol);
-        public abstract ExpressionContext ExpressionContext { get; }
-
-        public override DeclarationContext WithScope(BindingScope scope)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    /// <summary>
-    /// Contains useful state for creating symbols for declarations.
-    /// </summary>
-    protected class SymbolContext : BindingContext
-    {
-        public override SymbolCache Symbols { get; }
-        public override BindingScope Scope { get; }
-        private readonly Dictionary<Declaration, Symbol> _map;
-
-        private SymbolContext(SymbolCache symbols, BindingScope scope, Dictionary<Declaration, Symbol> map)
-        {
-            Symbols = symbols;
-            Scope = scope;
-            _map = map;
-        }
-
-        public SymbolContext(SymbolCache symbols, BindingScope scope)
-            : this(symbols, scope, new Dictionary<Declaration, Symbol>())
-        {
-        }
-
-        public override SymbolContext WithScope(BindingScope scope)
-        {
-            return new SymbolContext(this.Symbols, scope, _map);
-        }
-
-        public void Map(Declaration declaration, Symbol symbol)
-        {
-            _map.Add(declaration, symbol);
-        }
-
-        public void Map(IEnumerable<Declaration> declarations, Symbol symbol)
-        {
-            foreach (var decl in declarations)
-            {
-                Map(decl, symbol);
-            }
-        }
-
-        private DeclContext? _declContext;
-
-        public DeclarationContext DeclarationContext
-        {
-            get
-            {
-                if (_declContext == null)
-                {
-                    var tmp = new DeclContext(this.Symbols, this.Scope, _map);
-                    Interlocked.CompareExchange(ref _declContext, tmp, null);
-                }
-
-                return _declContext;
-            }
-        }
-
-        internal ImmutableDictionary<Symbol, ImmutableList<Declaration>> GetSymbolToUnboundDeclarationMap()
-        {
-            return _map
-                .GroupBy(kvp => kvp.Value)
-                .ToImmutableDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToImmutableList());
-        }
-
-        private class DeclContext : DeclarationContext
-        {
-            public override SymbolCache Symbols { get; }
-            public override BindingScope Scope { get; }
-            private readonly Dictionary<Declaration, Symbol> _map;
-
-            public DeclContext(
-                SymbolCache symbols, 
-                BindingScope scope, 
-                Dictionary<Declaration, Symbol> map)
-            {
-                Symbols = symbols;
-                Scope = scope;
-                _map = map;
-            }
-
-            public override DeclarationContext WithScope(BindingScope scope)
-            {
-                if (scope == this.Scope)
-                    return this;
-                return new DeclContext(this.Symbols, scope, _map);
-                throw new NotImplementedException();
-            }
-
-            public override bool TryGetSymbol(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol)
-            {
-                return _map.TryGetValue(declaration, out symbol);
-            }
-
-            private ExpressionContext? _exprContext;
-
-            public override ExpressionContext ExpressionContext
-            {
-                get
-                {
-                    if (_exprContext == null)
-                    {
-                        var tmp = new ExpressionContext(this.Symbols, this.Scope);
-                        Interlocked.CompareExchange(ref _exprContext, tmp, null);
-                    }
-
-                    return _exprContext;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Contains useful state for binding expressions.
-    /// </summary>
-    protected class ExpressionContext : BindingContext
-    {
-        /// <summary>
-        /// A cache of common symbols.
-        /// </summary>
-        public override SymbolCache Symbols { get; }
-
-        /// <summary>
-        /// The current binding scope.
-        /// </summary>
-        public override BindingScope Scope { get; }
-
-        /// <summary>
-        /// If true the binder will attempt to rebind an already bound semantic subtree.
-        /// </summary>
-        public bool Rebind { get; }
-
-        /// <summary>
-        /// The current target type available for an expression.
-        /// </summary>
-        public TypeSymbol? TargetType { get; }
-
-        private readonly Dictionary<LabelExpression, LabelSymbol> _labelToSymbolMap;
-
-        private ExpressionContext(
-            SymbolCache symbols,
-            BindingScope scope,
-            bool rebind,
-            TypeSymbol? targetType,
-            Dictionary<LabelExpression, LabelSymbol>? labelToSymbolMap)
-        {
-            this.Symbols = symbols;
-            this.Scope = scope;
-            this.Rebind = rebind;
-            this.TargetType = targetType;
-            _labelToSymbolMap = labelToSymbolMap ?? new Dictionary<LabelExpression, LabelSymbol>();
-
-        }
-
-        public ExpressionContext(SymbolCache symbols, BindingScope scope)
-            : this(symbols, scope, false, null, null)
-        {
-        }
-
-        public ExpressionContext(GlobalNamespaceSymbol globalNamespace, BindingScope scope)
-            : this(SymbolCache.From(globalNamespace), scope)
-        {
-        }
-
-        /// <summary>
-        /// Create a new instance with <see cref="Scope"/> assigned.
-        /// </summary>
-        public override ExpressionContext WithScope(BindingScope scope) =>
-            new ExpressionContext(this.Symbols, scope, this.Rebind, this.TargetType, _labelToSymbolMap);
-
-        /// <summary>
-        /// Creates a new instance with <see cref="Rebind"/> assigned.
-        /// </summary>
-        public ExpressionContext WithRebind(bool rebind) =>
-            new ExpressionContext(this.Symbols, this.Scope, this.Rebind, this.TargetType, _labelToSymbolMap);
-
-        /// <summary>
-        /// Createsa  new instance with <see cref="TargetType"/> assigned.
-        /// </summary>
-        public ExpressionContext WithTargetType(TypeSymbol? targetType) =>
-            new ExpressionContext(this.Symbols, this.Scope, this.Rebind, targetType, _labelToSymbolMap);
-
-        /// <summary>
-        /// Sets the <see cref="LabelSymbol"/> associated with its declaring <see cref="LabelExpression"/>
-        /// </summary>
-        public void SetLabelSymbol(LabelExpression label, LabelSymbol symbol)
-        {
-            _labelToSymbolMap[label] = symbol;
-        }
-
-        /// <summary>
-        /// Gets the <see cref="LabelSymbol"/> associated to the declaring <see cref="LabelExpression"/>
-        /// </summary>
-        public LabelSymbol? GetLabelSymbol(LabelExpression label)
-        {
-            _labelToSymbolMap.TryGetValue(label, out var target);
-            return target;
-        }
-    };
-    #endregion
 
     #region pools
     private readonly ObjectPool<List<Symbol>> _symbolListPool =

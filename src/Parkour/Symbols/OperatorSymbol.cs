@@ -2,19 +2,17 @@
 
 public class OperatorSymbol : FunctionSymbol
 {
-    public string Kind { get; }
+    public string Kind => this.Name;
 
     public OperatorSymbol(
-        string name, 
         string kind, 
         Func<FunctionSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
         Func<TypeSymbol> fnReturnType)
         : base(
-            name,
+            kind,
             null,
             fnParameters,
             fnReturnType)
     {
-        this.Kind = kind;
     }
 }

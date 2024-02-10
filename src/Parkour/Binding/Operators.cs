@@ -20,25 +20,26 @@ public sealed class Operators
 
     private readonly Dictionary<string, ImmutableList<OperatorSymbol>> _kindToOperators;
 
-    public ImmutableList<OperatorSymbol> GetOperators(string kind) =>
-        _kindToOperators.TryGetValue(kind, out var intrinsics)
+    /// <summary>
+    /// Gets the instrinsic operators supported by the runtime.
+    /// </summary>
+    public ImmutableList<OperatorSymbol> GetIntrinsicOperators(string operatorKind) =>
+        _kindToOperators.TryGetValue(operatorKind, out var intrinsics)
             ? intrinsics
             : ImmutableList<OperatorSymbol>.Empty;
 
-    public static OperatorSymbol UnaryOp(string name, string kind, TypeSymbol operandType, TypeSymbol resultType) =>
+    public static OperatorSymbol UnaryOp(string kind, TypeSymbol operandType, TypeSymbol resultType) =>
         new OperatorSymbol(
-            name, 
-            kind, 
+            kind,
             me => ImmutableList.Create(new ParameterSymbol("operand", me, operandType)),
             () => resultType
             );
 
-    public static OperatorSymbol UnaryOp(string name, string kind, TypeSymbol operand) =>
-        UnaryOp(name, kind, operand, operand);
+    public static OperatorSymbol UnaryOp(string kind, TypeSymbol operand) =>
+        UnaryOp(kind, operand, operand);
 
-    public static OperatorSymbol BinaryOp(string name, string kind, TypeSymbol leftType, TypeSymbol rightType, TypeSymbol resultType) =>
+    public static OperatorSymbol BinaryOp(string kind, TypeSymbol leftType, TypeSymbol rightType, TypeSymbol resultType) =>
         new OperatorSymbol(
-            name,
             kind,
             me => ImmutableList.Create(
                 new ParameterSymbol("left", me, leftType),
@@ -47,153 +48,238 @@ public sealed class Operators
             () => resultType
             );
 
-    public static OperatorSymbol BinaryOp(string name, string kind, TypeSymbol argsType, TypeSymbol resultType) =>
-        BinaryOp(name, kind, argsType, argsType, resultType);
+    public static OperatorSymbol BinaryOp(string kind, TypeSymbol argsType, TypeSymbol resultType) =>
+        BinaryOp(kind, argsType, argsType, resultType);
 
-    public static OperatorSymbol BinaryOp(string name, string kind, TypeSymbol type) =>
-        BinaryOp(name, kind, type, type, type);
-
-    // Int32 operators
-    public OperatorSymbol AddInt32 { get; }
-    public OperatorSymbol SubtractInt32 { get; }
-    public OperatorSymbol MultiplyInt32 { get; }
-    public OperatorSymbol DivideInt32 { get; }
-    public OperatorSymbol RemainderInt32 { get; }
-    public OperatorSymbol NegateInt32 { get; }
-    public OperatorSymbol BitwiseAndInt32 { get; }
-    public OperatorSymbol BitwiseOrInt32 { get; }
-    public OperatorSymbol BitwiseXorInt32 { get; }
-    public OperatorSymbol BitwiseNotInt32 { get; }
-    public OperatorSymbol ShiftLeftInt32 { get; }
-    public OperatorSymbol ShiftRightInt32 { get; }
-    public OperatorSymbol EqualInt32 { get; }
-    public OperatorSymbol NotEqualInt32 { get; }
-    public OperatorSymbol LessThanInt32 { get; }
-    public OperatorSymbol LessThanOrEqualInt32 { get; }
-    public OperatorSymbol GreaterThanInt32 { get; }
-    public OperatorSymbol GreaterThanOrEqualInt32 { get; }
-
-    // string operators
-    public OperatorSymbol ConcatString { get; }
-    public OperatorSymbol EqualString { get; }
-    public OperatorSymbol NotEqualString { get; }
-    public OperatorSymbol LessThanString { get; }
-    public OperatorSymbol LessThanOrEqualString { get; }
-    public OperatorSymbol GreaterThanString { get; }
-    public OperatorSymbol GreaterThanOrEqualString { get; }
-
-    // boolean logical operators
-    public OperatorSymbol LogicalNotBoolean { get; }
-    public OperatorSymbol LogicalAndBoolean { get; }
-    public OperatorSymbol LogicalAndAlsoBoolean { get; }
-    public OperatorSymbol LogicalOrElseBoolean { get; }
-    public OperatorSymbol LogicalOrBoolean { get; }
+    public static OperatorSymbol BinaryOp(string kind, TypeSymbol type) =>
+        BinaryOp(kind, type, type, type);
 
     private Operators(SymbolCache symbols)
     {
-        this.AddInt32 = BinaryOp(nameof(AddInt32), OperatorKind.Add, symbols.Int32);
-        this.SubtractInt32 = BinaryOp(nameof(SubtractInt32), OperatorKind.Subtract, symbols.Int32);
-        this.MultiplyInt32 = BinaryOp(nameof(MultiplyInt32), OperatorKind.Multiply, symbols.Int32);
-        this.DivideInt32 = BinaryOp(nameof(DivideInt32), OperatorKind.Divide, symbols.Int32);
-        this.RemainderInt32 = BinaryOp(nameof(RemainderInt32), OperatorKind.Remainder, symbols.Int32);
-        this.NegateInt32 = UnaryOp(nameof(NegateInt32), OperatorKind.Negate, symbols.Int32);
-        this.BitwiseAndInt32 = BinaryOp(nameof(BitwiseAndInt32), OperatorKind.BitwiseAnd, symbols.Int32);
-        this.BitwiseOrInt32 = BinaryOp(nameof(BitwiseOrInt32), OperatorKind.BitwiseOr, symbols.Int32);
-        this.BitwiseXorInt32 = BinaryOp(nameof(BitwiseXorInt32), OperatorKind.BitwiseXor, symbols.Int32);
-        this.BitwiseNotInt32 = UnaryOp(nameof(BitwiseNotInt32), OperatorKind.BitwiseNot, symbols.Int32);
-        this.ShiftLeftInt32 = BinaryOp(nameof(ShiftLeftInt32), OperatorKind.ShiftLeft, symbols.Int32);
-        this.ShiftRightInt32 = BinaryOp(nameof(ShiftRightInt32), OperatorKind.ShiftRight, symbols.Int32);
-        this.EqualInt32 = BinaryOp(nameof(EqualInt32), OperatorKind.Equal, symbols.Int32, symbols.Boolean);
-        this.NotEqualInt32 = BinaryOp(nameof(NotEqualInt32), OperatorKind.NotEqual, symbols.Int32, symbols.Boolean);
-        this.LessThanInt32 = BinaryOp(nameof(LessThanInt32), OperatorKind.LessThan, symbols.Int32, symbols.Boolean);
-        this.LessThanOrEqualInt32 = BinaryOp(nameof(LessThanOrEqualInt32), OperatorKind.LessThanOrEqual, symbols.Int32, symbols.Boolean);
-        this.GreaterThanInt32 = BinaryOp(nameof(GreaterThanInt32), OperatorKind.GreaterThan, symbols.Int32, symbols.Boolean);
-        this.GreaterThanOrEqualInt32 = BinaryOp(nameof(GreaterThanOrEqualInt32), OperatorKind.GreaterThanOrEqual, symbols.Int32, symbols.Boolean);
-
-        // string operators
-        this.ConcatString = BinaryOp(nameof(ConcatString), OperatorKind.Add, symbols.String);
-        this.EqualString = BinaryOp(nameof(EqualString), OperatorKind.Equal, symbols.String, symbols.Boolean);
-        this.NotEqualString = BinaryOp(nameof(NotEqualString), OperatorKind.NotEqual, symbols.String, symbols.Boolean);;
-        this.LessThanString = BinaryOp(nameof(LessThanString), OperatorKind.LessThan, symbols.String, symbols.Boolean);
-        this.LessThanOrEqualString = BinaryOp(nameof(LessThanOrEqualString), OperatorKind.LessThanOrEqual, symbols.String, symbols.Boolean);
-        this.GreaterThanString = BinaryOp(nameof(GreaterThanString), OperatorKind.GreaterThan, symbols.String, symbols.Boolean);
-        this.GreaterThanOrEqualString = BinaryOp(nameof(GreaterThanOrEqualString), OperatorKind.GreaterThanOrEqual, symbols.String, symbols.Boolean);
-
-        // boolean logical operators
-        this.LogicalNotBoolean = UnaryOp(nameof(LogicalNotBoolean), OperatorKind.LogicalNot, symbols.Boolean);
-        this.LogicalAndBoolean = BinaryOp(nameof(LogicalAndBoolean), OperatorKind.LogicalAnd, symbols.Boolean);
-        this.LogicalAndAlsoBoolean = BinaryOp(nameof(LogicalAndAlsoBoolean), OperatorKind.LogicalAndAlso, symbols.Boolean);
-        this.LogicalOrElseBoolean = BinaryOp(nameof(LogicalOrElseBoolean), OperatorKind.LogicalOrElse, symbols.Boolean);
-        this.LogicalOrBoolean = BinaryOp(nameof(LogicalOrBoolean), OperatorKind.LogicalOr, symbols.Boolean);
-
         // operator intrinsics
         _kindToOperators = new Dictionary<string, ImmutableList<OperatorSymbol>>
         {
-            { OperatorKind.Add, ImmutableList.Create(
-                this.AddInt32,
-                this.ConcatString) },
+            { OperatorKind.Add,
+                [
+                    BinaryOp(OperatorKind.Add, symbols.Int32),
+                    BinaryOp(OperatorKind.Add, symbols.UInt32),
+                    BinaryOp(OperatorKind.Add, symbols.Int64),
+                    BinaryOp(OperatorKind.Add, symbols.UInt64),
+                    BinaryOp(OperatorKind.Add, symbols.Single),
+                    BinaryOp(OperatorKind.Add, symbols.Double),
+                    BinaryOp(OperatorKind.Add, symbols.Decimal),
+                ] },
 
-            { OperatorKind.Subtract, ImmutableList.Create(
-                this.SubtractInt32) },
+            { OperatorKind.Subtract,
+                [
+                    BinaryOp(OperatorKind.Subtract, symbols.Int32),
+                    BinaryOp(OperatorKind.Subtract, symbols.UInt32),
+                    BinaryOp(OperatorKind.Subtract, symbols.Int64),
+                    BinaryOp(OperatorKind.Subtract, symbols.UInt64),
+                    BinaryOp(OperatorKind.Subtract, symbols.Single),
+                    BinaryOp(OperatorKind.Subtract, symbols.Double),
+                    BinaryOp(OperatorKind.Subtract, symbols.Decimal),
+                ] },
 
-            { OperatorKind.Multiply, ImmutableList.Create(
-                this.MultiplyInt32) },
+            { OperatorKind.Multiply,
+                [
+                    BinaryOp(OperatorKind.Multiply, symbols.Int32),
+                    BinaryOp(OperatorKind.Multiply, symbols.UInt32),
+                    BinaryOp(OperatorKind.Multiply, symbols.Int64),
+                    BinaryOp(OperatorKind.Multiply, symbols.UInt64),
+                    BinaryOp(OperatorKind.Multiply, symbols.Single),
+                    BinaryOp(OperatorKind.Multiply, symbols.Double),
+                    BinaryOp(OperatorKind.Multiply, symbols.Decimal),
+                ] },
 
-            { OperatorKind.Divide, ImmutableList.Create(
-                this.DivideInt32) },
+            { OperatorKind.Divide,
+                [
+                    BinaryOp(OperatorKind.Divide, symbols.Int32),
+                    BinaryOp(OperatorKind.Divide, symbols.UInt32),
+                    BinaryOp(OperatorKind.Divide, symbols.Int64),
+                    BinaryOp(OperatorKind.Divide, symbols.UInt64),
+                    BinaryOp(OperatorKind.Divide, symbols.Single),
+                    BinaryOp(OperatorKind.Divide, symbols.Double),
+                    BinaryOp(OperatorKind.Divide, symbols.Decimal),
+                ] },
 
-            { OperatorKind.Remainder, ImmutableList.Create(
-                this.RemainderInt32) },
+            { OperatorKind.Remainder,
+                [
+                    BinaryOp(OperatorKind.Remainder, symbols.Int32),
+                    BinaryOp(OperatorKind.Remainder, symbols.UInt32),
+                    BinaryOp(OperatorKind.Remainder, symbols.Int64),
+                    BinaryOp(OperatorKind.Remainder, symbols.UInt64),
+                    BinaryOp(OperatorKind.Remainder, symbols.Single),
+                    BinaryOp(OperatorKind.Remainder, symbols.Double),
+                    BinaryOp(OperatorKind.Remainder, symbols.Decimal),
+                ] },
 
-            { OperatorKind.Negate, ImmutableList.Create(
-                this.NegateInt32) },
+            { OperatorKind.Negate,
+                [
+                    UnaryOp(OperatorKind.Negate, symbols.Int32),
+                    UnaryOp(OperatorKind.Negate, symbols.Int64),
+                    UnaryOp(OperatorKind.Negate, symbols.Single),
+                    UnaryOp(OperatorKind.Negate, symbols.Double),
+                    UnaryOp(OperatorKind.Negate, symbols.Decimal),
+                ] },
 
-            { OperatorKind.BitwiseAnd, ImmutableList.Create(
-                this.BitwiseAndInt32) },
+            { OperatorKind.Increment,
+                [
+                    UnaryOp(OperatorKind.Increment, symbols.Int32),
+                    UnaryOp(OperatorKind.Increment, symbols.UInt32),
+                    UnaryOp(OperatorKind.Increment, symbols.Int64),
+                    UnaryOp(OperatorKind.Increment, symbols.UInt64),
+                ] },
 
-            { OperatorKind.BitwiseOr, ImmutableList.Create(
-                this.BitwiseOrInt32) },
+            { OperatorKind.Decrement,
+                [
+                    UnaryOp(OperatorKind.Decrement, symbols.Int32),
+                    UnaryOp(OperatorKind.Decrement, symbols.UInt32),
+                    UnaryOp(OperatorKind.Decrement, symbols.Int64),
+                    UnaryOp(OperatorKind.Decrement, symbols.UInt64),
+                ] },
 
-            { OperatorKind.BitwiseXor, ImmutableList.Create(
-                this.BitwiseXorInt32) },
+            { OperatorKind.ShiftLeft,
+                [
+                    BinaryOp(OperatorKind.ShiftLeft, symbols.Int32, symbols.Int32, symbols.Int32),
+                    BinaryOp(OperatorKind.ShiftLeft, symbols.UInt32, symbols.Int32, symbols.UInt32),
+                    BinaryOp(OperatorKind.ShiftLeft, symbols.Int64, symbols.Int32, symbols.Int64),
+                    BinaryOp(OperatorKind.ShiftLeft, symbols.UInt64, symbols.Int32, symbols.UInt64),
+                ] },
 
-            { OperatorKind.BitwiseNot, ImmutableList.Create(
-                this.BitwiseNotInt32) },
+            { OperatorKind.ShiftRight,
+                [
+                    BinaryOp(OperatorKind.ShiftRight, symbols.Int32, symbols.Int32, symbols.Int32),
+                    BinaryOp(OperatorKind.ShiftRight, symbols.UInt32, symbols.Int32, symbols.UInt32),
+                    BinaryOp(OperatorKind.ShiftRight, symbols.Int64, symbols.Int32, symbols.Int64),
+                    BinaryOp(OperatorKind.ShiftRight, symbols.UInt64, symbols.Int32, symbols.UInt64),
+                ] },
 
-            { OperatorKind.Equal, ImmutableList.Create(
-                this.EqualInt32,
-                this.EqualString) },
+            { OperatorKind.BitwiseAnd,
+                [
+                    BinaryOp(OperatorKind.BitwiseAnd, symbols.Int32),
+                    BinaryOp(OperatorKind.BitwiseAnd, symbols.UInt32),
+                    BinaryOp(OperatorKind.BitwiseAnd, symbols.Int64),
+                    BinaryOp(OperatorKind.BitwiseAnd, symbols.UInt64),
+                ] },
 
-            { OperatorKind.NotEqual, ImmutableList.Create(
-                this.NotEqualInt32,
-                this.NotEqualString) },
+            { OperatorKind.BitwiseOr,
+                [
+                    BinaryOp(OperatorKind.BitwiseOr, symbols.Int32),
+                    BinaryOp(OperatorKind.BitwiseOr, symbols.UInt32),
+                    BinaryOp(OperatorKind.BitwiseOr, symbols.Int64),
+                    BinaryOp(OperatorKind.BitwiseOr, symbols.UInt64),
+                ] },
 
-            { OperatorKind.LessThan, ImmutableList.Create(
-                this.LessThanInt32) },
+            { OperatorKind.BitwiseXor,
+                [
+                    BinaryOp(OperatorKind.BitwiseXor, symbols.Int32),
+                    BinaryOp(OperatorKind.BitwiseXor, symbols.UInt32),
+                    BinaryOp(OperatorKind.BitwiseXor, symbols.Int64),
+                    BinaryOp(OperatorKind.BitwiseXor, symbols.UInt64),
+                ] },
 
-            { OperatorKind.LessThanOrEqual, ImmutableList.Create(
-                this.LessThanOrEqualInt32) },
+            { OperatorKind.BitwiseNot,
+                [
+                    UnaryOp(OperatorKind.BitwiseNot, symbols.Int32),
+                    UnaryOp(OperatorKind.BitwiseNot, symbols.UInt32),
+                    UnaryOp(OperatorKind.BitwiseNot, symbols.Int64),
+                    UnaryOp(OperatorKind.BitwiseNot, symbols.UInt64),
+                ] },
 
-            { OperatorKind.GreaterThan, ImmutableList.Create(
-                this.GreaterThanInt32) },
+            { OperatorKind.LogicalAnd,
+                [
+                    BinaryOp(OperatorKind.LogicalAnd, symbols.Boolean),
+                ] },
 
-            { OperatorKind.GreaterThanOrEqual, ImmutableList.Create(
-                this.GreaterThanOrEqualInt32) },
+            { OperatorKind.LogicalOr,
+                [
+                    BinaryOp(OperatorKind.LogicalOr, symbols.Boolean),
+                ] },
 
-            { OperatorKind.LogicalAnd, ImmutableList.Create(
-                this.LogicalAndBoolean) },
+            { OperatorKind.LogicalXor,
+                [
+                    BinaryOp(OperatorKind.LogicalXor, symbols.Boolean),
+                ] },
 
-            { OperatorKind.LogicalAndAlso, ImmutableList.Create(
-                this.LogicalAndBoolean) },
+            { OperatorKind.LogicalNot,
+                [
+                    UnaryOp(OperatorKind.LogicalNot, symbols.Boolean),
+                ] },
 
-            { OperatorKind.LogicalOr, ImmutableList.Create(
-                this.LogicalOrBoolean) },
+            { OperatorKind.LogicalAndAlso,
+                [
+                    BinaryOp(OperatorKind.LogicalAndAlso, symbols.Boolean)
+                ] },
 
-            { OperatorKind.LogicalOrElse, ImmutableList.Create(
-                this.LogicalOrElseBoolean) },
+            { OperatorKind.LogicalOrElse,
+                [
+                    BinaryOp(OperatorKind.LogicalOrElse, symbols.Boolean),
+                ] },
 
-            { OperatorKind.LogicalNot, ImmutableList.Create(
-                this.LogicalNotBoolean) },
+            { OperatorKind.Equal, 
+                [
+                    BinaryOp(OperatorKind.Equal, symbols.Boolean, symbols.Boolean),
+                    BinaryOp(OperatorKind.Equal, symbols.Int32, symbols.Boolean),
+                    BinaryOp(OperatorKind.Equal, symbols.UInt32, symbols.Boolean),
+                    BinaryOp(OperatorKind.Equal, symbols.Int64, symbols.Boolean),
+                    BinaryOp(OperatorKind.Equal, symbols.UInt64, symbols.Boolean),
+                    BinaryOp(OperatorKind.Equal, symbols.Single, symbols.Boolean),
+                    BinaryOp(OperatorKind.Equal, symbols.Double, symbols.Boolean),
+                    BinaryOp(OperatorKind.Equal, symbols.Decimal, symbols.Boolean),
+                ] },
+
+            { OperatorKind.NotEqual, 
+                [
+                    BinaryOp(OperatorKind.NotEqual, symbols.Boolean, symbols.Boolean),
+                    BinaryOp(OperatorKind.NotEqual, symbols.Int32, symbols.Boolean),
+                    BinaryOp(OperatorKind.NotEqual, symbols.UInt32, symbols.Boolean),
+                    BinaryOp(OperatorKind.NotEqual, symbols.Int64, symbols.Boolean),
+                    BinaryOp(OperatorKind.NotEqual, symbols.UInt64, symbols.Boolean),
+                    BinaryOp(OperatorKind.NotEqual, symbols.Single, symbols.Boolean),
+                    BinaryOp(OperatorKind.NotEqual, symbols.Double, symbols.Boolean),
+                    BinaryOp(OperatorKind.NotEqual, symbols.Decimal, symbols.Boolean),
+                ] },
+
+            { OperatorKind.LessThan, 
+                [
+                    BinaryOp(OperatorKind.LessThan, symbols.Int32, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThan, symbols.Int64, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThan, symbols.UInt64, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThan, symbols.Single, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThan, symbols.Double, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThan, symbols.Decimal, symbols.Boolean),
+                ] },
+
+            { OperatorKind.LessThanOrEqual, 
+                [
+                    BinaryOp(OperatorKind.LessThanOrEqual, symbols.Int32, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThanOrEqual, symbols.Int64, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThanOrEqual, symbols.UInt64, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThanOrEqual, symbols.Single, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThanOrEqual, symbols.Double, symbols.Boolean),
+                    BinaryOp(OperatorKind.LessThanOrEqual, symbols.Decimal, symbols.Boolean),
+                ] },
+
+            { OperatorKind.GreaterThan, 
+                [
+                    BinaryOp(OperatorKind.GreaterThan, symbols.Int32, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThan, symbols.Int64, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThan, symbols.UInt64, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThan, symbols.Single, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThan, symbols.Double, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThan, symbols.Decimal, symbols.Boolean),
+                ] },
+
+            { OperatorKind.GreaterThanOrEqual,
+                [
+                    BinaryOp(OperatorKind.GreaterThanOrEqual, symbols.Int32, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThanOrEqual, symbols.Int64, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThanOrEqual, symbols.UInt64, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThanOrEqual, symbols.Single, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThanOrEqual, symbols.Double, symbols.Boolean),
+                    BinaryOp(OperatorKind.GreaterThanOrEqual, symbols.Decimal, symbols.Boolean),
+                ] },
         };
     }
 }

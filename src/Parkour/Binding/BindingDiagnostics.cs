@@ -31,10 +31,19 @@ internal static class BindingDiagnostics
         new Diagnostic($"No callable symbol is found.");
 
     public static Diagnostic CallIsAmbiguous() =>
-        new Diagnostic("The call refers to more than one invokable symbol, and a best symbol cannot be determined.");
+        new Diagnostic("The call is ambiguous, it has multiple candidates.");
 
     public static Diagnostic IncorrectNumberOfArguments() =>
         new Diagnostic($"Incorrect number of arguments.");
+
+    public static Diagnostic NoOperatorDefined() =>
+        new Diagnostic($"No operator defined for the operands.");
+
+    public static Diagnostic OperatorIsAmbiguous() =>
+        new Diagnostic($"The operator is ambiguous, it has multiple candidates.");
+
+    public static Diagnostic IncorrectNumberOfOperands() =>
+        new Diagnostic($"Incorrect number of operands.");
 
     public static Diagnostic NoConstructorFound() =>
         new Diagnostic($"No suitable constructor found");

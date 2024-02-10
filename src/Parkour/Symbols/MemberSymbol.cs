@@ -45,6 +45,14 @@ public abstract class MemberSymbol : Symbol
             ? ms.Namespace 
             : "";
 
+    /// <summary>
+    /// The type this symbol is declared within.
+    /// </summary>
+    public virtual TypeSymbol? DeclaringType =>
+        this.DeclaringSymbol is TypeSymbol typeSymbol ? typeSymbol
+        : this.DeclaringSymbol is MemberSymbol memberSymbol ? memberSymbol.DeclaringType
+        : null;
+
     private string? _fullName;
     
     public override string FullName

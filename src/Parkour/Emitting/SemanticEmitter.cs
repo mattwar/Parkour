@@ -6,7 +6,7 @@ using Semantics;
 using Symbols;
 
 /// <summary>
-/// Emits bound <see cref="Declaration"/> into a <see cref="SymbolEmitter"/>
+/// Emits bound <see cref="Declaration"/> and <see cref="Expression"/> into a <see cref="SymbolEmitter"/>
 /// </summary>
 public class SemanticEmitter
 {
@@ -117,7 +117,6 @@ public class SemanticEmitter
         SymbolEmitContext context,
         ConstructorSymbol symbol)
     {
-
         var decl = context.Binding.GetBoundSymbolDeclarations(symbol)
             .OfType<ConstructorDeclaration>()
             .FirstOrDefault();
@@ -127,7 +126,7 @@ public class SemanticEmitter
             context.Emitter.EmitBody(
                 symbol, 
                 (_symbol, ilEmitter) => 
-                    EmitBody(context.CreateILEmitContext(ilEmitter), decl.Body, _symbol.ConstructedType, decl.ReturnLabel));
+                    EmitBody(context.CreateILEmitContext(symbol, ilEmitter), decl.Body, _symbol.ConstructedType, decl.ReturnLabel));
         }
     }
 
@@ -145,7 +144,7 @@ public class SemanticEmitter
             context.Emitter.EmitBody(
                 symbol,
                 (_symbol, ilEmitter) =>
-                    EmitBody(context.CreateILEmitContext(ilEmitter), decl.Body, _symbol.ReturnType, decl.ReturnLabel));
+                    EmitBody(context.CreateILEmitContext(symbol, ilEmitter), decl.Body, _symbol.ReturnType, decl.ReturnLabel));
         }
     }
 
@@ -168,11 +167,13 @@ public class SemanticEmitter
         context.Emitter.EmitConvert(prevType, returnType, true);
         context.Emitter.EmitReturn();
     }
+    #endregion
 
+    #region Emit Expressions
     /// <summary>
     /// Emits an expression.
     /// </summary>
-    protected virtual void EmitExpression(ILEmitContext context, Expression expression)
+    protected virtual void EmitExpression(ILEmitContext context, Expression expression, bool asAddress = false)
     {
         if (expression.Diagnostics.Count > 0)
         {
@@ -186,6 +187,10 @@ public class SemanticEmitter
 
         switch (expression)
         {
+            case AssignExpression assign:
+                EmitAssign(context, assign);
+                break;
+
             case BlockExpression block:
                 EmitBlock(context, block);
                 break;
@@ -214,6 +219,22 @@ public class SemanticEmitter
                 EmitVariable(context, variable);
                 break;
 
+            case NameReferenceExpression nre:
+                EmitNameReference(context, nre, asAddress);
+                break;
+
+            case SymbolReferenceExpression sre:
+                EmitSymbolReference(context, sre, asAddress);
+                break;
+
+            case AdjustedReferenceExpression are:
+                EmitAdjustedReferenceExpression(context, are, asAddress);
+                break;
+
+            case OperatorExpression opex:
+                EmitOperator(context, opex);
+                break;
+
             default:
                 context.Emitter.EmitThrowAndReport($"Could not emit IL for expression '{expression.GetType().Name}'");
                 break;
@@ -231,6 +252,106 @@ public class SemanticEmitter
             context.Emitter.EmitConvert(expression.ResultType, targetType, true);
         }
     }
+
+    #region Assign Emit
+
+    protected virtual void EmitAssign(ILEmitContext context, AssignExpression assign)
+    {
+        var targetSymbol = assign.Target.ReferencedSymbol;
+        var targetMember = GetMemberExpression(assign.Target);
+
+        switch (targetSymbol)
+        {
+            case VariableSymbol variableSymbol:
+                EmitExpressionAsType(context, assign.Target, variableSymbol.VariableType);
+                context.Emitter.EmitStoreVariable(variableSymbol);
+                break;
+
+            case ParameterSymbol parameterSymbol:
+                EmitExpressionAsType(context, assign.Target, parameterSymbol.ParameterType);
+                context.Emitter.EmitStoreParameter(parameterSymbol);
+                break;
+
+            case FieldSymbol fieldSymbol:
+                if (!fieldSymbol.IsStatic)
+                {
+                    if (targetMember != null)
+                    {
+                        EmitExpression(context, targetMember.Instance, asAddress: targetMember.Instance.ResultType.IsValueType);
+                    }
+                    else if (IsMemberOfThis(context, fieldSymbol))
+                    {
+                        context.Emitter.EmitLoadInstance(fieldSymbol);
+                    }
+                    else
+                    {
+                        context.Emitter.EmitThrowAndReport($"Instance field '{fieldSymbol.FullName}' does not have instance.");
+                    }
+                }
+
+                EmitExpressionAsType(context, assign.Target, fieldSymbol.FieldType);
+                context.Emitter.EmitStoreField(fieldSymbol);
+                break;
+
+            case PropertySymbol propertySymbol:
+                if (propertySymbol.SetMethod != null)
+                {
+                    if (!propertySymbol.IsStatic)
+                    {
+                        if (targetMember != null)
+                        {
+                            EmitExpression(context, targetMember.Instance, asAddress: targetMember.Instance.ResultType.IsValueType);
+                        }
+                        else if (IsMemberOfThis(context, propertySymbol))
+                        {
+                            context.Emitter.EmitLoadInstance(propertySymbol);
+                        }
+                        else
+                        {
+                            context.Emitter.EmitThrowAndReport($"Instance property '{propertySymbol.FullName}' does not have instance.");
+                        }
+                    }
+
+                    EmitExpressionAsType(context, assign.Target, propertySymbol.PropertyType);
+
+                    context.Emitter.EmitCall(propertySymbol.SetMethod);
+                }               
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    private static bool IsMemberOfThis(ILEmitContext context, MemberSymbol memberSymbol)
+    {
+        if (context.CurrentMember.DeclaringType is { } currentType
+            && memberSymbol.DeclaringType is { } memberType)
+        {
+            return currentType == memberType
+                || currentType.IsSubTypeOf(memberType);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the underlying member expression from an expression that may have augments.
+    /// </summary>
+    protected virtual MemberExpression? GetMemberExpression(Expression expression)
+    {
+        switch (expression)
+        {
+            case MemberExpression member:
+                return member;
+            case AdjustedReferenceExpression filter:
+                return GetMemberExpression(filter.Expression);
+            default:
+                return null;
+        }
+    }
+
+    #endregion
 
     #region Block Emit
     /// <summary>
@@ -297,55 +418,57 @@ public class SemanticEmitter
         // TODO: support lambda/delegates
         if (call.CalledSymbol is MethodSymbol methodSymbol)
         {
-            if (!methodSymbol.IsStatic)
-            {
-                var instance = GetCallInstance(call.Expression);
-                if (instance == null)
-                {
-                    context.Emitter.EmitThrowAndReport($"Non-static method '{methodSymbol.Name}' has no instance value.");
-                }
-                else if (methodSymbol.DeclaringSymbol is TypeSymbol declaringType)
-                {
-                    EmitExpressionAsType(context, instance, declaringType);
-                }
-                else
-                {
-                    context.Emitter.EmitThrowAndReport($"Non-static method '{methodSymbol.Name}' has no declaring type.");
-                }
-            }
-
-            EmitArguments(context, methodSymbol.Parameters, call.Arguments);
-
-            context.Emitter.EmitCall(methodSymbol);
+            var instance = methodSymbol.IsStatic ? null : GetMemberInstance(call.Expression);
+            EmitMethodCall(context, methodSymbol, instance, call.Arguments);
+        }
+        else if (call.CalledSymbol != null)
+        {
+            throw new InvalidOperationException($"Invalid called symbol type '{call.CalledSymbol.GetType().Name}' in EmitCall");
         }
     }
 
+    protected virtual void EmitMethodCall(ILEmitContext context, MethodSymbol methodSymbol, Expression? instance, ImmutableList<Expression> arguments)
+    {
+        if (!methodSymbol.IsStatic)
+        {
+            if (instance == null)
+            {
+                context.Emitter.EmitThrowAndReport($"Non-static method '{methodSymbol.Name}' has no instance value.");
+            }
+            else if (methodSymbol.DeclaringSymbol is TypeSymbol declaringType)
+            {
+                EmitExpressionAsType(context, instance, declaringType);
+            }
+            else
+            {
+                context.Emitter.EmitThrowAndReport($"Non-static method '{methodSymbol.Name}' has no declaring type.");
+            }
+        }
+
+        EmitArguments(context, methodSymbol.Parameters, arguments);
+
+        context.Emitter.EmitCall(methodSymbol);
+    }
+
     /// <summary>
-    /// Emits arguments and converts them to expected parameter types.
+    /// Emits a list of arguments corresponding with a list of parameters.
     /// </summary>
     protected virtual void EmitArguments(ILEmitContext context, ImmutableList<ParameterSymbol> parameters, ImmutableList<Expression> arguments)
     {
         for (int i = 0; i < arguments.Count; i++)
         {
-            EmitExpressionAsType(context, arguments[i], parameters[i].ParameterType);
+            EmitArgument(context, parameters[i], arguments[i]);
         }
     }
 
     /// <summary>
-    /// Gets the instance of the call from the called expression.
+    /// Emits a single argument corresponding to a parameter.
     /// </summary>
-    protected virtual Expression? GetCallInstance(Expression expression)
+    protected virtual void EmitArgument(ILEmitContext context, ParameterSymbol parameter, Expression argument)
     {
-        switch (expression)
-        {
-            case MemberExpression member:
-                return member.Expression;
-            case AdjustedReferenceExpression filter:
-                return GetCallInstance(filter.Expression);
-            default:
-                return null;
-        }
+        EmitExpressionAsType(context, argument, parameter.ParameterType);
     }
+
     #endregion
 
     #region Constant Emit
@@ -437,6 +560,255 @@ public class SemanticEmitter
     }
     #endregion
 
+    #region MemberReference, NameReference, SymbolRefeference, AdjustedReference Emit
+
+    protected virtual void EmitMember(ILEmitContext context, MemberExpression member, bool asAddress)
+    {
+        if (member.ReferencedSymbol is MemberSymbol memberSymbol)
+        {
+            EmitMemberReference(context, member.Instance, memberSymbol, asAddress);
+        }
+    }
+
+    protected virtual void EmitMemberReference(ILEmitContext context, Expression instance, MemberSymbol memberSymbol, bool asAddress)
+    {
+        if (!memberSymbol.IsStatic)
+        {
+            EmitExpression(context, instance, asAddress: instance.ResultType.IsValueType);
+        }
+
+        EmitSymbolReference(context, memberSymbol, asAddress);
+    }
+
+    protected virtual void EmitAdjustedReferenceExpression(ILEmitContext context, AdjustedReferenceExpression adjusted, bool asAddress)
+    {
+        if (adjusted.ReferencedSymbol is MemberSymbol memberSymbol)
+        {
+            var instance = GetMemberInstance(adjusted);
+            if (instance != null)
+            {
+                EmitMemberReference(context, instance, memberSymbol, asAddress);
+            }
+            else
+            {
+                EmitSymbolReference(context, memberSymbol, asAddress);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Drills down through <see cref="AdjustedReferenceExpression"/> to find the <see cref="MemberExpression"/> and return its instance.
+    /// </summary>
+    protected virtual Expression? GetMemberInstance(Expression expression)
+    {
+        switch (expression)
+        {
+            case MemberExpression member:
+                return member.Instance;
+
+            case AdjustedReferenceExpression filter:
+                return GetMemberInstance(filter.Expression);
+
+            default:
+                return null;
+        }
+    }
+
+    protected virtual void EmitNameReference(ILEmitContext context, NameReferenceExpression nameRef, bool asAddress)
+    {
+        if (nameRef.ReferencedSymbol is MemberSymbol memberSymbol)
+        {
+            EmitSymbolReference(context, memberSymbol, asAddress);
+        }
+    }
+
+    protected virtual void EmitSymbolReference(ILEmitContext context, SymbolReferenceExpression symbolRef, bool asAddress)
+    {
+        if (symbolRef.ReferencedSymbol is MemberSymbol memberSymbol)
+        {
+            EmitSymbolReference(context, memberSymbol, asAddress);
+        }
+    }
+
+    protected virtual void EmitSymbolReference(ILEmitContext context, Symbol symbol, bool asAddress)
+    {
+        switch (symbol)
+        {
+            case VariableSymbol variableSymbol:
+                if (asAddress)
+                {
+                    context.Emitter.EmitLoadVariableAddress(variableSymbol);
+                }
+                else
+                {
+                    context.Emitter.EmitLoadVariable(variableSymbol);
+                }
+                break;
+
+            case ParameterSymbol parameterSymbol:
+                if (asAddress)
+                {
+                    context.Emitter.EmitLoadParameterAddress(parameterSymbol);
+                }
+                else
+                {
+                    context.Emitter.EmitLoadParameter(parameterSymbol);
+                }
+                break;
+
+            default:
+                context.Emitter.EmitThrowAndReport($"Reference to symbol type '{symbol.GetType().Name}' not supported in EmitSymbolReference");
+                break;           
+        }
+    }
+
+    #endregion
+
+    #region Operator Emit
+    protected virtual void EmitOperator(ILEmitContext context, OperatorExpression opex)
+    {
+        if (opex.OperatorSymbol is OperatorSymbol opSymbol)
+        {
+            EmitOperator(context, opSymbol, opex.Arguments, isChecked: true);
+        }
+        else if (opex.OperatorSymbol is MethodSymbol methodSymbol)
+        {
+            EmitMethodCall(context, methodSymbol, null, opex.Arguments);
+        }
+        else if (opex.OperatorSymbol != null)
+        {
+            throw new InvalidOperationException($"Invalid custom operator symbol type '{opex.OperatorSymbol.GetType().Name}' in EmitOperator");
+        }
+    }
+
+    /// <summary>
+    /// Emits common operator expression
+    /// </summary>
+    protected virtual void EmitOperator(
+        ILEmitContext context,
+        OperatorSymbol opsym,
+        ImmutableList<Expression> arguments,
+        bool isChecked)
+    {
+        var operandType = opsym.Parameters[0].ParameterType;
+        switch (opsym.Kind)
+        {
+            case OperatorKind.Add:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitAdd(operandType, isChecked);
+                break;
+            case OperatorKind.Subtract:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitSubtract(operandType, isChecked);
+                break;
+            case OperatorKind.Divide:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitDivide(operandType);
+                break;
+            case OperatorKind.Multiply:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitMultiply(operandType, isChecked);
+                break;
+            case OperatorKind.Remainder:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitRemainder(operandType);
+                break;
+            case OperatorKind.Negate:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitNegate(operandType);
+                break;
+            case OperatorKind.Increment:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitIncrement(operandType, isChecked);
+                break;
+            case OperatorKind.Decrement:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitDecrement(operandType, isChecked);
+                break;
+            case OperatorKind.BitwiseAnd:
+            case OperatorKind.LogicalAnd:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitAnd();
+                break;
+            case OperatorKind.BitwiseOr:
+            case OperatorKind.LogicalOr:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitOr();
+                break;
+            case OperatorKind.BitwiseXor:
+            case OperatorKind.LogicalXor:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitXor();
+                break;
+            case OperatorKind.BitwiseNot:
+            case OperatorKind.LogicalNot:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitNot();
+                break;
+            case OperatorKind.ShiftLeft:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitShiftLeft(operandType);
+                break;
+            case OperatorKind.ShiftRight:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitShiftRight(operandType);
+                break;
+            case OperatorKind.Equal:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitEqual(operandType);
+                break;
+            case OperatorKind.NotEqual:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitNotEqual(operandType);
+                break;
+            case OperatorKind.LessThan:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitLessThan(operandType);
+                break;
+            case OperatorKind.LessThanOrEqual:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitLessThanOrEqual(operandType);
+                break;
+            case OperatorKind.GreaterThan:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitGreaterThan(operandType);
+                break;
+            case OperatorKind.GreaterThanOrEqual:
+                EmitArguments(context, opsym.Parameters, arguments);
+                context.Emitter.EmitGreaterThanOrEqual(operandType);
+                break;
+
+            case OperatorKind.LogicalAndAlso:
+                var andAlsoFalse = new LabelSymbol("andAlsoFalse");
+                var andAlsoEnd = new LabelSymbol("andAlsoEnd");
+                EmitArgument(context, opsym.Parameters[0], arguments[0]);
+                context.Emitter.EmitBranchFalse(andAlsoFalse);
+                EmitArgument(context, opsym.Parameters[1], arguments[1]);
+                context.Emitter.EmitBranch(andAlsoEnd);
+                context.Emitter.MarkLabel(andAlsoFalse);
+                context.Emitter.EmitLoadBool(false);
+                context.Emitter.MarkLabel(andAlsoEnd);
+                break;
+
+            case OperatorKind.LogicalOrElse:
+                var orElseTrue = new LabelSymbol("orElseTrue");
+                var orElseEnd = new LabelSymbol("orElseEnd");
+                EmitArgument(context, opsym.Parameters[0], arguments[0]);
+                context.Emitter.EmitBranchTrue(orElseTrue);
+                EmitArgument(context, opsym.Parameters[1], arguments[1]);
+                context.Emitter.EmitBranch(orElseEnd);
+                context.Emitter.EmitLoadBool(true);
+                context.Emitter.MarkLabel(orElseEnd);
+                break;
+
+            default:
+                context.Emitter.EmitThrowAndReport($"Unhandled operator kind '{opsym.Kind}' in EmitOperator.");
+                break;
+        }
+    }
+
+    #endregion
+
     #region Variable Emit
     /// <summary>
     /// Emits <see cref="VariableExpression"/>
@@ -450,7 +822,7 @@ public class SemanticEmitter
     }
     #endregion
 
-    #endregion
+    #endregion // expressions
 }
 
 public class SymbolEmitContext
@@ -478,20 +850,23 @@ public class SymbolEmitContext
         _diagnostics.Add(diagnostic);
     }
 
-    public virtual ILEmitContext CreateILEmitContext(SymbolILEmitter ilEmitter) =>
-        new ILEmitContext(this.Symbols, ilEmitter);
+    public virtual ILEmitContext CreateILEmitContext(MemberSymbol symbol, SymbolILEmitter ilEmitter) =>
+        new ILEmitContext(this.Symbols, ilEmitter, symbol);
 }
 
 public class ILEmitContext
 {
     public SymbolCache Symbols { get; }
     public SymbolILEmitter Emitter { get; }
+    public MemberSymbol CurrentMember { get; }
 
     public ILEmitContext(
         SymbolCache symbols,
-        SymbolILEmitter emitter)
+        SymbolILEmitter emitter,
+        MemberSymbol current)
     {
         Symbols = symbols;
         Emitter = emitter;
+        CurrentMember = current;
     }
 }

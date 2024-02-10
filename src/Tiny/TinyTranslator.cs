@@ -54,11 +54,11 @@ public class TinyTranslator
                 TinyNodeKinds.GreaterThanOrEqual =>
                     GreaterThanOrEqual(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
                 TinyNodeKinds.And =>
-                    And(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    BitwiseAnd(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
                 TinyNodeKinds.Or =>
-                    Or(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    BitwiseOr(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
                 TinyNodeKinds.Not =>
-                    Not(Translate(element.GetChild(0)!)),
+                    BitwiseNot(Translate(element.GetChild(0)!)),
                 TinyNodeKinds.ParenthesizedExpression =>
                     Translate(element.GetChild(0)!),
                 TinyNodeKinds.Root =>

@@ -86,6 +86,8 @@ public class LinqExpressionTranslator
                 return TranslateNewArraySize(newArraySize);
             case NewArrayInitExpression newArrayInit:
                 return TranslateNewArrayInit(newArrayInit);
+            case OperatorExpression opex:
+                return TranslateOperator(opex);
             case SymbolReferenceExpression symbolRef:
                 return TranslateSymbolReference(symbolRef);
             case TypeArgumentsExpression typeArgs:
@@ -252,7 +254,7 @@ public class LinqExpressionTranslator
                 }
 
             case OperatorSymbol opsym:
-                return TranslateOperatorCall(call, opsym);
+                return TranslateOperator(opsym, call.Arguments);
 
             case FunctionSymbol function:
                 {
@@ -266,12 +268,81 @@ public class LinqExpressionTranslator
         throw new InvalidOperationException($"Cannot translate call for symbol '{calledSymbol.Name}'");
     }
 
+    private L.Expression TranslateOperator(OperatorExpression opex)
+    {
+        var operatorSymbol = opex.OperatorSymbol;
+        if (operatorSymbol == null)
+            throw new InvalidOperationException($"Cannot translate unknown operator");
+
+        switch (operatorSymbol)
+        {
+            case MethodSymbol method:
+                {
+                    var mi = TranslateMethod(method);
+                    var parameterTypes = mi.GetParameters().Select(p => p.ParameterType).ToArray();
+                    var arguments = TranslateArguments(opex.Arguments, parameterTypes);
+                    return L.Expression.Call(null, mi, arguments);
+                }
+
+            case OperatorSymbol opsym:
+                return TranslateOperator(opsym, opex.Arguments);
+        }
+
+        throw new InvalidOperationException($"Cannot translate call for symbol '{operatorSymbol.Name}'");
+    }
+
+    private L.Expression TranslateOperator(OperatorSymbol opsym, ImmutableList<Expression> arguments)
+    {
+        switch (opsym.Kind)
+        {
+            case OperatorKind.Add:
+                return L.Expression.Add(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Subtract:
+                return L.Expression.Subtract(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Multiply:
+                return L.Expression.Multiply(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Divide:
+                return L.Expression.Divide(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Remainder:
+                return L.Expression.Modulo(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Negate:
+                return L.Expression.Negate(Translate(arguments[0]));
+            case OperatorKind.BitwiseAnd:
+            case OperatorKind.LogicalAnd:
+                return L.Expression.And(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.BitwiseOr:
+            case OperatorKind.LogicalOr:
+                return L.Expression.Or(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.BitwiseNot:
+            case OperatorKind.LogicalNot:
+                return L.Expression.Not(Translate(arguments[0]));
+            case OperatorKind.LogicalAndAlso:
+                return L.Expression.AndAlso(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.LogicalOrElse:
+                return L.Expression.OrElse(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Equal:
+                return L.Expression.Equal(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.NotEqual:
+                return L.Expression.NotEqual(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.LessThan:
+                return L.Expression.LessThan(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.LessThanOrEqual:
+                return L.Expression.LessThanOrEqual(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.GreaterThan:
+                return L.Expression.GreaterThan(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.GreaterThanOrEqual:
+                return L.Expression.GreaterThanOrEqual(Translate(arguments[0]), Translate(arguments[1]));
+        }
+
+        throw new InvalidOperationException($"Unhandled operator kind '{opsym.Kind}'");
+    }
+
     private Expression? GetCallInstance(Expression expression)
     {
         switch (expression)
         {
             case MemberExpression member:
-                return member.Expression;
+                return member.Instance;
             case AdjustedReferenceExpression adjust:
                 return GetCallInstance(adjust.Expression);
             default:
@@ -409,7 +480,7 @@ public class LinqExpressionTranslator
                 }
                 else
                 {
-                    var expression = Translate(member.Expression);
+                    var expression = Translate(member.Instance);
                     return L.Expression.Property(expression, pi);
                 }
             case FieldSymbol field:
@@ -420,7 +491,7 @@ public class LinqExpressionTranslator
                 }
                 else
                 {
-                    var expression = Translate(member.Expression);
+                    var expression = Translate(member.Instance);
                     return L.Expression.Field(expression, fi);
                 }
             default:
@@ -573,52 +644,4 @@ public class LinqExpressionTranslator
         return variable;
     }
 
-    private L.Expression TranslateOperatorCall(CallExpression c, OperatorSymbol opsym)
-    {
-        switch (opsym.Kind)
-        {
-            case OperatorKind.Add:
-                return L.Expression.Add(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.Subtract:
-                return L.Expression.Subtract(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.Multiply:
-                return L.Expression.Multiply(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.Divide:
-                return L.Expression.Divide(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.Remainder:
-                return L.Expression.Modulo(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.Negate:
-                return L.Expression.Negate(Translate(c.Arguments[0]));
-            case OperatorKind.BitwiseAnd:
-                return L.Expression.And(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.BitwiseOr:
-                return L.Expression.Or(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.BitwiseNot:
-                return L.Expression.Not(Translate(c.Arguments[0]));
-            case OperatorKind.Equal:
-                return L.Expression.Equal(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.NotEqual:
-                return L.Expression.NotEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.LessThan:
-                return L.Expression.LessThan(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.LessThanOrEqual:
-                return L.Expression.LessThanOrEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.GreaterThan:
-                return L.Expression.GreaterThan(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.GreaterThanOrEqual:
-                return L.Expression.GreaterThanOrEqual(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.LogicalAnd:
-                return L.Expression.And(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.LogicalAndAlso:
-                return L.Expression.AndAlso(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.LogicalOr:
-                return L.Expression.Or(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.LogicalOrElse:
-                return L.Expression.OrElse(Translate(c.Arguments[0]), Translate(c.Arguments[1]));
-            case OperatorKind.LogicalNot:
-                return L.Expression.Not(Translate(c.Arguments[0]));
-        }
-
-        throw new InvalidOperationException($"Unhandled operator kind '{opsym.Kind}'");
-    }
 }

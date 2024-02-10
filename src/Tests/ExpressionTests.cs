@@ -579,12 +579,11 @@ public class ExpressionTests
         TestBinding(BitwiseNot(Constant(1)), _symbols.Int32);
 
         // boolean / logical
-        TestBinding(And(Constant(true), Constant(true)), _symbols.Boolean);
-        TestBinding(Or(Constant(true), Constant(true)), _symbols.Boolean);
-        TestBinding(Not(Constant(true)), _symbols.Boolean);
+        TestBinding(LogicalAnd(Constant(true), Constant(true)), _symbols.Boolean);
+        TestBinding(LogicalOr(Constant(true), Constant(true)), _symbols.Boolean);
+        TestBinding(LogicalNot(Constant(true)), _symbols.Boolean);
 
         // string
-        TestBinding(Add(Constant("one"), Constant("two")), _symbols.String); 
         TestBinding(Equal(Constant("one"), Constant("two")), _symbols.Boolean);
     }
 

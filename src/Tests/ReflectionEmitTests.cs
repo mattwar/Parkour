@@ -50,6 +50,69 @@ public class ReflectionEmitTests
             );
     }
 
+    [TestMethod]
+    public void TestConstant()
+    {
+        TestEmit(Constant(1), expectedResult: 1);
+    }
+
+    [TestMethod]
+    public void TestAdd()
+    {
+        TestEmit(Add(Constant(1), Constant(2)), 3);
+    }
+
+    [TestMethod]
+    public void TestSubtract()
+    {
+        TestEmit(Subtract(Constant(3), Constant(1)), 2);
+    }
+
+    [TestMethod]
+    public void TestMultiply()
+    {
+        TestEmit(Multiply(Constant(3), Constant(2)), 6);
+    }
+
+    [TestMethod]
+    public void TestDivide()
+    {
+        TestEmit(Divide(Constant(6), Constant(2)), 3);
+        TestEmit(Divide(Constant(5), Constant(2)), 2);
+    }
+
+    [TestMethod]
+    public void TestRemainder()
+    {
+        TestEmit(Remainder(Constant(6), Constant(2)), 0);
+        TestEmit(Remainder(Constant(5), Constant(2)), 1);
+    }
+
+    [TestMethod]
+    public void TestBitwiseAnd()
+    {
+        TestEmit(BitwiseAnd(Constant(7), Constant(3)), 3);
+        TestEmit(BitwiseAnd(Constant(5), Constant(3)), 1);
+        TestEmit(BitwiseAnd(Constant(1), Constant(2)), 0);
+    }
+
+    [TestMethod]
+    public void TestEqual()
+    {
+        TestEmit(Equal(Constant(1), Constant(2)), false);
+        TestEmit(Equal(Constant(1), Constant(1)), true);
+    }
+
+    [TestMethod]
+    public void TestNotEqual()
+    {
+        TestEmit(NotEqual(Constant(1), Constant(2)), true);
+        TestEmit(NotEqual(Constant(1), Constant(1)), false);
+    }
+
+    private void TestEmit(Expression test, object? expectedResult = null) =>
+        TestEmit([], test, expectedResult);
+
     private void TestEmit(Declaration declaration, Expression? test = null, object? expectedResult = null) =>
         TestEmit([declaration], test, expectedResult);
 

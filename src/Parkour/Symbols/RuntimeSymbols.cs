@@ -268,8 +268,10 @@ public class RuntimeSymbols
                 ? (MethodSymbol?)GetOrCreateSymbol(method.GetGenericMethodDefinition(), null)
                 : null;
 
+            var name = StripArity(method.Name);
+
             return new MethodSymbol(
-                StripArity(method.Name),
+                name,
                 declaringSymbol,
                 GetAccess(method),
                 GetModifiers(method),
@@ -305,10 +307,12 @@ public class RuntimeSymbols
             Func<TypeSymbol, ImmutableList<Symbol>> fnMembers = 
                 me => CreateMembers(type, me);
 
+            var name = StripArity(type.Name);
+
             if (type.IsInterface)
             {
                 return new InterfaceSymbol(
-                    type.Name,
+                    name,
                     declaringSymbol,
                     access,
                     modifiers,
@@ -321,7 +325,7 @@ public class RuntimeSymbols
             else if (type.IsValueType)
             {
                 return new ValueTypeSymbol(
-                    type.Name,
+                    name,
                     declaringSymbol,
                     access,
                     modifiers,
@@ -334,7 +338,7 @@ public class RuntimeSymbols
             else
             {
                 return new TypeSymbol(
-                    type.Name,
+                    name,
                     declaringSymbol,
                     access,
                     modifiers,
