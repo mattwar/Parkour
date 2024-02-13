@@ -16,9 +16,9 @@ public class SemanticEmitter
 
     public virtual void Emit(SymbolEmitContext context)
     {
-        DefineTypeSymbols(context, context.Binding.DeclarationSymbols);
-        DefineMemberSymbols(context, context.Binding.DeclarationSymbols);
-        EmitSymbolBodies(context, context.Binding.DeclarationSymbols);
+        DefineTypeSymbols(context, context.Binding.DeclaredSymbols);
+        DefineMemberSymbols(context, context.Binding.DeclaredSymbols);
+        EmitSymbolBodies(context, context.Binding.DeclaredSymbols);
 
         context.Emitter.EmitDefinedTypesAndMembers();
     }
@@ -239,8 +239,11 @@ public class SemanticEmitter
                 EmitOperator(context, opex);
                 break;
 
+            case VoidExpression vex:
+                break;
+
             default:
-                context.Emitter.EmitThrowAndReport($"Could not emit IL for expression '{expression.GetType().Name}'");
+                context.Emitter.EmitThrowAndReport(new Diagnostic($"Could not emit IL for expression '{expression.GetType().Name}'").WithLocation(expression.Location));
                 break;
         }
     }
@@ -289,7 +292,7 @@ public class SemanticEmitter
                     }
                     else
                     {
-                        context.Emitter.EmitThrowAndReport($"Instance field '{fieldSymbol.FullName}' does not have instance.");
+                        context.Emitter.EmitThrowAndReport(new Diagnostic($"Instance field '{fieldSymbol.FullName}' does not have instance.").WithLocation(assign.Location));
                     }
                 }
 
@@ -312,7 +315,7 @@ public class SemanticEmitter
                         }
                         else
                         {
-                            context.Emitter.EmitThrowAndReport($"Instance property '{propertySymbol.FullName}' does not have instance.");
+                            context.Emitter.EmitThrowAndReport(new Diagnostic($"Instance property '{propertySymbol.FullName}' does not have instance.").WithLocation(assign.Target.Location));
                         }
                     }
 
@@ -419,25 +422,29 @@ public class SemanticEmitter
     /// </summary>
     protected virtual void EmitCall(ILEmitContext context, CallExpression call)
     {
-        // TODO: support lambda/delegates
         if (call.CalledSymbol is MethodSymbol methodSymbol)
         {
             var instance = methodSymbol.IsStatic ? null : GetMemberInstance(call.Expression);
-            EmitMethodCall(context, methodSymbol, instance, call.Arguments);
+            EmitMethodCall(context, methodSymbol, instance, call.Arguments, call.Location);
         }
         else if (call.CalledSymbol != null)
         {
-            throw new InvalidOperationException($"Invalid called symbol type '{call.CalledSymbol.GetType().Name}' in EmitCall");
+            context.Emitter.EmitThrowAndReport(new Diagnostic($"Unhandled called symbol type '{call.CalledSymbol.GetType().Name}' in EmitCall").WithLocation(call.Location));
+        }
+        else
+        {
+            context.Emitter.EmitThrowAndReport(new Diagnostic($"Unknown call symbol").WithLocation(call.Location));
         }
     }
 
-    protected virtual void EmitMethodCall(ILEmitContext context, MethodSymbol methodSymbol, Expression? instance, ImmutableList<Expression> arguments)
+    protected virtual void EmitMethodCall(
+        ILEmitContext context, MethodSymbol methodSymbol, Expression? instance, ImmutableList<Expression> arguments, ISourceLocation? location)
     {
         if (!methodSymbol.IsStatic)
         {
             if (instance == null)
             {
-                context.Emitter.EmitThrowAndReport($"Non-static method '{methodSymbol.Name}' has no instance value.");
+                context.Emitter.EmitThrowAndReport(new Diagnostic($"Non-static method '{methodSymbol.Name}' has no instance value.").WithLocation(location));
             }
             else if (methodSymbol.DeclaringSymbol is TypeSymbol declaringType)
             {
@@ -445,7 +452,7 @@ public class SemanticEmitter
             }
             else
             {
-                context.Emitter.EmitThrowAndReport($"Non-static method '{methodSymbol.Name}' has no declaring type.");
+                context.Emitter.EmitThrowAndReport(new Diagnostic($"Non-static method '{methodSymbol.Name}' has no declaring type.").WithLocation(location));
             }
         }
 
@@ -510,10 +517,10 @@ public class SemanticEmitter
     /// </summary>
     protected virtual void EmitConstant(ILEmitContext context, ConstantExpression constant)
     {
-        EmitValue(context.Emitter, constant.Value);
+        EmitValue(context.Emitter, constant.Value, constant.Location);
     }
 
-    private void EmitValue(SymbolILEmitter emitter, object? value)
+    private void EmitValue(SymbolILEmitter emitter, object? value, ISourceLocation? location)
     {
         switch (value)
         {
@@ -564,7 +571,7 @@ public class SemanticEmitter
                 break;
             default:
                 // some other object literal?
-                emitter.EmitThrowAndReport($"Cannot represent a value of type '{value.GetType().FullName}' as a constant.");
+                emitter.EmitThrowAndReport(new Diagnostic($"Cannot represent a value of type '{value.GetType().FullName}' in IL.").WithLocation(location));
                 break;
         }
     }
@@ -599,18 +606,18 @@ public class SemanticEmitter
     {
         if (member.ReferencedSymbol is MemberSymbol memberSymbol)
         {
-            EmitMemberReference(context, member.Instance, memberSymbol, asAddress);
+            EmitMemberReference(context, member.Instance, memberSymbol, asAddress, member.Location);
         }
     }
 
-    protected virtual void EmitMemberReference(ILEmitContext context, Expression instance, MemberSymbol memberSymbol, bool asAddress)
+    protected virtual void EmitMemberReference(ILEmitContext context, Expression instance, MemberSymbol memberSymbol, bool asAddress, ISourceLocation? location)
     {
         if (!memberSymbol.IsStatic)
         {
             EmitExpression(context, instance, asAddress: instance.ResultType.IsValueType);
         }
 
-        EmitSymbolReference(context, memberSymbol, asAddress);
+        EmitSymbolReference(context, memberSymbol, asAddress, location);
     }
 
     protected virtual void EmitAdjustedReferenceExpression(ILEmitContext context, AdjustedReferenceExpression adjusted, bool asAddress)
@@ -620,11 +627,11 @@ public class SemanticEmitter
             var instance = GetMemberInstance(adjusted);
             if (instance != null)
             {
-                EmitMemberReference(context, instance, memberSymbol, asAddress);
+                EmitMemberReference(context, instance, memberSymbol, asAddress, adjusted.Location);
             }
             else
             {
-                EmitSymbolReference(context, memberSymbol, asAddress);
+                EmitSymbolReference(context, memberSymbol, asAddress, adjusted.Location);
             }
         }
     }
@@ -651,7 +658,7 @@ public class SemanticEmitter
     {
         if (nameRef.ReferencedSymbol is MemberSymbol memberSymbol)
         {
-            EmitSymbolReference(context, memberSymbol, asAddress);
+            EmitSymbolReference(context, memberSymbol, asAddress, nameRef.Location);
         }
     }
 
@@ -659,11 +666,11 @@ public class SemanticEmitter
     {
         if (symbolRef.ReferencedSymbol is MemberSymbol memberSymbol)
         {
-            EmitSymbolReference(context, memberSymbol, asAddress);
+            EmitSymbolReference(context, memberSymbol, asAddress, symbolRef.Location);
         }
     }
 
-    protected virtual void EmitSymbolReference(ILEmitContext context, Symbol symbol, bool asAddress)
+    protected virtual void EmitSymbolReference(ILEmitContext context, Symbol symbol, bool asAddress, ISourceLocation? location)
     {
         switch (symbol)
         {
@@ -690,7 +697,7 @@ public class SemanticEmitter
                 break;
 
             default:
-                context.Emitter.EmitThrowAndReport($"Reference to symbol type '{symbol.GetType().Name}' not supported in EmitSymbolReference");
+                context.Emitter.EmitThrowAndReport(new Diagnostic($"Reference to symbol '{symbol.GetType().Name}' cannot be emitted into IL.").WithLocation(location));
                 break;           
         }
     }
@@ -702,26 +709,45 @@ public class SemanticEmitter
     {
         if (opex.OperatorSymbol is OperatorSymbol opSymbol)
         {
-            EmitOperator(context, opSymbol, opex.Arguments, isChecked: true);
+            // if the operator is backed by a method 
+            if (opSymbol.CheckedMethod != null || opSymbol.UncheckMethod != null)
+            {
+                var methodSymbol = context.IsChecked
+                    ? opSymbol.CheckedMethod ?? opSymbol.UncheckMethod
+                    : opSymbol.UncheckMethod ?? opSymbol.CheckedMethod;
+
+                EmitMethodCall(context, methodSymbol!, null, opex.Arguments, opex.Location);
+            }
+            else
+            {
+                // must be an intrinsic operator
+                EmitIntrinsicOperator(context, opSymbol, opex.Arguments, isChecked: context.IsChecked, opex.Location);
+            }
         }
         else if (opex.OperatorSymbol is MethodSymbol methodSymbol)
         {
-            EmitMethodCall(context, methodSymbol, null, opex.Arguments);
+            // operator expression was resolved to a method
+            EmitMethodCall(context, methodSymbol, null, opex.Arguments, opex.Location);
         }
         else if (opex.OperatorSymbol != null)
         {
-            throw new InvalidOperationException($"Invalid custom operator symbol type '{opex.OperatorSymbol.GetType().Name}' in EmitOperator");
+            context.Emitter.EmitThrowAndReport(new Diagnostic($"Invalid operator symbol of type '{opex.OperatorSymbol.GetType().Name}'").WithLocation(opex.Location));
+        }
+        else
+        {
+            context.Emitter.EmitThrowAndReport(new Diagnostic($"Unknown operator kind '{opex.Kind}'").WithLocation(opex.Location));
         }
     }
 
     /// <summary>
     /// Emits common operator expression
     /// </summary>
-    protected virtual void EmitOperator(
+    protected virtual void EmitIntrinsicOperator(
         ILEmitContext context,
         OperatorSymbol opsym,
         ImmutableList<Expression> arguments,
-        bool isChecked)
+        bool isChecked,
+        ISourceLocation? location)
     {
         var operandType = opsym.Parameters[0].ParameterType;
         switch (opsym.Kind)
@@ -835,7 +861,7 @@ public class SemanticEmitter
                 break;
 
             default:
-                context.Emitter.EmitThrowAndReport($"Unhandled operator kind '{opsym.Kind}' in EmitOperator.");
+                context.Emitter.EmitThrowAndReport(new Diagnostic($"Unhandled operator kind '{opsym.Kind}' in EmitOperator.").WithLocation(location));
                 break;
         }
     }
@@ -852,6 +878,13 @@ public class SemanticEmitter
         {
             context.Emitter.DeclareVariableStart(variable.VariableSymbol);
         }
+    }
+    #endregion
+
+    #region Void Emit
+    protected virtual void EmitVoid(ILEmitContext context, VoidExpression vex)
+    {
+        // do nothing.. it is void. :)
     }
     #endregion
 
@@ -872,7 +905,7 @@ public class SymbolEmitContext
         List<Diagnostic> diagnostics
         )
     {
-        Symbols = SymbolCache.From(binding.GlobalNamespace);
+        Symbols = SymbolCache.From(binding.CombinedSymbols);
         Binding = binding;
         Emitter = emitter;
         _diagnostics = diagnostics;
@@ -884,22 +917,48 @@ public class SymbolEmitContext
     }
 
     public virtual ILEmitContext CreateILEmitContext(MemberSymbol symbol, SymbolILEmitter ilEmitter) =>
-        new ILEmitContext(this.Symbols, ilEmitter, symbol);
+        new ILEmitContext(this.Symbols, ilEmitter, symbol, isChecked: true);
 }
 
 public class ILEmitContext
 {
+    /// <summary>
+    /// The <see cref="SymbolCache"/> that can be used to access all type and member symbols
+    /// in the global namespace.
+    /// </summary>
     public SymbolCache Symbols { get; }
+
+    /// <summary>
+    /// The IL emitter.
+    /// </summary>
     public SymbolILEmitter Emitter { get; }
+
+    /// <summary>
+    /// The member that is currently being emitted.
+    /// </summary>
     public MemberSymbol CurrentMember { get; }
+
+    /// <summary>
+    /// True if the code is being emitted in a checked context.
+    /// </summary>
+    public bool IsChecked { get; }
 
     public ILEmitContext(
         SymbolCache symbols,
         SymbolILEmitter emitter,
-        MemberSymbol current)
+        MemberSymbol current,
+        bool isChecked)
     {
         Symbols = symbols;
         Emitter = emitter;
         CurrentMember = current;
+        IsChecked = isChecked;
+    }
+
+    public ILEmitContext WithIsChecked(bool isChecked)
+    {
+        if (isChecked == this.IsChecked)
+            return this;
+        return new ILEmitContext(Symbols, Emitter, CurrentMember, isChecked);
     }
 }

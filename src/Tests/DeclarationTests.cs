@@ -130,7 +130,7 @@ public class DeclarationTests
 
         foreach (var path in expectedSymbols)
         {
-            var symbol = binding.GlobalNamespace.GetFirstSymbolFromPath(path);
+            var symbol = binding.CombinedSymbols.GetFirstSymbolFromPath(path);
             Assert.IsNotNull(symbol, $"symbol '{path}' not found");
         }
     }

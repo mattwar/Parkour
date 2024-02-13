@@ -243,4 +243,40 @@ public class TypeSymbol : ContainerSymbol
 
         return false;
     }
+
+    public MethodSymbol? GetMethod(string? name, ImmutableList<TypeSymbol> parameterTypes, Func<MethodSymbol, bool>? predicate = null) =>
+        this.GetFirstMember<MethodSymbol>(name, m => m.Arity == 0 && ParametersMatch(m.Parameters, parameterTypes) && (predicate == null || predicate(m)));
+
+    public MethodSymbol? GetMethod(string? name, ImmutableList<TypeSymbol> typeArguments, ImmutableList<TypeSymbol> parameterTypes, Func<MethodSymbol, bool>? predicate = null) =>
+        this.GetFirstMember<MethodSymbol>(name, m => m.Arity == typeArguments.Count && TypesMatch(m.TypeArguments, typeArguments) && ParametersMatch(m.Parameters, parameterTypes) && (predicate == null || predicate(m)));
+
+    private static bool TypesMatch(ImmutableList<TypeSymbol> types1, ImmutableList<TypeSymbol> types2)
+    {
+        if (types1.Count != types2.Count)
+            return false;
+
+        var typeComparer = TypeEqualityComparer.Instance;
+        for (int i = 0; i < types1.Count; i++)
+        {
+            if (!typeComparer.Equals(types1[i], types2[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool ParametersMatch(ImmutableList<ParameterSymbol> parameters, ImmutableList<TypeSymbol> parameterTypes)
+    {
+        if (parameters.Count != parameterTypes.Count)
+            return false;
+
+        var typeComparer = TypeEqualityComparer.Instance;
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            if (!typeComparer.Equals(parameters[i].ParameterType, parameterTypes[i]))
+                return false;
+        }
+
+        return true;
+    }
 }

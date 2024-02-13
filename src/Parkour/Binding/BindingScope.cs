@@ -25,6 +25,12 @@ public abstract class BindingScope
     public abstract BindingScope AddSymbol(Symbol symbol);
 
     /// <summary>
+    /// Creates a new instance of the current scope with the symbol and its members added.
+    /// </summary>
+    public BindingScope AddSymbolAndMembers(ContainerSymbol symbol) =>
+        AddSymbol(symbol).AddMembers(symbol);
+
+    /// <summary>
     /// Creates a new instance of the current scope with the members of the container symbol added.
     /// </summary>
     public abstract BindingScope AddMembers(ContainerSymbol container);

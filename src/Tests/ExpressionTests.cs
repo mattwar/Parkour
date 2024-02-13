@@ -585,6 +585,7 @@ public class ExpressionTests
 
         // string
         TestBinding(Equal(Constant("one"), Constant("two")), _symbols.Boolean);
+        TestBinding(Add(Constant("one"), Constant("two")), _symbols.String);
     }
 
     [TestMethod]

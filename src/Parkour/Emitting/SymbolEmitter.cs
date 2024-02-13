@@ -285,7 +285,7 @@ public abstract class SymbolILEmitter
     /// <summary>
     /// Throws an <see cref="InvalidOperationException"/> at runtime and reports a <see cref="Diagnostic"/>.
     /// </summary>
-    public abstract void EmitThrowAndReport(string message);
+    public abstract void EmitThrowAndReport(Diagnostic diagnostic);
 
     /// <summary>
     /// Throws an exception of <see cref="exceptionType"/> at runtime.

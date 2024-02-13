@@ -26,12 +26,12 @@ public abstract class DeclarationBinding
     /// <summary>
     /// The global namespace that contains all declared symbols from this binding.
     /// </summary>
-    public abstract GlobalNamespaceSymbol DeclarationSymbols { get; }
+    public abstract GlobalNamespaceSymbol DeclaredSymbols { get; }
 
     /// <summary>
     /// The global namespace that combines all the external and declared symbols.
     /// </summary>
-    public abstract GlobalNamespaceSymbol GlobalNamespace { get; }
+    public abstract GlobalNamespaceSymbol CombinedSymbols { get; }
 
     /// <summary>
     /// All diagnostics from all bound declarations

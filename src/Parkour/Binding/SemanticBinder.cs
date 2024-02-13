@@ -3,6 +3,7 @@
 namespace Parkour.Binding;
 using Semantics;
 using Symbols;
+using System.Xml.Linq;
 
 /// <summary>
 /// Converts unbound declarations and expressions into bound declarations and expressions,
@@ -21,71 +22,75 @@ public class SemanticBinder
     {
     }
 
-    #region BindingContext
-
-    protected abstract class BindingContext
-    {
-        /// <summary>
-        /// A cache of common symbols.
-        /// </summary>
-        public abstract SymbolCache Symbols { get; }
-
-        /// <summary>
-        /// The global namespace for all declared and external symbols
-        /// </summary>
-        public GlobalNamespaceSymbol GlobalNamespace => this.Symbols.GlobalNamespace;
-
-        /// <summary>
-        /// The current binding scope.
-        /// </summary>
-        public abstract BindingScope Scope { get; }
-
-        public abstract BindingContext WithScope(BindingScope scope);
-    }
-
     /// <summary>
-    /// Contains useful state for binding declarations.
+    /// Binds a set of declarations given external symbols.
     /// </summary>
-    protected abstract class DeclarationContext : BindingContext
+    /// <param name="declarations">The declarations to bind.</param>
+    /// <param name="externalSymbols">The global namespace containing all external symbols.</param>
+    public DeclarationBinding BindDeclarations(
+        IEnumerable<Declaration> declarations,
+        GlobalNamespaceSymbol externalSymbols)
     {
-        public abstract bool TryGetSymbol(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol);
-        public abstract ExpressionContext ExpressionContext { get; }
+        var result = CreateSymbols(declarations, externalSymbols);
 
-        public override DeclarationContext WithScope(BindingScope scope)
-        {
-            throw new NotImplementedException();
-        }
+        return new DeferredBinding(
+            declarations.ToImmutableList(),
+            externalSymbols,
+            result.DeclaredSymbols,
+            result.CombinedSymbols,
+            this,
+            result.Context);
     }
+
+    #region binding contexts
 
     /// <summary>
     /// Contains useful state for creating symbols for declarations.
     /// </summary>
-    protected class SymbolContext : BindingContext
+    protected class SymbolContext
     {
-        public override SymbolCache Symbols { get; }
-        public override BindingScope Scope { get; }
-        private readonly Dictionary<Declaration, Symbol> _map;
+        public SymbolCache Symbols { get; }
+        public ImmutableList<OperatorSymbol> Operators { get; }
+        public BindingScope Scope { get; }
 
-        private SymbolContext(SymbolCache symbols, BindingScope scope, Dictionary<Declaration, Symbol> map)
+        private readonly Dictionary<Declaration, Symbol> _declarationToSymbolMap;
+        private readonly Dictionary<string, ImmutableList<OperatorSymbol>> _kindToOperatorsMap;
+
+        private SymbolContext(
+            SymbolCache symbols,
+            ImmutableList<OperatorSymbol> operators,
+            BindingScope scope,
+            Dictionary<Declaration, Symbol>? declarationToSymbolMap,
+            Dictionary<string, ImmutableList<OperatorSymbol>>? kindToOperatorsMap)
         {
             Symbols = symbols;
+            Operators = operators;
             Scope = scope;
-            _map = map;
+            _declarationToSymbolMap = declarationToSymbolMap ?? new Dictionary<Declaration, Symbol>();
+            _kindToOperatorsMap = kindToOperatorsMap ?? operators.GroupBy(o => o.Kind).ToDictionary(g => g.Key, g => g.ToImmutableList());
         }
 
-        public SymbolContext(SymbolCache symbols, BindingScope scope)
-            : this(symbols, scope, new Dictionary<Declaration, Symbol>())
+        public SymbolContext(
+            SymbolCache symbols,
+            ImmutableList<OperatorSymbol> operators,
+            BindingScope scope)
+            : this(symbols, operators, scope, null, null)
         {
         }
 
-        public override SymbolContext WithScope(BindingScope scope)
+        public virtual SymbolContext WithScope(BindingScope scope)
         {
-            return new SymbolContext(this.Symbols, scope, _map);
+            return new SymbolContext(this.Symbols, this.Operators, scope, _declarationToSymbolMap, _kindToOperatorsMap);
+        }
+
+        public virtual SymbolContext WithOperators(ImmutableList<OperatorSymbol> operators)
+        {
+            return new SymbolContext(this.Symbols, operators, this.Scope, _declarationToSymbolMap, null);
         }
 
         public void Map(Declaration declaration, Symbol symbol)
         {
-            _map.Add(declaration, symbol);
+            _declarationToSymbolMap.Add(declaration, symbol);
         }
 
         public void Map(IEnumerable<Declaration> declarations, Symbol symbol)
@@ -96,15 +101,22 @@ public class SemanticBinder
             }
         }
 
-        private DeclContext? _declContext;
+        public ImmutableList<OperatorSymbol> GetOperators(string operatorKind)
+        {
+            if (_kindToOperatorsMap.TryGetValue(operatorKind, out var operators))
+                return operators;
+            return ImmutableList<OperatorSymbol>.Empty;
+        }
 
-        public DeclarationContext DeclarationContext
+        private DeclarationContext? _declContext;
+
+        public virtual DeclarationContext DeclarationContext
         {
             get
             {
                 if (_declContext == null)
                 {
-                    var tmp = new DeclContext(this.Symbols, this.Scope, _map);
+                    var tmp = new DeclarationContext(this, this.Scope, _declarationToSymbolMap);
                     Interlocked.CompareExchange(ref _declContext, tmp, null);
                 }
 
@@ -114,54 +126,63 @@ public class SemanticBinder
 
         internal ImmutableDictionary<Symbol, ImmutableList<Declaration>> GetSymbolToUnboundDeclarationMap()
         {
-            return _map
+            return _declarationToSymbolMap
                 .GroupBy(kvp => kvp.Value)
                 .ToImmutableDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToImmutableList());
         }
+    }
 
-        private class DeclContext : DeclarationContext
+    /// <summary>
+    /// Contains useful state for binding declarations.
+    /// </summary>
+    protected class DeclarationContext    
+    {
+        /// <summary>
+        /// The initial <see cref="SymbolContext"/>
+        /// </summary>
+        public SymbolContext SymbolContext { get; }
+
+        /// <summary>
+        /// The current <see cref="BindingScope"/>
+        /// </summary>
+        public BindingScope Scope { get; }
+
+        private readonly Dictionary<Declaration, Symbol> _map;
+
+        public DeclarationContext(
+            SymbolContext context,
+            BindingScope scope,
+            Dictionary<Declaration, Symbol> map)
         {
-            public override SymbolCache Symbols { get; }
-            public override BindingScope Scope { get; }
-            private readonly Dictionary<Declaration, Symbol> _map;
+            this.SymbolContext = context;
+            this.Scope = scope;
+            _map = map;
+        }
 
-            public DeclContext(
-                SymbolCache symbols,
-                BindingScope scope,
-                Dictionary<Declaration, Symbol> map)
+        public virtual DeclarationContext WithScope(BindingScope scope)
+        {
+            if (scope == this.Scope)
+                return this;
+            return new DeclarationContext(this.SymbolContext, scope, _map);
+        }
+
+        public bool TryGetSymbol(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol)
+        {
+            return _map.TryGetValue(declaration, out symbol);
+        }
+
+        private ExpressionContext? _exprContext;
+
+        public virtual ExpressionContext ExpressionContext
+        {
+            get
             {
-                Symbols = symbols;
-                Scope = scope;
-                _map = map;
-            }
-
-            public override DeclarationContext WithScope(BindingScope scope)
-            {
-                if (scope == this.Scope)
-                    return this;
-                return new DeclContext(this.Symbols, scope, _map);
-                throw new NotImplementedException();
-            }
-
-            public override bool TryGetSymbol(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol)
-            {
-                return _map.TryGetValue(declaration, out symbol);
-            }
-
-            private ExpressionContext? _exprContext;
-
-            public override ExpressionContext ExpressionContext
-            {
-                get
+                if (_exprContext == null)
                 {
-                    if (_exprContext == null)
-                    {
-                        var tmp = new ExpressionContext(this.Symbols, this.Scope);
-                        Interlocked.CompareExchange(ref _exprContext, tmp, null);
-                    }
-
-                    return _exprContext;
+                    var tmp = new ExpressionContext(this.SymbolContext, this.Scope);
+                    Interlocked.CompareExchange(ref _exprContext, tmp, null);
                 }
+                return _exprContext;
             }
         }
     }
@@ -169,17 +190,22 @@ public class SemanticBinder
     /// <summary>
     /// Contains useful state for binding expressions.
     /// </summary>
-    protected class ExpressionContext : BindingContext
+    protected class ExpressionContext
     {
+        /// <summary>
+        /// The intial <see cref="BindingContext"/>
+        /// </summary>
+        public SymbolContext SymbolContext { get; }
+
         /// <summary>
         /// A cache of common symbols.
         /// </summary>
-        public override SymbolCache Symbols { get; }
+        public SymbolCache Symbols => SymbolContext.Symbols;
 
         /// <summary>
         /// The current binding scope.
         /// </summary>
-        public override BindingScope Scope { get; }
+        public BindingScope Scope { get; }
 
         /// <summary>
         /// If true the binder will attempt to rebind an already bound semantic subtree.
@@ -194,47 +220,43 @@ public class SemanticBinder
         private readonly Dictionary<LabelExpression, LabelSymbol> _labelToSymbolMap;
 
         private ExpressionContext(
-            SymbolCache symbols,
+            SymbolContext context,
             BindingScope scope,
             bool rebind,
             TypeSymbol? targetType,
             Dictionary<LabelExpression, LabelSymbol>? labelToSymbolMap)
         {
-            this.Symbols = symbols;
+            this.SymbolContext = context;
             this.Scope = scope;
             this.Rebind = rebind;
             this.TargetType = targetType;
             _labelToSymbolMap = labelToSymbolMap ?? new Dictionary<LabelExpression, LabelSymbol>();
-
         }
 
-        public ExpressionContext(SymbolCache symbols, BindingScope scope)
-            : this(symbols, scope, false, null, null)
-        {
-        }
-
-        public ExpressionContext(GlobalNamespaceSymbol globalNamespace, BindingScope scope)
-            : this(SymbolCache.From(globalNamespace), scope)
+        public ExpressionContext(
+            SymbolContext context,
+            BindingScope scope)
+            : this(context, scope, false, null, null)
         {
         }
 
         /// <summary>
         /// Create a new instance with <see cref="Scope"/> assigned.
         /// </summary>
-        public override ExpressionContext WithScope(BindingScope scope) =>
-            new ExpressionContext(this.Symbols, scope, this.Rebind, this.TargetType, _labelToSymbolMap);
+        public ExpressionContext WithScope(BindingScope scope) =>
+            new ExpressionContext(this.SymbolContext, scope, this.Rebind, this.TargetType, _labelToSymbolMap);
 
         /// <summary>
         /// Creates a new instance with <see cref="Rebind"/> assigned.
         /// </summary>
         public ExpressionContext WithRebind(bool rebind) =>
-            new ExpressionContext(this.Symbols, this.Scope, this.Rebind, this.TargetType, _labelToSymbolMap);
+            new ExpressionContext(this.SymbolContext, this.Scope, this.Rebind, this.TargetType, _labelToSymbolMap);
 
         /// <summary>
         /// Createsa  new instance with <see cref="TargetType"/> assigned.
         /// </summary>
         public ExpressionContext WithTargetType(TypeSymbol? targetType) =>
-            new ExpressionContext(this.Symbols, this.Scope, this.Rebind, targetType, _labelToSymbolMap);
+            new ExpressionContext(this.SymbolContext, this.Scope, this.Rebind, targetType, _labelToSymbolMap);
 
         /// <summary>
         /// Sets the <see cref="LabelSymbol"/> associated with its declaring <see cref="LabelExpression"/>
@@ -255,25 +277,59 @@ public class SemanticBinder
     };
     #endregion
 
-    #region Declarations
+    #region Symbol Creation
+
     /// <summary>
-    /// Binds a set of declarations given external symbols.
+    /// Gets an empty <see cref="BindingScope"/>.
     /// </summary>
-    /// <param name="declarations">The declarations to bind.</param>
-    /// <param name="externalSymbols">The global namespace containing all external symbols.</param>
-    public DeclarationBinding BindDeclarations(
+    public virtual BindingScope CreateDefaultBindingScope() =>
+        SimpleBindingScope.Empty;
+
+    /// <summary>
+    /// Creates the initial set of operators to use for binding.
+    /// </summary>
+    protected virtual ImmutableList<OperatorSymbol> GetOperators(SymbolCache symbols) =>
+        Operators.From(symbols).Default;
+
+    /// <summary>
+    /// Creates a <see cref="SymbolContext"/> with a default <see cref="BindingScope"/>
+    /// </summary>
+    protected virtual SymbolContext CreateDefaultSymbolContext(GlobalNamespaceSymbol globalNamespace)
+    {
+        var symbols = SymbolCache.From(globalNamespace);
+        return new SymbolContext(symbols, [], CreateDefaultBindingScope().AddMembers(globalNamespace));
+    }
+
+    /// <summary>
+    /// Creates the symbol context as it is initially used for binding.
+    /// </summary>
+    protected virtual SymbolContext CreateInitialSymbolContext(GlobalNamespaceSymbol globalNamespace)
+    {
+        var defContext = CreateDefaultSymbolContext(globalNamespace);
+        return defContext.WithOperators(GetOperators(SymbolCache.From(globalNamespace)));
+    }
+
+    private record struct CreateSymbolsResult(
+        GlobalNamespaceSymbol DeclaredSymbols,
+        GlobalNamespaceSymbol CombinedSymbols,
+        SymbolContext Context);
+
+    /// <summary>
+    /// Creates all declared symbols from declarations.
+    /// </summary>
+    private CreateSymbolsResult CreateSymbols(
         IEnumerable<Declaration> declarations,
         GlobalNamespaceSymbol externalSymbols)
     {
-        GlobalNamespaceSymbol? declarationSymbols = null;
-        SymbolContext? context = null;
+        GlobalNamespaceSymbol? declaredSymbols = null;
+        SymbolContext? creationContext = null;
 
         // create combined symbols' global namespace including all declared and external symbols
         var combinedSymbols = CombinedSymbols.CreateCombinedGlobalNamespace(
             globals =>
             {
                 // make global namespace for all declared symbols
-                declarationSymbols = new GlobalNamespaceSymbol(
+                declaredSymbols = new GlobalNamespaceSymbol(
                 me =>
                 {
                     // all top level declarations that are not global namespace declarations
@@ -283,44 +339,44 @@ public class SemanticBinder
                             : new[] { d })
                         .ToImmutableList();
 
-                    return CreateAndCombineDeclarationSymbols(context!, me, topLevelDeclarations);
+                    return CreateAndCombineSymbols(creationContext!, me, topLevelDeclarations);
                 });
 
                 // return both declared and external global namespaces to be combined.
-                return [externalSymbols, declarationSymbols];
+                return [externalSymbols, declaredSymbols];
             });
 
         // symbol context for use in creating declaration symbols.
-        var cache = SymbolCache.From(combinedSymbols);
-        var scope = GetEmptyBindingScope().AddMembers(combinedSymbols);
-        context = new SymbolContext(cache, scope);
+        creationContext = CreateDefaultSymbolContext(combinedSymbols);
+
+        // add operators after context is assigned
+        var fullContext = creationContext.WithOperators(GetOperators(creationContext.Symbols));
 
         // force evaluation of global namespace symbol members
         _ = combinedSymbols.Members;
-        _ = declarationSymbols!.Members;
+        _ = declaredSymbols!.Members;
 
         // force creation of all declared symbols
         // this side effect of building a map of declaration->symbol for use in binding
-        declarationSymbols.WalkDeclarations(s => { });
+        declaredSymbols.WalkDeclarations(s => { });
 
-        return new DeferredBinding(
-            this,
-            context.DeclarationContext,
-            externalSymbols,
-            declarationSymbols,
-            declarations.ToImmutableList(),
-            context.GetSymbolToUnboundDeclarationMap());
+        return new CreateSymbolsResult(declaredSymbols, combinedSymbols, fullContext);
     }
 
     /// <summary>
     /// Creates symbols for the declarations,
     /// combining same named namespace declaration symbols.
     /// </summary>
-    private ImmutableList<Symbol> CreateAndCombineDeclarationSymbols(
+    private ImmutableList<Symbol> CreateAndCombineSymbols(
         SymbolContext context,
         NamespaceSymbol @namespace,
         IEnumerable<Declaration> declarations)
     {
+        if (@namespace is not GlobalNamespaceSymbol)
+        {
+            context = context.WithScope(context.Scope.AddSymbolAndMembers(@namespace));
+        }
+
         var newMembers = new List<Symbol>();
 
         var namespaceMemberGroups = declarations
@@ -336,7 +392,7 @@ public class SemanticBinder
                 {
                     context.Map(g, me);
                     var newContext = context.WithScope(context.Scope.AddMembers(me).AddSymbol(me));
-                    return CreateAndCombineDeclarationSymbols(newContext, me, g.SelectMany(n => n.Declarations));
+                    return CreateAndCombineSymbols(newContext, me, g.SelectMany(n => n.Declarations));
                 }))
             .ToList();
 
@@ -462,14 +518,16 @@ public class SemanticBinder
                 );
 
             case UsingDeclaration:
-                // this declaration does not have a symbol that is part of a namespace.
+                // this declaration does not have a symbol that is reachable from the global namespace
                 return null;
 
             default:
                 throw new InvalidOperationException($"Unhandled declaration type '{declaration.GetType().Name}' in {nameof(SemanticBinder)}.{nameof(CreateDeclarationSymbol)}");
         }
     }
+    #endregion
 
+    #region Declaration Binding
     /// <summary>
     /// Binds a declaration to its associated symbol
     /// </summary>
@@ -825,7 +883,7 @@ public class SemanticBinder
 
     #endregion
 
-    #region Expressions
+    #region Expression Binding
     /// <summary>
     /// Binds all unbound expressions
     /// </summary>
@@ -833,7 +891,7 @@ public class SemanticBinder
         Expression expression, 
         GlobalNamespaceSymbol globalNamespace)
     {
-        var scope = GetEmptyBindingScope().AddSymbol(globalNamespace);
+        var scope = CreateDefaultBindingScope().AddMembers(globalNamespace);
         return BindExpression(expression, globalNamespace, scope);
     }
 
@@ -845,7 +903,7 @@ public class SemanticBinder
         GlobalNamespaceSymbol globalNamespace, 
         BindingScope scope)
     {
-        var context = new ExpressionContext(globalNamespace, scope);
+        var context = new ExpressionContext(CreateInitialSymbolContext(globalNamespace), scope);
         return BindExpression(context, expression);
     }
 
@@ -941,7 +999,7 @@ public class SemanticBinder
         GlobalNamespaceSymbol globalNamespace)
         where TExpression : Expression
     {
-        var scope = GetEmptyBindingScope().AddSymbol(globalNamespace);
+        var scope = CreateDefaultBindingScope().AddSymbol(globalNamespace);
         return BindExpressionList(expressions, globalNamespace, scope);
     }
 
@@ -954,7 +1012,7 @@ public class SemanticBinder
         BindingScope scope)
         where TExpression : Expression
     {
-        var context = new ExpressionContext(globalNamespace, scope);
+        var context = new ExpressionContext(CreateInitialSymbolContext(globalNamespace), scope);
         return BindExpressionList(context, expressions);
     }
 
@@ -991,12 +1049,6 @@ public class SemanticBinder
     /// </summary>
     protected TypeSymbol? GetType(SymbolContext context, Expression typeExpression) =>
         GetType(context.DeclarationContext, typeExpression);
-
-    /// <summary>
-    /// Gets an empty <see cref="BindingScope"/>.
-    /// </summary>
-    public virtual BindingScope GetEmptyBindingScope() =>
-        SimpleBindingScope.Empty;
 
     #region Array Expression
     /// <summary>
@@ -1469,7 +1521,8 @@ public class SemanticBinder
 
         for (int i = 0; i < parameters.Count; i++)
         {
-            if (GetConversion(context, arguments[i].ResultType, parameters[i].ParameterType) == ConversionKind.None)
+            var conversion = GetConversion(context, arguments[i].ResultType, parameters[i].ParameterType);
+            if (conversion == ConversionKind.None)
                 return false;
         }
 
@@ -2228,9 +2281,7 @@ public class SemanticBinder
 
     protected virtual void GetCandidateOperators(ExpressionContext context, string operatorKind, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
-        // 
-        var ops = Operators.From(context.Symbols);
-        candidates.AddRange(ops.GetIntrinsicOperators(operatorKind));
+        candidates.AddRange(context.SymbolContext.GetOperators(operatorKind));
 
         var opName = GetOperatorName(operatorKind);
         foreach (var arg in arguments)
@@ -2994,7 +3045,7 @@ public class SemanticBinder
     private class DeferredBinding : DeclarationBinding
     {
         private readonly SemanticBinder _binder;
-        private readonly DeclarationContext _context;
+        private readonly SymbolContext _context;
 
         /// <summary>
         /// All the declarations before binding
@@ -3009,27 +3060,28 @@ public class SemanticBinder
         /// <summary>
         /// The namespace including only declared symbols
         /// </summary>
-        public override GlobalNamespaceSymbol DeclarationSymbols { get; }
+        public override GlobalNamespaceSymbol DeclaredSymbols { get; }
 
         /// <summary>
-        /// The namespace including both declared and external symbol.
+        /// The namespace including both declared and external symbols.
         /// </summary>
-        public override GlobalNamespaceSymbol GlobalNamespace => _context.GlobalNamespace;
+        public override GlobalNamespaceSymbol CombinedSymbols { get; }
 
         public DeferredBinding(
-            SemanticBinder binder,
-            DeclarationContext context,
+            ImmutableList<Declaration> unboundDeclarations,
             GlobalNamespaceSymbol externalSymbols,
             GlobalNamespaceSymbol declarationSymbols,
-            ImmutableList<Declaration> unboundDeclarations,
-            ImmutableDictionary<Symbol, ImmutableList<Declaration>> symbolToUnboundDeclarationMap)
+            GlobalNamespaceSymbol combinedSymbols,
+            SemanticBinder binder,
+            SymbolContext context)
         {
+            this.UnboundDeclarations = unboundDeclarations;
+            this.ExternalSymbols = externalSymbols;
+            this.DeclaredSymbols = declarationSymbols;
+            this.CombinedSymbols = combinedSymbols;
             _binder = binder;
             _context = context;
-            ExternalSymbols = externalSymbols;
-            DeclarationSymbols = declarationSymbols;
-            UnboundDeclarations = unboundDeclarations;
-            _symbolToUnboundDeclarationMap = symbolToUnboundDeclarationMap;
+            _symbolToUnboundDeclarationMap = context.GetSymbolToUnboundDeclarationMap();
         }
 
         private ImmutableList<Declaration>? _boundDeclarations;
@@ -3061,7 +3113,7 @@ public class SemanticBinder
         {
             if (!_unboundToBoundMap.TryGetValue(unboundDeclaration, out var boundDeclaration))
             {
-                var tmp = _binder.BindDeclaration(_context, unboundDeclaration);
+                var tmp = _binder.BindDeclaration(_context.DeclarationContext, unboundDeclaration);
                 boundDeclaration = ImmutableInterlocked.GetOrAdd(ref _unboundToBoundMap, unboundDeclaration, tmp);
             }
 

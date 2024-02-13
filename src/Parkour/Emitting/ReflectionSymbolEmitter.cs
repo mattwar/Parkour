@@ -903,7 +903,7 @@ public class ReflectionSymbolEmitter : SymbolEmitter
             {
                 EmitPop();
                 EmitDefault(targetType);
-                EmitThrowAndReport($"Cannot convert from type '{sourceType.Name}' to '{targetType.Name}'");
+                EmitThrowAndReport(new Diagnostic($"Cannot convert from type '{sourceType.Name}' to '{targetType.Name}'"));
             }
         }
 
@@ -1404,10 +1404,10 @@ public class ReflectionSymbolEmitter : SymbolEmitter
             EmitThrow(typeof(InvalidOperationException), message);
         }
 
-        public override void EmitThrowAndReport(string message)
+        public override void EmitThrowAndReport(Diagnostic diagnostic)
         {
-            EmitThrow(message);
-            _emitter._diagnostics.Add(new Diagnostic(message));
+            EmitThrow(diagnostic.ToString());
+            _emitter._diagnostics.Add(diagnostic);
         }
 
         public override void EmitThrow(TypeSymbol exceptionTypeSymbol, string message)
@@ -1419,11 +1419,10 @@ public class ReflectionSymbolEmitter : SymbolEmitter
         private void EmitThrow(Type exceptionType, string message)
         {
             _ilgen.Emit(OpCodes.Ldstr, message);
-            var ci = exceptionType.GetConstructor(BindingFlags.Public, [typeof(string)]);
+            var ci = exceptionType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, [typeof(string)]);
             _ilgen.Emit(OpCodes.Newobj, ci!);
             _ilgen.ThrowException(typeof(InvalidOperationException));
         }
-
     }
 }
 
