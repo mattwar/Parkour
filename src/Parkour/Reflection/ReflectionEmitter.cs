@@ -5,7 +5,10 @@ using Parkour.Emitting;
 
 namespace Parkour.Reflection;
 
-public class ReflectionEmitter : SymbolEmitter
+/// <summary>
+/// Emits symbol declarations and IL into a <see cref="System.Reflection.Emit.ModuleBuilder"/>
+/// </summary>
+public class ReflectionEmitter : ModuleEmitter
 {
     private readonly AssemblyBuilder _assemblyBuilder;
     private readonly ModuleBuilder _moduleBuilder;
@@ -52,6 +55,26 @@ public class ReflectionEmitter : SymbolEmitter
                 AssemblyBuilderAccess.RunAndCollect))
     {
     }
+
+    public override EmitResult EmitSymbols()
+    {
+        // TODO: do these need to be in topographical order?
+        var typeBuilders = _symbolToBuilder
+            .Where(kvp => kvp.Key is TypeSymbol)
+            .Select(kvp => kvp.Value)
+            .OfType<TypeBuilder>()
+            .ToList();
+
+        foreach (var typeBuilder in typeBuilders)
+        {
+            typeBuilder.CreateType();
+        }
+
+        _moduleBuilder.CreateGlobalFunctions();
+
+        return new EmitResult(_diagnostics.ToImmutableList());
+    }
+
 
     public override void DefineClass(ClassSymbol classSymbol)
     {
@@ -292,25 +315,6 @@ public class ReflectionEmitter : SymbolEmitter
         {
             _diagnostics.Add(new Diagnostic($"Cannot emit body for constructor '{constructorSymbol.FullName}'"));
         }
-    }
-
-    public override EmitResult EmitSymbols()
-    {
-        // TODO: do these need to be an a topographical order?
-        var typeBuilders = _symbolToBuilder
-            .Where(kvp => kvp.Key is TypeSymbol)
-            .Select(kvp => kvp.Value)
-            .OfType<TypeBuilder>()
-            .ToList();
-
-        foreach (var typeBuilder in typeBuilders)
-        {
-            typeBuilder.CreateType();
-        }
-
-        _moduleBuilder.CreateGlobalFunctions();
-
-        return new EmitResult(_diagnostics.ToImmutableList());
     }
 
     private Type GetRuntimeType(TypeSymbol typeSymbol) =>

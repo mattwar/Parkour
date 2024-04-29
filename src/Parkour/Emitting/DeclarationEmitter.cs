@@ -1,6 +1,9 @@
 ﻿namespace Parkour.Emitting;
 using Parkour.Binding;
 
+/// <summary>
+/// Emits bound declarations
+/// </summary>
 public abstract class DeclarationEmitter
 {
     public abstract EmitResult Emit(DeclarationBinding binding);

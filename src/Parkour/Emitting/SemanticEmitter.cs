@@ -7,24 +7,24 @@ using Symbols;
 using System;
 
 /// <summary>
-/// Emits bound <see cref="Declaration"/> and <see cref="Expression"/> into a <see cref="SymbolEmitter"/>
+/// Emits bound declarations into a <see cref="ModuleEmitter"/> 
 /// </summary>
 public class SemanticEmitter : DeclarationEmitter
 {
-    private readonly SymbolEmitter _symbolEmitter;
+    private readonly ModuleEmitter _moduleEmitter;
     private readonly List<Diagnostic> _diagnostics;
 
     public SemanticEmitter(
-        SymbolEmitter symbolEmitter)
+        ModuleEmitter moduleEmitter)
     {
-        _symbolEmitter = symbolEmitter;
+        _moduleEmitter = moduleEmitter;
         _diagnostics = new List<Diagnostic>();
     }
 
     public override EmitResult Emit(
         DeclarationBinding binding)
     {
-        var context = new SymbolEmitContext(binding, _symbolEmitter, _diagnostics);
+        var context = new SymbolEmitContext(binding, _moduleEmitter, _diagnostics);
         return Emit(context);
     }
 
@@ -685,7 +685,7 @@ public class SemanticEmitter : DeclarationEmitter
         EmitValue(context.Emitter, constant.Value, constant.Location);
     }
 
-    private void EmitValue(SymbolEmitter.ILEmitter emitter, object? value, ISourceLocation? location)
+    private void EmitValue(ModuleEmitter.ILEmitter emitter, object? value, ISourceLocation? location)
     {
         switch (value)
         {
@@ -1234,13 +1234,13 @@ public class SemanticEmitter : DeclarationEmitter
     {
         public SymbolCache Symbols { get; }
         public DeclarationBinding Binding { get; }
-        public SymbolEmitter Emitter { get; }
+        public ModuleEmitter Emitter { get; }
 
         private readonly List<Diagnostic> _diagnostics;
 
         public SymbolEmitContext(
             DeclarationBinding binding,
-            SymbolEmitter emitter,
+            ModuleEmitter emitter,
             List<Diagnostic> diagnostics
             )
         {
@@ -1255,7 +1255,7 @@ public class SemanticEmitter : DeclarationEmitter
             _diagnostics.Add(diagnostic);
         }
 
-        public virtual ILEmitContext CreateILEmitContext(MemberSymbol symbol, SymbolEmitter.ILEmitter ilEmitter) =>
+        public virtual ILEmitContext CreateILEmitContext(MemberSymbol symbol, ModuleEmitter.ILEmitter ilEmitter) =>
             new ILEmitContext(this.Symbols, ilEmitter, symbol, isChecked: true);
     }
 
@@ -1270,7 +1270,7 @@ public class SemanticEmitter : DeclarationEmitter
         /// <summary>
         /// The IL emitter.
         /// </summary>
-        public SymbolEmitter.ILEmitter Emitter { get; }
+        public ModuleEmitter.ILEmitter Emitter { get; }
 
         /// <summary>
         /// The member that is currently being emitted.
@@ -1284,7 +1284,7 @@ public class SemanticEmitter : DeclarationEmitter
 
         public ILEmitContext(
             SymbolCache symbols,
-            SymbolEmitter.ILEmitter emitter,
+            ModuleEmitter.ILEmitter emitter,
             MemberSymbol current,
             bool isChecked)
         {

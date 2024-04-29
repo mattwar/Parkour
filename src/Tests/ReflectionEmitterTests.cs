@@ -344,8 +344,8 @@ public class ReflectionEmitterTests
             Assert.Fail($"Unexpected diagnostics:\n{dxs}");
         }
 
-        var symbolEmitter = new ReflectionEmitter(reflectionSymbols, "test_assembly");
-        var declarationEmitter = new SemanticEmitter(symbolEmitter);
+        var moduleEmitter = new ReflectionEmitter(reflectionSymbols, "test_assembly");
+        var declarationEmitter = new SemanticEmitter(moduleEmitter);
         var result = declarationEmitter.Emit(binding); 
 
         if (result.Diagnostics.Count > 0)
@@ -354,16 +354,16 @@ public class ReflectionEmitterTests
         }
 
         // verify all delared symbols are represented in the assembly
-        VerifySymbols(symbolEmitter.Assembly, binding.DeclaredSymbols);
+        VerifySymbols(moduleEmitter.Assembly, binding.DeclaredSymbols);
 
 #if false
         var generator = new Lokad.ILPack.AssemblyGenerator();
         generator.GenerateAssembly(result.Assembly, "test_assembly.dll");
 #endif
 
-        if (symbolEmitter.Module is Module m && test != null)
+        if (moduleEmitter.Module is Module m && test != null)
         {
-            var testType = symbolEmitter.Module.GetType("Test");
+            var testType = moduleEmitter.Module.GetType("Test");
             Assert.IsNotNull(testType, "Test type not found");
             var testMethod = testType.GetMethod("Run", BindingFlags.Public|BindingFlags.Static);
             Assert.IsNotNull(testMethod, "Test.Run not found");

@@ -2,9 +2,9 @@
 using Symbols;
 
 /// <summary>
-/// Emits symbol declarations and bodies (IL)
+/// Emits symbol declarations and IL into a CLR module.
 /// </summary>
-public abstract class SymbolEmitter
+public abstract class ModuleEmitter
 {
     public abstract void DefineClass(ClassSymbol classSymbol);
     public abstract void DefineValueType(ValueTypeSymbol valueTypeSymbol);
