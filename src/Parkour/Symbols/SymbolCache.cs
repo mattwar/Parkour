@@ -195,7 +195,7 @@ public class SymbolCache
     private TypeSymbol GetOrCreateType(Type type) =>
         TryGetType(type, out var typeSymbol)
             ? typeSymbol
-            : new TypeSymbol(type.Name);
+            : new ClassSymbol(type.Name);
 
     /// <summary>
     /// Gets the <see cref="TypeSymbol"/> for the equivalent runtime type.

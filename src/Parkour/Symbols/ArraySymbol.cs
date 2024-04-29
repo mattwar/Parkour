@@ -31,8 +31,10 @@ public sealed class ArraySymbol : TypeSymbol
     /// </summary>
     public bool IsSZArray => _dimensions == 0;
 
+    public override bool IsArray => true;
+
     public ArraySymbol(Func<TypeSymbol> fnElementType, int dimensions = 1, bool isSzArray = true)
-        : base($"Array")
+        : base("Array")
     {
         _fnElementType = fnElementType;
         _elementType = null;
@@ -40,14 +42,12 @@ public sealed class ArraySymbol : TypeSymbol
     }
 
     public ArraySymbol(TypeSymbol elementType, int dimensions = 1, bool isSzArray = true) 
-        : base($"Array")
+        : base("Array")
     {
         _elementType = elementType;
         _fnElementType = null;
         _dimensions = isSzArray ? 0 : dimensions;
     }
-
-    public override bool IsArray => true;
 
     internal protected override ArraySymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {

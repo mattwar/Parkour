@@ -356,7 +356,7 @@ public class RuntimeSymbols
             }
             else
             {
-                return new TypeSymbol(
+                return new ClassSymbol(
                     name,
                     declaringSymbol,
                     access,

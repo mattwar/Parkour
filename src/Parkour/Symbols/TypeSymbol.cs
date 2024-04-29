@@ -1,6 +1,6 @@
 ﻿namespace Parkour.Symbols;
 
-public class TypeSymbol : ContainerSymbol
+public abstract class TypeSymbol : ContainerSymbol
 {
     private Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
     private ImmutableList<TypeParameterSymbol>? _typeParameters;
@@ -11,7 +11,7 @@ public class TypeSymbol : ContainerSymbol
     private Func<TypeSymbol, ImmutableList<Symbol>>? _fnMembers;
     private ImmutableList<Symbol>? _members;
 
-    public TypeSymbol(
+    protected TypeSymbol(
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
@@ -30,7 +30,7 @@ public class TypeSymbol : ContainerSymbol
         ConstructedFrom = constructedFrom;
     }
 
-    public TypeSymbol(
+    protected TypeSymbol(
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
@@ -53,7 +53,7 @@ public class TypeSymbol : ContainerSymbol
     {
     }
 
-    public TypeSymbol(
+    protected TypeSymbol(
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
@@ -71,7 +71,7 @@ public class TypeSymbol : ContainerSymbol
     {
     }
 
-    public TypeSymbol(string name)
+    protected TypeSymbol(string name)
         : this(
             name,
             declaringSymbol: null,
@@ -156,6 +156,11 @@ public class TypeSymbol : ContainerSymbol
     public virtual bool IsArray => false;
 
     /// <summary>
+    /// True if the type is a class
+    /// </summary>
+    public virtual bool IsClass => false;
+
+    /// <summary>
     /// The base type and interfaces of this type.
     /// </summary>
     public ImmutableList<TypeSymbol> BaseTypes
@@ -206,37 +211,6 @@ public class TypeSymbol : ContainerSymbol
 
     public override bool IsConstructable =>
         this.IsGeneric;
-        
-    internal protected override TypeSymbol Construct(ConstructionContext context)
-    {
-        var definition = this.ConstructedFrom ?? this;
-        var subContext = context.CreateSubstitution(definition.TypeParameters);
-
-        return new TypeSymbol(
-            this.Name,
-            this.DeclaringSymbol,
-            this.Access,
-            this.Modifiers,
-            me => ImmutableList<TypeParameterSymbol>.Empty,
-            () => context.TypeArguments,
-            () => subContext.Substitute(this.BaseTypes),
-            me => subContext.Substitute(this.Members, me),
-            definition);
-    }
-
-    internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
-    {
-        return new TypeSymbol(
-            this.Name,
-            declaringSymbol ?? this.DeclaringSymbol,
-            this.Access,
-            this.Modifiers,
-            me => this.TypeParameters,
-            () => context.Substitute(this.TypeArguments),
-            () => context.Substitute(this.BaseTypes),
-            me => context.Substitute(this.Members),
-            this.ConstructedFrom);
-    }
 
     public bool IsSubTypeOf(TypeSymbol baseType)
     {

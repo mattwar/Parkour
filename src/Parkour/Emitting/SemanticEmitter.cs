@@ -9,28 +9,33 @@ using System;
 /// <summary>
 /// Emits bound <see cref="Declaration"/> and <see cref="Expression"/> into a <see cref="SymbolEmitter"/>
 /// </summary>
-public class SemanticEmitter
+public class SemanticEmitter : DeclarationEmitter
 {
-    public SemanticEmitter()
+    private readonly SymbolEmitter _symbolEmitter;
+    private readonly List<Diagnostic> _diagnostics;
+
+    public SemanticEmitter(
+        SymbolEmitter symbolEmitter)
     {
+        _symbolEmitter = symbolEmitter;
+        _diagnostics = new List<Diagnostic>();
     }
 
-    public virtual void Emit(
-        DeclarationBinding binding,
-        SymbolEmitter symbolEmitter,
-        List<Diagnostic> diagnostics
-        )
+    public override EmitResult Emit(
+        DeclarationBinding binding)
     {
-        var context = new SymbolEmitContext(binding, symbolEmitter, diagnostics);
-        Emit(context);
+        var context = new SymbolEmitContext(binding, _symbolEmitter, _diagnostics);
+        return Emit(context);
     }
 
-    protected virtual void Emit(SymbolEmitContext context)
+    protected virtual EmitResult Emit(SymbolEmitContext context)
     {
         DefineTypeSymbols(context, context.Binding.DeclaredSymbols);
         DefineMemberSymbols(context, context.Binding.DeclaredSymbols);
         EmitSymbolBodies(context, context.Binding.DeclaredSymbols);
-        context.Emitter.EmitDefinedTypesAndMembers();
+        var result = context.Emitter.EmitSymbols();
+        _diagnostics.AddRange(result.Diagnostics);
+        return new EmitResult(_diagnostics.ToImmutableList());
     }
 
     #region Define Types
@@ -48,14 +53,36 @@ public class SemanticEmitter
                 DefineTypeSymbols(context, member);
             }
         }
-        else if (symbol is TypeSymbol typeSymbol)
+        else if (symbol is ClassSymbol classSymbol)
         {
-            context.Emitter.DefineType(typeSymbol);
+            context.Emitter.DefineClass(classSymbol);
 
-            foreach (var member in typeSymbol.Members)
+            foreach (var member in classSymbol.Members)
             {
                 DefineTypeSymbols(context, member);
             }
+        }
+        else if (symbol is ValueTypeSymbol valueTypeSymbol)
+        {
+            context.Emitter.DefineValueType(valueTypeSymbol);
+
+            foreach (var member in valueTypeSymbol.Members)
+            {
+                DefineTypeSymbols(context, member);
+            }
+        }
+        else if (symbol is InterfaceSymbol interfaceSymbol)
+        {
+            context.Emitter.DefineInterface(interfaceSymbol);
+
+            foreach (var member in interfaceSymbol.Members)
+            {
+                DefineTypeSymbols(context, member);
+            }
+        }
+        else if (symbol is TypeSymbol)
+        {
+            _diagnostics.Add(new Diagnostic($"Cannot define type symbol '{symbol.FullName}'"));
         }
     }
 
@@ -76,17 +103,55 @@ public class SemanticEmitter
                 }
                 break;
 
-            case TypeSymbol typeSymbol:
-                context.Emitter.DefineMember(typeSymbol);
+            case ClassSymbol classSymbol:
+                context.Emitter.DefineClass(classSymbol);
 
-                foreach (var typeMember in typeSymbol.Members)
+                foreach (var typeMember in classSymbol.Members)
                 {
                     DefineMemberSymbols(context, typeMember);
                 }
                 break;
 
-            case MemberSymbol memberSymbol:
-                context.Emitter.DefineMember(memberSymbol);
+            case ValueTypeSymbol valueTypeSymbol:
+                context.Emitter.DefineValueType(valueTypeSymbol);
+
+                foreach (var typeMember in valueTypeSymbol.Members)
+                {
+                    DefineMemberSymbols(context, typeMember);
+                }
+                break;
+
+            case InterfaceSymbol interfaceSymbol:
+                context.Emitter.DefineInterface(interfaceSymbol);
+
+                foreach (var typeMember in interfaceSymbol.Members)
+                {
+                    DefineMemberSymbols(context, typeMember);
+                }
+                break;
+
+            case FieldSymbol fieldSymbol:
+                context.Emitter.DefineField(fieldSymbol);
+                break;
+
+            case MethodSymbol methodSymbol:
+                context.Emitter.DefineMethod(methodSymbol);
+                break;
+
+            case ConstructorSymbol constructorSymbol:
+                context.Emitter.DefineConstructor(constructorSymbol);
+                break;
+
+            case PropertySymbol propertySymbol:
+                context.Emitter.DefineProperty(propertySymbol);
+                break;
+
+            case IndexerSymbol indexerSymbol:
+                context.Emitter.DefineIndexer(indexerSymbol);
+                break;
+
+            default:
+                _diagnostics.Add(new Diagnostic($"Cannot define member symbol '{symbol.FullName}'"));
                 break;
         }
     }
@@ -99,14 +164,6 @@ public class SemanticEmitter
     {
         switch (symbol)
         {
-            case ConstructorSymbol constructor:
-                EmitConstructorBody(context, constructor);
-                break;
-
-            case MethodSymbol method:
-                EmitMethodBody(context, method);
-                break;
-
             case NamespaceSymbol ns:
                 foreach (var member in ns.Members)
                 {
@@ -119,6 +176,14 @@ public class SemanticEmitter
                 {
                     EmitSymbolBodies(context, member);
                 }
+                break;
+
+            case ConstructorSymbol constructor:
+                EmitConstructorBody(context, constructor);
+                break;
+
+            case MethodSymbol method:
+                EmitMethodBody(context, method);
                 break;
         }
     }
@@ -133,7 +198,7 @@ public class SemanticEmitter
 
         if (decl != null)
         {
-            context.Emitter.EmitBody(
+            context.Emitter.EmitConstructorBody(
                 symbol, 
                 (_symbol, ilEmitter) => 
                     EmitBody(context.CreateILEmitContext(symbol, ilEmitter), symbol, decl.Body, context.Symbols.Void, decl.ReturnLabel));
@@ -151,7 +216,7 @@ public class SemanticEmitter
 
         if (decl != null)
         {
-            context.Emitter.EmitBody(
+            context.Emitter.EmitMethodBody(
                 symbol,
                 (_symbol, ilEmitter) =>
                       EmitBody(context.CreateILEmitContext(symbol, ilEmitter), symbol, decl.Body, _symbol.ReturnType, decl.ReturnLabel));
@@ -620,7 +685,7 @@ public class SemanticEmitter
         EmitValue(context.Emitter, constant.Value, constant.Location);
     }
 
-    private void EmitValue(SymbolILEmitter emitter, object? value, ISourceLocation? location)
+    private void EmitValue(SymbolEmitter.ILEmitter emitter, object? value, ISourceLocation? location)
     {
         switch (value)
         {
@@ -1162,76 +1227,80 @@ public class SemanticEmitter
     #endregion
 
     #endregion // expressions
-}
 
-public class SymbolEmitContext
-{
-    public SymbolCache Symbols { get; }
-    public DeclarationBinding Binding { get; }
-    public SymbolEmitter Emitter { get; }
+    #region Emit Contexts
 
-    private readonly List<Diagnostic> _diagnostics;
-
-    public SymbolEmitContext(
-        DeclarationBinding binding,
-        SymbolEmitter emitter,
-        List<Diagnostic> diagnostics
-        )
+    protected class SymbolEmitContext
     {
-        Symbols = SymbolCache.From(binding.ExternalAndDeclaredSymbols);
-        Binding = binding;
-        Emitter = emitter;
-        _diagnostics = diagnostics;
+        public SymbolCache Symbols { get; }
+        public DeclarationBinding Binding { get; }
+        public SymbolEmitter Emitter { get; }
+
+        private readonly List<Diagnostic> _diagnostics;
+
+        public SymbolEmitContext(
+            DeclarationBinding binding,
+            SymbolEmitter emitter,
+            List<Diagnostic> diagnostics
+            )
+        {
+            Symbols = SymbolCache.From(binding.ExternalAndDeclaredSymbols);
+            Binding = binding;
+            Emitter = emitter;
+            _diagnostics = diagnostics;
+        }
+
+        public void ReportDiagnostic(Diagnostic diagnostic)
+        {
+            _diagnostics.Add(diagnostic);
+        }
+
+        public virtual ILEmitContext CreateILEmitContext(MemberSymbol symbol, SymbolEmitter.ILEmitter ilEmitter) =>
+            new ILEmitContext(this.Symbols, ilEmitter, symbol, isChecked: true);
     }
 
-    public void ReportDiagnostic(Diagnostic diagnostic)
+    protected class ILEmitContext
     {
-        _diagnostics.Add(diagnostic);
+        /// <summary>
+        /// The <see cref="SymbolCache"/> that can be used to access all type and member symbols
+        /// in the global namespace.
+        /// </summary>
+        public SymbolCache Symbols { get; }
+
+        /// <summary>
+        /// The IL emitter.
+        /// </summary>
+        public SymbolEmitter.ILEmitter Emitter { get; }
+
+        /// <summary>
+        /// The member that is currently being emitted.
+        /// </summary>
+        public MemberSymbol CurrentMember { get; }
+
+        /// <summary>
+        /// True if the code is being emitted in a checked context.
+        /// </summary>
+        public bool IsChecked { get; }
+
+        public ILEmitContext(
+            SymbolCache symbols,
+            SymbolEmitter.ILEmitter emitter,
+            MemberSymbol current,
+            bool isChecked)
+        {
+            Symbols = symbols;
+            Emitter = emitter;
+            CurrentMember = current;
+            IsChecked = isChecked;
+        }
+
+        public ILEmitContext WithIsChecked(bool isChecked)
+        {
+            if (isChecked == this.IsChecked)
+                return this;
+            return new ILEmitContext(Symbols, Emitter, CurrentMember, isChecked);
+        }
     }
 
-    public virtual ILEmitContext CreateILEmitContext(MemberSymbol symbol, SymbolILEmitter ilEmitter) =>
-        new ILEmitContext(this.Symbols, ilEmitter, symbol, isChecked: true);
-}
-
-public class ILEmitContext
-{
-    /// <summary>
-    /// The <see cref="SymbolCache"/> that can be used to access all type and member symbols
-    /// in the global namespace.
-    /// </summary>
-    public SymbolCache Symbols { get; }
-
-    /// <summary>
-    /// The IL emitter.
-    /// </summary>
-    public SymbolILEmitter Emitter { get; }
-
-    /// <summary>
-    /// The member that is currently being emitted.
-    /// </summary>
-    public MemberSymbol CurrentMember { get; }
-
-    /// <summary>
-    /// True if the code is being emitted in a checked context.
-    /// </summary>
-    public bool IsChecked { get; }
-
-    public ILEmitContext(
-        SymbolCache symbols,
-        SymbolILEmitter emitter,
-        MemberSymbol current,
-        bool isChecked)
-    {
-        Symbols = symbols;
-        Emitter = emitter;
-        CurrentMember = current;
-        IsChecked = isChecked;
-    }
-
-    public ILEmitContext WithIsChecked(bool isChecked)
-    {
-        if (isChecked == this.IsChecked)
-            return this;
-        return new ILEmitContext(Symbols, Emitter, CurrentMember, isChecked);
-    }
+    #endregion
 }

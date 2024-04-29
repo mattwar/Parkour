@@ -576,7 +576,7 @@ public class SemanticBinder
     {
         SymbolContext classContext = null!;
 
-        var classSymbol = new TypeSymbol(
+        var classSymbol = new ClassSymbol(
             declaration.Name,
             declaringSymbol,
             declaration.Access,
