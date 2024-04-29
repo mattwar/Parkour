@@ -5,8 +5,10 @@ public class MethodDeclaration : MemberDeclaration
 {
     public ImmutableList<TypeParameterDeclaration> TypeParameters { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
+
     public Expression Body { get; }
     public Expression ReturnType { get; }
+
     public MethodSymbol? MethodSymbol { get; }
     public LabelSymbol? ReturnLabel { get; }
 
@@ -15,9 +17,9 @@ public class MethodDeclaration : MemberDeclaration
         SymbolAccess access, 
         SymbolModifier modifiers, 
         ImmutableList<TypeParameterDeclaration> typeParameters,
-        ImmutableList<ParameterDeclaration> parameters, 
-        Expression body, 
+        ImmutableList<ParameterDeclaration> parameters,
         Expression returnType,
+        Expression body, 
         ISourceLocation? location,
         MethodSymbol? methodSymbol,
         LabelSymbol? returnLabel,

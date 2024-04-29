@@ -71,10 +71,28 @@ public static class SemanticFactory
         Call(target, arguments.ToImmutableList());
 
     /// <summary>
-    /// Invokes a delegate, lambda function or method.
+    /// Invokes a method.
+    /// </summary>
+    public static CallExpression Call(Expression instance, string name, params Expression[] arguments) =>
+        Call(Member(instance, name), arguments.ToImmutableList());
+
+    /// <summary>
+    /// Invokes a method.
     /// </summary>
     public static CallExpression Call(string name, params Expression[] arguments) =>
         Call(Name(name), arguments);
+
+    /// <summary>
+    /// Access the element of an expression
+    /// </summary>
+    public static ElementExpression Element(Expression target, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
+        new ElementExpression(target, arguments, location, null, null, null);
+
+    /// <summary>
+    /// Access the element of an expression
+    /// </summary>
+    public static ElementExpression Element(Expression target, Expression index, ISourceLocation? location = null) =>
+        new ElementExpression(target, [index], location, null, null, null);
 
     /// <summary>
     /// Evaluates the whenTrue expression if the test expression results in true or otherwise evaluates the whenFalse expression.
@@ -194,16 +212,16 @@ public static class SemanticFactory
         Lambda(ImmutableList<ParameterDeclaration>.Empty, body, location);
 
     /// <summary>
+    /// A loop that continues to repeat the body until a break exits the loop.
+    /// </summary>
+    public static LoopExpression Loop(Expression body, ISourceLocation? location = null) =>
+        new LoopExpression(body, location, null, null, null, null);
+
+    /// <summary>
     /// Accesses the member of the expression.
     /// </summary>
     public static MemberExpression Member(Expression expression, string name, ISourceLocation? location = null) =>
         new MemberExpression(expression, name, location, null, null, null);
-
-    /// <summary>
-    /// Invokes an intrinsic operator.
-    /// </summary>
-    public static OperatorExpression Operator(string name, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
-        new OperatorExpression(name, arguments, location, null, null, null);
 
     /// <summary>
     /// References a named symbol in scope.
@@ -254,6 +272,19 @@ public static class SemanticFactory
         new NewArraySizeExpression(null, size, location, null, null, null);
 
     /// <summary>
+    /// Invokes an intrinsic operator.
+    /// </summary>
+    public static OperatorExpression Operator(string name, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
+        new OperatorExpression(name, arguments, location, null, null, null);
+
+
+    /// <summary>
+    /// Return from a method or lambda.
+    /// </summary>
+    public static BranchExpression Return(Expression? expression = null, ISourceLocation? location = null) =>
+        BranchExpression.CreateReturn(expression, location, null, null);
+
+    /// <summary>
     /// Reference a declared symbol.
     /// </summary>
     public static SymbolReferenceExpression Symbol(MemberSymbol symbol, ISourceLocation? location = null) =>
@@ -266,10 +297,10 @@ public static class SemanticFactory
         new SymbolReferenceExpression(fullName, location, null, null, null);
 
     /// <summary>
-    /// Return from a method or lambda.
+    /// References the current instance.
     /// </summary>
-    public static BranchExpression Return(Expression? expression = null, ISourceLocation? location = null) =>
-        BranchExpression.CreateReturn(expression, location, null, null);
+    public static ThisExpression This(ISourceLocation? location = null) =>
+        new ThisExpression(location, null, null);
 
     /// <summary>
     /// An expression that does nothing and returns nothing.
@@ -279,17 +310,33 @@ public static class SemanticFactory
             ? VoidExpression.Default
             : new VoidExpression(location);
 
-    /// <summary>
-    /// A loop that continues to repeat the body until a break exits the loop.
-    /// </summary>
-    public static LoopExpression Loop(Expression body, ISourceLocation? location = null) =>
-        new LoopExpression(body, location, null, null, null, null);
 
     /// <summary>
     /// A loop that continues to repeat the body until the test fails or a break exists the loop.
     /// </summary>
-    public static LoopExpression While(Expression test, Expression body, ISourceLocation? location = null) =>
-        Loop(Condition(test, body, Break()));
+    public static Expression While(Expression test, Expression body, ISourceLocation? location = null) =>
+        Loop(If(test, body, Break()));
+
+    /// <summary>
+    /// A loop that iterates a variable over a range
+    /// </summary>
+    public static Expression For(string name, Expression start, Expression end, Expression body, ISourceLocation? location = null) =>
+        For(name, start, end, body, Constant(1), location);
+
+    /// <summary>
+    /// A loop that iterates a variable over a range
+    /// </summary>
+    public static Expression For(string name, Expression start, Expression end, Expression increment, Expression body, ISourceLocation? location = null) =>
+        Block(
+            Variable(name, start),
+            Loop(
+                If(LessThan(Name(name), end),
+                    Block(
+                        body,
+                        Assign(Name(name), Add(Name(name), increment))),
+                    Break())
+                ),
+            Name(name));
 
     /// <summary>
     /// Applies the Add operator to two values.
@@ -396,12 +443,11 @@ public static class SemanticFactory
     public static OperatorExpression GreaterThanOrEqual(Expression left, Expression right, ISourceLocation? location = null) =>
         Operator(OperatorKind.GreaterThanOrEqual, [left, right], location);
 
-
     public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, ISourceLocation? location = null) =>
         new ParameterDeclaration(name, parameterType, location, null, null);
 
     public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
-        new MethodDeclaration(name, access, modifiers, typeParameters, parameters, body, returnType, location, null, null, null);
+        new MethodDeclaration(name, access, modifiers, typeParameters, parameters, returnType, body, location, null, null, null);
 
     public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
         Method(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, parameters, returnType, body, location);
@@ -414,6 +460,12 @@ public static class SemanticFactory
 
     public static ConstructorDeclaration Constructor(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
         Constructor(SymbolAccess.Public, SymbolModifier.None, parameters, body, location);
+
+    public static ConstructorDeclaration Constructor(Expression body, ISourceLocation? location = null) =>
+        Constructor(SymbolAccess.Public, SymbolModifier.None, [], body, location);
+
+    public static ConstructorDeclaration Constructor(ISourceLocation? location = null) =>
+        Constructor(SymbolAccess.Public, SymbolModifier.None, [], Block(), location);
 
     public static FieldDeclaration Field(string name, SymbolAccess access, SymbolModifier modifiers, Expression fieldType, Expression? initalizer = null, ISourceLocation? location = null) =>
         new FieldDeclaration(name, access, modifiers, fieldType, initalizer, location, null, null);
@@ -428,17 +480,23 @@ public static class SemanticFactory
         Property(name, getMethod.Access, getMethod.Modifiers, getMethod, setMethod, null, getMethod.ReturnType, location);
 
     public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, Expression propertyType, Expression expression, ISourceLocation? location = null) =>
-        Property(name, Method("get_" + name, access, modifiers, ImmutableList<ParameterDeclaration>.Empty, expression, propertyType, location), null, location);
+        Property(
+            name, 
+            Method("get_" + name, access, modifiers | SymbolModifier.HideBySig | SymbolModifier.Special, ImmutableList<ParameterDeclaration>.Empty, expression, propertyType, location), null, location);
 
-    public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, Expression propertyType, ISourceLocation? location = null) =>
-        Property(name,
+    public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, Expression propertyType, ISourceLocation? location = null)
+    {
+        var fieldName = $"__{name}_backingField";
+        return Property(
+            name,
             access,
             modifiers,
-            Method("get_" + name, access, modifiers, ImmutableList<ParameterDeclaration>.Empty, propertyType, Name("field")),
-            Method("set_" + name, access, modifiers, [Parameter("value", propertyType)], Void(), Assign(Name("field"), Name("value"))),
-            Field("field", SymbolAccess.Private, SymbolModifier.None, propertyType, null),
+            Method("get_" + name, access, modifiers | SymbolModifier.HideBySig | SymbolModifier.Special, ImmutableList<ParameterDeclaration>.Empty, propertyType, Name(fieldName)),
+            Method("set_" + name, access, modifiers | SymbolModifier.HideBySig | SymbolModifier.Special, [Parameter("value", propertyType)], Void(), Assign(Name(fieldName), Name("value"))),
+            Field(fieldName, SymbolAccess.Private, SymbolModifier.None, propertyType, null),
             propertyType,
             location);
+    }
 
     public static PropertyDeclaration Property(string name, Expression propertyType, ISourceLocation? location = null) =>
         Property(name, SymbolAccess.Public, SymbolModifier.None, propertyType, location);

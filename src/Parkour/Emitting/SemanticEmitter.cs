@@ -4,6 +4,7 @@ namespace Parkour.Emitting;
 using Binding;
 using Semantics;
 using Symbols;
+using System;
 
 /// <summary>
 /// Emits bound <see cref="Declaration"/> and <see cref="Expression"/> into a <see cref="SymbolEmitter"/>
@@ -14,12 +15,21 @@ public class SemanticEmitter
     {
     }
 
-    public virtual void Emit(SymbolEmitContext context)
+    public virtual void Emit(
+        DeclarationBinding binding,
+        SymbolEmitter symbolEmitter,
+        List<Diagnostic> diagnostics
+        )
+    {
+        var context = new SymbolEmitContext(binding, symbolEmitter, diagnostics);
+        Emit(context);
+    }
+
+    protected virtual void Emit(SymbolEmitContext context)
     {
         DefineTypeSymbols(context, context.Binding.DeclaredSymbols);
         DefineMemberSymbols(context, context.Binding.DeclaredSymbols);
         EmitSymbolBodies(context, context.Binding.DeclaredSymbols);
-
         context.Emitter.EmitDefinedTypesAndMembers();
     }
 
@@ -126,7 +136,7 @@ public class SemanticEmitter
             context.Emitter.EmitBody(
                 symbol, 
                 (_symbol, ilEmitter) => 
-                    EmitBody(context.CreateILEmitContext(symbol, ilEmitter), decl.Body, _symbol.ConstructedType, decl.ReturnLabel));
+                    EmitBody(context.CreateILEmitContext(symbol, ilEmitter), symbol, decl.Body, context.Symbols.Void, decl.ReturnLabel));
         }
     }
 
@@ -144,7 +154,7 @@ public class SemanticEmitter
             context.Emitter.EmitBody(
                 symbol,
                 (_symbol, ilEmitter) =>
-                    EmitBody(context.CreateILEmitContext(symbol, ilEmitter), decl.Body, _symbol.ReturnType, decl.ReturnLabel));
+                      EmitBody(context.CreateILEmitContext(symbol, ilEmitter), symbol, decl.Body, _symbol.ReturnType, decl.ReturnLabel));
         }
     }
 
@@ -152,7 +162,7 @@ public class SemanticEmitter
     /// Emits the body of a method or constructor
     /// </summary>
     protected virtual void EmitBody(
-        ILEmitContext context, Expression body, TypeSymbol returnType, LabelSymbol? returnLabel)
+        ILEmitContext context, Symbol symbol, Expression body, TypeSymbol returnType, LabelSymbol? returnLabel)
     {
         EmitExpression(context, body);
         var prevType = body.ResultType;
@@ -187,6 +197,10 @@ public class SemanticEmitter
 
         switch (expression)
         {
+            case AdjustedReferenceExpression are:
+                EmitAdjustedReferenceExpression(context, are, asAddress);
+                break;
+
             case AssignExpression assign:
                 EmitAssign(context, assign);
                 break;
@@ -211,32 +225,60 @@ public class SemanticEmitter
                 EmitConstant(context, constant);
                 break;
 
+            case ConvertExpression convert:
+                EmitConvert(context, convert);
+                break;
+
             case DefaultExpression @default:
                 EmitDefault(context, @default);
+                break;
+
+            case ElementExpression element:
+                EmitElement(context, element);
                 break;
 
             case LabelExpression label:
                 EmitLabel(context, label);
                 break;
 
-            case VariableExpression variable:
-                EmitVariable(context, variable);
+            case LoopExpression loop:
+                EmitLoop(context, loop);
+                break;
+
+            case MemberExpression mex:
+                EmitMember(context, mex, asAddress);
                 break;
 
             case NameReferenceExpression nre:
                 EmitNameReference(context, nre, asAddress);
                 break;
 
-            case SymbolReferenceExpression sre:
-                EmitSymbolReference(context, sre, asAddress);
+            case NewExpression ne:
+                EmitNew(context, ne);
                 break;
 
-            case AdjustedReferenceExpression are:
-                EmitAdjustedReferenceExpression(context, are, asAddress);
+            case NewArrayInitExpression newArrayInit:
+                EmitNewArrayInit(context, newArrayInit);
+                break;
+
+            case NewArraySizeExpression newArraySize:
+                EmitNewArraySize(context, newArraySize);
                 break;
 
             case OperatorExpression opex:
                 EmitOperator(context, opex);
+                break;
+
+            case SymbolReferenceExpression sre:
+                EmitSymbolReference(context, sre, asAddress);
+                break;
+
+            case ThisExpression me:
+                EmitThis(context, me, asAddress);
+                break;
+
+            case VariableExpression variable:
+                EmitVariable(context, variable);
                 break;
 
             case VoidExpression vex:
@@ -262,21 +304,41 @@ public class SemanticEmitter
 
     #region Assign Emit
 
+    private static VariableSymbol CopyToTemporaryVariable(ILEmitContext context, TypeSymbol type)
+    {
+        var variable = new VariableSymbol("tmp", type);
+        context.Emitter.DeclareVariableStart(variable);
+        context.Emitter.EmitDup();
+        context.Emitter.EmitStoreVariable(variable);
+        return variable;
+    }
+
+    private static void RestoreFromTemporaryVariable(ILEmitContext context, VariableSymbol variable)
+    {
+        context.Emitter.EmitLoadVariable(variable);
+        context.Emitter.DeclareVariableEnd(variable);
+    }
+
     protected virtual void EmitAssign(ILEmitContext context, AssignExpression assign)
     {
         var targetSymbol = assign.Target.ReferencedSymbol;
         var targetMember = GetMemberExpression(assign.Target);
+        VariableSymbol? temp = null;
 
         switch (targetSymbol)
         {
             case VariableSymbol variableSymbol:
-                EmitExpressionAsType(context, assign.Target, variableSymbol.VariableType);
+                EmitExpressionAsType(context, assign.Source, variableSymbol.VariableType);
                 context.Emitter.EmitStoreVariable(variableSymbol);
+                if (assign.ResultType != SpecialSymbols.Void)
+                    context.Emitter.EmitLoadVariable(variableSymbol);
                 break;
 
             case ParameterSymbol parameterSymbol:
-                EmitExpressionAsType(context, assign.Target, parameterSymbol.ParameterType);
+                EmitExpressionAsType(context, assign.Source, parameterSymbol.ParameterType);
                 context.Emitter.EmitStoreParameter(parameterSymbol);
+                if (assign.ResultType != SpecialSymbols.Void)
+                    context.Emitter.EmitLoadParameter(parameterSymbol);
                 break;
 
             case FieldSymbol fieldSymbol:
@@ -288,7 +350,7 @@ public class SemanticEmitter
                     }
                     else if (IsMemberOfThis(context, fieldSymbol))
                     {
-                        context.Emitter.EmitLoadInstance(fieldSymbol);
+                        context.Emitter.EmitLoadInstance();
                     }
                     else
                     {
@@ -296,7 +358,12 @@ public class SemanticEmitter
                     }
                 }
 
-                EmitExpressionAsType(context, assign.Target, fieldSymbol.FieldType);
+                EmitExpressionAsType(context, assign.Source, fieldSymbol.FieldType);
+
+                temp = (assign.ResultType != SpecialSymbols.Void)
+                    ? CopyToTemporaryVariable(context, fieldSymbol.FieldType)
+                    : null;
+
                 context.Emitter.EmitStoreField(fieldSymbol);
                 break;
 
@@ -311,7 +378,7 @@ public class SemanticEmitter
                         }
                         else if (IsMemberOfThis(context, propertySymbol))
                         {
-                            context.Emitter.EmitLoadInstance(propertySymbol);
+                            context.Emitter.EmitLoadInstance();
                         }
                         else
                         {
@@ -319,14 +386,47 @@ public class SemanticEmitter
                         }
                     }
 
-                    EmitExpressionAsType(context, assign.Target, propertySymbol.PropertyType);
+                    EmitExpressionAsType(context, assign.Source, propertySymbol.PropertyType);
+
+                    temp = (assign.ResultType != SpecialSymbols.Void)
+                        ? CopyToTemporaryVariable(context, propertySymbol.PropertyType)
+                        : null;
 
                     context.Emitter.EmitCall(propertySymbol.SetMethod);
                 }               
                 break;
 
             default:
+                if (assign.Target is ElementExpression ee)
+                {
+                    if (ee.Expression.ResultType is ArraySymbol array)
+                    {
+                        if (array.IsSZArray)
+                        {
+                            EmitExpression(context, ee.Expression); // the array
+                            EmitExpressionAsType(context, ee.Arguments[0], context.Symbols.Int32); // the index
+                            EmitExpressionAsType(context, assign.Source, array.ElementType);
+
+                            temp = (assign.ResultType != SpecialSymbols.Void)
+                                ? CopyToTemporaryVariable(context, array.ElementType)
+                                : null;
+
+                            context.Emitter.EmitStoreArrayElement(array.ElementType);
+                        }
+                    }
+                    else if (ee.IndexerSymbol != null
+                        && ee.IndexerSymbol.SetMethod != null)
+                    {
+                        //EmitMethodCall(context, ee.IndexerSymbol.SetMethod, ee.Expression, ee.Arguments.Add(assign.Source), ee.Location);
+                        throw new NotImplementedException();
+                    }
+                }
                 break;
+        }
+
+        if (temp != null)
+        {
+            RestoreFromTemporaryVariable(context, temp);
         }
     }
 
@@ -575,6 +675,22 @@ public class SemanticEmitter
                 break;
         }
     }
+
+    private void EmitConvert(ILEmitContext context, ConvertExpression convert)
+    {
+        if (convert.ConversionSymbol is MethodSymbol method)
+        {
+            // conversion symbol is a method, so just call it
+            EmitMethodCall(context, method, null, ImmutableList<Expression>.Empty.Add(convert.Expression), convert.Location);
+        }
+        else
+        {
+            // otherwise conversion must be intrinsic
+            EmitExpression(context, convert.Expression);
+            context.Emitter.EmitConvert(convert.Expression.ResultType, convert.ResultType, isChecked: false);
+        }
+    }
+
     #endregion
 
     #region Default Emit
@@ -587,6 +703,34 @@ public class SemanticEmitter
     }
     #endregion
 
+    #region Element Emit
+
+    protected virtual void EmitElement(ILEmitContext context, ElementExpression element)
+    {
+        EmitExpression(context, element.Expression);
+
+        if (element.IndexerSymbol != null)
+        {
+            throw new NotImplementedException();
+        }
+        else if (element.Expression.ResultType is ArraySymbol array)
+        {
+            if (array.IsSZArray)
+            {
+                // emit index argument
+                EmitExpressionAsType(context, element.Arguments[0], context.Symbols.Int32);
+                context.Emitter.EmitLoadArrayElement(array.ElementType);
+            }
+            else
+            {
+                // use Array indexer API?
+                throw new NotImplementedException();
+            }
+        }
+    }
+
+    #endregion
+
     #region Label Emit
     /// <summary>
     /// Emits <see cref="LabelExpression"/>
@@ -597,6 +741,21 @@ public class SemanticEmitter
         {
             context.Emitter.MarkLabel(label.LabelSymbol);
         }
+    }
+    #endregion
+
+    #region Loop Emit
+    /// <summary>
+    /// Emits <see cref="LoopExpression"/>
+    /// </summary>
+    protected virtual void EmitLoop(ILEmitContext context, LoopExpression loop)
+    {
+        var continueTarget = loop.ContinueTarget ?? new LabelSymbol("continue");
+        context.Emitter.MarkLabel(continueTarget);
+        EmitExpressionAsType(context, loop.Body, loop.ResultType);
+        context.Emitter.EmitBranch(continueTarget);
+        if (loop.BreakTarget != null)
+            context.Emitter.MarkLabel(loop.BreakTarget!);
     }
     #endregion
 
@@ -656,10 +815,29 @@ public class SemanticEmitter
 
     protected virtual void EmitNameReference(ILEmitContext context, NameReferenceExpression nameRef, bool asAddress)
     {
-        if (nameRef.ReferencedSymbol is MemberSymbol memberSymbol)
+        // is this refering to an instance member? egads
+        if (nameRef.ReferencedSymbol is MemberSymbol ms 
+            && !ms.IsStatic)
         {
-            EmitSymbolReference(context, memberSymbol, asAddress, nameRef.Location);
+            if (IsMemberOfThis(context, ms))
+            {
+                if (ms.DeclaringSymbol is TypeSymbol ts && ts.IsValueType)
+                {
+                    context.Emitter.EmitLoadInstanceAddress();
+                }
+                else
+                {
+                    context.Emitter.EmitLoadInstance();
+                }
+            }
+            else
+            {
+                // no instance?
+                context.Emitter.EmitDefault(ms.DeclaringType!);
+            }
         }
+
+        EmitSymbolReference(context, nameRef.ReferencedSymbol!, asAddress, nameRef.Location);
     }
 
     protected virtual void EmitSymbolReference(ILEmitContext context, SymbolReferenceExpression symbolRef, bool asAddress)
@@ -696,12 +874,75 @@ public class SemanticEmitter
                 }
                 break;
 
+            case FieldSymbol fieldSymbol:
+                if (asAddress)
+                {
+                    context.Emitter.EmitLoadFieldAddress(fieldSymbol);
+                }
+                else
+                {
+                    context.Emitter.EmitLoadField(fieldSymbol);
+                }
+                break;
+
+            case PropertySymbol propertySymbol:
+                if (asAddress)
+                {
+                    // copy to local, pass address of local, assign back?
+                    throw new NotImplementedException();
+                }
+                else
+                {
+                    context.Emitter.EmitCall(propertySymbol.GetMethod!);
+                }
+                break;
+
             default:
                 context.Emitter.EmitThrowAndReport(new Diagnostic($"Reference to symbol '{symbol.GetType().Name}' cannot be emitted into IL.").WithLocation(location));
                 break;           
         }
     }
 
+    #endregion
+
+    #region New, NewArraySize, NewArrayInit
+    protected virtual void EmitNew(ILEmitContext context, NewExpression @new)
+    {
+        if (@new.ConstructorSymbol != null)
+        {
+            EmitArguments(context, @new.ConstructorSymbol.Parameters, @new.Arguments);
+            context.Emitter.EmitNew(@new.ConstructorSymbol);
+        }
+    }
+
+    protected virtual void EmitNewArraySize(ILEmitContext context, NewArraySizeExpression newArraySize)
+    {
+        EmitExpressionAsType(context, newArraySize.Size, context.Symbols.Int32);
+        context.Emitter.EmitNewArray(newArraySize.ElementTypeSymbol!);
+    }
+
+    protected virtual void EmitNewArrayInit(ILEmitContext context, NewArrayInitExpression newArrayInit)
+    {
+        context.Emitter.EmitLoadInt32(newArrayInit.Expressions.Count);
+
+        var array = new VariableSymbol("array", newArrayInit.ResultType);
+        context.Emitter.DeclareVariableStart(array);
+        context.Emitter.EmitNewArray(newArrayInit.ElementTypeSymbol!);
+        context.Emitter.EmitStoreVariable(array);
+
+        for (int i = 0; i < newArrayInit.Expressions.Count; i++)
+        {
+            context.Emitter.EmitLoadVariable(array);  // array
+            context.Emitter.EmitLoadInt32(i);         // index
+            EmitExpressionAsType(context, newArrayInit.Expressions[i], newArrayInit.ElementTypeSymbol!);
+            context.Emitter.EmitStoreArrayElement(newArrayInit.ElementTypeSymbol!);
+        }
+
+        if (newArrayInit.ResultType != SpecialSymbols.Void)
+            context.Emitter.EmitLoadVariable(array);
+
+        context.Emitter.DeclareVariableEnd(array);
+    }
     #endregion
 
     #region Operator Emit
@@ -868,15 +1109,47 @@ public class SemanticEmitter
 
     #endregion
 
+    #region This Emit
+
+    protected virtual void EmitThis(ILEmitContext context, ThisExpression me, bool asAddress)
+    {
+        if (asAddress)
+        {
+            context.Emitter.EmitLoadInstanceAddress();
+        }
+        else
+        {
+            context.Emitter.EmitLoadInstance();
+        }
+    }
+
+    #endregion
+
     #region Variable Emit
     /// <summary>
-    /// Emits <see cref="VariableExpression"/>
+    /// Emits <see cref="VariableExpression"/> variable declaration
     /// </summary>
     protected virtual void EmitVariable(ILEmitContext context, VariableExpression variable)
     {
         if (variable.VariableSymbol != null)
         {
             context.Emitter.DeclareVariableStart(variable.VariableSymbol);
+
+            if (variable.Initializer != null)
+            {
+                EmitExpression(context, variable.Initializer);
+            }
+            else
+            {
+                context.Emitter.EmitDefault(variable.VariableSymbol.VariableType);
+            }
+
+            context.Emitter.EmitStoreVariable(variable.VariableSymbol);
+
+            if (variable.ResultType != SpecialSymbols.Void)
+            {
+                context.Emitter.EmitLoadVariable(variable.VariableSymbol);
+            }
         }
     }
     #endregion
@@ -905,7 +1178,7 @@ public class SymbolEmitContext
         List<Diagnostic> diagnostics
         )
     {
-        Symbols = SymbolCache.From(binding.CombinedSymbols);
+        Symbols = SymbolCache.From(binding.ExternalAndDeclaredSymbols);
         Binding = binding;
         Emitter = emitter;
         _diagnostics = diagnostics;

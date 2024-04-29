@@ -124,13 +124,13 @@ public class DeclarationTests
 
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
-        var binding = new SemanticBinder().BindDeclarations(declarations, _runtimeSymbols.GlobalNamespace);
+        var binding = new SemanticBinder().BindDeclarations(declarations.ToImmutableList(), _runtimeSymbols.GlobalNamespace);
 
         Assert.AreEqual(declarations.Length, binding.BoundDeclarations.Count, "bound declarations count");
 
         foreach (var path in expectedSymbols)
         {
-            var symbol = binding.CombinedSymbols.GetFirstSymbolFromPath(path);
+            var symbol = binding.ExternalAndDeclaredSymbols.GetFirstSymbolFromPath(path);
             Assert.IsNotNull(symbol, $"symbol '{path}' not found");
         }
     }

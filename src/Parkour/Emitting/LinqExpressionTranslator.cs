@@ -153,6 +153,17 @@ public class LinqExpressionTranslator
         throw new InvalidOperationException($"Could not determine runtime property for symbol '{propertySymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateProperty)}");
     }
 
+    private PropertyInfo TranslateIndexer(IndexerSymbol indexerSymbol)
+    {
+        if (_runtimeSymbols.TryGetRuntimeMember(indexerSymbol, out var memberInfo)
+            && memberInfo is PropertyInfo propertyInfo)
+        {
+            return propertyInfo;
+        }
+
+        throw new InvalidOperationException($"Could not determine runtime property for symbol '{indexerSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateProperty)}");
+    }
+
     private L.Expression TranslateAssign(AssignExpression assign)
     {
         var target = Translate(assign.Target);
@@ -483,6 +494,18 @@ public class LinqExpressionTranslator
                     var expression = Translate(member.Instance);
                     return L.Expression.Property(expression, pi);
                 }
+            case IndexerSymbol indexer:
+                var ii = TranslateIndexer(indexer);
+                if (indexer.IsStatic)
+                {
+                    return L.Expression.Property(null, ii);
+                }
+                else
+                {
+                    var expression = Translate(member.Instance);
+                    return L.Expression.Property(expression, ii);
+                }
+
             case FieldSymbol field:
                 var fi = TranslateField(field);
                 if (field.IsStatic)

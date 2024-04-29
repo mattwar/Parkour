@@ -29,9 +29,9 @@ public abstract class DeclarationBinding
     public abstract GlobalNamespaceSymbol DeclaredSymbols { get; }
 
     /// <summary>
-    /// The global namespace that combines all the external and declared symbols.
+    /// The global namespace that combines the external and declared symbols.
     /// </summary>
-    public abstract GlobalNamespaceSymbol CombinedSymbols { get; }
+    public abstract GlobalNamespaceSymbol ExternalAndDeclaredSymbols { get; }
 
     /// <summary>
     /// All diagnostics from all bound declarations

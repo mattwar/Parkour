@@ -115,6 +115,25 @@ public class ReflectionSymbolEmitter : SymbolEmitter
                     }
                     break;
 
+                case PropertySymbol property:
+                    var propertyBuilder = typeBuilder.DefineProperty(
+                        property.Name,
+                        GetPropertyAttributes(property),
+                        GetRuntimeType(property.PropertyType),
+                        []);
+                    _symbolToBuilder.Add(property, propertyBuilder);
+                    if (property.GetMethod != null 
+                        && _symbolToBuilder.TryGetValue(property.GetMethod, out var getMethodBuilder))
+                    {
+                        propertyBuilder.SetGetMethod((MethodBuilder)getMethodBuilder);
+                    }
+                    if (property.SetMethod != null
+                        && _symbolToBuilder.TryGetValue(property.SetMethod, out var setMethodBuilder))
+                    {
+                        propertyBuilder.SetSetMethod((MethodBuilder)setMethodBuilder);
+                    }
+                    break;
+
                 default:
                     _diagnostics.Add(new Diagnostic($"Cannot emit member '{memberSymbol.Name}' of type '{typeBuilder.FullName}')"));
                     break;
@@ -344,6 +363,11 @@ public class ReflectionSymbolEmitter : SymbolEmitter
         return ParameterAttributes.None;
     }
 
+    private static PropertyAttributes GetPropertyAttributes(PropertySymbol property)
+    {
+        return PropertyAttributes.None;
+    }
+
 
     private class ReflectionILEmitter : SymbolILEmitter
     {
@@ -462,12 +486,14 @@ public class ReflectionSymbolEmitter : SymbolEmitter
             _ilgen.Emit(OpCodes.Brfalse, GetLabel(labelSymbol));
         }
 
-        public override void EmitLoadInstance(MemberSymbol member)
+        public override void EmitLoadInstance()
         {
-            if (!member.IsStatic)
-            {
-                EmitLoadArg(0);
-            }
+            EmitLoadArg(0);
+        }
+
+        public override void EmitLoadInstanceAddress()
+        {
+            EmitLoadArgAddress(0);
         }
 
         public override void EmitLoadParameter(ParameterSymbol parameter)
@@ -544,6 +570,100 @@ public class ReflectionSymbolEmitter : SymbolEmitter
             {
                 _ilgen.Emit(OpCodes.Starg, n);
             }
+        }
+
+        public override void EmitLoadArrayElement(TypeSymbol elementTypeSymbol)
+        {
+            var type = _emitter.GetRuntimeType(elementTypeSymbol);
+
+            var typeCode = Type.GetTypeCode(type);
+            switch (typeCode)
+            {
+                case TypeCode.SByte:
+                    _ilgen.Emit(OpCodes.Ldelem_I1);
+                    break;
+                case TypeCode.Byte:
+                    _ilgen.Emit(OpCodes.Ldelem_U1);
+                    break;
+                case TypeCode.Int16:
+                    _ilgen.Emit(OpCodes.Ldelem_I2);
+                    break;
+                case TypeCode.UInt16:
+                    _ilgen.Emit(OpCodes.Ldelem_U2);
+                    break;
+                case TypeCode.Int32:
+                    _ilgen.Emit(OpCodes.Ldelem_I4);
+                    break;
+                case TypeCode.UInt32:
+                    _ilgen.Emit(OpCodes.Ldelem_U4);
+                    break;
+                case TypeCode.Int64:
+                    _ilgen.Emit(OpCodes.Ldelem_I8);
+                    break;
+                case TypeCode.Single:
+                    _ilgen.Emit(OpCodes.Ldelem_R4);
+                    break;
+                case TypeCode.Double:
+                    _ilgen.Emit(OpCodes.Ldelem_R8);
+                    break;
+                default:
+                    if (type == typeof(nint))
+                    {
+                        _ilgen.Emit(OpCodes.Ldelem_I);
+                    }
+                    else
+                    {
+                        _ilgen.Emit(OpCodes.Ldelem, type);
+                    }
+                    break;
+            }
+
+            // OpCodes.Ldelem_Ref  == typeof(object)?
+        }
+
+        public override void EmitLoadArrayElementAddress(TypeSymbol elementTypeSymbol)
+        {
+            _ilgen.Emit(OpCodes.Ldelema);
+        }
+
+        public override void EmitStoreArrayElement(TypeSymbol elementTypeSymbol)
+        {
+            var type = _emitter.GetRuntimeType(elementTypeSymbol);
+
+            var typeCode = Type.GetTypeCode(type);
+            switch (typeCode)
+            {
+                case TypeCode.SByte:
+                    _ilgen.Emit(OpCodes.Stelem_I1);
+                    break;
+                case TypeCode.Int16:
+                    _ilgen.Emit(OpCodes.Stelem_I2);
+                    break;
+                case TypeCode.Int32:
+                    _ilgen.Emit(OpCodes.Stelem_I4);
+                    break;
+                case TypeCode.Int64:
+                    _ilgen.Emit(OpCodes.Stelem_I8);
+                    break;
+                case TypeCode.Single:
+                    _ilgen.Emit(OpCodes.Stelem_R4);
+                    break;
+                case TypeCode.Double:
+                    _ilgen.Emit(OpCodes.Stelem_R8);
+                    break;
+                default:
+                    if (type == typeof(nint))
+                    {
+                        _ilgen.Emit(OpCodes.Stelem_I);
+                    }
+                    else
+                    {
+                        _ilgen.Emit(OpCodes.Stelem, type);
+                    }
+                    break;
+            }
+
+            // OpCodes.Stelem_Ref
         }
 
         public override void EmitLoadField(FieldSymbol field)
@@ -821,6 +941,13 @@ public class ReflectionSymbolEmitter : SymbolEmitter
         public override void EmitNew(ConstructorSymbol constructorSymbol)
         {
             var info = _emitter.GetRuntimeInfo<ConstructorInfo>(constructorSymbol);
+            _ilgen.Emit(OpCodes.Newobj, info);
+        }
+
+        public override void EmitNewArray(TypeSymbol elementTypeSymbol)
+        {
+            var info = _emitter.GetRuntimeType(elementTypeSymbol);
+            _ilgen.Emit(OpCodes.Newarr, info);
         }
 
         public override void EmitInit(TypeSymbol typeSymbol)

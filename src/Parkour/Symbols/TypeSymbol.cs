@@ -145,7 +145,15 @@ public class TypeSymbol : ContainerSymbol
     /// </summary>
     public virtual bool IsInterface => false;
 
+    /// <summary>
+    /// True if the type is a value type.
+    /// </summary>
     public virtual bool IsValueType => false;
+
+    /// <summary>
+    /// True if the type is an array.
+    /// </summary>
+    public virtual bool IsArray => false;
 
     /// <summary>
     /// The base type and interfaces of this type.

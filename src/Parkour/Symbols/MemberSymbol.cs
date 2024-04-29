@@ -20,10 +20,52 @@ public abstract class MemberSymbol : Symbol
     /// </summary>
     public Symbol? DeclaringSymbol { get; }
 
+    public bool IsPublic => Access == SymbolAccess.Public;
+    public bool IsPrivate => Access == SymbolAccess.Private;
+    public bool IsProtected => Access == SymbolAccess.Protected;
+    public bool IsProtectedAndInternal => Access == SymbolAccess.ProtectedAndInternal;
+    public bool IsProtectedOrInternal => Access == SymbolAccess.ProtectedOrInternal;
+    public bool IsInternal => Access == SymbolAccess.Internal;
+
     /// <summary>
-    /// True if the member is consiered to be static.
+    /// True if the symbol is considered to be static.
     /// </summary>
     public bool IsStatic => (Modifiers & SymbolModifier.Static) != 0;
+
+    /// <summary>
+    /// True if the symbol is considered to be abstract.
+    /// </summary>
+    public bool IsAbstract => (Modifiers & SymbolModifier.Abstract) != 0;
+
+    /// <summary>
+    /// True if the symbol is considered to be virtual.
+    /// </summary>
+    public bool IsVirtual => (Modifiers & SymbolModifier.Virtual) != 0;
+
+    /// <summary>
+    /// True if the symbol is considered to be an override.
+    /// </summary>
+    public bool IsOverride => (Modifiers & SymbolModifier.Override) != 0;
+
+    /// <summary>
+    /// True if the symbol is considered to be sealed.
+    /// </summary>
+    public bool IsSealed => (Modifiers & SymbolModifier.Sealed) != 0;
+
+    /// <summary>
+    /// True if the symbol is considered to be hidden.
+    /// </summary>
+    public bool IsHideBySig => (Modifiers & SymbolModifier.HideBySig) != 0;
+
+    /// <summary>
+    /// True if the symbol is considered to be special.
+    /// </summary>
+    public bool IsSpecial => (Modifiers & SymbolModifier.Special) != 0;
+
+    /// <summary>
+    /// True if the symbol is considered to be read only.
+    /// </summary>
+    public bool IsReadOnly => (this.Modifiers & SymbolModifier.ReadOnly) != 0;
 
     public MemberSymbol(
         string name, 

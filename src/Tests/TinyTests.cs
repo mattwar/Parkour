@@ -60,6 +60,6 @@ public class TinyTests
     {
         var tree = new TinyParser().Parse("test", text);
         var root = tree.Root;
-        AssertEquals(expected, root);
+        AssertSyntaxEquals(expected, root);
     }
 }

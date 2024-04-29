@@ -203,19 +203,38 @@ public class RuntimeSymbols
                         () => GetType(field.FieldType));
 
                 case PropertyInfo property:
-                    return new PropertySymbol(
-                        property.Name,
-                        declaringSymbol as TypeSymbol,
-                        GetAccess(property),
-                        GetModifiers(property),
-                        () => GetType(property.PropertyType),
-                        fnBackingField: null,
-                        property.GetGetMethod() is MethodInfo gmi
-                            ? me => (MethodSymbol)GetOrCreateSymbol(gmi, me)!
-                            : null,
-                        property.GetSetMethod() is MethodInfo smi
-                            ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
-                            : null);
+                    var indexParameters = property.GetIndexParameters();
+                    if (indexParameters.Length > 0)
+                    {
+                        return new IndexerSymbol(
+                            property.Name,
+                            declaringSymbol as TypeSymbol,
+                            GetAccess(property),
+                            GetModifiers(property),
+                            () => GetType(property.PropertyType),
+                            property.GetGetMethod() is MethodInfo gmi
+                                ? me => (MethodSymbol)GetOrCreateSymbol(gmi, me)!
+                                : null,
+                            property.GetSetMethod() is MethodInfo smi
+                                ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
+                                : null);
+                    }
+                    else
+                    {
+                        return new PropertySymbol(
+                            property.Name,
+                            declaringSymbol as TypeSymbol,
+                            GetAccess(property),
+                            GetModifiers(property),
+                            () => GetType(property.PropertyType),
+                            fnBackingField: null,
+                            property.GetGetMethod() is MethodInfo gmi
+                                ? me => (MethodSymbol)GetOrCreateSymbol(gmi, me)!
+                                : null,
+                            property.GetSetMethod() is MethodInfo smi
+                                ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
+                                : null);
+                    }
 
                 case MethodInfo method:
                     return CreateMethod(method, declaringSymbol);
@@ -237,7 +256,7 @@ public class RuntimeSymbols
                     if (type.IsArray)
                     {
                         var elementType = GetType(type.GetElementType()!);
-                        return new ArraySymbol(elementType);
+                        return new ArraySymbol(elementType, type.GetArrayRank(), type.IsSZArray);
                     }
                     else if (type.IsGenericTypeParameter)
                     {

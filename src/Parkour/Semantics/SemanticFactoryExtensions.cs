@@ -45,6 +45,18 @@ public static class SemanticFactoryExtensions
         SemanticFactory.Call(target.Member(name), arguments);
 
     /// <summary>
+    /// Accesses the element of an expression
+    /// </summary>
+    public static ElementExpression Element(this Expression target, Expression index, ISourceLocation? location = null) =>
+        SemanticFactory.Element(target, index, location);
+
+    /// <summary>
+    /// Accesses the element of an expression
+    /// </summary>
+    public static ElementExpression Element(this Expression target, ImmutableList<Expression> indices, ISourceLocation? location = null) =>
+        SemanticFactory.Element(target, indices, location);
+
+    /// <summary>
     /// Converts the referenced symbol to a constructed version of that symbol
     /// with the specified type arguments.
     /// </summary>
