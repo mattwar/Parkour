@@ -1,5 +1,5 @@
 ﻿using Parkour;
-using Parkour.Binding;
+using Parkour.Reflection;
 using Parkour.Symbols;
 
 namespace Tests
@@ -10,7 +10,7 @@ namespace Tests
         [TestMethod]
         public void TestSymbolCache_RuntimeSymbols()
         {
-            var runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
+            var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
             TestSymbolCache(runtimeSymbols.Symbols);
         }
 
@@ -33,7 +33,7 @@ namespace Tests
         public void TestRuntimeSymbolsWalk()
         {
             // attempt to iterate though all declared symbols reachable from global namespace
-            var rs = RuntimeSymbols.CurrentMscorlib;
+            var rs = ReflectionSymbols.CurrentMscorlib;
             EnumerateMembers(rs.GlobalNamespace);
 
             void EnumerateMembers(Symbol symbol)
@@ -45,7 +45,7 @@ namespace Tests
         [TestMethod]
         public void TestFindSymbol()
         {
-            var rs = RuntimeSymbols.CurrentMscorlib;
+            var rs = ReflectionSymbols.CurrentMscorlib;
 
             //TestFindSymbol(ns, "System.Int32");
             TestFindSymbol(rs.GlobalNamespace, "System.Collections.Generic.List`1");
@@ -60,7 +60,7 @@ namespace Tests
         [TestMethod]
         public void TestConstruct()
         {
-            var runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
+            var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
             var listT = (TypeSymbol?)runtimeSymbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
             Assert.IsNotNull(listT);
             var listInt32 = runtimeSymbols.Symbols.GetConstructed(listT, [runtimeSymbols.Symbols.Int32]);

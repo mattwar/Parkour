@@ -1,6 +1,7 @@
 ﻿using Parkour;
 using Parkour.Semantics;
 using Parkour.Binding;
+using Parkour.Reflection;
 using Parkour.Symbols;
 using static Parkour.Semantics.SemanticFactory;
 
@@ -9,11 +10,11 @@ namespace Tests;
 [TestClass]
 public class DeclarationTests
 {
-    private readonly RuntimeSymbols _runtimeSymbols;
+    private readonly ReflectionSymbols _runtimeSymbols;
 
     public DeclarationTests()
     {
-        _runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
+        _runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
     }   
 
     [TestMethod]

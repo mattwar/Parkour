@@ -2,6 +2,7 @@ using System.Collections;
 using System.Reflection;
 using Parkour;
 using Parkour.Binding;
+using Parkour.Reflection;
 using Parkour.Semantics;
 using Parkour.Symbols;
 using Parkour.Emitting;
@@ -12,13 +13,13 @@ namespace Tests;
 [TestClass]
 public class LINQTranslationTests
 {
-    private readonly RuntimeSymbols _runtimeSymbols;
+    private readonly ReflectionSymbols _runtimeSymbols;
     private readonly SymbolCache _symbols;
     private readonly BindingScope _defaultTestScope;
 
     public LINQTranslationTests()
     {
-        _runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
+        _runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
         _symbols = _runtimeSymbols.Symbols;
         _defaultTestScope = ExpressionTests.CreateBindingScope(_symbols);
     }

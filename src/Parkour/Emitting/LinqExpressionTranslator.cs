@@ -3,6 +3,7 @@ using System.Reflection;
 
 namespace Parkour.Emitting;
 using Binding;
+using Reflection;
 using Semantics;
 using Symbols;
 
@@ -11,13 +12,13 @@ using Symbols;
 /// </summary>
 public class LinqExpressionTranslator
 {
-    private readonly RuntimeSymbols _runtimeSymbols;
+    private readonly ReflectionSymbols _runtimeSymbols;
 
     /// <summary>
     /// Constructs a <see cref="LinqExpressionTranslator"/>
     /// that translates <see cref="Expression"/> instances into <see cref="L.Expression"/> types.
     /// </summary>
-    public LinqExpressionTranslator(RuntimeSymbols runtimeSymbols)
+    public LinqExpressionTranslator(ReflectionSymbols runtimeSymbols)
     {
         _runtimeSymbols = runtimeSymbols;
     }

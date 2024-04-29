@@ -1,40 +1,41 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Parkour.Symbols;
 
-namespace Parkour.Symbols;
+namespace Parkour.Reflection;
 
-public class RuntimeSymbols
+public class ReflectionSymbols
 {
     public SymbolCache Symbols { get; }
     public GlobalNamespaceSymbol GlobalNamespace => Symbols.GlobalNamespace;
     public ImmutableList<Assembly> Assemblies { get; }
 
-    private RuntimeSymbols(GlobalNamespaceSymbol globalNamespace, ImmutableList<Assembly> assemblies)
+    private ReflectionSymbols(GlobalNamespaceSymbol globalNamespace, ImmutableList<Assembly> assemblies)
     {
         Symbols = SymbolCache.From(globalNamespace);
         Assemblies = assemblies;
     }
 
     /// <summary>
-    /// The <see cref="RuntimeSymbols"/> associated with the current mscorlib assembly.
+    /// The <see cref="ReflectionSymbols"/> associated with the current mscorlib assembly.
     /// </summary>
-    public static RuntimeSymbols CurrentMscorlib => 
+    public static ReflectionSymbols CurrentMscorlib => 
         GetOrCreate(_mscorlibAssemblies);
 
     private static ImmutableList<Assembly> _mscorlibAssemblies =
         [typeof(int).Assembly];
 
-    private static readonly ConditionalWeakTable<ImmutableList<Assembly>, RuntimeSymbols> _assemblyToRuntimeSymbolsMap =
-        new ConditionalWeakTable<ImmutableList<Assembly>, RuntimeSymbols>();
+    private static readonly ConditionalWeakTable<ImmutableList<Assembly>, ReflectionSymbols> _assemblyToRuntimeSymbolsMap =
+        new ConditionalWeakTable<ImmutableList<Assembly>, ReflectionSymbols>();
 
-    private static readonly ConditionalWeakTable<NamespaceSymbol, RuntimeSymbols> _namespaceToRuntimeSymbolsMap =
-        new ConditionalWeakTable<NamespaceSymbol, RuntimeSymbols>();
+    private static readonly ConditionalWeakTable<NamespaceSymbol, ReflectionSymbols> _namespaceToRuntimeSymbolsMap =
+        new ConditionalWeakTable<NamespaceSymbol, ReflectionSymbols>();
 
     /// <summary>
-    /// Gets or creates the <see cref="RuntimeSymbols"/> associated with the assemblies
+    /// Gets or creates the <see cref="ReflectionSymbols"/> associated with the assemblies
     /// </summary>
-    public static RuntimeSymbols GetOrCreate(ImmutableList<Assembly> assemblies)
+    public static ReflectionSymbols GetOrCreate(ImmutableList<Assembly> assemblies)
     {
         if (!_assemblyToRuntimeSymbolsMap.TryGetValue(assemblies, out var runtimeSymbols))
         {
@@ -46,14 +47,14 @@ public class RuntimeSymbols
     }
 
     /// <summary>
-    /// Get the <see cref="RuntimeSymbols"/> with the specified global namespace instance.
+    /// Get the <see cref="ReflectionSymbols"/> with the specified global namespace instance.
     /// </summary>
-    public static bool TryGet(GlobalNamespaceSymbol globalNamespace, [NotNullWhen(true)] out RuntimeSymbols? runtimeSymbols)
+    public static bool TryGet(GlobalNamespaceSymbol globalNamespace, [NotNullWhen(true)] out ReflectionSymbols? runtimeSymbols)
     {
         return _namespaceToRuntimeSymbolsMap.TryGetValue(globalNamespace, out runtimeSymbols);
     }
 
-    private static RuntimeSymbols CreateRuntimeSymbols(ImmutableList<Assembly>? assemblies)
+    private static ReflectionSymbols CreateRuntimeSymbols(ImmutableList<Assembly>? assemblies)
     {
         assemblies = assemblies ?? _mscorlibAssemblies;
         var types = assemblies.SelectMany(a => a.GetTypes()).ToList();
@@ -61,14 +62,14 @@ public class RuntimeSymbols
         var methods = modules.SelectMany(m => m.GetMethods()).ToList();
         var fields = modules.SelectMany(m => m.GetFields()).ToList();
 
-        RuntimeSymbols? runtimeSymbols = null;
+        ReflectionSymbols? runtimeSymbols = null;
 
         var ns = new GlobalNamespaceSymbol(_ns =>
         {
             return runtimeSymbols!.GetNamespaceMembers(_ns, "", "", types, methods, fields);
         });
 
-        runtimeSymbols = new RuntimeSymbols(ns, assemblies);
+        runtimeSymbols = new ReflectionSymbols(ns, assemblies);
         return runtimeSymbols;
     }
 
@@ -529,7 +530,7 @@ public class RuntimeSymbols
         }
         else
         {
-            throw new InvalidOperationException($"Unhandled runtime info: '{runtimeInfo.GetType().Name}' in {nameof(RuntimeSymbols)}.{nameof(GetFullName)}");
+            throw new InvalidOperationException($"Unhandled runtime info: '{runtimeInfo.GetType().Name}' in {nameof(ReflectionSymbols)}.{nameof(GetFullName)}");
         }
     }
 

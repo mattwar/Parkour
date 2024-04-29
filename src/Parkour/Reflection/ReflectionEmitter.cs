@@ -1,13 +1,15 @@
-﻿namespace Parkour.Emitting;
-using Symbols;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Reflection.Emit;
+using Parkour.Symbols;
+using Parkour.Emitting;
+
+namespace Parkour.Reflection;
 
 public class ReflectionEmitter : SymbolEmitter
 {
     private readonly AssemblyBuilder _assemblyBuilder;
     private readonly ModuleBuilder _moduleBuilder;
-    private readonly RuntimeSymbols _runtimeSymbols;
+    private readonly ReflectionSymbols _runtimeSymbols;
     private readonly List<Diagnostic> _diagnostics;
 
     private Dictionary<Symbol, object> _symbolToBuilder =
@@ -17,25 +19,22 @@ public class ReflectionEmitter : SymbolEmitter
     public ModuleBuilder Module => _moduleBuilder;
 
     public ReflectionEmitter(
-        GlobalNamespaceSymbol externalSymbols,
+        ReflectionSymbols reflectionSymbols,
         AssemblyBuilder assemblyBuilder,
         ModuleBuilder moduleBuilder)
     {
-        if (!RuntimeSymbols.TryGet(externalSymbols, out var runtimeSymbols))
-            throw new InvalidOperationException("DeclarationBinding.ExternalSymbols is not RuntimeSymbols");
-
-        _runtimeSymbols = runtimeSymbols;
+        _runtimeSymbols = reflectionSymbols;
         _assemblyBuilder = assemblyBuilder;
         _moduleBuilder = moduleBuilder;
         _diagnostics = new List<Diagnostic>();
     }
 
     public ReflectionEmitter(
-        GlobalNamespaceSymbol externalSymbols,
+        ReflectionSymbols reflectionSymbols,
         AssemblyBuilder assemblyBuilder,
         string? moduleName = null)
         : this(
-              externalSymbols,
+              reflectionSymbols,
               assemblyBuilder,
               assemblyBuilder.DefineDynamicModule(
                   moduleName ?? $"Module{assemblyBuilder.GetModules().Length}")
@@ -44,10 +43,10 @@ public class ReflectionEmitter : SymbolEmitter
     }
 
     public ReflectionEmitter(
-        GlobalNamespaceSymbol externalSymbols,
+        ReflectionSymbols reflectionSymbols,
         string assemblyName)
         : this(
-              externalSymbols,
+              reflectionSymbols,
               AssemblyBuilder.DefineDynamicAssembly(
                 new AssemblyName(assemblyName),
                 AssemblyBuilderAccess.RunAndCollect))
@@ -1649,4 +1648,3 @@ public class ReflectionEmitter : SymbolEmitter
         }
     }
 }
-

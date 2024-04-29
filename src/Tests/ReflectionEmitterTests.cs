@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Parkour.Binding;
 using Parkour.Emitting;
+using Parkour.Reflection;
 using Parkour.Semantics;
 using Parkour.Symbols;
 using static Parkour.Semantics.SemanticFactory;
@@ -327,7 +328,7 @@ public class ReflectionEmitterTests
     private void TestEmit(List<Declaration> declarations, Expression? test, Action<object?>? fnCheckResult)
     {
         var binder = new SemanticBinder();
-        var runtimeSymbols = RuntimeSymbols.CurrentMscorlib;
+        var reflectionSymbols = ReflectionSymbols.CurrentMscorlib;
 
         if (test != null)
             declarations.Add(
@@ -336,17 +337,16 @@ public class ReflectionEmitterTests
                      Method("Run", SymbolAccess.Public, SymbolModifier.Static, [], Symbol("System.Object"), test)
                      ]));
 
-        var binding = binder.BindDeclarations(declarations.ToImmutableList(), runtimeSymbols.GlobalNamespace);
+        var binding = binder.BindDeclarations(declarations.ToImmutableList(), reflectionSymbols.GlobalNamespace);
         if (binding.Diagnostics.Count > 0)
         {
             var dxs = string.Join("\n", binding.Diagnostics.Select(d => d.ToString()));
             Assert.Fail($"Unexpected diagnostics:\n{dxs}");
         }
 
-        var symbolEmitter = new ReflectionEmitter(binding.ExternalSymbols, "test_assembly");
+        var symbolEmitter = new ReflectionEmitter(reflectionSymbols, "test_assembly");
         var declarationEmitter = new SemanticEmitter(symbolEmitter);
-
-        var result = declarationEmitter.Emit(binding);
+        var result = declarationEmitter.Emit(binding); 
 
         if (result.Diagnostics.Count > 0)
         {
