@@ -10,11 +10,11 @@ namespace Tests;
 [TestClass]
 public class DeclarationTests
 {
-    private readonly ReflectionSymbols _runtimeSymbols;
+    private readonly ReflectionSymbols _reflectionSymbols;
 
     public DeclarationTests()
     {
-        _runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
+        _reflectionSymbols = ReflectionSymbols.CurrentMscorlib;
     }   
 
     [TestMethod]
@@ -125,13 +125,15 @@ public class DeclarationTests
 
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
-        var binding = new SemanticBinder().BindDeclarations(declarations.ToImmutableList(), _runtimeSymbols.GlobalNamespace);
+        var binding = new StandardBinder().BindDeclarations(declarations.ToImmutableList(), _reflectionSymbols.GlobalNamespace);
 
         Assert.AreEqual(declarations.Length, binding.BoundDeclarations.Count, "bound declarations count");
 
+        var combinedSymbols = CombinedSymbols.Create([_reflectionSymbols.GlobalNamespace, binding.BoundSymbols]);
+
         foreach (var path in expectedSymbols)
         {
-            var symbol = binding.ExternalAndDeclaredSymbols.GetFirstSymbolFromPath(path);
+            var symbol = combinedSymbols.GetFirstSymbolFromPath(path);
             Assert.IsNotNull(symbol, $"symbol '{path}' not found");
         }
     }

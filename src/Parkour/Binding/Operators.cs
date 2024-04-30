@@ -11,7 +11,7 @@ public sealed class Operators
     public ImmutableList<OperatorSymbol> Intrinsic { get; }
 
     /// <summary>
-    /// The default set of operators used by <see cref="SemanticBinder"/>
+    /// The default set of operators used by <see cref="StandardBinder"/>
     /// </summary>
     public ImmutableList<OperatorSymbol> Default { get; }
 
@@ -178,7 +178,7 @@ public sealed class Operators
     }
 
     /// <summary>
-    /// The default set of operators used by <see cref="SemanticBinder"/>.
+    /// The default set of operators used by <see cref="StandardBinder"/>.
     /// </summary>
     private static ImmutableList<OperatorSymbol> CreateDefault(SymbolCache symbols, ImmutableList<OperatorSymbol> intrinsice)
     {

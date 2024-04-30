@@ -8,10 +8,10 @@ namespace Tests
     public class SymbolTests
     {
         [TestMethod]
-        public void TestSymbolCache_RuntimeSymbols()
+        public void TestSymbolCache_ReflectionSymbols()
         {
             var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
-            TestSymbolCache(runtimeSymbols.Symbols);
+            TestSymbolCache(runtimeSymbols.Cache);
         }
 
         private void TestSymbolCache(SymbolCache symbols)
@@ -63,7 +63,7 @@ namespace Tests
             var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
             var listT = (TypeSymbol?)runtimeSymbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
             Assert.IsNotNull(listT);
-            var listInt32 = runtimeSymbols.Symbols.GetConstructed(listT, [runtimeSymbols.Symbols.Int32]);
+            var listInt32 = runtimeSymbols.Cache.GetConstructed(listT, [runtimeSymbols.Cache.Int32]);
             Assert.IsNotNull(listInt32);
             listInt32.WalkDeclarations(null);
         }

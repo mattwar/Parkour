@@ -4,9 +4,20 @@ using Symbols;
 
 public class ExpressionBinding
 {
-    public Expression UnboundExpression { get; }
-    public Expression BoundExpression { get; }
+    /// <summary>
+    /// The external symbols given as input to binding.
+    /// </summary>
     public GlobalNamespaceSymbol ExternalSymbols { get; }
+
+    /// <summary>
+    /// The expression given as input to binding.
+    /// </summary>
+    public Expression UnboundExpression { get; }
+
+    /// <summary>
+    /// The expression after binding.
+    /// </summary>
+    public Expression BoundExpression { get; }
 
     public ExpressionBinding(
         Expression unbound, 

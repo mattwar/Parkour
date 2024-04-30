@@ -244,11 +244,11 @@ public class SemanticWriter
                 Write(member.Name);
                 break;
 
-            case NameReferenceExpression nameRef:
+            case NameExpression nameRef:
                 Write(nameRef.Name);
                 break;
 
-            case SymbolReferenceExpression symbolRef:
+            case SymbolExpression symbolRef:
                 Write(symbolRef.FullName);
                 break;
 

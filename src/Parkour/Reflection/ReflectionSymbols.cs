@@ -5,15 +5,30 @@ using Parkour.Symbols;
 
 namespace Parkour.Reflection;
 
+/// <summary>
+/// Represents collections of <see cref="System.Reflection.Assembly"/>'s
+/// as a <see cref="Parkour.Symbols.GlobalNamespaceSymbol"/>.
+/// </summary>
 public class ReflectionSymbols
 {
-    public SymbolCache Symbols { get; }
-    public GlobalNamespaceSymbol GlobalNamespace => Symbols.GlobalNamespace;
+    /// <summary>
+    /// The set of assemblies.
+    /// </summary>
     public ImmutableList<Assembly> Assemblies { get; }
 
+    /// <summary>
+    /// The corresponding <see cref="GlobalNamespaceSymbol"/> for the set of assemblies.
+    /// </summary>
+    public GlobalNamespaceSymbol GlobalNamespace => Cache.GlobalNamespace;
+
+    /// <summary>
+    /// The cache of symbols found in <see cref="GlobalNamespace"/>.
+    /// </summary>
+    public SymbolCache Cache { get; }
+   
     private ReflectionSymbols(GlobalNamespaceSymbol globalNamespace, ImmutableList<Assembly> assemblies)
     {
-        Symbols = SymbolCache.From(globalNamespace);
+        Cache = SymbolCache.From(globalNamespace);
         Assemblies = assemblies;
     }
 

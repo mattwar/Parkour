@@ -9,32 +9,28 @@ using Symbols;
 public abstract class DeclarationBinding
 {
     /// <summary>
-    /// The declarations as they were before being bound.
+    /// The declarations given as input to the binder.
     /// </summary>
     public abstract ImmutableList<Declaration> UnboundDeclarations { get; }
 
     /// <summary>
-    /// The declarations after being bound.
-    /// </summary>
-    public abstract ImmutableList<Declaration> BoundDeclarations { get; }
-
-    /// <summary>
-    /// The global namespace the contains all the externally declared symbols.
+    /// The external symbols given as input to the binder.
     /// </summary>
     public abstract GlobalNamespaceSymbol ExternalSymbols { get; }
 
     /// <summary>
-    /// The global namespace that contains all declared symbols from this binding.
+    /// The declarations after being bound.
+    /// May include additional declarations introduced during binding.
     /// </summary>
-    public abstract GlobalNamespaceSymbol DeclaredSymbols { get; }
+    public abstract ImmutableList<Declaration> BoundDeclarations { get; }
 
     /// <summary>
-    /// The global namespace that combines the external and declared symbols.
+    /// The bound symbols corresponding to the declarations.
     /// </summary>
-    public abstract GlobalNamespaceSymbol ExternalAndDeclaredSymbols { get; }
+    public abstract GlobalNamespaceSymbol BoundSymbols { get; }
 
     /// <summary>
-    /// All diagnostics from all bound declarations
+    /// All diagnostics determined during binding.
     /// </summary>
     public abstract ImmutableList<Diagnostic> Diagnostics { get; }
 
@@ -55,5 +51,5 @@ public abstract class DeclarationBinding
     /// <summary>
     /// Get all bound declarations that correspond to a declared symbol.
     /// </summary>
-    public abstract ImmutableList<Declaration> GetBoundSymbolDeclarations(Symbol symbol);
+    public abstract ImmutableList<Declaration> GetSymbolDeclarations(Symbol symbol);
 }

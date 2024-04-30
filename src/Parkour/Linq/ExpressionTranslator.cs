@@ -1,7 +1,7 @@
 ﻿using L=System.Linq.Expressions;
 using System.Reflection;
 
-namespace Parkour.Emitting;
+namespace Parkour.Linq;
 using Binding;
 using Reflection;
 using Semantics;
@@ -10,15 +10,15 @@ using Symbols;
 /// <summary>
 /// Translates <see cref="Expression"/> elements into LINQ expressions.
 /// </summary>
-public class LinqExpressionTranslator
+public class ExpressionTranslator
 {
     private readonly ReflectionSymbols _runtimeSymbols;
 
     /// <summary>
-    /// Constructs a <see cref="LinqExpressionTranslator"/>
+    /// Constructs a <see cref="ExpressionTranslator"/>
     /// that translates <see cref="Expression"/> instances into <see cref="L.Expression"/> types.
     /// </summary>
-    public LinqExpressionTranslator(ReflectionSymbols runtimeSymbols)
+    public ExpressionTranslator(ReflectionSymbols runtimeSymbols)
     {
         _runtimeSymbols = runtimeSymbols;
     }
@@ -79,7 +79,7 @@ public class LinqExpressionTranslator
                 return TranslateLoop(loop);
             case MemberExpression path:
                 return TranslateMember(path);
-            case NameReferenceExpression nameRef:
+            case NameExpression nameRef:
                 return TranslateNameReference(nameRef);
             case NewExpression @new:
                 return TranslateNew(@new);
@@ -89,7 +89,7 @@ public class LinqExpressionTranslator
                 return TranslateNewArrayInit(newArrayInit);
             case OperatorExpression opex:
                 return TranslateOperator(opex);
-            case SymbolReferenceExpression symbolRef:
+            case SymbolExpression symbolRef:
                 return TranslateSymbolReference(symbolRef);
             case TypeArgumentsExpression typeArgs:
                 return TranslateTypeArguments(typeArgs);
@@ -98,7 +98,7 @@ public class LinqExpressionTranslator
             case VoidExpression @void:
                 return TranslateVoid(@void);
             default:
-                throw new InvalidOperationException($"Unhandled semantic type '{expression.GetType().Name}' in {nameof(LinqExpressionTranslator)}.Translate");
+                throw new InvalidOperationException($"Unhandled semantic type '{expression.GetType().Name}' in {nameof(ExpressionTranslator)}.Translate");
         }
     }
 
@@ -107,7 +107,7 @@ public class LinqExpressionTranslator
         if (_runtimeSymbols.TryGetRuntimeType(typeSymbol, out var type))
             return type;
 
-        throw new InvalidOperationException($"Could not determine runtime type for symbol '{typeSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateType)}");
+        throw new InvalidOperationException($"Could not determine runtime type for symbol '{typeSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateType)}");
     }
 
     private MethodInfo TranslateMethod(MethodSymbol methodSymbol)
@@ -118,7 +118,7 @@ public class LinqExpressionTranslator
             return methodInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime method for symbol '{methodSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateMethod)}");
+        throw new InvalidOperationException($"Could not determine runtime method for symbol '{methodSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMethod)}");
     }
 
     private ConstructorInfo TranslateConstructor(ConstructorSymbol constructorSymbol)
@@ -129,7 +129,7 @@ public class LinqExpressionTranslator
             return constructorInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime constructor for symbol '{constructorSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateConstructor)}");
+        throw new InvalidOperationException($"Could not determine runtime constructor for symbol '{constructorSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateConstructor)}");
     }
 
     private FieldInfo TranslateField(FieldSymbol fieldSymbol)
@@ -140,7 +140,7 @@ public class LinqExpressionTranslator
             return fieldInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime field for symbol '{fieldSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateField)}");
+        throw new InvalidOperationException($"Could not determine runtime field for symbol '{fieldSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateField)}");
     }
 
     private PropertyInfo TranslateProperty(PropertySymbol propertySymbol)
@@ -151,7 +151,7 @@ public class LinqExpressionTranslator
             return propertyInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime property for symbol '{propertySymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateProperty)}");
+        throw new InvalidOperationException($"Could not determine runtime property for symbol '{propertySymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateProperty)}");
     }
 
     private PropertyInfo TranslateIndexer(IndexerSymbol indexerSymbol)
@@ -162,7 +162,7 @@ public class LinqExpressionTranslator
             return propertyInfo;
         }
 
-        throw new InvalidOperationException($"Could not determine runtime property for symbol '{indexerSymbol.FullName}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateProperty)}");
+        throw new InvalidOperationException($"Could not determine runtime property for symbol '{indexerSymbol.FullName}' in {nameof(ExpressionTranslator)}.{nameof(TranslateProperty)}");
     }
 
     private L.Expression TranslateAssign(AssignExpression assign)
@@ -521,7 +521,7 @@ public class LinqExpressionTranslator
             default:
                 if (member.ReferencedSymbol == null)
                     throw new InvalidOperationException($"The reference has no symbol");
-                throw new InvalidOperationException($"Unhandled symbol '{member.ReferencedSymbol?.Name ?? "?"}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateMember)}");
+                throw new InvalidOperationException($"Unhandled symbol '{member.ReferencedSymbol?.Name ?? "?"}' in {nameof(ExpressionTranslator)}.{nameof(TranslateMember)}");
         }
     }
 
@@ -545,12 +545,12 @@ public class LinqExpressionTranslator
         return L.Expression.NewArrayInit(elementType, expressions);
     }
 
-    private L.Expression TranslateNameReference(NameReferenceExpression rex)
+    private L.Expression TranslateNameReference(NameExpression rex)
     {
         return TranslateReferencedSymbol(rex.ReferencedSymbol);
     }
 
-    private L.Expression TranslateSymbolReference(SymbolReferenceExpression rex)
+    private L.Expression TranslateSymbolReference(SymbolExpression rex)
     {
         return TranslateReferencedSymbol(rex.ReferencedSymbol);
     }
@@ -599,7 +599,7 @@ public class LinqExpressionTranslator
                 throw new InvalidOperationException("Reference has no symbol");
 
             default:
-                throw new InvalidOperationException($"Unhandled symbol '{symbol.Name}' in {nameof(LinqExpressionTranslator)}.{nameof(TranslateReferencedSymbol)}");
+                throw new InvalidOperationException($"Unhandled symbol '{symbol.Name}' in {nameof(ExpressionTranslator)}.{nameof(TranslateReferencedSymbol)}");
         }
     }
 

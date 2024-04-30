@@ -2,42 +2,40 @@
 using Symbols;
 
 /// <summary>
-/// Emits symbol declarations and IL into a CLR module.
+/// Builds a CLR Module from symbols and instructions.
 /// </summary>
-public abstract class ModuleEmitter
+public abstract class ModuleBuilder
 {
     public abstract void DefineClass(ClassSymbol classSymbol);
     public abstract void DefineValueType(ValueTypeSymbol valueTypeSymbol);
     public abstract void DefineInterface(InterfaceSymbol interfaceSymbol);
-
     public abstract void DefineField(FieldSymbol fieldSymbol);
     public abstract void DefineMethod(MethodSymbol methodSymbol);
     public abstract void DefineConstructor(ConstructorSymbol constructorSymbol);
     public abstract void DefineProperty(PropertySymbol propertySymbol);
     public abstract void DefineIndexer(IndexerSymbol indexerSymbol);
-
-    public abstract void EmitMethodBody(MethodSymbol methodSymbol, Action<MethodSymbol, ILEmitter> fnEmitBody);
-    public abstract void EmitConstructorBody(ConstructorSymbol constructorSymbol, Action<ConstructorSymbol, ILEmitter> fnEmitBody);
+    public abstract void BuildMethodBody(MethodSymbol methodSymbol, Action<MethodSymbol, BodyBuilder> fnEmitBody);
+    public abstract void BuildConstructorBody(ConstructorSymbol constructorSymbol, Action<ConstructorSymbol, BodyBuilder> fnEmitBody);
 
     /// <summary>
-    /// Finishes emitting defined type and members into output
+    /// Finishes building defined type and members.
     /// </summary>
-    public abstract EmitResult EmitSymbols();
+    public abstract BuildResult Build();
 
-    public class EmitResult
+    public class BuildResult
     {
         public ImmutableList<Diagnostic> Diagnostics { get; }
 
-        public EmitResult(ImmutableList<Diagnostic>? diagnostics)
+        public BuildResult(ImmutableList<Diagnostic>? diagnostics)
         {
             this.Diagnostics = diagnostics ?? ImmutableList<Diagnostic>.Empty;
         }
     }
 
     /// <summary>
-    /// Emits IL instructions using symbol abstraction.
+    /// Builds method bodies from IL instructions.
     /// </summary>
-    public abstract class ILEmitter
+    public abstract class BodyBuilder
     {
         /// <summary>
         /// Declares the start of a variable's use.

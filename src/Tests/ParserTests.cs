@@ -120,9 +120,9 @@ namespace Tests
         [TestMethod]
         public void TestAnd()
         {
-            //Test(Match("A").And(Match("B")), "", succeeds: false);
-            //Test(Match("A").And(Match("B")), "A", succeeds: false);
-            //Test(Match("A").And(Match("B")), "B", succeeds: false);
+            Test(Match("A").And(Match("B")), "", succeeds: false);
+            Test(Match("A").And(Match("B")), "A", succeeds: false);
+            Test(Match("A").And(Match("B")), "B", succeeds: false);
             Test(Match("A").And(Match("B")), "AB");
         }
 

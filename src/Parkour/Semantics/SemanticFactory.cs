@@ -226,8 +226,8 @@ public static class SemanticFactory
     /// <summary>
     /// References a named symbol in scope.
     /// </summary>
-    public static NameReferenceExpression Name(string name, ISourceLocation? location = null) =>
-        new NameReferenceExpression(name, location, null, null, null);
+    public static NameExpression Name(string name, ISourceLocation? location = null) =>
+        new NameExpression(name, location, null, null, null);
 
     /// <summary>
     /// Creates an new instance of the specfied type.
@@ -287,14 +287,14 @@ public static class SemanticFactory
     /// <summary>
     /// Reference a declared symbol.
     /// </summary>
-    public static SymbolReferenceExpression Symbol(MemberSymbol symbol, ISourceLocation? location = null) =>
+    public static SymbolExpression Symbol(MemberSymbol symbol, ISourceLocation? location = null) =>
         Symbol(symbol.FullName, location);
 
     /// <summary>
     /// Reference a declared symbol by its full name; ignores scoping rules.
     /// </summary>
-    public static SymbolReferenceExpression Symbol(string fullName, ISourceLocation? location = null) =>
-        new SymbolReferenceExpression(fullName, location, null, null, null);
+    public static SymbolExpression Symbol(string fullName, ISourceLocation? location = null) =>
+        new SymbolExpression(fullName, location, null, null, null);
 
     /// <summary>
     /// References the current instance.

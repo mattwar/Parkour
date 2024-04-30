@@ -4,12 +4,12 @@ using System.Runtime.CompilerServices;
 namespace Parkour.Symbols;
 
 /// <summary>
-/// A class for caching symbols found in the global namespace.
+/// A class for caching symbols found in a global namespace.
 /// </summary>
 public class SymbolCache
 {
     /// <summary>
-    /// The global namespace for all declared and external symbols.
+    /// The global namespace the cache is associated with.
     /// </summary>
     public GlobalNamespaceSymbol GlobalNamespace { get; }
 

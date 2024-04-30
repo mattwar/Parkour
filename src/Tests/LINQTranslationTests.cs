@@ -2,10 +2,10 @@ using System.Collections;
 using System.Reflection;
 using Parkour;
 using Parkour.Binding;
+using Parkour.Linq;
 using Parkour.Reflection;
 using Parkour.Semantics;
 using Parkour.Symbols;
-using Parkour.Emitting;
 using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;
@@ -20,7 +20,7 @@ public class LINQTranslationTests
     public LINQTranslationTests()
     {
         _runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
-        _symbols = _runtimeSymbols.Symbols;
+        _symbols = _runtimeSymbols.Cache;
         _defaultTestScope = ExpressionTests.CreateBindingScope(_symbols);
     }
 
@@ -286,8 +286,9 @@ public class LINQTranslationTests
 
         args ??= System.Array.Empty<object>();
 
-        var binder = new SemanticBinder();
-        var bound = (LambdaExpression)binder.BindExpression(expression, _symbols.GlobalNamespace, scope ?? _defaultTestScope);
+        var binder = new StandardBinder();
+        var binding = binder.BindExpression(expression, _symbols.GlobalNamespace, scope ?? _defaultTestScope);
+        var bound = (LambdaExpression)binding.BoundExpression;
 
         if (bound.ContainsDiagnostics)
         {
@@ -300,7 +301,7 @@ public class LINQTranslationTests
         Assert.IsFalse(bound.ContainsDiagnostics, "expression contains diagnostics");
         Assert.IsFalse(bound.IsUnbound, "expression still contains unbound elements after binding.");
 
-        var translated = new LinqExpressionTranslator(_runtimeSymbols).TranslateToLambda(bound);
+        var translated = new ExpressionTranslator(_runtimeSymbols).TranslateToLambda(bound);
 
         var compiled = translated.Compile();
 

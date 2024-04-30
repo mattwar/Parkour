@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Parkour.Binding;
 using Parkour.Emitting;
+using Parkour.Lowering;
 using Parkour.Reflection;
 using Parkour.Semantics;
 using Parkour.Symbols;
@@ -10,7 +11,7 @@ using static Tests.TestHelpers;
 namespace Tests;
 
 [TestClass]
-public class ReflectionEmitterTests
+public class EmitterTests
 {
     [TestMethod]
     public void TestEmptyClass()
@@ -327,8 +328,8 @@ public class ReflectionEmitterTests
 
     private void TestEmit(List<Declaration> declarations, Expression? test, Action<object?>? fnCheckResult)
     {
-        var binder = new SemanticBinder();
-        var reflectionSymbols = ReflectionSymbols.CurrentMscorlib;
+        var binder = new StandardBinder();
+        var imports = ReflectionSymbols.CurrentMscorlib;
 
         if (test != null)
             declarations.Add(
@@ -337,16 +338,19 @@ public class ReflectionEmitterTests
                      Method("Run", SymbolAccess.Public, SymbolModifier.Static, [], Symbol("System.Object"), test)
                      ]));
 
-        var binding = binder.BindDeclarations(declarations.ToImmutableList(), reflectionSymbols.GlobalNamespace);
+        var binding = binder.BindDeclarations(declarations.ToImmutableList(), imports.GlobalNamespace);
         if (binding.Diagnostics.Count > 0)
         {
             var dxs = string.Join("\n", binding.Diagnostics.Select(d => d.ToString()));
             Assert.Fail($"Unexpected diagnostics:\n{dxs}");
         }
 
-        var moduleEmitter = new ReflectionEmitter(reflectionSymbols, "test_assembly");
-        var declarationEmitter = new SemanticEmitter(moduleEmitter);
-        var result = declarationEmitter.Emit(binding); 
+        var lowerer = new StandardLowerer();
+        var lowering = lowerer.Lower(binding);
+
+        var builder = new ReflectionBuilder(imports, "test_assembly");
+        var emitter = new StandardEmitter();
+        var result = emitter.Emit(lowering, builder);
 
         if (result.Diagnostics.Count > 0)
         {
@@ -354,16 +358,16 @@ public class ReflectionEmitterTests
         }
 
         // verify all delared symbols are represented in the assembly
-        VerifySymbols(moduleEmitter.Assembly, binding.DeclaredSymbols);
+        VerifySymbols(builder.Assembly, lowering.LoweredSymbols);
 
 #if false
         var generator = new Lokad.ILPack.AssemblyGenerator();
         generator.GenerateAssembly(result.Assembly, "test_assembly.dll");
 #endif
 
-        if (moduleEmitter.Module is Module m && test != null)
+        if (builder.Module is Module m && test != null)
         {
-            var testType = moduleEmitter.Module.GetType("Test");
+            var testType = builder.Module.GetType("Test");
             Assert.IsNotNull(testType, "Test type not found");
             var testMethod = testType.GetMethod("Run", BindingFlags.Public|BindingFlags.Static);
             Assert.IsNotNull(testMethod, "Test.Run not found");

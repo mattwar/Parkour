@@ -17,8 +17,8 @@ public class ExpressionTests
     public ExpressionTests()
     {       
         _runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
-        _symbols = _runtimeSymbols.Symbols;
-        _defaultTestScope = CreateBindingScope(_runtimeSymbols.Symbols);
+        _symbols = _runtimeSymbols.Cache;
+        _defaultTestScope = CreateBindingScope(_runtimeSymbols.Cache);
     }
 
     public static BindingScope CreateBindingScope(SymbolCache symbols)
@@ -31,7 +31,7 @@ public class ExpressionTests
     {
         TestBinding(
             Symbol("System.Int32").Array(),
-            expectedReferencedSymbol: _runtimeSymbols.Symbols.GetArray(_symbols.Int32));
+            expectedReferencedSymbol: _runtimeSymbols.Cache.GetArray(_symbols.Int32));
     }
 
     [TestMethod]
@@ -656,8 +656,9 @@ public class ExpressionTests
         bool containsDiagnostics = false,
         BindingScope? scope = null)
     {
-        var binder = new SemanticBinder();
-        var bound = binder.BindExpression(expression, _symbols.GlobalNamespace, scope ?? _defaultTestScope);
+        var binder = new StandardBinder();
+        var binding = binder.BindExpression(expression, _symbols.GlobalNamespace, scope ?? _defaultTestScope);
+        var bound = binding.BoundExpression;
 
         Assert.IsFalse(bound.IsUnbound, "expression contains unbound elements after binding");
 

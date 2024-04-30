@@ -1,12 +1,15 @@
 ﻿namespace Parkour.Emitting;
-using Parkour.Binding;
+using Parkour.Lowering;
 
 /// <summary>
-/// Emits bound declarations
+/// Emits lowered symbols into a <see cref="ModuleBuilder"/>.
 /// </summary>
-public abstract class DeclarationEmitter
+public abstract class Emitter
 {
-    public abstract EmitResult Emit(DeclarationBinding binding);
+    /// <summary>
+    /// Emits lowered symbols into a <see cref="ModuleBuilder"/>
+    /// </summary>
+    public abstract EmitResult Emit(DeclarationLowering binding, ModuleBuilder builder);
 
     public class EmitResult
     {

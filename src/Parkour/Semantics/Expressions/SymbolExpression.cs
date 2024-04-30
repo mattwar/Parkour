@@ -4,12 +4,12 @@ using Symbols;
 /// <summary>
 /// References a symbol by its full name, regardless of scoping.
 /// </summary>
-public sealed class SymbolReferenceExpression : Expression
+public sealed class SymbolExpression : Expression
 {
     public string FullName { get; }
     public override Symbol? ReferencedSymbol { get; }
 
-    public SymbolReferenceExpression(
+    public SymbolExpression(
         string fullName,
         ISourceLocation? location,
         Symbol? referencedSymbol,

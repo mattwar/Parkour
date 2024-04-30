@@ -3,21 +3,20 @@
 namespace Parkour.Binding;
 using Semantics;
 using Symbols;
-using System.Xml.Linq;
 
 /// <summary>
 /// Converts unbound declarations and expressions into bound declarations and expressions
 /// with symbols and diagnostics assigned.
 /// </summary>
-public class SemanticBinder
+public class StandardBinder : Binder
 {
     /// <summary>
-    /// Creates a new instance of <see cref="SemanticBinder"/> that 
+    /// Creates a new instance of <see cref="StandardBinder"/> that 
     /// converts unbound declarations and expressions into bound declarations and expressions,
     /// by creating new instances of each with declared or referenced symbols assigned
     /// and including any diagnostics.
     /// </summary>
-    public SemanticBinder()
+    public StandardBinder()
     {
     }
 
@@ -26,7 +25,7 @@ public class SemanticBinder
     /// </summary>
     /// <param name="declarations">The declarations to bind.</param>
     /// <param name="externalSymbols">The global namespace containing all external symbols.</param>
-    public DeclarationBinding BindDeclarations(
+    public override DeclarationBinding BindDeclarations(
         ImmutableList<Declaration> declarations,
         GlobalNamespaceSymbol externalSymbols)
     {
@@ -34,14 +33,37 @@ public class SemanticBinder
 
         BindDeclarations(result.Context.DeclarationContext, declarations);
 
-        return new NonDeferredBinding(
+        return new BindingResult(
             declarations,
             externalSymbols,
             result.DeclaredSymbols,
-            result.CombinedSymbols,
             result.Context.GetUnboundToBoundDeclarationMap(),
             result.Context.GetSymbolToUnboundDeclarationMap()
             );
+    }
+
+    /// <summary>
+    /// Binds all unbound expressions
+    /// </summary>
+    public override ExpressionBinding BindExpression(
+        Expression expression,
+        GlobalNamespaceSymbol globalNamespace)
+    {
+        var scope = CreateDefaultBindingScope().AddMembers(globalNamespace);
+        return BindExpression(expression, globalNamespace, scope);
+    }
+
+    /// <summary>
+    /// Binds all unbound expressions
+    /// </summary>
+    public override ExpressionBinding BindExpression(
+        Expression expression,
+        GlobalNamespaceSymbol externalSymbols,
+        BindingScope scope)
+    {
+        var context = new ExpressionContext(CreateInitialSymbolContext(externalSymbols), null, scope);
+        var boundExpression = BindExpression(context, expression);
+        return new ExpressionBinding(expression, boundExpression, externalSymbols);
     }
 
     #region binding contexts
@@ -377,7 +399,7 @@ public class SemanticBinder
         SymbolContext? creationContext = null;
 
         // create combined symbols' global namespace including all declared and external symbols
-        var combinedSymbols = CombinedSymbols.CreateCombinedGlobalNamespace(
+        var combinedSymbols = CombinedSymbols.Create(
             globals =>
             {
                 // make global namespace for all declared symbols
@@ -557,7 +579,7 @@ public class SemanticBinder
                 return null;
 
             default:
-                throw new InvalidOperationException($"Unhandled declaration type '{declaration.GetType().Name}' in {nameof(SemanticBinder)}.{nameof(CreateDeclarationSymbol)}");
+                throw new InvalidOperationException($"Unhandled declaration type '{declaration.GetType().Name}' in {nameof(StandardBinder)}.{nameof(CreateDeclarationSymbol)}");
         }
     }
 
@@ -740,7 +762,7 @@ public class SemanticBinder
                 bound = BindUsing(context, ud);
                 break;
             default:
-                throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(SemanticBinder)}.{nameof(BindDeclaration)}");
+                throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(StandardBinder)}.{nameof(BindDeclaration)}");
         }
 
         // record unbound to bound declaration mapping
@@ -1111,29 +1133,6 @@ public class SemanticBinder
     /// <summary>
     /// Binds all unbound expressions
     /// </summary>
-    public Expression BindExpression(
-        Expression expression, 
-        GlobalNamespaceSymbol globalNamespace)
-    {
-        var scope = CreateDefaultBindingScope().AddMembers(globalNamespace);
-        return BindExpression(expression, globalNamespace, scope);
-    }
-
-    /// <summary>
-    /// Binds all unbound expressions
-    /// </summary>
-    public Expression BindExpression(
-        Expression expression, 
-        GlobalNamespaceSymbol globalNamespace, 
-        BindingScope scope)
-    {
-        var context = new ExpressionContext(CreateInitialSymbolContext(globalNamespace), null, scope);
-        return BindExpression(context, expression);
-    }
-
-    /// <summary>
-    /// Binds all unbound expressions
-    /// </summary>
     protected virtual Expression BindExpression(ExpressionContext context, Expression expression)
     {
         if (!(context.Rebind || expression.IsUnbound))
@@ -1186,7 +1185,7 @@ public class SemanticBinder
             case MemberExpression member:
                 return BindMember(context, member);
 
-            case NameReferenceExpression nameRef:
+            case NameExpression nameRef:
                 return BindNameReference(context, nameRef);
 
             case NewExpression @new:
@@ -1201,7 +1200,7 @@ public class SemanticBinder
             case OperatorExpression opex:
                 return BindOperator(context, opex);
 
-            case SymbolReferenceExpression symbolRef:
+            case SymbolExpression symbolRef:
                 return BindSymbolReference(context, symbolRef);
 
             case ThisExpression me:
@@ -1217,7 +1216,7 @@ public class SemanticBinder
                 return BindVoid(context, vex);
 
             default:
-                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(SemanticBinder)}.BindExpression");
+                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(StandardBinder)}.BindExpression");
         }
     }
 
@@ -2678,9 +2677,9 @@ public class SemanticBinder
 
     #region NameReference Expression
     /// <summary>
-    /// Binds <see cref="NameReferenceExpression"/>
+    /// Binds <see cref="NameExpression"/>
     /// </summary>
-    protected virtual Expression BindNameReference(ExpressionContext context, NameReferenceExpression nameRef)
+    protected virtual Expression BindNameReference(ExpressionContext context, NameExpression nameRef)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
@@ -2695,7 +2694,7 @@ public class SemanticBinder
 
             var resultType = GetReferenceResultType(context, referencedSymbol) ?? context.Symbols.Object;
 
-            return new NameReferenceExpression(
+            return new NameExpression(
                 nameRef.Name,
                 nameRef.Location,
                 referencedSymbol,
@@ -2922,9 +2921,9 @@ public class SemanticBinder
 
     #region SymbolReference Expression
     /// <summary>
-    /// Binds <see cref="SymbolReferenceExpression"/>
+    /// Binds <see cref="SymbolExpression"/>
     /// </summary>
-    protected virtual Expression BindSymbolReference(ExpressionContext context, SymbolReferenceExpression symbolRef)
+    protected virtual Expression BindSymbolReference(ExpressionContext context, SymbolExpression symbolRef)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
@@ -2939,7 +2938,7 @@ public class SemanticBinder
 
             var resultType = GetReferenceResultType(context, referencedSymbol) ?? context.Symbols.Object;
 
-            return new SymbolReferenceExpression(
+            return new SymbolExpression(
                 symbolRef.FullName,
                 symbolRef.Location,
                 referencedSymbol,
@@ -3332,8 +3331,8 @@ public class SemanticBinder
     }
     #endregion
 
-    #region NonDeferredBinding
-    private class NonDeferredBinding : DeclarationBinding
+    #region BindingResult
+    private class BindingResult : DeclarationBinding
     {
         /// <summary>
         /// All the declarations before binding
@@ -3348,28 +3347,21 @@ public class SemanticBinder
         /// <summary>
         /// The namespace including only declared symbols
         /// </summary>
-        public override GlobalNamespaceSymbol DeclaredSymbols { get; }
-
-        /// <summary>
-        /// The namespace including both declared and external symbols.
-        /// </summary>
-        public override GlobalNamespaceSymbol ExternalAndDeclaredSymbols { get; }
+        public override GlobalNamespaceSymbol BoundSymbols { get; }
 
         private readonly ImmutableDictionary<Declaration, Declaration> _unboundToBoundMap;
         public readonly ImmutableDictionary<Symbol, ImmutableList<Declaration>> _symbolToUnboundDeclarationMap;
 
-        public NonDeferredBinding(
+        public BindingResult(
             ImmutableList<Declaration> unboundDeclarations,
             GlobalNamespaceSymbol externalSymbols,
             GlobalNamespaceSymbol declarationSymbols,
-            GlobalNamespaceSymbol combinedSymbols,
             ImmutableDictionary<Declaration, Declaration> unboundToBoundMap,
             ImmutableDictionary<Symbol, ImmutableList<Declaration>> symbolToUnboundDeclarationMap)
         {
             this.UnboundDeclarations = unboundDeclarations;
             this.ExternalSymbols = externalSymbols;
-            this.DeclaredSymbols = declarationSymbols;
-            this.ExternalAndDeclaredSymbols = combinedSymbols;
+            this.BoundSymbols = declarationSymbols;
             _unboundToBoundMap = unboundToBoundMap;
             _symbolToUnboundDeclarationMap = symbolToUnboundDeclarationMap;
         }
@@ -3409,7 +3401,7 @@ public class SemanticBinder
         /// <summary>
         /// Get the bound declarations associated with a declared symbol.
         /// </summary>
-        public override ImmutableList<Declaration> GetBoundSymbolDeclarations(Symbol symbol)
+        public override ImmutableList<Declaration> GetSymbolDeclarations(Symbol symbol)
         {
             if (!_symbolToBoundDeclarationMap.TryGetValue(symbol, out var boundDecls))
             {
@@ -3446,131 +3438,6 @@ public class SemanticBinder
         }
     }
 
-    #endregion
-
-    #region DeferredBinding
-    private class DeferredBinding : DeclarationBinding
-    {
-        private readonly SemanticBinder _binder;
-        private readonly SymbolContext _context;
-
-        /// <summary>
-        /// All the declarations before binding
-        /// </summary>
-        public override ImmutableList<Declaration> UnboundDeclarations { get; }
-
-        /// <summary>
-        /// The namespace including only external symbols
-        /// </summary>
-        public override GlobalNamespaceSymbol ExternalSymbols { get; }
-
-        /// <summary>
-        /// The namespace including only declared symbols
-        /// </summary>
-        public override GlobalNamespaceSymbol DeclaredSymbols { get; }
-
-        /// <summary>
-        /// The namespace including both declared and external symbols.
-        /// </summary>
-        public override GlobalNamespaceSymbol ExternalAndDeclaredSymbols { get; }
-
-        public DeferredBinding(
-            ImmutableList<Declaration> unboundDeclarations,
-            GlobalNamespaceSymbol externalSymbols,
-            GlobalNamespaceSymbol declarationSymbols,
-            GlobalNamespaceSymbol combinedSymbols,
-            SemanticBinder binder,
-            SymbolContext context)
-        {
-            this.UnboundDeclarations = unboundDeclarations;
-            this.ExternalSymbols = externalSymbols;
-            this.DeclaredSymbols = declarationSymbols;
-            this.ExternalAndDeclaredSymbols = combinedSymbols;
-            _binder = binder;
-            _context = context;
-            _symbolToUnboundDeclarationMap = context.GetSymbolToUnboundDeclarationMap();
-        }
-
-        private ImmutableList<Declaration>? _boundDeclarations;
-
-        /// <summary>
-        /// All the declarations after binding
-        /// </summary>
-        public override ImmutableList<Declaration> BoundDeclarations
-        {
-            get
-            {
-                if (_boundDeclarations == null)
-                {
-                    var tmp = UnboundDeclarations
-                        .Select(u => GetBoundDeclaration(u))
-                        .OfType<Declaration>()
-                        .ToImmutableList();
-                    Interlocked.CompareExchange(ref _boundDeclarations, tmp, null);
-                }
-
-                return _boundDeclarations ?? ImmutableList<Declaration>.Empty;
-            }
-        }
-
-        private ImmutableDictionary<Declaration, Declaration> _unboundToBoundMap =
-            ImmutableDictionary<Declaration, Declaration>.Empty;
-
-        public override Declaration? GetBoundDeclaration(Declaration unboundDeclaration)
-        {
-            if (!_unboundToBoundMap.TryGetValue(unboundDeclaration, out var boundDeclaration))
-            {
-                var tmp = _binder.BindDeclaration(_context.DeclarationContext, unboundDeclaration);
-                boundDeclaration = ImmutableInterlocked.GetOrAdd(ref _unboundToBoundMap, unboundDeclaration, tmp);
-            }
-
-            return boundDeclaration;
-        }
-
-        public readonly ImmutableDictionary<Symbol, ImmutableList<Declaration>> _symbolToUnboundDeclarationMap;
-
-        public ImmutableDictionary<Symbol, ImmutableList<Declaration>> _symbolToBoundDeclarationMap =
-            ImmutableDictionary<Symbol, ImmutableList<Declaration>>.Empty;
-
-        /// <summary>
-        /// Get the bound declarations associated with a declared symbol.
-        /// </summary>
-        public override ImmutableList<Declaration> GetBoundSymbolDeclarations(Symbol symbol)
-        {
-            if (!_symbolToBoundDeclarationMap.TryGetValue(symbol, out var boundDecls))
-            {
-                if (_symbolToUnboundDeclarationMap.TryGetValue(symbol, out var unboundDecls))
-                {
-                    var tmp = unboundDecls.Select(u => GetBoundDeclaration(u)!).ToImmutableList();
-                    boundDecls = ImmutableInterlocked.GetOrAdd(ref _symbolToBoundDeclarationMap, symbol, tmp);
-                }
-            }
-
-            return boundDecls ?? ImmutableList<Declaration>.Empty;
-        }
-
-        private ImmutableList<Diagnostic>? _diagnostics;
-
-        public override ImmutableList<Diagnostic> Diagnostics
-        {
-            get
-            {
-                if (_diagnostics == null)
-                {
-                    var dxs = new List<Diagnostic>();
-                    
-                    foreach (var bd in this.BoundDeclarations)
-                    {
-                        bd.GetContainedDiagnostics(dxs);
-                    }
-
-                    Interlocked.CompareExchange(ref _diagnostics, dxs.ToImmutableList(), null);
-                }
-
-                return _diagnostics;
-            }
-        }
-    }
     #endregion
 
     #region pools

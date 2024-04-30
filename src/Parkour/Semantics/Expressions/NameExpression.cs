@@ -4,12 +4,12 @@ using Symbols;
 /// <summary>
 /// References a named symbol or symbols in scope.
 /// </summary>
-public sealed class NameReferenceExpression : Expression
+public sealed class NameExpression : Expression
 {
     public string Name { get; }
     public override Symbol? ReferencedSymbol { get; }
 
-    public NameReferenceExpression(
+    public NameExpression(
         string name,
         ISourceLocation? location,
         Symbol? referencedSymbol,

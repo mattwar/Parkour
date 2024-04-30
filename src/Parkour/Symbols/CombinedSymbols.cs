@@ -3,9 +3,18 @@
 public class CombinedSymbols
 {
     /// <summary>
-    /// Creates a new global namespace from a set of namespaces.
+    /// Creates a new global namespace from a set of global namespaces.
     /// </summary>
-    public static GlobalNamespaceSymbol CreateCombinedGlobalNamespace(
+    public static GlobalNamespaceSymbol Create(
+        ImmutableList<GlobalNamespaceSymbol> globalNamespaces)
+    {
+        return Create(ns => globalNamespaces);
+    }
+
+    /// <summary>
+    /// Creates a new global namespace from a set of global namespaces.
+    /// </summary>
+    public static GlobalNamespaceSymbol Create(
         Func<NamespaceSymbol, ImmutableList<GlobalNamespaceSymbol>> fnCreateGlobalNamespaces)
     {
         return new GlobalNamespaceSymbol(
@@ -22,7 +31,7 @@ public class CombinedSymbols
                 return CombineMembers(ns, globalNamespaceMembers);
             });
     }
-
+        
     private static ImmutableList<Symbol> CombineMembers(NamespaceSymbol container, IEnumerable<Symbol> members)
     {
         var newMembers = new List<Symbol>();

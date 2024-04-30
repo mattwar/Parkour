@@ -6,18 +6,15 @@ using Symbols;
 public class DeclarationCompilation : Compilation
 {
     private readonly ImmutableList<ISyntaxTree> _syntaxTrees;
-    private readonly NamespaceSymbol _externalSymbols;
-    private readonly Func<ImmutableList<ISyntaxTree>, NamespaceSymbol, DeclarationBinding> _fnBind;
+    private readonly Func<ImmutableList<ISyntaxTree>, DeclarationBinding> _fnBind;
 
     public override ImmutableList<ISourceDocument> Documents { get; }
 
     public DeclarationCompilation(
         ImmutableList<ISyntaxTree> syntaxTrees,
-        NamespaceSymbol externalSymbols,
-        Func<ImmutableList<ISyntaxTree>, NamespaceSymbol, DeclarationBinding> fnBind)
+        Func<ImmutableList<ISyntaxTree>, DeclarationBinding> fnBind)
     {
         _syntaxTrees = syntaxTrees;
-        _externalSymbols = externalSymbols;
         _fnBind = fnBind;
 
         this.Documents = _syntaxTrees
@@ -28,7 +25,7 @@ public class DeclarationCompilation : Compilation
     public DeclarationCompilation(
         ImmutableList<ISyntaxTree> syntaxTrees,
         DeclarationBinding binding)
-        : this(syntaxTrees, binding.ExternalSymbols, (_trees, _externals) => binding)
+        : this(syntaxTrees, _trees => binding)
     {
     }
 
@@ -38,7 +35,7 @@ public class DeclarationCompilation : Compilation
     {
         if (_binding == null)
         {
-            var tmp = _fnBind(_syntaxTrees, _externalSymbols);
+            var tmp = _fnBind(_syntaxTrees);
             Interlocked.CompareExchange(ref _binding, tmp, null);
         }
 
@@ -88,6 +85,7 @@ public class DeclarationCompilation : Compilation
             );
 
         var binding = GetBinding();
+
         if (GetUnboundDeclaration(document) is { } unbound
             && binding.GetBoundDeclaration(unbound) is { } bound)
         {
