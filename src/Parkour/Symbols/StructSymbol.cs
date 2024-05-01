@@ -1,8 +1,8 @@
 ﻿namespace Parkour.Symbols;
 
-public class ValueTypeSymbol : TypeSymbol
+public class StructSymbol : TypeSymbol
 {
-    public ValueTypeSymbol(
+    public StructSymbol(
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
@@ -25,7 +25,7 @@ public class ValueTypeSymbol : TypeSymbol
     {
     }
 
-    public ValueTypeSymbol(
+    public StructSymbol(
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
@@ -48,7 +48,7 @@ public class ValueTypeSymbol : TypeSymbol
     {
     }
 
-    public ValueTypeSymbol(
+    public StructSymbol(
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
@@ -66,7 +66,7 @@ public class ValueTypeSymbol : TypeSymbol
     {
     }
 
-    public ValueTypeSymbol(string name)
+    public StructSymbol(string name)
         : this(
             name,
             declaringSymbol: null,
@@ -82,7 +82,7 @@ public class ValueTypeSymbol : TypeSymbol
         var definition = this.ConstructedFrom ?? this;
         var subContext = context.CreateSubstitution(definition.TypeParameters);
 
-        return new ValueTypeSymbol(
+        return new StructSymbol(
             this.Name,
             this.DeclaringSymbol,
             this.Access,
@@ -96,7 +96,7 @@ public class ValueTypeSymbol : TypeSymbol
 
     internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
-        return new ValueTypeSymbol(
+        return new StructSymbol(
             this.Name,
             declaringSymbol ?? this.DeclaringSymbol,
             this.Access,

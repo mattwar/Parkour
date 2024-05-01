@@ -1,4 +1,4 @@
-﻿namespace Parkour.Binding;
+﻿namespace Parkour.Symbols;
 
 /// <summary>
 /// Operator functions that are unbound.

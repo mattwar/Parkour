@@ -1,11 +1,11 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Parkour.Emitting;
+
 using Lowering;
-using Binding;
 using Semantics;
 using Symbols;
-using System;
 
 /// <summary>
 /// Emits lowered symbols and expressions into a <see cref="ModuleBuilder"/>
@@ -24,19 +24,20 @@ public class StandardEmitter : Emitter
         var diagnostics = new List<Diagnostic>();
         var context = new SymbolEmitContext(lowering, builder, diagnostics);
         var loweredSymbols = context.Lowering.LoweredSymbols;
-        DefineTypeSymbols(context, loweredSymbols);
-        DefineMemberSymbols(context, loweredSymbols);
-        EmitSymbolBodies(context, loweredSymbols);
+        DeclareTypeSymbols(context, loweredSymbols);
+        DeclareBaseTypes(context, loweredSymbols);
+        DeclareMemberSymbols(context, loweredSymbols);
+        DeclareSymbolBodies(context, loweredSymbols);
         var result = context.Builder.Build();
         diagnostics.AddRange(result.Diagnostics);
         return new EmitResult(diagnostics.ToImmutableList());
     }
 
-    #region Define Types
+    #region Declare Types
     /// <summary>
-    /// Defines types for declared type symbols.
+    /// Declares all types
     /// </summary>
-    protected virtual void DefineTypeSymbols(
+    protected virtual void DeclareTypeSymbols(
         SymbolEmitContext context,
         Symbol symbol)
     {
@@ -44,47 +45,78 @@ public class StandardEmitter : Emitter
         {
             foreach (var member in ns.Members)
             {
-                DefineTypeSymbols(context, member);
+                DeclareTypeSymbols(context, member);
             }
         }
-        else if (symbol is ClassSymbol classSymbol)
+        else if (symbol is TypeSymbol typeSymbol)
         {
-            context.Builder.DefineClass(classSymbol);
-
-            foreach (var member in classSymbol.Members)
+            switch (typeSymbol)
             {
-                DefineTypeSymbols(context, member);
+                case ClassSymbol classSymbol:
+                    context.Builder.DeclareClass(classSymbol);
+                    break;
+                case StructSymbol structSymbol:
+                    context.Builder.DeclareStruct(structSymbol);
+                    break;
+                case InterfaceSymbol interfaceSymbol:
+                    context.Builder.DeclareInterface(interfaceSymbol);
+                    break;
+                default:
+                    context.ReportDiagnostic(new Diagnostic($"Cannot declare base type for '{symbol.FullName}'"));
+                    return;
             }
-        }
-        else if (symbol is ValueTypeSymbol valueTypeSymbol)
-        {
-            context.Builder.DefineValueType(valueTypeSymbol);
 
-            foreach (var member in valueTypeSymbol.Members)
+            foreach (var member in typeSymbol.Members.OfType<TypeSymbol>())
             {
-                DefineTypeSymbols(context, member);
+                DeclareTypeSymbols(context, member);
             }
-        }
-        else if (symbol is InterfaceSymbol interfaceSymbol)
-        {
-            context.Builder.DefineInterface(interfaceSymbol);
-
-            foreach (var member in interfaceSymbol.Members)
-            {
-                DefineTypeSymbols(context, member);
-            }
-        }
-        else if (symbol is TypeSymbol)
-        {
-            context.ReportDiagnostic(new Diagnostic($"Cannot define type symbol '{symbol.FullName}'"));
         }
     }
 
     /// <summary>
-    /// Defines symbols for declared namespace and type members that are not types.
+    /// Declares all base type references
+    /// </summary>
+    protected virtual void DeclareBaseTypes(
+        SymbolEmitContext context,
+        Symbol symbol)
+    {
+        if (symbol is NamespaceSymbol ns)
+        {
+            foreach (var member in ns.Members)
+            {
+                DeclareBaseTypes(context, member);
+            }
+        }
+        else if (symbol is TypeSymbol typeSymbol)
+        {
+            switch (typeSymbol)
+            {
+                case ClassSymbol classSymbol:
+                    context.Builder.DeclareClassBaseType(classSymbol);
+                    break;
+                case StructSymbol structSymbol:
+                    context.Builder.DeclareStructBaseType(structSymbol);
+                    break;
+                case InterfaceSymbol interfaceSymbol:
+                    context.Builder.DeclareInterfaceBaseType(interfaceSymbol);
+                    break;
+                default:
+                    context.ReportDiagnostic(new Diagnostic($"Cannot declare base type for '{symbol.FullName}'"));
+                    return;
+            }
+
+            foreach (var member in typeSymbol.Members.OfType<TypeSymbol>())
+            {
+                DeclareBaseTypes(context, member);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Defines symbols for namespace and type members that are not types.
     /// This is done separately from defining types, since members may reference types.
     /// </summary>
-    protected virtual void DefineMemberSymbols(
+    protected virtual void DeclareMemberSymbols(
         SymbolEmitContext context,
         Symbol symbol)
     {
@@ -93,55 +125,35 @@ public class StandardEmitter : Emitter
             case NamespaceSymbol namespaceSymbol:
                 foreach (var nsMember in namespaceSymbol.Members)
                 {
-                    DefineMemberSymbols(context, nsMember);
+                    DeclareMemberSymbols(context, nsMember);
                 }
                 break;
 
-            case ClassSymbol classSymbol:
-                context.Builder.DefineClass(classSymbol);
-
-                foreach (var typeMember in classSymbol.Members)
+            case TypeSymbol typeSymbol:
+                foreach (var typeMember in typeSymbol.Members)
                 {
-                    DefineMemberSymbols(context, typeMember);
-                }
-                break;
-
-            case ValueTypeSymbol valueTypeSymbol:
-                context.Builder.DefineValueType(valueTypeSymbol);
-
-                foreach (var typeMember in valueTypeSymbol.Members)
-                {
-                    DefineMemberSymbols(context, typeMember);
-                }
-                break;
-
-            case InterfaceSymbol interfaceSymbol:
-                context.Builder.DefineInterface(interfaceSymbol);
-
-                foreach (var typeMember in interfaceSymbol.Members)
-                {
-                    DefineMemberSymbols(context, typeMember);
+                    DeclareMemberSymbols(context, typeMember);
                 }
                 break;
 
             case FieldSymbol fieldSymbol:
-                context.Builder.DefineField(fieldSymbol);
+                context.Builder.DeclareField(fieldSymbol);
                 break;
 
             case MethodSymbol methodSymbol:
-                context.Builder.DefineMethod(methodSymbol);
+                context.Builder.DeclareMethod(methodSymbol);
                 break;
 
             case ConstructorSymbol constructorSymbol:
-                context.Builder.DefineConstructor(constructorSymbol);
+                context.Builder.DeclareConstructor(constructorSymbol);
                 break;
 
             case PropertySymbol propertySymbol:
-                context.Builder.DefineProperty(propertySymbol);
+                context.Builder.DeclareProperty(propertySymbol);
                 break;
 
             case IndexerSymbol indexerSymbol:
-                context.Builder.DefineIndexer(indexerSymbol);
+                context.Builder.DeclareIndexer(indexerSymbol);
                 break;
 
             default:
@@ -152,7 +164,7 @@ public class StandardEmitter : Emitter
     #endregion
 
     #region Emit Symbol Bodies
-    protected virtual void EmitSymbolBodies(
+    protected virtual void DeclareSymbolBodies(
         SymbolEmitContext context,
         Symbol symbol)
     {
@@ -161,14 +173,14 @@ public class StandardEmitter : Emitter
             case NamespaceSymbol ns:
                 foreach (var member in ns.Members)
                 {
-                    EmitSymbolBodies(context, member);
+                    DeclareSymbolBodies(context, member);
                 }
                 break;
 
             case TypeSymbol ts:
                 foreach (var member in ts.Members)
                 {
-                    EmitSymbolBodies(context, member);
+                    DeclareSymbolBodies(context, member);
                 }
                 break;
 
@@ -191,8 +203,8 @@ public class StandardEmitter : Emitter
         {
             context.Builder.BuildConstructorBody(
                 symbol, 
-                (_symbol, ilEmitter) => 
-                    EmitBody(context.CreateILEmitContext(symbol, ilEmitter), symbol, decl.Body, SpecialSymbols.Void, decl.ReturnLabel));
+                (_symbol, builder) => 
+                    EmitBody(context.CreateILEmitContext(symbol, builder), symbol, decl.Body, SpecialSymbols.Void, decl.ReturnLabel));
         }
     }
 
@@ -672,7 +684,7 @@ public class StandardEmitter : Emitter
         EmitValue(context.Builder, constant.Value, constant.Location);
     }
 
-    private void EmitValue(ModuleBuilder.BodyBuilder emitter, object? value, ISourceLocation? location)
+    private void EmitValue(Emitting.BodyBuilder emitter, object? value, ISourceLocation? location)
     {
         switch (value)
         {
@@ -1242,7 +1254,7 @@ public class StandardEmitter : Emitter
             _diagnostics.Add(diagnostic);
         }
 
-        public virtual ILEmitContext CreateILEmitContext(MemberSymbol symbol, ModuleBuilder.BodyBuilder builder) =>
+        public virtual ILEmitContext CreateILEmitContext(MemberSymbol symbol, Emitting.BodyBuilder builder) =>
             new ILEmitContext(this.Symbols, builder, symbol, isChecked: true);
     }
 
@@ -1257,7 +1269,7 @@ public class StandardEmitter : Emitter
         /// <summary>
         /// The Body builder.
         /// </summary>
-        public ModuleBuilder.BodyBuilder Builder { get; }
+        public Emitting.BodyBuilder Builder { get; }
 
         /// <summary>
         /// The member that is currently being emitted.
@@ -1271,7 +1283,7 @@ public class StandardEmitter : Emitter
 
         public ILEmitContext(
             SymbolCache symbols,
-            ModuleBuilder.BodyBuilder builder,
+            Emitting.BodyBuilder builder,
             MemberSymbol current,
             bool isChecked)
         {

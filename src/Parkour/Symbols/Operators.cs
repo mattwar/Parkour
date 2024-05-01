@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace Parkour.Binding;
+namespace Parkour.Symbols;
 using Symbols;
 
 public sealed class Operators

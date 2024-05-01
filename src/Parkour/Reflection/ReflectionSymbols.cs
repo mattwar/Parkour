@@ -359,7 +359,7 @@ public class ReflectionSymbols
             }
             else if (type.IsValueType)
             {
-                return new ValueTypeSymbol(
+                return new StructSymbol(
                     name,
                     declaringSymbol,
                     access,
