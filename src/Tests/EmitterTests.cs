@@ -369,9 +369,8 @@ public class EmitterTests
         var lowerer = new StandardLowerer();
         var lowering = lowerer.Lower(binding);
 
-        var builder = new ReflectionBuilder(imports, "test_assembly");
-        var emitter = new StandardEmitter();
-        var result = emitter.Emit(lowering, builder);
+        var emitter = new ReflectionEmitter(imports, "test_assembly");
+        var result = emitter.EmitModule(lowering);
 
         if (result.Diagnostics.Count > 0)
         {
@@ -379,16 +378,16 @@ public class EmitterTests
         }
 
         // verify all delared symbols are represented in the assembly
-        VerifySymbols(builder.Assembly, lowering.LoweredSymbols);
+        VerifySymbols(emitter.Assembly, lowering.LoweredSymbols);
 
 #if false
         var generator = new Lokad.ILPack.AssemblyGenerator();
         generator.GenerateAssembly(builder.Assembly, "test_assembly.dll");
 #endif
 
-        if (builder.Module is Module m && test != null)
+        if (emitter.Module is Module m && test != null)
         {
-            var testType = builder.Module.GetType("Test");
+            var testType = emitter.Module.GetType("Test");
             Assert.IsNotNull(testType, "Test type not found");
             var testMethod = testType.GetMethod("Run", BindingFlags.Public|BindingFlags.Static);
             Assert.IsNotNull(testMethod, "Test.Run not found");

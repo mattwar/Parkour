@@ -2,9 +2,9 @@
 using Symbols;
 
 /// <summary>
-/// Builds method bodies from IL instructions.
+/// Used for emitting IL instructions.
 /// </summary>
-public abstract class BodyBuilder
+public abstract class ILEmitter
 {
     /// <summary>
     /// Declares the start of a variable's use.

@@ -1,29 +1,30 @@
 ﻿using System.Reflection;
-using SRE=System.Reflection.Emit;
+using System.Reflection.Emit;
 
 namespace Parkour.Reflection;
+using Emitting;
 using Symbols;
 
 /// <summary>
-/// A <see cref="Emitting.ModuleBuilder"/> that builds a <see cref="System.Reflection.Emit.ModuleBuilder"/>
+/// A <see cref="ModuleEmitter"/> that emits into a <see cref="ModuleBuilder"/>
 /// </summary>
-public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
+public class ReflectionEmitter : StandardModuleEmitter
 {
-    private readonly SRE.AssemblyBuilder _assemblyBuilder;
-    private readonly SRE.ModuleBuilder _moduleBuilder;
+    private readonly AssemblyBuilder _assemblyBuilder;
+    private readonly ModuleBuilder _moduleBuilder;
     private readonly ReflectionSymbols _runtimeSymbols;
     private readonly List<Diagnostic> _diagnostics;
 
     private Dictionary<Symbol, object> _symbolToBuilder =
         new Dictionary<Symbol, object>();
 
-    public SRE.AssemblyBuilder Assembly => _assemblyBuilder;
-    public SRE.ModuleBuilder Module => _moduleBuilder;
+    public AssemblyBuilder Assembly => _assemblyBuilder;
+    public ModuleBuilder Module => _moduleBuilder;
 
-    public ReflectionBuilder(
+    public ReflectionEmitter(
         ReflectionSymbols reflectionSymbols,
-        SRE.AssemblyBuilder assemblyBuilder,
-        SRE.ModuleBuilder moduleBuilder)
+        AssemblyBuilder assemblyBuilder,
+        ModuleBuilder moduleBuilder)
     {
         _runtimeSymbols = reflectionSymbols;
         _assemblyBuilder = assemblyBuilder;
@@ -31,9 +32,9 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         _diagnostics = new List<Diagnostic>();
     }
 
-    public ReflectionBuilder(
+    public ReflectionEmitter(
         ReflectionSymbols reflectionSymbols,
-        SRE.AssemblyBuilder assemblyBuilder,
+        AssemblyBuilder assemblyBuilder,
         string? moduleName = null)
         : this(
               reflectionSymbols,
@@ -44,24 +45,24 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
     {
     }
 
-    public ReflectionBuilder(
+    public ReflectionEmitter(
         ReflectionSymbols reflectionSymbols,
         string assemblyName)
         : this(
               reflectionSymbols,
-              SRE.AssemblyBuilder.DefineDynamicAssembly(
+              AssemblyBuilder.DefineDynamicAssembly(
                 new AssemblyName(assemblyName),
-                SRE.AssemblyBuilderAccess.RunAndCollect))
+                AssemblyBuilderAccess.RunAndCollect))
     {
     }
 
-    public override BuildResult Build()
+    protected override EmitResult EmitModule()
     {
         // TODO: do these need to be in topographical order?
         var typeBuilders = _symbolToBuilder
             .Where(kvp => kvp.Key is TypeSymbol)
             .Select(kvp => kvp.Value)
-            .OfType<SRE.TypeBuilder>()
+            .OfType<TypeBuilder>()
             .ToList();
 
         foreach (var typeBuilder in typeBuilders)
@@ -71,42 +72,31 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
         _moduleBuilder.CreateGlobalFunctions();
 
-        return new BuildResult(_diagnostics.ToImmutableList());
+        return new EmitResult(_diagnostics.ToImmutableList());
     }
 
-
-    public override void DeclareClass(ClassSymbol classSymbol)
-    {
-        DeclareType(classSymbol);
-    }
-
-    public override void DeclareStruct(StructSymbol structSymbol)
-    {
-        DeclareType(structSymbol);
-    }
-
-    public override void DeclareInterface(InterfaceSymbol interfaceSymbol)
-    {
-        DeclareType(interfaceSymbol);
-    }
-
-    private void DeclareType(TypeSymbol typeSymbol)
+    protected override void DeclareType(TypeSymbol typeSymbol)
     {
         var name = typeSymbol.FullName;
-        SRE.TypeBuilder typeBuilder;
+        TypeBuilder typeBuilder;
 
         if (typeSymbol.DeclaringSymbol is TypeSymbol pts)
         {
             if (_symbolToBuilder.TryGetValue(typeSymbol.DeclaringSymbol, out var pb)
-            && pb is SRE.TypeBuilder parentBuilder)
+            && pb is TypeBuilder parentBuilder)
             {
                 typeBuilder = parentBuilder.DefineNestedType(name, GetTypeAttributes(typeSymbol));
             }
             else
             {
-                _diagnostics.Add(new Diagnostic($"Nested type '{typeSymbol.FullName}' parent '{pts.Name}' not yet declared."));
+                _diagnostics.Add(new Diagnostic($"Cannot declared nested type '{typeSymbol.FullName}' for undeclared type."));
                 return;
             }
+        }
+        else if (_symbolToBuilder.ContainsKey(typeSymbol))
+        {
+            _diagnostics.Add(new Diagnostic($"Type '{typeSymbol}' already declared."));
+            return;
         }
         else
         {
@@ -126,25 +116,10 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         }
     }
 
-    public override void DeclareClassBaseType(ClassSymbol classSymbol)
-    {
-        DeclareTypeBaseType(classSymbol);
-    }
-
-    public override void DeclareStructBaseType(StructSymbol structSymbol)
-    {
-        DeclareTypeBaseType(structSymbol);
-    }
-
-    public override void DeclareInterfaceBaseType(InterfaceSymbol interfaceSymbol)
-    {
-        DeclareTypeBaseType(interfaceSymbol);
-    }
-
-    private void DeclareTypeBaseType(TypeSymbol typeSymbol)
+    protected override void DeclareBaseTypes(TypeSymbol typeSymbol)
     {
         if (_symbolToBuilder.TryGetValue(typeSymbol, out var builder)
-            && builder is SRE.TypeBuilder typeBuilder)
+            && builder is TypeBuilder typeBuilder)
         {
             // set base type for type now
             var baseTypeSymbol = typeSymbol.BaseTypes.FirstOrDefault(t => !t.IsInterface);
@@ -152,10 +127,41 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             {
                 typeBuilder.SetParent(GetRuntimeType(baseTypeSymbol));
             }
+
+            // TODO: declare interfaces too?
+        }
+        else
+        {
+            _diagnostics.Add(new Diagnostic($"Cannot declare base types for undeclared type '{typeSymbol.FullName}'"));
         }
     }
 
-    public override void DeclareField(FieldSymbol fieldSymbol)
+    protected override void DeclareTypeMember(MemberSymbol memberSymbol)
+    {
+        switch (memberSymbol)
+        {
+            case FieldSymbol field:
+                this.DeclareField(field);
+                break;
+            case MethodSymbol method:
+                this.DeclareMethod(method);
+                break;
+            case ConstructorSymbol constructor:
+                this.DeclareConstructor(constructor);
+                break;
+            case PropertySymbol property:
+                this.DeclareProperty(property);
+                break;
+            case IndexerSymbol indexer:
+                this.DeclareIndexer(indexer);
+                break;
+            default:
+                _diagnostics.Add(new Diagnostic($"Cannot declare unsupported member '{memberSymbol.FullName}'."));
+                break;
+        }
+    }
+
+    private void DeclareField(FieldSymbol fieldSymbol)
     {
         if (TryGetDeclaringTypeBuilder(fieldSymbol, out var typeBuilder))
         {
@@ -169,11 +175,11 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         }
         else
         {
-            _diagnostics.Add(new Diagnostic($"Cannot emit field '{fieldSymbol.FullName}'"));
+            _diagnostics.Add(new Diagnostic($"Cannot declare field '{fieldSymbol.FullName}' for undeclared type."));
         }
     }
 
-    public override void DeclareMethod(MethodSymbol methodSymbol)
+    private void DeclareMethod(MethodSymbol methodSymbol)
     {
         if (methodSymbol.DeclaringSymbol is GlobalNamespaceSymbol ns)
         {
@@ -250,11 +256,11 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         }
         else
         {
-            _diagnostics.Add(new Diagnostic($"Cannot emit method '{methodSymbol.FullName}'"));
+            _diagnostics.Add(new Diagnostic($"Cannot declare method '{methodSymbol.FullName}'  for undeclared type."));
         }
     }
 
-    public override void DeclareConstructor(ConstructorSymbol constructorSymbol)
+    private void DeclareConstructor(ConstructorSymbol constructorSymbol)
     {
         if (TryGetDeclaringTypeBuilder(constructorSymbol, out var typeBuilder))
         {
@@ -273,47 +279,52 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         }
         else
         {
-            _diagnostics.Add(new Diagnostic($"Cannot emit constructor '{constructorSymbol.FullName}'"));
+            _diagnostics.Add(new Diagnostic($"Cannot declare constructor '{constructorSymbol.FullName}' for undeclared type."));
         }
     }
 
-    public override void DeclareProperty(PropertySymbol propertySymbol)
+    private void DeclareProperty(PropertySymbol propertySymbol) =>
+        DeclarePropertyOrIndexer(propertySymbol, propertySymbol.PropertyType, propertySymbol.GetMethod, propertySymbol.SetMethod);
+
+    private void DeclareIndexer(IndexerSymbol indexerSymbol) =>
+        DeclarePropertyOrIndexer(indexerSymbol, indexerSymbol.ElementType, indexerSymbol.GetMethod, indexerSymbol.SetMethod);
+
+    private void DeclarePropertyOrIndexer(
+        MemberSymbol propertySymbol,
+        TypeSymbol propertyType,
+        MethodSymbol? getMethod, 
+        MethodSymbol? setMethod)
     {
         if (TryGetDeclaringTypeBuilder(propertySymbol, out var typeBuilder))
         {
             var propertyBuilder = typeBuilder.DefineProperty(
                 propertySymbol.Name,
                 GetPropertyAttributes(propertySymbol),
-                GetRuntimeType(propertySymbol.PropertyType),
+                GetRuntimeType(propertyType),
                 []);
             _symbolToBuilder.Add(propertySymbol, propertyBuilder);
-            if (propertySymbol.GetMethod != null
-                && _symbolToBuilder.TryGetValue(propertySymbol.GetMethod, out var getMethodBuilder))
+            if (getMethod != null
+                && _symbolToBuilder.TryGetValue(getMethod, out var getMethodBuilder))
             {
-                propertyBuilder.SetGetMethod((SRE.MethodBuilder)getMethodBuilder);
+                propertyBuilder.SetGetMethod((MethodBuilder)getMethodBuilder);
             }
-            if (propertySymbol.SetMethod != null
-                && _symbolToBuilder.TryGetValue(propertySymbol.SetMethod, out var setMethodBuilder))
+            if (setMethod != null
+                && _symbolToBuilder.TryGetValue(setMethod, out var setMethodBuilder))
             {
-                propertyBuilder.SetSetMethod((SRE.MethodBuilder)setMethodBuilder);
+                propertyBuilder.SetSetMethod((MethodBuilder)setMethodBuilder);
             }
         }
         else
         {
-            _diagnostics.Add(new Diagnostic($"Cannot emit property '{propertySymbol.FullName}'"));
+            _diagnostics.Add(new Diagnostic($"Cannot declare property '{propertySymbol.FullName}' for undeclared type."));
         }
     }
 
-    public override void DeclareIndexer(IndexerSymbol indexerSymbol)
-    {
-        throw new NotImplementedException();
-    }
-
-    private bool TryGetDeclaringTypeBuilder(MemberSymbol memberSymbol, out SRE.TypeBuilder typeBuilder)
+    private bool TryGetDeclaringTypeBuilder(MemberSymbol memberSymbol, out TypeBuilder typeBuilder)
     {
         if (memberSymbol.DeclaringSymbol is TypeSymbol declaringTypeSymbol
             && _symbolToBuilder.TryGetValue(declaringTypeSymbol, out var builder)
-            && builder is SRE.TypeBuilder tb)
+            && builder is TypeBuilder tb)
         {
             typeBuilder = tb;
             return true;
@@ -325,30 +336,34 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         }
     }
 
-    public override void BuildMethodBody(MethodSymbol methodSymbol, Action<MethodSymbol, Emitting.BodyBuilder> fnEmitBody)
+    protected override void EmitMemberBody(MemberSymbol memberSymbol, Action<MemberSymbol, Emitting.ILEmitter> fnBuildBody)
     {
-        if (_symbolToBuilder.TryGetValue(methodSymbol, out var builder)
-            && builder is SRE.MethodBuilder methodBuilder)
+        if (_symbolToBuilder.TryGetValue(memberSymbol, out var builder))
         {
-            fnEmitBody(methodSymbol, new ReflectionILBuilder(this, methodBuilder.GetILGenerator()));
+            if (builder is MethodBuilder methodBuilder)
+            {
+                var bodyBuilder = new ReflectionILBuilder(this, methodBuilder.GetILGenerator());
+                fnBuildBody(memberSymbol, bodyBuilder);
+            }
+            else if (builder is ConstructorBuilder constructorBuilder)
+            {
+                var bodyBuilder = new ReflectionILBuilder(this, constructorBuilder.GetILGenerator());
+                fnBuildBody(memberSymbol, bodyBuilder);
+            }
+            else
+            {
+                _diagnostics.Add(new Diagnostic($"Cannot emit body for unsupported member '{memberSymbol.FullName}'"));
+            }
         }
         else
         {
-            _diagnostics.Add(new Diagnostic($"Cannot emit body for method '{methodSymbol.FullName}'"));
+            _diagnostics.Add(new Diagnostic($"Cannot emit body for undeclared member '{memberSymbol.FullName}'"));
         }
     }
 
-    public override void BuildConstructorBody(ConstructorSymbol constructorSymbol, Action<ConstructorSymbol, Emitting.BodyBuilder> fnEmitBody)
+    protected override void ReportDiagnostic(Diagnostic diagnostic)
     {
-        if (_symbolToBuilder.TryGetValue(constructorSymbol, out var builder)
-            && builder is SRE.ConstructorBuilder constructorBuilder)
-        {
-            fnEmitBody(constructorSymbol, new ReflectionILBuilder(this, constructorBuilder.GetILGenerator()));
-        }
-        else
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot emit body for constructor '{constructorSymbol.FullName}'"));
-        }
+        _diagnostics.Add(diagnostic);
     }
 
     private Type GetRuntimeType(TypeSymbol typeSymbol) =>
@@ -491,12 +506,14 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         return attrs;
     }
 
-    private static ParameterAttributes GetParameterAttributes(ParameterSymbol parameter)
+    private static ParameterAttributes GetParameterAttributes(
+        ParameterSymbol parameter)
     {
         return ParameterAttributes.None;
     }
 
-    private static PropertyAttributes GetPropertyAttributes(PropertySymbol property)
+    private static PropertyAttributes GetPropertyAttributes(
+        MemberSymbol property)
     {
         return PropertyAttributes.None;
     }
@@ -504,24 +521,24 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
     /// <summary>
     /// Emits into <see cref="System.Reflection.Emit.ILGenerator"/>
     /// </summary>
-    private class ReflectionILBuilder : Emitting.BodyBuilder
+    private class ReflectionILBuilder : Emitting.ILEmitter
     {
-        private readonly ReflectionBuilder _builder;
-        private readonly SRE.ILGenerator _ilgen;
+        private readonly ReflectionEmitter _builder;
+        private readonly ILGenerator _ilgen;
 
-        private readonly Dictionary<Type, Stack<SRE.LocalBuilder>> _localPool =
-            new Dictionary<Type, Stack<SRE.LocalBuilder>>();
+        private readonly Dictionary<Type, Stack<LocalBuilder>> _localPool =
+            new Dictionary<Type, Stack<LocalBuilder>>();
 
-        public ReflectionILBuilder(ReflectionBuilder builder, SRE.ILGenerator ilgen)
+        public ReflectionILBuilder(ReflectionEmitter builder, ILGenerator ilgen)
         {
             _builder = builder;
             _ilgen = ilgen;
         }
 
-        private readonly Dictionary<LabelSymbol, SRE.Label> _labelSymbolToLabelMap =
-            new Dictionary<LabelSymbol, SRE.Label>();
+        private readonly Dictionary<LabelSymbol, Label> _labelSymbolToLabelMap =
+            new Dictionary<LabelSymbol, Label>();
 
-        private SRE.Label GetLabel(LabelSymbol labelSymbol)
+        private Label GetLabel(LabelSymbol labelSymbol)
         {
             if (!_labelSymbolToLabelMap.TryGetValue(labelSymbol, out var label))
             {
@@ -538,8 +555,8 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             _ilgen.MarkLabel(label);
         }
 
-        private readonly Dictionary<VariableSymbol, SRE.LocalBuilder> _variableToLocalMap =
-            new Dictionary<VariableSymbol, SRE.LocalBuilder>();
+        private readonly Dictionary<VariableSymbol, LocalBuilder> _variableToLocalMap =
+            new Dictionary<VariableSymbol, LocalBuilder>();
 
         public override void DeclareVariableStart(VariableSymbol variable)
         {
@@ -555,7 +572,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             }
         }
 
-        private SRE.LocalBuilder GetLocal(VariableSymbol variable)
+        private LocalBuilder GetLocal(VariableSymbol variable)
         {
             if (!_variableToLocalMap.TryGetValue(variable, out var local))
             {
@@ -567,7 +584,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             return local;
         }
 
-        private SRE.LocalBuilder AllocateLocal(Type type)
+        private LocalBuilder AllocateLocal(Type type)
         {
             if (_localPool.TryGetValue(type, out var localStack)
                 && localStack.Count > 0)
@@ -579,11 +596,11 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             return _ilgen.DeclareLocal(type);
         }
 
-        private void FreeLocal(SRE.LocalBuilder local)
+        private void FreeLocal(LocalBuilder local)
         {
             if (!_localPool.TryGetValue(local.LocalType, out var localStack))
             {
-                localStack = new Stack<SRE.LocalBuilder>();
+                localStack = new Stack<LocalBuilder>();
                 _localPool.Add(local.LocalType, localStack);
             }
 
@@ -592,32 +609,32 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
         public override void EmitDup()
         {
-            _ilgen.Emit(SRE.OpCodes.Dup);
+            _ilgen.Emit(OpCodes.Dup);
         }
 
         public override void EmitPop()
         {
-            _ilgen.Emit(SRE.OpCodes.Pop);
+            _ilgen.Emit(OpCodes.Pop);
         }
 
         public override void EmitReturn()
         {
-            _ilgen.Emit(SRE.OpCodes.Ret);
+            _ilgen.Emit(OpCodes.Ret);
         }
 
         public override void EmitBranch(LabelSymbol labelSymbol)
         {
-            _ilgen.Emit(SRE.OpCodes.Br, GetLabel(labelSymbol));
+            _ilgen.Emit(OpCodes.Br, GetLabel(labelSymbol));
         }
 
         public override void EmitBranchTrue(LabelSymbol labelSymbol)
         {
-            _ilgen.Emit(SRE.OpCodes.Brtrue, GetLabel(labelSymbol));
+            _ilgen.Emit(OpCodes.Brtrue, GetLabel(labelSymbol));
         }
 
         public override void EmitBranchFalse(LabelSymbol labelSymbol)
         {
-            _ilgen.Emit(SRE.OpCodes.Brfalse, GetLabel(labelSymbol));
+            _ilgen.Emit(OpCodes.Brfalse, GetLabel(labelSymbol));
         }
 
         public override void EmitLoadInstance()
@@ -671,13 +688,13 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             switch (n)
             {
                 case 0:
-                    _ilgen.Emit(SRE.OpCodes.Ldarg_0);
+                    _ilgen.Emit(OpCodes.Ldarg_0);
                     break;
                 case 1:
-                    _ilgen.Emit(SRE.OpCodes.Ldarg_1);
+                    _ilgen.Emit(OpCodes.Ldarg_1);
                     break;
                 default:
-                    _ilgen.Emit(SRE.OpCodes.Ldarg, n);
+                    _ilgen.Emit(OpCodes.Ldarg, n);
                     break;
             }
         }
@@ -686,11 +703,11 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         {
             if (n >= 0 && n < 256)
             {
-                _ilgen.Emit(SRE.OpCodes.Ldarga_S, (byte)n);
+                _ilgen.Emit(OpCodes.Ldarga_S, (byte)n);
             }
             else
             {
-                _ilgen.Emit(SRE.OpCodes.Ldarga, n);
+                _ilgen.Emit(OpCodes.Ldarga, n);
             }
         }
 
@@ -698,11 +715,11 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         {
             if (n >= 0 && n < 256)
             {
-                _ilgen.Emit(SRE.OpCodes.Starg_S, (byte)n);
+                _ilgen.Emit(OpCodes.Starg_S, (byte)n);
             }
             else
             {
-                _ilgen.Emit(SRE.OpCodes.Starg, n);
+                _ilgen.Emit(OpCodes.Starg, n);
             }
         }
 
@@ -714,40 +731,40 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             switch (typeCode)
             {
                 case TypeCode.SByte:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_I1);
+                    _ilgen.Emit(OpCodes.Ldelem_I1);
                     break;
                 case TypeCode.Byte:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_U1);
+                    _ilgen.Emit(OpCodes.Ldelem_U1);
                     break;
                 case TypeCode.Int16:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_I2);
+                    _ilgen.Emit(OpCodes.Ldelem_I2);
                     break;
                 case TypeCode.UInt16:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_U2);
+                    _ilgen.Emit(OpCodes.Ldelem_U2);
                     break;
                 case TypeCode.Int32:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_I4);
+                    _ilgen.Emit(OpCodes.Ldelem_I4);
                     break;
                 case TypeCode.UInt32:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_U4);
+                    _ilgen.Emit(OpCodes.Ldelem_U4);
                     break;
                 case TypeCode.Int64:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_I8);
+                    _ilgen.Emit(OpCodes.Ldelem_I8);
                     break;
                 case TypeCode.Single:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_R4);
+                    _ilgen.Emit(OpCodes.Ldelem_R4);
                     break;
                 case TypeCode.Double:
-                    _ilgen.Emit(SRE.OpCodes.Ldelem_R8);
+                    _ilgen.Emit(OpCodes.Ldelem_R8);
                     break;
                 default:
                     if (type == typeof(nint))
                     {
-                        _ilgen.Emit(SRE.OpCodes.Ldelem_I);
+                        _ilgen.Emit(OpCodes.Ldelem_I);
                     }
                     else
                     {
-                        _ilgen.Emit(SRE.OpCodes.Ldelem, type);
+                        _ilgen.Emit(OpCodes.Ldelem, type);
                     }
                     break;
             }
@@ -757,7 +774,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
         public override void EmitLoadArrayElementAddress(TypeSymbol elementTypeSymbol)
         {
-            _ilgen.Emit(SRE.OpCodes.Ldelema);
+            _ilgen.Emit(OpCodes.Ldelema);
         }
 
         public override void EmitStoreArrayElement(TypeSymbol elementTypeSymbol)
@@ -768,31 +785,31 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             switch (typeCode)
             {
                 case TypeCode.SByte:
-                    _ilgen.Emit(SRE.OpCodes.Stelem_I1);
+                    _ilgen.Emit(OpCodes.Stelem_I1);
                     break;
                 case TypeCode.Int16:
-                    _ilgen.Emit(SRE.OpCodes.Stelem_I2);
+                    _ilgen.Emit(OpCodes.Stelem_I2);
                     break;
                 case TypeCode.Int32:
-                    _ilgen.Emit(SRE.OpCodes.Stelem_I4);
+                    _ilgen.Emit(OpCodes.Stelem_I4);
                     break;
                 case TypeCode.Int64:
-                    _ilgen.Emit(SRE.OpCodes.Stelem_I8);
+                    _ilgen.Emit(OpCodes.Stelem_I8);
                     break;
                 case TypeCode.Single:
-                    _ilgen.Emit(SRE.OpCodes.Stelem_R4);
+                    _ilgen.Emit(OpCodes.Stelem_R4);
                     break;
                 case TypeCode.Double:
-                    _ilgen.Emit(SRE.OpCodes.Stelem_R8);
+                    _ilgen.Emit(OpCodes.Stelem_R8);
                     break;
                 default:
                     if (type == typeof(nint))
                     {
-                        _ilgen.Emit(SRE.OpCodes.Stelem_I);
+                        _ilgen.Emit(OpCodes.Stelem_I);
                     }
                     else
                     {
-                        _ilgen.Emit(SRE.OpCodes.Stelem, type);
+                        _ilgen.Emit(OpCodes.Stelem, type);
                     }
                     break;
             }
@@ -803,47 +820,47 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         public override void EmitLoadField(FieldSymbol field)
         {
             var fi = _builder.GetRuntimeInfo<FieldInfo>(field);
-            _ilgen.Emit(SRE.OpCodes.Ldfld, fi);
+            _ilgen.Emit(OpCodes.Ldfld, fi);
         }
 
         public override void EmitLoadFieldAddress(FieldSymbol field)
         {
             var fi = _builder.GetRuntimeInfo<FieldInfo>(field);
-            _ilgen.Emit(SRE.OpCodes.Ldflda, fi);
+            _ilgen.Emit(OpCodes.Ldflda, fi);
         }
 
         public override void EmitStoreField(FieldSymbol field)
         {
             var fi = _builder.GetRuntimeInfo<FieldInfo>(field);
-            _ilgen.Emit(SRE.OpCodes.Stfld, fi);
+            _ilgen.Emit(OpCodes.Stfld, fi);
         }
 
         public override void EmitLoadVariable(VariableSymbol variable)
         {
             var loc = GetLocal(variable);
-            _ilgen.Emit(SRE.OpCodes.Ldloc, loc);
+            _ilgen.Emit(OpCodes.Ldloc, loc);
         }
 
         public override void EmitLoadVariableAddress(VariableSymbol variable)
         {
             var loc = GetLocal(variable);
-            _ilgen.Emit(SRE.OpCodes.Ldloca, loc);
+            _ilgen.Emit(OpCodes.Ldloca, loc);
         }
 
         public override void EmitStoreVariable(VariableSymbol variable)
         {
             var loc = GetLocal(variable);
-            _ilgen.Emit(SRE.OpCodes.Stloc, loc);
+            _ilgen.Emit(OpCodes.Stloc, loc);
         }
 
         public override void EmitLoadNull()
         {
-            _ilgen.Emit(SRE.OpCodes.Ldnull);
+            _ilgen.Emit(OpCodes.Ldnull);
         }
 
         public override void EmitLoadBool(bool value)
         {
-            _ilgen.Emit(value ? SRE.OpCodes.Ldc_I4_1 : SRE.OpCodes.Ldc_I4_0);
+            _ilgen.Emit(value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
         }
 
         public override void EmitLoadSByte(sbyte value)
@@ -876,43 +893,43 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             switch (value)
             {
                 case 0:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_0);
+                    _ilgen.Emit(OpCodes.Ldc_I4_0);
                     break;
                 case 1:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_1);
+                    _ilgen.Emit(OpCodes.Ldc_I4_1);
                     break;
                 case 2:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_2);
+                    _ilgen.Emit(OpCodes.Ldc_I4_2);
                     break;
                 case 3:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_3);
+                    _ilgen.Emit(OpCodes.Ldc_I4_3);
                     break;
                 case 4:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_4);
+                    _ilgen.Emit(OpCodes.Ldc_I4_4);
                     break;
                 case 5:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_5);
+                    _ilgen.Emit(OpCodes.Ldc_I4_5);
                     break;
                 case 6:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_6);
+                    _ilgen.Emit(OpCodes.Ldc_I4_6);
                     break;
                 case 7:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_7);
+                    _ilgen.Emit(OpCodes.Ldc_I4_7);
                     break;
                 case 8:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_8);
+                    _ilgen.Emit(OpCodes.Ldc_I4_8);
                     break;
                 case -1:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_M1);
+                    _ilgen.Emit(OpCodes.Ldc_I4_M1);
                     break;
                 default:
                     if (value >= 0 && value < 256)
                     {
-                        _ilgen.Emit(SRE.OpCodes.Ldc_I4_S, (byte)value);
+                        _ilgen.Emit(OpCodes.Ldc_I4_S, (byte)value);
                     }
                     else
                     {
-                        _ilgen.Emit(SRE.OpCodes.Ldc_I4, value);
+                        _ilgen.Emit(OpCodes.Ldc_I4, value);
                     }
                     break;
             }
@@ -920,7 +937,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
         public override void EmitLoadInt64(long value)
         {
-            _ilgen.Emit(SRE.OpCodes.Ldc_I8, value);
+            _ilgen.Emit(OpCodes.Ldc_I8, value);
         }
 
         public override void EmitLoadUInt64(ulong value)
@@ -930,12 +947,12 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
         public override void EmitLoadSingle(float value)
         {
-            _ilgen.Emit(SRE.OpCodes.Ldc_R4, value);
+            _ilgen.Emit(OpCodes.Ldc_R4, value);
         }
 
         public override void EmitLoadDouble(double value)
         {
-            _ilgen.Emit(SRE.OpCodes.Ldc_R8, value);
+            _ilgen.Emit(OpCodes.Ldc_R8, value);
         }
 
         public override void EmitLoadDecimal(decimal value)
@@ -949,7 +966,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             EmitLoadInt32(bits[2]);
             EmitLoadInt32((bits[3] & 0x80000000) != 0 ? 1 : 0);
             EmitLoadInt32(scale);
-            _ilgen.Emit(SRE.OpCodes.Call, Decimal_Constructor);
+            _ilgen.Emit(OpCodes.Call, Decimal_Constructor);
         }
 
         private static ConstructorInfo Decimal_Constructor =
@@ -957,7 +974,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
         public override void EmitLoadString(string value)
         {
-            _ilgen.Emit(SRE.OpCodes.Ldstr, value);
+            _ilgen.Emit(OpCodes.Ldstr, value);
         }
 
         public override void EmitLoadChar(char value)
@@ -968,7 +985,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         public override void EmitLoadMethod(MethodSymbol methodSymbol)
         {
             var info = _builder.GetRuntimeInfo<MethodInfo>(methodSymbol);
-            _ilgen.Emit(SRE.OpCodes.Ldftn, info);
+            _ilgen.Emit(OpCodes.Ldftn, info);
         }
 
         public override void EmitLoadToken(MemberSymbol symbol)
@@ -977,13 +994,13 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             switch (info)
             {
                 case MethodInfo mi:
-                    _ilgen.Emit(SRE.OpCodes.Ldtoken, mi);
+                    _ilgen.Emit(OpCodes.Ldtoken, mi);
                     break;
                 case FieldInfo fi:
-                    _ilgen.Emit(SRE.OpCodes.Ldtoken, fi);
+                    _ilgen.Emit(OpCodes.Ldtoken, fi);
                     break;
                 case Type type:
-                    _ilgen.Emit(SRE.OpCodes.Ldtoken, type);
+                    _ilgen.Emit(OpCodes.Ldtoken, type);
                     break;
             }
         }
@@ -1012,38 +1029,38 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.UInt16:
                 case TypeCode.Int32:
                 case TypeCode.UInt32:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_0);
+                    _ilgen.Emit(OpCodes.Ldc_I4_0);
                     break;
 
                 case TypeCode.Int64:
                 case TypeCode.UInt64:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_I4_0);
-                    _ilgen.Emit(SRE.OpCodes.Conv_I8);
+                    _ilgen.Emit(OpCodes.Ldc_I4_0);
+                    _ilgen.Emit(OpCodes.Conv_I8);
                     break;
 
                 case TypeCode.Single:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_R4, 0.0f);
+                    _ilgen.Emit(OpCodes.Ldc_R4, 0.0f);
                     break;
 
                 case TypeCode.Double:
-                    _ilgen.Emit(SRE.OpCodes.Ldc_R8, 0.0);
+                    _ilgen.Emit(OpCodes.Ldc_R8, 0.0);
                     break;
 
                 case TypeCode.Decimal:
-                    _ilgen.Emit(SRE.OpCodes.Ldsfld, Decimal_Default);
+                    _ilgen.Emit(OpCodes.Ldsfld, Decimal_Default);
                     break;
 
                 case TypeCode.DateTime:
-                    _ilgen.Emit(SRE.OpCodes.Ldsfld, DateTime_Default);
+                    _ilgen.Emit(OpCodes.Ldsfld, DateTime_Default);
                     break;
 
                 default:
                     if (type.IsValueType)
                     {
                         var local = AllocateLocal(type);
-                        _ilgen.Emit(SRE.OpCodes.Ldloca, local);
-                        _ilgen.Emit(SRE.OpCodes.Initobj, type);
-                        _ilgen.Emit(SRE.OpCodes.Ldloc, local);
+                        _ilgen.Emit(OpCodes.Ldloca, local);
+                        _ilgen.Emit(OpCodes.Initobj, type);
+                        _ilgen.Emit(OpCodes.Ldloc, local);
                         FreeLocal(local);
                     }
                     else
@@ -1060,8 +1077,8 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
             var instanceIsValueType = (method.DeclaringType != null && method.DeclaringType.IsValueType);
             var op = method.IsStatic || instanceIsValueType
-                ? SRE.OpCodes.Call
-                : SRE.OpCodes.Callvirt;
+                ? OpCodes.Call
+                : OpCodes.Callvirt;
 
             _ilgen.Emit(op, method);
         }
@@ -1069,28 +1086,28 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         public override void EmitCall(ConstructorSymbol constructorSymbol)
         {
             var info = _builder.GetRuntimeInfo<ConstructorInfo>(constructorSymbol);
-            _ilgen.Emit(SRE.OpCodes.Call, info);
+            _ilgen.Emit(OpCodes.Call, info);
         }
 
         public override void EmitNew(ConstructorSymbol constructorSymbol)
         {
             var info = _builder.GetRuntimeInfo<ConstructorInfo>(constructorSymbol);
-            _ilgen.Emit(SRE.OpCodes.Newobj, info);
+            _ilgen.Emit(OpCodes.Newobj, info);
         }
 
         public override void EmitNewArray(TypeSymbol elementTypeSymbol)
         {
             var info = _builder.GetRuntimeType(elementTypeSymbol);
-            _ilgen.Emit(SRE.OpCodes.Newarr, info);
+            _ilgen.Emit(OpCodes.Newarr, info);
         }
 
         public override void EmitInit(TypeSymbol typeSymbol)
         {
             var type = _builder.GetRuntimeType(typeSymbol);
             var local = AllocateLocal(type);
-            _ilgen.Emit(SRE.OpCodes.Ldloca, local);
-            _ilgen.Emit(SRE.OpCodes.Initobj, type);
-            _ilgen.Emit(SRE.OpCodes.Ldloc, local);
+            _ilgen.Emit(OpCodes.Ldloca, local);
+            _ilgen.Emit(OpCodes.Initobj, type);
+            _ilgen.Emit(OpCodes.Ldloc, local);
             FreeLocal(local);
         }
 
@@ -1120,7 +1137,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             {
                 if (sourceType.IsValueType)
                 {
-                    _ilgen.Emit(SRE.OpCodes.Box, sourceType);
+                    _ilgen.Emit(OpCodes.Box, sourceType);
                 }
                 return;
             }
@@ -1128,11 +1145,11 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             {
                 if (targetType.IsValueType)
                 {
-                    _ilgen.Emit(SRE.OpCodes.Unbox_Any, targetType);
+                    _ilgen.Emit(OpCodes.Unbox_Any, targetType);
                 }
                 else
                 {
-                    _ilgen.Emit(SRE.OpCodes.Castclass, targetType);
+                    _ilgen.Emit(OpCodes.Castclass, targetType);
                 }
             }
             else if (sourceType.IsPrimitive && targetType.IsPrimitive)
@@ -1149,13 +1166,13 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             else if (!targetType.IsInterface && !targetType.IsValueType && targetType.IsSubclassOf(sourceType))
             {
                 // target type is a derived type of source type, so try runtime cast
-                _ilgen.Emit(SRE.OpCodes.Castclass, targetType);
+                _ilgen.Emit(OpCodes.Castclass, targetType);
             }
             else if (targetType.IsInterface && sourceType.IsAssignableTo(targetType))
             {
                 if (sourceType.IsValueType)
                 {
-                    _ilgen.Emit(SRE.OpCodes.Box, sourceType);
+                    _ilgen.Emit(OpCodes.Box, sourceType);
                 }
 
                 return;
@@ -1200,7 +1217,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.UInt16:
                 case TypeCode.UInt32:
                 case TypeCode.UInt64:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_I1_Un : SRE.OpCodes.Conv_I1);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_I1_Un : OpCodes.Conv_I1);
                     break;
 
                 case TypeCode.Int16:
@@ -1208,7 +1225,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_I1 : SRE.OpCodes.Conv_I1);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_I1 : OpCodes.Conv_I1);
                     break;
 
                 default:
@@ -1228,7 +1245,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.UInt16:
                 case TypeCode.UInt32:
                 case TypeCode.UInt64:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_U1_Un : SRE.OpCodes.Conv_U1);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_U1_Un : OpCodes.Conv_U1);
                     break;
 
                 case TypeCode.SByte:
@@ -1237,7 +1254,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_U1 : SRE.OpCodes.Conv_U1);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_U1 : OpCodes.Conv_U1);
                     break;
 
                 default:
@@ -1253,7 +1270,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             {
                 case TypeCode.SByte:
                 case TypeCode.Byte:
-                    _ilgen.Emit(SRE.OpCodes.Conv_I2);
+                    _ilgen.Emit(OpCodes.Conv_I2);
                     break;
 
                 case TypeCode.Int16:
@@ -1262,14 +1279,14 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.UInt16:
                 case TypeCode.UInt32:
                 case TypeCode.UInt64:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_I2_Un : SRE.OpCodes.Conv_I2);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_I2_Un : OpCodes.Conv_I2);
                     break;
 
                 case TypeCode.Int32:
                 case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_I2 : SRE.OpCodes.Conv_I2);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_I2 : OpCodes.Conv_I2);
                     break;
 
                 default:
@@ -1285,7 +1302,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             {
                 case TypeCode.SByte:
                 case TypeCode.Byte:
-                    _ilgen.Emit(SRE.OpCodes.Conv_U2);
+                    _ilgen.Emit(OpCodes.Conv_U2);
                     break;
 
                 case TypeCode.UInt16:
@@ -1293,14 +1310,14 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
                 case TypeCode.UInt32:
                 case TypeCode.UInt64:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_U2_Un : SRE.OpCodes.Conv_U2);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_U2_Un : OpCodes.Conv_U2);
                     break;
 
                 case TypeCode.Int32:
                 case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_U2 : SRE.OpCodes.Conv_U2);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_U2 : OpCodes.Conv_U2);
                     break;
 
                 default:
@@ -1318,7 +1335,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.Byte:
                 case TypeCode.Int16:
                 case TypeCode.UInt16:
-                    _ilgen.Emit(SRE.OpCodes.Conv_I4);
+                    _ilgen.Emit(OpCodes.Conv_I4);
                     break;
 
                 case TypeCode.Int32:
@@ -1326,13 +1343,13 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
                 case TypeCode.UInt32:
                 case TypeCode.UInt64:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_I4_Un : SRE.OpCodes.Conv_I4);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_I4_Un : OpCodes.Conv_I4);
                     break;
 
                 case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_I4 : SRE.OpCodes.Conv_I4);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_I4 : OpCodes.Conv_I4);
                     break;
 
                 default:
@@ -1352,19 +1369,19 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_U4 : SRE.OpCodes.Conv_U4);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_U4 : OpCodes.Conv_U4);
                     break;
 
                 case TypeCode.Byte:
                 case TypeCode.UInt16:
-                    _ilgen.Emit(SRE.OpCodes.Conv_U4);
+                    _ilgen.Emit(OpCodes.Conv_U4);
                     break;
 
                 case TypeCode.UInt32:
                     break;
 
                 case TypeCode.UInt64:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_U4_Un : SRE.OpCodes.Conv_U4);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_U4_Un : OpCodes.Conv_U4);
                     break;
 
                 default:
@@ -1384,17 +1401,17 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.UInt16:
                 case TypeCode.Int32:
                 case TypeCode.UInt32:
-                    _ilgen.Emit(SRE.OpCodes.Conv_I8);
+                    _ilgen.Emit(OpCodes.Conv_I8);
                     break;
 
                 case TypeCode.UInt64:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_I8_Un : SRE.OpCodes.Conv_I8);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_I8_Un : OpCodes.Conv_I8);
                     break;
 
                 case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
-                    _ilgen.Emit(SRE.OpCodes.Conv_Ovf_I8);
+                    _ilgen.Emit(OpCodes.Conv_Ovf_I8);
                     break;
 
                 default:
@@ -1414,13 +1431,13 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.Int64:
                 case TypeCode.Single:
                 case TypeCode.Double:
-                    _ilgen.Emit(isChecked ? SRE.OpCodes.Conv_Ovf_U8 : SRE.OpCodes.Conv_U8);
+                    _ilgen.Emit(isChecked ? OpCodes.Conv_Ovf_U8 : OpCodes.Conv_U8);
                     break;
 
                 case TypeCode.Byte:
                 case TypeCode.UInt16:
                 case TypeCode.UInt32:
-                    _ilgen.Emit(SRE.OpCodes.Conv_U8);
+                    _ilgen.Emit(OpCodes.Conv_U8);
                     break;
 
                 case TypeCode.UInt64:
@@ -1442,14 +1459,14 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.Int32:
                 case TypeCode.Int64:
                 case TypeCode.Double:
-                    _ilgen.Emit(SRE.OpCodes.Conv_R4);
+                    _ilgen.Emit(OpCodes.Conv_R4);
                     break;
 
                 case TypeCode.Byte:
                 case TypeCode.UInt16:
                 case TypeCode.UInt32:
                 case TypeCode.UInt64:
-                    _ilgen.Emit(SRE.OpCodes.Conv_R_Un);
+                    _ilgen.Emit(OpCodes.Conv_R_Un);
                     break;
 
                 case TypeCode.Single:
@@ -1475,7 +1492,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
                 case TypeCode.UInt32:
                 case TypeCode.UInt64:
                 case TypeCode.Single:
-                    _ilgen.Emit(SRE.OpCodes.Conv_R8);
+                    _ilgen.Emit(OpCodes.Conv_R8);
                     break;
 
                 case TypeCode.Double:
@@ -1518,47 +1535,47 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         public override void EmitAdd(TypeSymbol operandTypeSymbol, bool isChecked)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            var op = (!isChecked || IsFloatingPoint(operandType)) ? SRE.OpCodes.Add
-                : IsUnsigned(operandType) ? SRE.OpCodes.Add_Ovf_Un
-                : SRE.OpCodes.Add_Ovf;
+            var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Add
+                : IsUnsigned(operandType) ? OpCodes.Add_Ovf_Un
+                : OpCodes.Add_Ovf;
             _ilgen.Emit(op);
         }
 
         public override void EmitSubtract(TypeSymbol operandTypeSymbol, bool isChecked)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            var op = (!isChecked || IsFloatingPoint(operandType)) ? SRE.OpCodes.Sub
-                : IsUnsigned(operandType) ? SRE.OpCodes.Sub_Ovf_Un
-                : SRE.OpCodes.Sub_Ovf;
+            var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Sub
+                : IsUnsigned(operandType) ? OpCodes.Sub_Ovf_Un
+                : OpCodes.Sub_Ovf;
             _ilgen.Emit(op);
         }
 
         public override void EmitMultiply(TypeSymbol operandTypeSymbol, bool isChecked)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            var op = (!isChecked || IsFloatingPoint(operandType)) ? SRE.OpCodes.Mul
-                : IsUnsigned(operandType) ? SRE.OpCodes.Mul_Ovf_Un
-                : SRE.OpCodes.Mul_Ovf;
+            var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Mul
+                : IsUnsigned(operandType) ? OpCodes.Mul_Ovf_Un
+                : OpCodes.Mul_Ovf;
             _ilgen.Emit(op);
         }
 
         public override void EmitDivide(TypeSymbol operandTypeSymbol)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            var op = IsUnsigned(operandType) ? SRE.OpCodes.Div_Un : SRE.OpCodes.Div;
+            var op = IsUnsigned(operandType) ? OpCodes.Div_Un : OpCodes.Div;
             _ilgen.Emit(op);
         }
 
         public override void EmitRemainder(TypeSymbol operandTypeSymbol)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            var op = IsUnsigned(operandType) ? SRE.OpCodes.Rem_Un : SRE.OpCodes.Rem;
+            var op = IsUnsigned(operandType) ? OpCodes.Rem_Un : OpCodes.Rem;
             _ilgen.Emit(op);
         }
 
         public override void EmitNegate(TypeSymbol operandTypeSymbol)
         {
-            _ilgen.Emit(SRE.OpCodes.Neg);
+            _ilgen.Emit(OpCodes.Neg);
         }
 
         public override void EmitIncrement(TypeSymbol operandType, bool isChecked)
@@ -1575,22 +1592,22 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
         public override void EmitAnd()
         {
-            _ilgen.Emit(SRE.OpCodes.And);
+            _ilgen.Emit(OpCodes.And);
         }
 
         public override void EmitOr()
         {
-            _ilgen.Emit(SRE.OpCodes.Or);
+            _ilgen.Emit(OpCodes.Or);
         }
 
         public override void EmitXor()
         {
-            _ilgen.Emit(SRE.OpCodes.Xor);
+            _ilgen.Emit(OpCodes.Xor);
         }
 
         public override void EmitNot()
         {
-            _ilgen.Emit(SRE.OpCodes.Not);
+            _ilgen.Emit(OpCodes.Not);
         }
 
         public override void EmitShiftLeft(TypeSymbol operandTypeSymbol)
@@ -1598,8 +1615,8 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
             var mask = (operandType == typeof(long) || operandType == typeof(ulong)) ? 0x3F : 0x1F;
             EmitLoadInt32(mask);
-            _ilgen.Emit(SRE.OpCodes.And);
-            _ilgen.Emit(SRE.OpCodes.Shl);
+            _ilgen.Emit(OpCodes.And);
+            _ilgen.Emit(OpCodes.Shl);
         }
 
         public override void EmitShiftRight(TypeSymbol operandTypeSymbol)
@@ -1607,13 +1624,13 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
             var mask = (operandType == typeof(long) || operandType == typeof(ulong)) ? 0x3F : 0x1F;
             EmitLoadInt32(mask);
-            _ilgen.Emit(SRE.OpCodes.And);
-            _ilgen.Emit(IsUnsigned(operandType) ? SRE.OpCodes.Shr_Un : SRE.OpCodes.Shr);
+            _ilgen.Emit(OpCodes.And);
+            _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Shr_Un : OpCodes.Shr);
         }
 
         public override void EmitEqual(TypeSymbol operandTypeSymbol)
         {
-            _ilgen.Emit(SRE.OpCodes.Ceq);
+            _ilgen.Emit(OpCodes.Ceq);
         }
 
         public override void EmitNotEqual(TypeSymbol operandTypeSymbol)
@@ -1621,43 +1638,43 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
             if (operandType == typeof(bool))
             {
-                _ilgen.Emit(SRE.OpCodes.Xor);
+                _ilgen.Emit(OpCodes.Xor);
             }
             else
             {
                 // OMG
-                _ilgen.Emit(SRE.OpCodes.Ceq);
-                _ilgen.Emit(SRE.OpCodes.Ldc_I4_0);
-                _ilgen.Emit(SRE.OpCodes.Ceq);
+                _ilgen.Emit(OpCodes.Ceq);
+                _ilgen.Emit(OpCodes.Ldc_I4_0);
+                _ilgen.Emit(OpCodes.Ceq);
             }
         }
 
         public override void EmitLessThan(TypeSymbol operandTypeSymbol)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            _ilgen.Emit(IsUnsigned(operandType) ? SRE.OpCodes.Clt_Un : SRE.OpCodes.Clt);
+            _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Clt_Un : OpCodes.Clt);
         }
 
         public override void EmitLessThanOrEqual(TypeSymbol operandTypeSymbol)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? SRE.OpCodes.Cgt_Un : SRE.OpCodes.Cgt);
-            _ilgen.Emit(SRE.OpCodes.Ldc_I4_0);
-            _ilgen.Emit(SRE.OpCodes.Ceq);
+            _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? OpCodes.Cgt_Un : OpCodes.Cgt);
+            _ilgen.Emit(OpCodes.Ldc_I4_0);
+            _ilgen.Emit(OpCodes.Ceq);
         }
 
         public override void EmitGreaterThan(TypeSymbol operandTypeSymbol)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            _ilgen.Emit(IsUnsigned(operandType) ? SRE.OpCodes.Cgt_Un : SRE.OpCodes.Cgt);
+            _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Cgt_Un : OpCodes.Cgt);
         }
 
         public override void EmitGreaterThanOrEqual(TypeSymbol operandTypeSymbol)
         {
             var operandType = _builder.GetRuntimeType(operandTypeSymbol);
-            _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? SRE.OpCodes.Clt_Un : SRE.OpCodes.Clt);
-            _ilgen.Emit(SRE.OpCodes.Ldc_I4_0);
-            _ilgen.Emit(SRE.OpCodes.Ceq);
+            _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? OpCodes.Clt_Un : OpCodes.Clt);
+            _ilgen.Emit(OpCodes.Ldc_I4_0);
+            _ilgen.Emit(OpCodes.Ceq);
         }
 
         public override void EmitThrow(string message)
@@ -1679,9 +1696,9 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
 
         private void EmitThrow(Type exceptionType, string message)
         {
-            _ilgen.Emit(SRE.OpCodes.Ldstr, message);
+            _ilgen.Emit(OpCodes.Ldstr, message);
             var ci = exceptionType.GetConstructor(BindingFlags.Public | BindingFlags.Instance, [typeof(string)]);
-            _ilgen.Emit(SRE.OpCodes.Newobj, ci!);
+            _ilgen.Emit(OpCodes.Newobj, ci!);
             _ilgen.ThrowException(typeof(InvalidOperationException));
         }
     }
