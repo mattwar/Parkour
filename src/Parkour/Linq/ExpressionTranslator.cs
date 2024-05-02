@@ -67,6 +67,8 @@ public class ExpressionTranslator
                 return TranslateCondition(condition);
             case ConstantExpression constant:
                 return TranslateConstant(constant);
+            case ConstructExpression construct:
+                return TranslateConstruct(construct);
             case ConvertExpression convert:
                 return TranslateConvert(convert);
             case DefaultExpression dex:
@@ -91,8 +93,6 @@ public class ExpressionTranslator
                 return TranslateOperator(opex);
             case SymbolExpression symbolRef:
                 return TranslateSymbolReference(symbolRef);
-            case TypeArgumentsExpression typeArgs:
-                return TranslateTypeArguments(typeArgs);
             case VariableExpression variable:
                 return TranslateVariable(variable);
             case VoidExpression @void:
@@ -268,7 +268,7 @@ public class ExpressionTranslator
             case OperatorSymbol opsym:
                 return TranslateOperator(opsym, call.Arguments);
 
-            case FunctionSymbol function:
+            case DelegateSymbol function:
                 {
                     var fn = Translate(call.Expression);
                     var parameterTypes = function.Parameters.Select(p => TranslateType(p.ParameterType)).ToArray();
@@ -565,9 +565,9 @@ public class ExpressionTranslator
         return TranslateReferencedSymbol(array.ReferencedSymbol);
     }
 
-    private L.Expression TranslateTypeArguments(TypeArgumentsExpression typeArgs)
+    private L.Expression TranslateConstruct(ConstructExpression construct)
     {
-        return TranslateReferencedSymbol(typeArgs.ReferencedSymbol);
+        return TranslateReferencedSymbol(construct.ReferencedSymbol);
     }
 
     private L.Expression TranslateReferencedSymbol(Symbol? symbol)

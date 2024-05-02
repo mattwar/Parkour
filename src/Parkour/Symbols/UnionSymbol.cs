@@ -1,4 +1,5 @@
-﻿namespace Parkour.Symbols;
+﻿
+namespace Parkour.Symbols;
 
 public sealed class UnionSymbol : TypeSymbol
 {
@@ -9,4 +10,7 @@ public sealed class UnionSymbol : TypeSymbol
     {
         Types = types;
     }
+
+    public override int ReferenceCount => this.Types.Count;
+    public override Symbol? GetReference(int index) => index < this.Types.Count ? this.Types[index] : null;
 }

@@ -7,10 +7,10 @@ public class StructSymbol : TypeSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        Func<TypeSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters,
-        Func<ImmutableList<TypeSymbol>> fnTypeArguments,
-        Func<ImmutableList<TypeSymbol>> fnBaseTypes,
-        Func<TypeSymbol, ImmutableList<Symbol>> fnMembers,
+        Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
+        Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
+        Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
+        Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         TypeSymbol? constructedFrom)
         : base(
             name, 
@@ -22,56 +22,6 @@ public class StructSymbol : TypeSymbol
             fnBaseTypes,
             fnMembers,
             constructedFrom)
-    {
-    }
-
-    public StructSymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
-        SymbolModifier modifiers,
-        ImmutableList<TypeParameterSymbol> typeParameters,
-        ImmutableList<TypeSymbol> typeArguments,
-        ImmutableList<TypeSymbol> baseTypes,
-        ImmutableList<Symbol> members,
-        TypeSymbol? constructedFrom)
-        : this(
-              name,
-              declaringSymbol,
-              access,
-              modifiers,
-              me => typeParameters,
-              () => typeArguments,
-              () => baseTypes,
-              me => members,
-              constructedFrom)
-    {
-    }
-
-    public StructSymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
-        SymbolModifier modifiers)
-        : this(
-            name,
-            declaringSymbol,
-            access,
-            modifiers,
-            ImmutableList<TypeParameterSymbol>.Empty,
-            ImmutableList<TypeSymbol>.Empty,
-            ImmutableList<TypeSymbol>.Empty,
-            ImmutableList<Symbol>.Empty,
-            constructedFrom: null)
-    {
-    }
-
-    public StructSymbol(string name)
-        : this(
-            name,
-            declaringSymbol: null,
-            SymbolAccess.Public,
-            SymbolModifier.None)
     {
     }
 
@@ -96,15 +46,18 @@ public class StructSymbol : TypeSymbol
 
     internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
+        var newDeclaringSymbol =
+            declaringSymbol ?? this.DeclaringSymbol;
+
         return new StructSymbol(
             this.Name,
-            declaringSymbol ?? this.DeclaringSymbol,
+            newDeclaringSymbol,
             this.Access,
             this.Modifiers,
             me => this.TypeParameters,
             () => context.Substitute(this.TypeArguments),
             () => context.Substitute(this.BaseTypes),
             me => context.Substitute(this.Members),
-            this.ConstructedFrom);
+            this.ConstructedFrom ?? (this.IsConstructable ? this : null));
     }
 }

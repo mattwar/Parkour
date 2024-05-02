@@ -1,4 +1,7 @@
-﻿namespace Parkour.Symbols;
+﻿
+namespace Parkour.Symbols;
+
+using Utils;
 
 public abstract class TypeSymbol : ContainerSymbol
 {
@@ -16,10 +19,10 @@ public abstract class TypeSymbol : ContainerSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        Func<TypeSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters,
-        Func<ImmutableList<TypeSymbol>> fnTypeArguments,
-        Func<ImmutableList<TypeSymbol>> fnBaseTypes,
-        Func<TypeSymbol, ImmutableList<Symbol>> fnMembers,
+        Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
+        Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
+        Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
+        Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         TypeSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
@@ -34,47 +37,24 @@ public abstract class TypeSymbol : ContainerSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
-        ImmutableList<TypeParameterSymbol> typeParameters,
-        ImmutableList<TypeSymbol> typeArguments,
-        ImmutableList<TypeSymbol> baseTypes,
-        ImmutableList<Symbol> members,
-        TypeSymbol? constructedFrom)
-        : this(
-              name,
-              declaringSymbol,
-              access,
-              modifiers,
-              me => typeParameters,
-              () => typeArguments,
-              () => baseTypes,
-              me => members,
-              constructedFrom)
-    {
-    }
-
-    protected TypeSymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
         SymbolModifier modifiers)
         : this(
             name,
             declaringSymbol,
             access,
             modifiers,
-            ImmutableList<TypeParameterSymbol>.Empty,
-            ImmutableList<TypeSymbol>.Empty,
-            ImmutableList<TypeSymbol>.Empty,
-            ImmutableList<Symbol>.Empty,
-            constructedFrom: null)
+            null,
+            null,
+            null,
+            null,
+            null)
     {
     }
 
     protected TypeSymbol(string name)
         : this(
             name,
-            declaringSymbol: null,
+            null,
             SymbolAccess.Public,
             SymbolModifier.None)
     {
@@ -161,6 +141,12 @@ public abstract class TypeSymbol : ContainerSymbol
     public virtual bool IsClass => false;
 
     /// <summary>
+    /// True if the type is constructable
+    /// </summary>
+    public override bool IsConstructable =>
+        this.IsGeneric;
+
+    /// <summary>
     /// The base type and interfaces of this type.
     /// </summary>
     public ImmutableList<TypeSymbol> BaseTypes
@@ -209,8 +195,26 @@ public abstract class TypeSymbol : ContainerSymbol
             ? this.TypeParameters[index]
             : this.Members[index - this.TypeParameters.Count];
 
-    public override bool IsConstructable =>
-        this.IsGeneric;
+    public override int ReferenceCount =>
+        this.TypeParameters.Count + this.TypeArguments.Count + this.Members.Count;
+
+    public override Symbol? GetReference(int index)
+    {
+        if (index < this.TypeParameters.Count)
+            return this.TypeParameters[index];
+        
+        index -= this.TypeParameters.Count;
+
+        if (index < this.TypeArguments.Count)
+            return this.TypeArguments[index];
+
+        index -= this.TypeArguments.Count;
+
+        if (index < this.Members.Count)
+            return this.Members[index];
+
+        return null;
+    }
 
     public bool IsSubTypeOf(TypeSymbol baseType)
     {

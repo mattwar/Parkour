@@ -149,6 +149,9 @@ public class MethodSymbol : MemberSymbol
         }
     }
 
+    public override bool IsConstructable =>
+        this.IsGeneric;
+
     public override int Arity =>
         this.TypeParameters.Count > 0 ? this.TypeParameters.Count
         : this.TypeArguments.Count > 0 ? this.TypeArguments.Count
@@ -157,13 +160,35 @@ public class MethodSymbol : MemberSymbol
     public override int DeclarationCount =>
         this.TypeParameters.Count + this.Parameters.Count;
 
-    public override Symbol? GetDeclaration(int index) =>
-        index < this.TypeParameters.Count
-            ? this.TypeParameters[index]
-            : this.Parameters[index = this.TypeParameters.Count];
+    public override Symbol? GetDeclaration(int index)
+    {
+        if (index < this.TypeParameters.Count)
+            return this.TypeParameters[index];
 
-    public override bool IsConstructable =>
-        this.IsGeneric;
+        index -= this.TypeParameters.Count;
+
+        if (index <= this.Parameters.Count)
+            return this.Parameters[index];
+
+        return null;
+    }
+
+    public override int ReferenceCount => 
+        this.DeclarationCount + 1;
+
+    public override Symbol? GetReference(int index)
+    {
+        if (index < this.DeclarationCount)
+            return GetDeclaration(index);
+        
+        index -= this.DeclarationCount;
+        
+        if (index == 0)
+            return this.ReturnType;
+
+        return null;
+    }
+
 
     internal protected override MethodSymbol Construct(ConstructionContext context)
     {
@@ -193,6 +218,6 @@ public class MethodSymbol : MemberSymbol
             () => context.Substitute(this.TypeArguments),
             me => context.Substitute(this.Parameters),
             () => context.Substitute(this.ReturnType),
-            this.ConstructedFrom);
+            this.ConstructedFrom ?? (this.IsConstructable ? this : null));
     }
 }

@@ -93,7 +93,7 @@ public class LINQTranslationTests
     public void TestTypeArgs()
     {
         TestRun(
-            Symbol("System.Collections.Generic.List`1").WithTypeArguments([Symbol(_symbols.Int32)]),
+            Symbol("System.Collections.Generic.List`1").Construct([Symbol(_symbols.Int32)]),
             typeof(List<int>));
     }
 
@@ -168,7 +168,7 @@ public class LINQTranslationTests
             );
 
         TestRun(
-            New(Symbol("System.Collections.Generic.List`1").WithTypeArguments([Symbol("System.Int32")])),
+            New(Symbol("System.Collections.Generic.List`1").Construct([Symbol("System.Int32")])),
             expectedResult: new List<int>()
             );
     }

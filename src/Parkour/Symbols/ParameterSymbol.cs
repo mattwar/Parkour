@@ -43,6 +43,9 @@ public sealed class ParameterSymbol : Symbol
     {
     }
 
+    public override int ReferenceCount => 1;
+    public override Symbol? GetReference(int index) => index == 0 ? this.ParameterType : null;
+
     internal protected override Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new ParameterSymbol(

@@ -226,13 +226,23 @@ public class EmitterTests
     [TestMethod]
     public void TestNew()
     {
+        // new object
         TestEmit(
-            New(Symbol("System.Object")), 
+            New(Symbol("System.Object")),
             new object());
 
+        // new generic type
         TestEmit(
-            New(Symbol("System.Collections.Generic.List`1").WithTypeArguments([Symbol("System.Int32")])), 
+            New(Symbol("System.Collections.Generic.List`1").Construct([Symbol("System.Int32")])),
             new List<int>());
+
+        // new generic type with constructor args
+        TestEmit(
+            New(
+                Symbol("System.Collections.Generic.List`1").Construct([Symbol("System.Int32")]),
+                [NewArray(Symbol("System.Int32"), [Constant(7), Constant(11)])]),
+            new List<int>() { 7, 11 }
+            );
     }
 
     [TestMethod]
@@ -257,7 +267,7 @@ public class EmitterTests
     [TestMethod]
     public void TestElement()
     {
-        // read array element
+        // access sz array element
         TestEmit(
             Block(
                 Variable("a", NewArray(Symbol("System.Int32"), [Constant(5)])),
@@ -265,13 +275,24 @@ public class EmitterTests
                 ),
             5);
 
-        // assign array element
+        // assign sz array element
         TestEmit(
             Block(
                 Variable("a", NewArray(Symbol("System.Int32"), Constant(2))),
                 Assign(Element(Name("a"), Constant(0)), Constant(123))
                 ),
             123);
+
+        // access indexer element
+        TestEmit(
+            Block(
+                Variable("list", 
+                    New(Symbol("System.Collections.Generic.List`1").Construct([Symbol("System.Int32")]),
+                        [NewArray(Symbol("System.Int32"), [Constant(7), Constant(11)])])
+                    ),
+                Element(Name("list"), Constant(0))
+                ),
+            7);
     }
 
     [TestMethod]
@@ -362,7 +383,7 @@ public class EmitterTests
 
 #if false
         var generator = new Lokad.ILPack.AssemblyGenerator();
-        generator.GenerateAssembly(result.Assembly, "test_assembly.dll");
+        generator.GenerateAssembly(builder.Assembly, "test_assembly.dll");
 #endif
 
         if (builder.Module is Module m && test != null)

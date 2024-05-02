@@ -3,6 +3,7 @@
 namespace Parkour.Binding;
 using Semantics;
 using Symbols;
+using System.Xml.Linq;
 
 /// <summary>
 /// Converts unbound declarations and expressions into bound declarations and expressions
@@ -1206,8 +1207,8 @@ public class StandardBinder : Binder
             case ThisExpression me:
                 return BindThis(context, me);
 
-            case TypeArgumentsExpression typeArgs:
-                return BindTypeArguments(context, typeArgs);
+            case ConstructExpression construct:
+                return BindConstruct(context, construct);
 
             case VariableExpression variable:
                 return BindVariable(context, variable);
@@ -1680,7 +1681,7 @@ public class StandardBinder : Binder
     /// True if the symbol is callable by a <see cref="CallExpression"/>
     /// </summary>
     protected virtual bool IsCallableSymbol(Symbol symbol) =>
-        symbol is FunctionSymbol or MethodSymbol or ConstructorSymbol;
+        symbol is DelegateSymbol or MethodSymbol or ConstructorSymbol;
 
     /// <summary>
     /// Gets a called symbol's return type.
@@ -1688,7 +1689,7 @@ public class StandardBinder : Binder
     protected virtual TypeSymbol? GetCalledSymbolReturnType(Symbol symbol) =>
         symbol switch
         {
-            FunctionSymbol f => f.ReturnType,
+            DelegateSymbol f => f.ReturnType,
             MethodSymbol m => m.ReturnType,
             ConstructorSymbol c => c.ConstructedType,
             _ => null
@@ -1728,7 +1729,7 @@ public class StandardBinder : Binder
     protected virtual ImmutableList<ParameterSymbol> GetSymbolParameters(Symbol symbol) =>
         symbol switch
         {
-            FunctionSymbol function => function.Parameters,
+            DelegateSymbol function => function.Parameters,
             MethodSymbol method => method.Parameters,
             ConstructorSymbol constructor => constructor.Parameters,
             _ => ImmutableList<ParameterSymbol>.Empty
@@ -1849,6 +1850,112 @@ public class StandardBinder : Binder
             constant.Location,
             resultType,
             null);
+    }
+    #endregion
+
+    #region Construct Expression
+    /// <summary>
+    /// Binds <see cref="ConstructExpression"/>,
+    /// Constructs type expression by applying type arguments.
+    /// </summary>
+    protected virtual Expression BindConstruct(ExpressionContext context, ConstructExpression construct)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var expression = BindExpression(context, construct.Expression);
+            var typeArguments = BindExpressionList(context, construct.TypeArguments);
+
+            Symbol? constructedSymbol = null;
+            if (expression.ReferencedSymbol is Symbol symbol)
+            {
+                var typeArgs = typeArguments
+                    .Select(ta => GetType(context, ta))
+                    .OfType<TypeSymbol>()
+                    .ToImmutableList();
+
+                constructedSymbol = GetConstructedSymbol(context, symbol, typeArgs, construct.Location, diagnostics);
+            }
+
+            var resultType = GetReferenceResultType(context, constructedSymbol);
+
+            if (expression == construct.Expression
+                && typeArguments == construct.TypeArguments
+                && constructedSymbol == construct.ConstructedSymbol
+                && resultType == construct.ResultType
+                && diagnostics.Count == 0)
+                return construct;
+
+            return new ConstructExpression(
+                expression,
+                typeArguments,
+                construct.Location,
+                constructedSymbol,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+
+    /// <summary>
+    /// Makes a constructed symbol from a generic type definition
+    /// </summary>
+    protected virtual Symbol? GetConstructedSymbol(
+        ExpressionContext context,
+        Symbol symbol,
+        ImmutableList<TypeSymbol> typeArguments,
+        ISourceLocation? location = null,
+        List<Diagnostic>? diagnostics = null)
+    {
+        if (symbol is GroupSymbol group)
+        {
+            var constructableSymbols = group.Symbols.Where(s => s.Arity == typeArguments.Count).ToList();
+            if (constructableSymbols.Count == 0)
+            {
+                if (diagnostics != null)
+                    diagnostics.Add(BindingDiagnostics.NoTypeOrMethodWithMatchingArityToConstruct().WithLocation(location));
+                return null;
+            }
+
+            var constructedSymbols =
+                group.Symbols
+                .Select(s => GetConstructedSymbol(context, s, typeArguments))
+                .OfType<Symbol>()
+                .ToImmutableList();
+
+            return context.Symbols.GetGroup(constructedSymbols);
+        }
+        else if (symbol is TypeSymbol type)
+        {
+            if (type.Arity != typeArguments.Count)
+            {
+                if (diagnostics != null)
+                    diagnostics.Add(BindingDiagnostics.TypeDoesNotHaveMatchingArity().WithLocation(location));
+                return null;
+            }
+
+            return context.Symbols.GetConstructed(type, typeArguments);
+        }
+        else if (symbol is MethodSymbol method)
+        {
+            if (method.Arity != typeArguments.Count)
+            {
+                if (diagnostics != null)
+                    diagnostics.Add(BindingDiagnostics.MethodDoesNotHaveMatchingArity().WithLocation(location));
+                return null;
+            }
+            return context.Symbols.GetConstructed(method, typeArguments);
+        }
+        else
+        {
+            if (diagnostics != null)
+                diagnostics.Add(BindingDiagnostics.NoTypeOrMethodWithMatchingArityToConstruct().WithLocation(location));
+        }
+
+        return null;
     }
     #endregion
 
@@ -2035,7 +2142,7 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual bool CanDownCast(ExpressionContext context, TypeSymbol source, TypeSymbol target)
     {
-        if (source == target)
+        if (TypeEqualityComparer.Instance.Equals(source, target))
             return true;
 
         foreach (var sbt in source.BaseTypes)
@@ -2156,7 +2263,7 @@ public class StandardBinder : Binder
     {
         return conversionSymbol switch
         {
-            FunctionSymbol function =>
+            DelegateSymbol function =>
                 function.ReturnType == target
                 && function.Parameters.Count == 1
                 && GetConversion(context, source, function.Parameters[0].ParameterType) != ConversionKind.None,
@@ -2228,6 +2335,7 @@ public class StandardBinder : Binder
     protected virtual Expression BindElement(ExpressionContext context, ElementExpression element)
     {
         var diagnostics = _diagnosticListPool.AllocateFromPool();
+        var candidates = _symbolListPool.AllocateFromPool();
         try
         {
             var expr = BindExpression(context, element.Expression);
@@ -2239,14 +2347,94 @@ public class StandardBinder : Binder
             }
             else
             {
-                // find indexer...
-                throw new NotImplementedException();
+                GetMatchingTypeMembers(
+                    expr.ResultType,
+                    null,
+                    s => s is IndexerSymbol x && x.GetMethod != null,
+                    candidates);
+
+                IndexerSymbol? indexer = null;
+
+                if (candidates.Count == 0)
+                {
+                    diagnostics.Add(BindingDiagnostics.NoMatchingIndexer().WithLocation(element.Location));
+                }
+                else
+                {
+                    indexer = candidates.Count == 1
+                        ? (IndexerSymbol)candidates[0]
+                        : GetBestIndexerCandidate(context, element.Arguments, candidates);
+
+                    if (indexer == null)
+                    {
+                        diagnostics.Add(BindingDiagnostics.IndexerIsAmbiguous().WithLocation(element.Location));
+                    }
+                    else
+                    {
+                        var parameters = indexer.GetMethod!.Parameters;
+                        if (parameters.Count != arguments.Count)
+                        {
+                            diagnostics.Add(BindingDiagnostics.IncorrectNumberOfArguments().WithLocation(element.Location));
+                        }
+                        else
+                        {
+                            arguments = ConvertArguments(context, parameters, arguments);
+                        }
+                    }
+                }
+
+                var resultType = indexer != null 
+                    ? indexer.ElementType 
+                    : SpecialSymbols.Unknown;
+
+                // no change?
+                if (element.Expression == expr
+                    && element.Arguments == arguments
+                    && element.IndexerSymbol == indexer
+                    && element.ResultType == resultType
+                    && element.Diagnostics.Count == 0
+                    && diagnostics.Count == 0)
+                    return element;
+
+                return new ElementExpression(
+                    expr,
+                    arguments,
+                    element.Location,
+                    indexer,
+                    resultType,
+                    diagnostics.ToImmutableList()
+                    );
             }
         }
         finally
         {
             _diagnosticListPool.ReturnToPool(diagnostics);
+            _symbolListPool.ReturnToPool(candidates);
         }
+    }
+
+    /// <summary>
+    /// Gets the list of candidate symbols for a call with the supplied arguments
+    /// </summary>
+    protected virtual void GetIndexerCandidates(
+        ExpressionContext context,
+        TypeSymbol targetType,
+        ImmutableList<Expression> arguments,
+        List<Symbol> candidates)
+    {
+        GetMatchingTypeMembers(
+            targetType,
+            null,
+            s => s is IndexerSymbol x
+                && x.SetMethod != null
+                && x.SetMethod.Parameters.Count == arguments.Count,
+            candidates);
+    }
+
+    protected virtual IndexerSymbol? GetBestIndexerCandidate(ExpressionContext context, ImmutableList<Expression> arguments, List<Symbol> candidates)
+    {
+        // TODO: betterness
+        return candidates.OfType<IndexerSymbol>().FirstOrDefault(x => MatchesParameters(context, x.GetMethod!.Parameters, arguments));
     }
 
     #endregion
@@ -2301,7 +2489,7 @@ public class StandardBinder : Binder
         var types = _typeListPool.AllocateFromPool();
         try
         {
-            FunctionSymbol? lambdaSymbol = lambda.FunctionSymbol;
+            DelegateSymbol? lambdaSymbol = lambda.FunctionSymbol;
             LabelSymbol? returnLabel = lambda.ReturnLabel
                 ?? new LabelSymbol(LabelSymbol.ReturnLabelName, SpecialSymbols.Any);
             ImmutableList<ParameterDeclaration> parameters = lambda.Parameters;
@@ -2338,9 +2526,11 @@ public class StandardBinder : Binder
             void BindLambdaSymbol(ExpressionContext context)
             {
                 // bind and evalute new function symbol at the same time
-                lambdaSymbol = new FunctionSymbol(
+                lambdaSymbol = new DelegateSymbol(
                     lambda.Name,
                     null,
+                    SymbolAccess.Public,
+                    SymbolModifier.None,
                     me =>
                     {
                         var pms = CreateParameterSymbols(me, context);
@@ -2970,120 +3160,13 @@ public class StandardBinder : Binder
             FieldSymbol f => f.FieldType,
             PropertySymbol p => p.PropertyType,
             IndexerSymbol i => i.ElementType,
-            FunctionSymbol f => f,
+            DelegateSymbol f => f,
             GroupSymbol g => g,
             MethodSymbol => SpecialSymbols.Void,
             TypeSymbol => context.Symbols.Type,
             NamespaceSymbol => context.Symbols.Namespace,
             _ => null
         };
-    #endregion
-
-    #region TypeArguments Expression
-    /// <summary>
-    /// Binds <see cref="TypeArgumentsExpression"/>,
-    /// agumenting filtering referencdd symbols by the corresponding arity
-    /// and applying the specified type arguments.
-    /// </summary>
-    protected virtual Expression BindTypeArguments(ExpressionContext context, TypeArgumentsExpression construct)
-    {
-        var diagnostics = _diagnosticListPool.AllocateFromPool();
-        try
-        {
-            var expression = BindExpression(context, construct.Expression);
-            var typeArguments = BindExpressionList(context, construct.TypeArguments);
-
-            Symbol? constructedSymbol = null;
-            if (expression.ReferencedSymbol is Symbol symbol)
-            {
-                var typeArgs = typeArguments
-                    .Select(ta => GetType(context, ta))
-                    .OfType<TypeSymbol>()
-                    .ToImmutableList();
-
-                constructedSymbol = AppyTypeArguments(context, symbol, typeArgs, construct.Location, diagnostics);
-            }
-
-            var resultType = GetReferenceResultType(context, constructedSymbol);
-
-            if (expression == construct.Expression
-                && typeArguments == construct.TypeArguments
-                && constructedSymbol == construct.ConstructedSymbol
-                && resultType == construct.ResultType
-                && diagnostics.Count == 0)
-                return construct;
-
-            return new TypeArgumentsExpression(
-                expression,
-                typeArguments,
-                construct.Location,
-                constructedSymbol,
-                resultType,
-                diagnostics.ToImmutableList());
-        }
-        finally
-        {
-            _diagnosticListPool.ReturnToPool(diagnostics);
-        }
-    }
-
-    /// <summary>
-    /// Makes a constructed symbol from a generic type definition
-    /// </summary>
-    protected virtual Symbol? AppyTypeArguments(
-        ExpressionContext context,
-        Symbol symbol,
-        ImmutableList<TypeSymbol> typeArguments,
-        ISourceLocation? location = null,
-        List<Diagnostic>? diagnostics = null)
-    {
-        if (symbol is GroupSymbol group)
-        {
-            var constructableSymbols = group.Symbols.Where(s => s.Arity == typeArguments.Count).ToList();
-            if (constructableSymbols.Count == 0)
-            {
-                if (diagnostics != null)
-                    diagnostics.Add(BindingDiagnostics.NoTypeOrMethodWithMatchingArityToConstruct().WithLocation(location));
-                return null;
-            }
-
-            var constructedSymbols =
-                group.Symbols
-                .Select(s => AppyTypeArguments(context, s, typeArguments))
-                .OfType<Symbol>()
-                .ToImmutableList();
-
-            return context.Symbols.GetGroup(constructedSymbols);
-        }
-        else if (symbol is TypeSymbol type)
-        {
-            if (type.Arity != typeArguments.Count)
-            {
-                if (diagnostics != null)
-                    diagnostics.Add(BindingDiagnostics.TypeDoesNotHaveMatchingArity().WithLocation(location));
-                return null;
-            }
-
-            return context.Symbols.GetConstructed(type, typeArguments);
-        }
-        else if (symbol is MethodSymbol method)
-        {
-            if (method.Arity != typeArguments.Count)
-            {
-                if (diagnostics != null)
-                    diagnostics.Add(BindingDiagnostics.MethodDoesNotHaveMatchingArity().WithLocation(location));
-                return null;
-            }
-            return context.Symbols.GetConstructed(method, typeArguments);
-        }
-        else
-        {
-            if (diagnostics != null)
-                diagnostics.Add(BindingDiagnostics.NoTypeOrMethodWithMatchingArityToConstruct().WithLocation(location));
-        }
-
-        return null;
-    }
     #endregion
 
     #region This Expression
@@ -3301,7 +3384,7 @@ public class StandardBinder : Binder
 
         bool IsBetterThanOrSame(TypeSymbol type, TypeSymbol? best)
         {
-            if (type == best)
+            if (TypeEqualityComparer.Instance.Equals(type, best))
                 return true;
 
             if (best == null

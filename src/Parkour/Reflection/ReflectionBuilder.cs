@@ -663,7 +663,7 @@ public class ReflectionBuilder : Parkour.Emitting.ModuleBuilder
         private int GetParameterIndex(ParameterSymbol parameter) =>
             parameter.DeclaringSymbol is MethodSymbol ms ? ms.Parameters.IndexOf(parameter)
                 : parameter.DeclaringSymbol is ConstructorSymbol cs ? cs.Parameters.IndexOf(parameter)
-                : parameter.DeclaringSymbol is FunctionSymbol fs ? fs.Parameters.IndexOf(parameter)
+                : parameter.DeclaringSymbol is DelegateSymbol fs ? fs.Parameters.IndexOf(parameter)
                 : -1;
 
         private void EmitLoadArg(int n)

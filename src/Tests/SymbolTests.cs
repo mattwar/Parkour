@@ -61,10 +61,20 @@ namespace Tests
         public void TestConstruct()
         {
             var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
+
             var listT = (TypeSymbol?)runtimeSymbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
             Assert.IsNotNull(listT);
+
+            var listTBT = listT.BaseTypes;
+
             var listInt32 = runtimeSymbols.Cache.GetConstructed(listT, [runtimeSymbols.Cache.Int32]);
             Assert.IsNotNull(listInt32);
+
+            var listBT = listInt32.BaseTypes;
+            var ieT = listBT.FirstOrDefault(t => t.FullName == "System.Collections.Generic.IEnumerable[System.Int32]");
+            Assert.IsNotNull(ieT, "could not find interface IEnumerable<T>");
+            Assert.IsTrue(ieT.IsConstructed, "base type IEnumerable<T> is not constructed");
+
             listInt32.WalkDeclarations(null);
         }
     }

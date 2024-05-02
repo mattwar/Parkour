@@ -21,6 +21,11 @@ public abstract class Symbol
     public virtual int Arity => 0;
 
     /// <summary>
+    /// True if the type can be constructed with generic type arguments.
+    /// </summary>
+    public virtual bool IsConstructable => false;
+
+    /// <summary>
     /// The number of symbols potentially declared by this symbol
     /// </summary>
     public virtual int DeclarationCount => 0;
@@ -31,19 +36,16 @@ public abstract class Symbol
     public virtual Symbol? GetDeclaration(int index) => null;
 
     /// <summary>
-    /// The number of potential symbols referenced directly by this system.
+    /// The number of potential symbols referenced or declared by this symbol.
     /// </summary>
-    public virtual int ReferenceCount => DeclarationCount;
+    public virtual int ReferenceCount => 
+        DeclarationCount;
 
     /// <summary>
     /// Gets the nth symbol referenced or declared by this symbol.
     /// </summary>
-    public virtual Symbol? GetReference(int index) => GetDeclaration(index);
-
-    /// <summary>
-    /// True if the type can be constructed with generic type arguments.
-    /// </summary>
-    public virtual bool IsConstructable => false;
+    public virtual Symbol? GetReference(int index) => 
+        GetDeclaration(index);
 
     /// <summary>
     /// Constructs a constructable type with the specified generic type arguements.
@@ -54,6 +56,6 @@ public abstract class Symbol
     /// <summary>
     /// Returns a new symbol with references to any type parameter to references to the corresponding type argument.
     /// </summary>
-    internal protected virtual Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
-        => this;
+    internal protected virtual Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol) =>
+        this;
 }

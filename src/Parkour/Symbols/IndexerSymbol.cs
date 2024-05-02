@@ -91,6 +91,7 @@ public sealed class IndexerSymbol : MemberSymbol
     }
 
     public override int DeclarationCount => 2;
+
     public override Symbol? GetDeclaration(int index) =>
         index switch
         {
@@ -98,6 +99,18 @@ public sealed class IndexerSymbol : MemberSymbol
             1 => SetMethod,
             _ => null
         };
+
+    public override int ReferenceCount => this.DeclarationCount + 1;
+
+    public override Symbol? GetReference(int index)
+    {
+        if (index < this.DeclarationCount)
+            return this.GetDeclaration(index);
+
+        index -= this.DeclarationCount;
+
+        return (index == 0) ? this.ElementType : null;
+    }
 
     internal protected override Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {

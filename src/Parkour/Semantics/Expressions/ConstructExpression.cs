@@ -2,15 +2,15 @@
 using Symbols;
 
 /// <summary>
-/// Filters the referenced symbols by arity and converts the remaining into constructed versions.
+/// Constructs a type expression by giving it type arguments.
 /// </summary>
-public class TypeArgumentsExpression : AdjustedReferenceExpression
+public class ConstructExpression : AdjustedReferenceExpression
 {
     public override Expression Expression { get; }
     public ImmutableList<Expression> TypeArguments { get; }
     public Symbol? ConstructedSymbol { get; }
 
-    public TypeArgumentsExpression(
+    public ConstructExpression(
         Expression expression,
         ImmutableList<Expression> typeArguments,
         ISourceLocation? location,

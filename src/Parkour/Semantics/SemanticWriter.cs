@@ -183,7 +183,7 @@ public class SemanticWriter
                 });
                 break;
 
-            case TypeArgumentsExpression construct:
+            case ConstructExpression construct:
                 Write(construct.Expression);
                 Write("<");
                 for (int i = 0; i < construct.TypeArguments.Count; i++)

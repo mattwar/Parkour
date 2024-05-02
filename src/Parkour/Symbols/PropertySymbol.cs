@@ -122,6 +122,15 @@ public sealed class PropertySymbol : MemberSymbol
             _ => null
         };
 
+    public override int ReferenceCount => this.DeclarationCount + 1;
+    public override Symbol? GetReference(int index)
+    {
+        if (index < this.DeclarationCount)
+            return this.GetDeclaration(index);
+        index -= this.DeclarationCount;
+        return index == 0 ? this.PropertyType : null;
+    }
+
     internal protected override Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new PropertySymbol(

@@ -771,18 +771,26 @@ public class StandardEmitter : Emitter
 
     protected virtual void EmitElement(ILEmitContext context, ElementExpression element)
     {
-        EmitExpression(context, element.Expression);
-
         if (element.IndexerSymbol != null)
         {
-            throw new NotImplementedException();
+            if (element.IndexerSymbol.GetMethod != null)
+            {
+                EmitMethodCall(context, element.IndexerSymbol.GetMethod, element.Expression, element.Arguments, element.Location);
+            }
+            else
+            {
+                context.Builder.EmitThrowAndReport(new Diagnostic($"Invalid indexer get method"));
+            }
         }
         else if (element.Expression.ResultType is ArraySymbol array)
         {
             if (array.IsSZArray)
             {
-                // emit index argument
+                // array instance
+                EmitExpression(context, element.Expression);
+                // index
                 EmitExpressionAsType(context, element.Arguments[0], context.Symbols.Int32);
+                // load me
                 context.Builder.EmitLoadArrayElement(array.ElementType);
             }
             else

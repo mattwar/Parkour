@@ -20,6 +20,7 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
         {
             case ArraySymbol array1 when type2 is ArraySymbol array2:
                 return Equals(array1.ElementType, array2.ElementType);
+
             case UnionSymbol union1 when type2 is UnionSymbol union2:
                 if (union1.Types.Count != union2.Types.Count)
                     return false;
@@ -29,6 +30,7 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
                         return false;
                 }
                 return true;
+
             case GroupSymbol group1 when type2 is GroupSymbol group2:
                 if (group1.Symbols.Count != group2.Symbols.Count)
                     return false;
@@ -38,6 +40,7 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
                         return false;
                 }
                 return true;
+
             default:
                 // must both be construct with same definition
                 if (!type1.IsConstructed 

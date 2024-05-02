@@ -5,8 +5,8 @@ public sealed class FieldSymbol : MemberSymbol
     private Func<TypeSymbol>? _fnFieldType;
     private TypeSymbol? _fieldType;
 
-    public TypeSymbol FieldType 
-    { 
+    public TypeSymbol FieldType
+    {
         get
         {
             if (_fieldType == null && _fnFieldType is { } fn)
@@ -21,10 +21,10 @@ public sealed class FieldSymbol : MemberSymbol
     }
 
     public FieldSymbol(
-        string name, 
-        Symbol? declaringSymbol, 
-        SymbolAccess access, 
-        SymbolModifier modifiers, 
+        string name,
+        Symbol? declaringSymbol,
+        SymbolAccess access,
+        SymbolModifier modifiers,
         Func<TypeSymbol> fnFieldType)
         : base(name, declaringSymbol, access, modifiers)
     {
@@ -38,12 +38,19 @@ public sealed class FieldSymbol : MemberSymbol
         SymbolModifier modifiers,
         TypeSymbol fieldType)
         : this(
-            name, 
-            declaringSymbol, 
-            access, 
-            modifiers, 
+            name,
+            declaringSymbol,
+            access,
+            modifiers,
             () => fieldType)
     {
+    }
+
+    public override int ReferenceCount => 0;
+
+    public override Symbol? GetReference(int index)
+    {
+        return index == 0 ? this.FieldType : null;
     }
 
     internal protected override FieldSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)

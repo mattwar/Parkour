@@ -15,6 +15,9 @@ public sealed class LabelSymbol : Symbol
     {
     }
 
+    public override int ReferenceCount => 1;
+    public override Symbol? GetReference(int index) => index == 0 ? this.Type : null;
+
     public static string BreakLabelName = "break";
     public static string ContinueLabelName = "continue";
     public static string ReturnLabelName = "return";

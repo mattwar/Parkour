@@ -60,8 +60,8 @@ public static class SemanticFactoryExtensions
     /// Converts the referenced symbol to a constructed version of that symbol
     /// with the specified type arguments.
     /// </summary>
-    public static TypeArgumentsExpression WithTypeArguments(this Expression expression, ImmutableList<Expression> typeArguments) =>
-        SemanticFactory.TypeArguments(expression, typeArguments);
+    public static ConstructExpression Construct(this Expression expression, ImmutableList<Expression> typeArguments) =>
+        SemanticFactory.Construct(expression, typeArguments);
 
     /// <summary>
     /// Converts an expression to a specific type.

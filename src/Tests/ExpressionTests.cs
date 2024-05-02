@@ -46,7 +46,7 @@ public class ExpressionTests
     public void TestTypeArguments()
     {
         TestBinding(
-            Symbol("System.Collections.Generic").Member("List").WithTypeArguments([Symbol(_symbols.Int32)]),
+            Symbol("System.Collections.Generic").Member("List").Construct([Symbol(_symbols.Int32)]),
             expectedReferencedSymbol:
                 _symbols.GetConstructed(
                     _symbols.GetSymbol("System.Collections.Generic.List`1"),
@@ -515,7 +515,7 @@ public class ExpressionTests
                 [_symbols.Int32]);
 
         TestBinding(
-            New(Symbol("System.Collections.Generic.List`1").WithTypeArguments([Symbol("System.Int32")])),
+            New(Symbol("System.Collections.Generic.List`1").Construct([Symbol("System.Int32")])),
             expectedResultType: listInt32               
             );
     }

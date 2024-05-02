@@ -197,7 +197,7 @@ public class ReflectionSymbols
                 {
                     declaringSymbol ??=
                         (type.DeclaringType != null) ? GetOrCreateSymbol(type.DeclaringType, null) as MemberSymbol
-                        : (type.Namespace != null) ? this.GlobalNamespace.GetFirstSymbolFromPath<NamespaceSymbol>(type.Name)
+                        : (type.Namespace != null) ? this.GlobalNamespace.GetFirstSymbolFromPath<NamespaceSymbol>(type.Namespace)
                         : null;
                 }
                 else if (runtimeSymbol is MemberInfo member)
@@ -269,12 +269,7 @@ public class ReflectionSymbols
                         () => GetType(parameter.ParameterType));
 
                 case Type type:
-                    if (type.IsArray)
-                    {
-                        var elementType = GetType(type.GetElementType()!);
-                        return new ArraySymbol(elementType, type.GetArrayRank(), type.IsSZArray);
-                    }
-                    else if (type.IsGenericTypeParameter)
+                    if (type.IsGenericTypeParameter)
                     {
                         return new TypeParameterSymbol(type.Name);
                     }
@@ -329,10 +324,10 @@ public class ReflectionSymbols
 
             Func<ImmutableList<TypeSymbol>> fnTypeArguments =
                 type.IsConstructedGenericType
-                    ? () => GetTypes(type.GenericTypeArguments)
+                    ? () => GetTypes(type.GetGenericArguments())
                     : () => ImmutableList<TypeSymbol>.Empty;
 
-            var contructedFromType = type.IsConstructedGenericType
+            var constructedFromType = type.IsConstructedGenericType
                 ? GetType(type.GetGenericTypeDefinition())
                 : null;
 
@@ -344,7 +339,18 @@ public class ReflectionSymbols
 
             var name = StripArity(type.Name);
 
-            if (type.IsInterface)
+            if (type.IsArray)
+            {
+                return new ArraySymbol(
+                    declaringSymbol,
+                    fnElementType: () => GetType(type.GetElementType()!),
+                    dimensions: type.GetArrayRank(),
+                    isSZArray: type.IsSZArray,
+                    fnBaseTypes: fnBaseTypes,
+                    fnMembers: fnMembers,
+                    constructedFrom: constructedFromType);
+            }
+            else if (type.IsInterface)
             {
                 return new InterfaceSymbol(
                     name,
@@ -355,7 +361,7 @@ public class ReflectionSymbols
                     fnTypeArguments,
                     fnBaseTypes,
                     fnMembers,
-                    contructedFromType);
+                    constructedFromType);
             }
             else if (type.IsValueType)
             {
@@ -368,7 +374,7 @@ public class ReflectionSymbols
                     fnTypeArguments,
                     fnBaseTypes,
                     fnMembers,
-                    contructedFromType);
+                    constructedFromType);
             }
             else
             {
@@ -381,7 +387,7 @@ public class ReflectionSymbols
                     fnTypeArguments,
                     fnBaseTypes,
                     fnMembers,
-                    contructedFromType);
+                    constructedFromType);
             }
         }
     }
@@ -490,13 +496,18 @@ public class ReflectionSymbols
             _ => SymbolModifier.None
         };
 
+    /// <summary>
+    /// Finds the symbol in the global namespace
+    /// </summary>
     private Symbol? FindSymbol(object runtimeSymbol)
     {
-        if (runtimeSymbol is Type type)
+        // note: constructed types and members won't appear in the global namespace
+        if (runtimeSymbol is Type type && type.IsGenericTypeDefinition)
         {
             return this.GlobalNamespace.GetFirstSymbolFromPath<TypeSymbol>(GetFullName(type));
         }
-        else if (runtimeSymbol is MemberInfo member)
+        else if (runtimeSymbol is MemberInfo member
+            && member.DeclaringType != null && member.DeclaringType.IsGenericTypeDefinition)
         {
             return this.GlobalNamespace.GetFirstSymbolFromPath(GetFullName(member));
         }
@@ -646,7 +657,7 @@ public class ReflectionSymbols
             runtimeType = elementType.MakeArrayType();
             return true;
         }
-        else if (typeSymbol is FunctionSymbol lambda
+        else if (typeSymbol is DelegateSymbol lambda
             && TryGetRuntimeTypes(lambda.Parameters.Select(p => p.ParameterType), out var parameterTypes, alternateSource)
             && TryGetRuntimeType(lambda.ReturnType, out var returnType, alternateSource))
         {

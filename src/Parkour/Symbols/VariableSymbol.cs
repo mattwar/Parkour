@@ -8,4 +8,7 @@ public sealed class VariableSymbol : Symbol
     {
         VariableType = variableType;
     }
+
+    public override int ReferenceCount => 1;
+    public override Symbol? GetReference(int index) => index == 0 ? this.VariableType : null;
 }

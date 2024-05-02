@@ -6,7 +6,7 @@ public sealed class LambdaExpression : Expression
     public string Name { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
-    public FunctionSymbol? FunctionSymbol { get; }
+    public DelegateSymbol? FunctionSymbol { get; }
     public TypeSymbol? ReturnType { get; }
     public LabelSymbol? ReturnLabel { get; }
 
@@ -16,7 +16,7 @@ public sealed class LambdaExpression : Expression
         Expression body,
         ISourceLocation? location,
         TypeSymbol? returnType,
-        FunctionSymbol? functionSymbol,
+        DelegateSymbol? functionSymbol,
         LabelSymbol? returnLabel,
         ImmutableList<Diagnostic>? diagnostics)
         : base(

@@ -33,26 +33,54 @@ public sealed class ArraySymbol : TypeSymbol
 
     public override bool IsArray => true;
 
-    public ArraySymbol(Func<TypeSymbol> fnElementType, int dimensions = 1, bool isSzArray = true)
-        : base("Array")
+    public ArraySymbol(
+        Symbol? declaringSymbol,
+        Func<TypeSymbol> fnElementType,
+        int dimensions,
+        bool isSZArray,
+        Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
+        Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
+        TypeSymbol? constructedFrom)
+        : base(
+            "Array", 
+            declaringSymbol, 
+            SymbolAccess.Public,
+            SymbolModifier.None,
+            fnTypeParameters: null, 
+            fnTypeArguments: null, 
+            fnBaseTypes, 
+            fnMembers, 
+            constructedFrom)
     {
         _fnElementType = fnElementType;
-        _elementType = null;
-        _dimensions = isSzArray ? 0 : dimensions;
+        _dimensions = isSZArray ? 0 : dimensions;
     }
 
-    public ArraySymbol(TypeSymbol elementType, int dimensions = 1, bool isSzArray = true) 
-        : base("Array")
+    public override int ReferenceCount =>
+        this.DeclarationCount + 1;
+
+    public override Symbol? GetReference(int index)
     {
-        _elementType = elementType;
-        _fnElementType = null;
-        _dimensions = isSzArray ? 0 : dimensions;
+        if (index < this.DeclarationCount)
+            return this.GetDeclaration(index);
+
+        index -= this.DeclarationCount;
+
+        if (index == 0)
+            return this.ElementType;
+
+        return null;
     }
 
     internal protected override ArraySymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
         return new ArraySymbol(
+            declaringSymbol ?? this.DeclaringSymbol,
             () => context.Substitute(this.ElementType),
-            _dimensions);
+            this.Dimensions,
+            this.IsSZArray,
+            () => context.Substitute(this.BaseTypes),
+            me => context.Substitute(this.Members),
+            this.ConstructedFrom);
     }
 }

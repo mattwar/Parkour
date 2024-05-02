@@ -9,10 +9,10 @@ public class ClassSymbol : TypeSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        Func<TypeSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters,
-        Func<ImmutableList<TypeSymbol>> fnTypeArguments,
-        Func<ImmutableList<TypeSymbol>> fnBaseTypes,
-        Func<TypeSymbol, ImmutableList<Symbol>> fnMembers,
+        Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
+        Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
+        Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
+        Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         TypeSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers, fnTypeParameters, fnTypeArguments, fnBaseTypes, fnMembers, constructedFrom)
     {
@@ -22,40 +22,8 @@ public class ClassSymbol : TypeSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
-        ImmutableList<TypeParameterSymbol> typeParameters,
-        ImmutableList<TypeSymbol> typeArguments,
-        ImmutableList<TypeSymbol> baseTypes,
-        ImmutableList<Symbol> members,
-        TypeSymbol? constructedFrom)
-        : this(
-              name,
-              declaringSymbol,
-              access,
-              modifiers,
-              me => typeParameters,
-              () => typeArguments,
-              () => baseTypes,
-              me => members,
-              constructedFrom)
-    {
-    }
-
-    public ClassSymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
         SymbolModifier modifiers)
-        : this(
-            name,
-            declaringSymbol,
-            access,
-            modifiers,
-            ImmutableList<TypeParameterSymbol>.Empty,
-            ImmutableList<TypeSymbol>.Empty,
-            ImmutableList<TypeSymbol>.Empty,
-            ImmutableList<Symbol>.Empty,
-            constructedFrom: null)
+        : this(name, declaringSymbol, access, modifiers, null, null, null, null, null)
     {
     }
 
@@ -87,15 +55,18 @@ public class ClassSymbol : TypeSymbol
 
     internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
     {
+        var newDeclaringSymbol =
+            declaringSymbol ?? this.DeclaringSymbol;
+
         return new ClassSymbol(
             this.Name,
-            declaringSymbol ?? this.DeclaringSymbol,
+            newDeclaringSymbol,
             this.Access,
             this.Modifiers,
             me => this.TypeParameters,
             () => context.Substitute(this.TypeArguments),
             () => context.Substitute(this.BaseTypes),
             me => context.Substitute(this.Members),
-            this.ConstructedFrom);
+            this.ConstructedFrom ?? (this.IsConstructable ? this : null));
     }
 }

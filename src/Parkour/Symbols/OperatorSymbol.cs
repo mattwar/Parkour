@@ -1,6 +1,6 @@
 ﻿namespace Parkour.Symbols;
 
-public class OperatorSymbol : FunctionSymbol
+public class OperatorSymbol : DelegateSymbol
 {
     public string Kind => this.Name;
 
@@ -16,7 +16,7 @@ public class OperatorSymbol : FunctionSymbol
 
     public OperatorSymbol(
         string kind,
-        Func<FunctionSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
+        Func<DelegateSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
         Func<TypeSymbol> fnReturnType,
         MethodSymbol? checkedMethod = null,
         MethodSymbol? uncheckedMethod = null)
@@ -29,4 +29,13 @@ public class OperatorSymbol : FunctionSymbol
         this.CheckedMethod = checkedMethod;
         this.UncheckMethod = uncheckedMethod;
     }
+
+    public override int ReferenceCount => 2;
+    public override Symbol? GetReference(int index) =>
+        index switch
+        {
+            0 => this.CheckedMethod,
+            1 => this.UncheckMethod,
+            _ => null
+        };
 }

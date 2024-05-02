@@ -31,7 +31,7 @@ internal static class BindingDiagnostics
         new Diagnostic($"No callable symbol is found.");
 
     public static Diagnostic CallIsAmbiguous() =>
-        new Diagnostic("The call is ambiguous, it has multiple candidates.");
+        new Diagnostic("The call is ambiguous, it has multiple best candidates.");
 
     public static Diagnostic IncorrectNumberOfArguments() =>
         new Diagnostic($"Incorrect number of arguments.");
@@ -92,4 +92,13 @@ internal static class BindingDiagnostics
 
     public static Diagnostic ReferencedSymbolNotType() =>
         new Diagnostic("The referenced Symbol is not a type.");
+
+    public static Diagnostic NoSettableIndexer() =>
+        new Diagnostic("The is no settable indexer available.");
+
+    public static Diagnostic NoMatchingIndexer() =>
+        new Diagnostic("There is no matching indexer available.");
+
+    public static Diagnostic IndexerIsAmbiguous() =>
+        new Diagnostic("The indexing operation is ambiguous, there are multiple best candidates.");
 }

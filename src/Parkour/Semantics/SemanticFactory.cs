@@ -115,8 +115,8 @@ public static class SemanticFactory
     /// <summary>
     /// Constructs the type or method with the specified type arguments.
     /// </summary>
-    public static TypeArgumentsExpression TypeArguments(Expression expression, ImmutableList<Expression> typeArguments, ISourceLocation? location = null) =>
-        new TypeArgumentsExpression(expression, typeArguments, location, null, null, null);
+    public static ConstructExpression Construct(Expression expression, ImmutableList<Expression> typeArguments, ISourceLocation? location = null) =>
+        new ConstructExpression(expression, typeArguments, location, null, null, null);
 
     /// <summary>
     /// Branches to the loop's continue location.

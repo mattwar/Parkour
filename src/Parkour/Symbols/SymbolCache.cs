@@ -322,10 +322,30 @@ public class SymbolCache
     {
         if (!_symbolToArrayMap.TryGetValue(elementType, out var arrayType))
         {
-            arrayType = _symbolToArrayMap.GetValue(elementType, _et => new ArraySymbol(_et));
+            arrayType = _symbolToArrayMap.GetValue(elementType, CreateArraySymbol);
         }
 
         return arrayType;
+    }
+
+    private ArraySymbol CreateArraySymbol(TypeSymbol elementType)
+    {
+        return new ArraySymbol(
+            GetSymbol("System"),
+            fnElementType: () => elementType,
+            dimensions: 1,
+            isSZArray: true,
+            fnBaseTypes: () => [
+                GetType("System.Array"),
+                GetType("System.Collections.IEnumerable"),
+                GetType("System.Collections.IList"),
+                GetConstructed(GetType("System.Collections.Generic.IEnumerable`1"), [elementType]),
+                GetConstructed(GetType("System.Collections.Generic.IList`1"), [elementType]),
+                GetConstructed(GetType("System.Collections.Generic.IReadOnlyList`1"), [elementType])
+                ],
+            fnMembers: me => [], // TODO: add array members
+            constructedFrom: null
+            );
     }
 
     /// <summary>
@@ -383,8 +403,6 @@ public class SymbolCache
         ImmutableList<TypeSymbol> typeArguments)
         where TSymbol : Symbol
     {
-        Symbol? constructedSymbol = null;
-
         if (!constructableSymbol.IsConstructable)
             throw new InvalidOperationException("Cannot construct non-constructable symbol.");
 
@@ -393,9 +411,9 @@ public class SymbolCache
             constructedSymbolInfo = _constructedSymbolMap.GetOrCreateValue(constructableSymbol);
         }
 
-        if (!constructedSymbolInfo.TypeArgumentsToConstructedSymbolMap.TryGetValue(typeArguments, out constructedSymbol))
+        if (!constructedSymbolInfo.TypeArgumentsToConstructedSymbolMap.TryGetValue(typeArguments, out var constructedSymbol))
         {
-            var context = new ConsContext(typeArguments);           
+            var context = new ConsContext(this, typeArguments);
             var tmp = constructableSymbol.Construct(context);
 
             constructedSymbol = ImmutableInterlocked.GetOrAdd(
@@ -419,32 +437,38 @@ public class SymbolCache
 
     private class ConsContext : ConstructionContext
     {
+        public SymbolCache Cache { get; }
         public override ImmutableList<TypeSymbol> TypeArguments { get; }
 
-        public ConsContext(ImmutableList<TypeSymbol> typeArguments)
+        public ConsContext(SymbolCache cache, ImmutableList<TypeSymbol> typeArguments)
         {
+            this.Cache = cache;
             this.TypeArguments = typeArguments;
         }
 
         public override SubstitutionContext CreateSubstitution(ImmutableList<TypeParameterSymbol> typeParameters)
         {
-            return new SubContext(typeParameters, this.TypeArguments);
+            return new SubContext(this.Cache, typeParameters, this.TypeArguments);
         }
     }
 
     private class SubContext : SubstitutionContext
     {
+        public SymbolCache Cache { get; }
+
         private readonly ImmutableList<TypeParameterSymbol> _typeParameters;
         private readonly ImmutableList<TypeSymbol> _typeArguments;
         private Dictionary<Symbol, Symbol> _substitutions;
 
         public SubContext(
+            SymbolCache cache,
             ImmutableList<TypeParameterSymbol> typeParameters, 
             ImmutableList<TypeSymbol> typeArguments)
         {
             if (typeParameters.Count != typeArguments.Count)
                 throw new ArgumentException("The number of type parameters does not match the number of type arguments.");
 
+            this.Cache = cache;
             _typeParameters = typeParameters;
             _typeArguments = typeArguments;
             _substitutions = new Dictionary<Symbol, Symbol>();
@@ -452,28 +476,31 @@ public class SymbolCache
 
         public override TSymbol Substitute<TSymbol>(TSymbol symbol, Symbol? declaringSymbol)
         {
-            if (!_substitutions.TryGetValue(symbol, out var sub))
+            if (_substitutions.TryGetValue(symbol, out var sub))
+                return (TSymbol)sub;
+
+            if (symbol is TypeParameterSymbol tp)
             {
-                if (symbol is TypeParameterSymbol tp)
+                var index = _typeParameters.IndexOf(tp);
+                if (index >= 0)
                 {
-                    var index = _typeParameters.IndexOf(tp);
-                    if (index >= 0)
-                    {
-                        sub = _typeArguments[index];
-                    }
-                    else
-                    {
-                        sub = symbol;
-                    }
+                    return (TSymbol)(Symbol)_typeArguments[index];
                 }
-                else 
+                else
                 {
-                    sub = symbol.Substitute(this, declaringSymbol);
-                    _substitutions.Add(symbol, sub);
+                    return symbol;
                 }
             }
-
-            return (TSymbol)sub;
+            else if (CanSubstitute(symbol))
+            {
+                sub = symbol.Substitute(this, declaringSymbol);
+                _substitutions.Add(symbol, sub);
+                return (TSymbol)sub;
+            }
+            else
+            {
+                return symbol;
+            }
         }
 
         public override ImmutableList<TSymbol> Substitute<TSymbol>(ImmutableList<TSymbol> symbols, Symbol? declaringSymbol)
@@ -483,7 +510,7 @@ public class SymbolCache
             for (int i = 0; i < symbols.Count; i++)
             {
                 var symbol = symbols[i];
-                var sub = (TSymbol)symbol.Substitute(this, declaringSymbol);
+                var sub = Substitute(symbol, declaringSymbol);
                 if (sub != symbol || newList != null)
                 {
                     if (newList == null)
@@ -497,80 +524,28 @@ public class SymbolCache
 
             return newList != null ? newList.ToImmutableList() : symbols;
         }
-    }
 
-#if false
-    /// <summary>
-    /// Gets the union or individual type from a list of types.
-    /// </summary>
-    public virtual TypeSymbol GetUnion(IEnumerable<TypeSymbol> types)
-    {
-        if (!types.Any())
-            return Void;
-
-        if (types is IReadOnlyList<TypeSymbol> roTypes
-            && roTypes.Count == 1)
+        /// <summary>
+        /// Returns true if substitution is possible for this symbol.
+        /// </summary>
+        public bool CanSubstitute(Symbol symbol)
         {
-            return roTypes[0];
-        }
+            // member must be generic or declaring ancestor must be generic
+            // otherwise there would be no type parameters to have refered to.
 
-        var immutableTypes = types as ImmutableList<TypeSymbol>;
-        if (immutableTypes != null
-            && _listToUnionMap.TryGetValue(immutableTypes, out var union))
-        {
-            return union;
-        }
+            if (symbol.Arity > 0)
+                return true;
 
-        types = FlattenUnions(types).ToList();
+            if (symbol is NamespaceSymbol)
+                return false;
 
-        var hasUnknown = types.Any(t => t == Unknown);
-        var hasAny = types.Any(t => t == Any);
-        var hasVoid = types.Any(t => t == Void);
-        var hasNull = types.Any(t => t == Null);
+            if (symbol is MemberSymbol ms && ms.DeclaringSymbol != null)
+                return CanSubstitute(ms.DeclaringSymbol);
 
-        var canonicalTypes = types
-            .Where(t =>
-                t == Unknown
-                || t == Any && !hasUnknown
-                || t == Null && !hasUnknown
-                || t == Void && !hasUnknown
-                || (!hasUnknown || !hasAny))
-            .DistinctBy(t => t, TypeEqualityComparer.Instance)
-            .OrderBy(t => t.Name)
-            .ToImmutableList();
+            if (symbol is ParameterSymbol ps && ps.DeclaringSymbol != null)
+                return CanSubstitute(ps.DeclaringSymbol);
 
-        if (canonicalTypes.Count == 1)
-            return canonicalTypes[0];
-
-        union = _listToUnionMap.GetValue(canonicalTypes, _newTypes => new UnionSymbol(_newTypes));
-
-        // also associate union with original list, if it was immutable
-        if (immutableTypes != null)
-        {
-            _listToUnionMap.GetValue(immutableTypes, _ => union);
-        }
-
-        return union;
-
-        static IEnumerable<TypeSymbol> FlattenUnions(IEnumerable<TypeSymbol> types)
-        {
-            foreach (var type in types)
-            {
-                if (type is UnionSymbol union)
-                {
-                    foreach (var unionType in union.Types)
-                        yield return unionType;
-                }
-
-                yield return type;
-            }
+            return false;
         }
     }
-
-    /// <summary>
-    /// Gets the union or individual type from a list of types.
-    /// </summary>
-    public virtual TypeSymbol GetUnion(params TypeSymbol[] types) =>
-        GetUnion((IEnumerable<TypeSymbol>)types);
-#endif
 }
