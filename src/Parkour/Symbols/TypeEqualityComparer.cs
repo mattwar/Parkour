@@ -19,7 +19,9 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
         switch (type1)
         {
             case ArraySymbol array1 when type2 is ArraySymbol array2:
-                return Equals(array1.ElementType, array2.ElementType);
+                return array1.Dimensions == array2.Dimensions
+                    && array1.IsSZArray == array2.IsSZArray
+                    && Equals(array1.ElementType, array2.ElementType);
 
             case UnionSymbol union1 when type2 is UnionSymbol union2:
                 if (union1.Types.Count != union2.Types.Count)

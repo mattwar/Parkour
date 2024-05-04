@@ -1,7 +1,6 @@
 ﻿namespace Parkour.Compilations;
 using Binding;
 using Semantics;
-using Symbols;
 
 public class DeclarationCompilation : Compilation
 {

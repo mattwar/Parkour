@@ -11,14 +11,14 @@ public abstract class Binder
     /// </summary>
     public abstract DeclarationBinding BindDeclarations(
         ImmutableList<Declaration> declarations,
-        GlobalNamespaceSymbol externalSymbols);
+        SymbolTable externalSymbols);
 
     /// <summary>
     /// Rewrites expressions to include referenced symbols, result types and diagnostics.
     /// </summary>
     public abstract ExpressionBinding BindExpression(
         Expression expression,
-        GlobalNamespaceSymbol externalSymbols,
+        SymbolTable externalSymbols,
         BindingScope scope);
 
     /// <summary>
@@ -26,5 +26,5 @@ public abstract class Binder
     /// </summary>
     public abstract ExpressionBinding BindExpression(
         Expression expression,
-        GlobalNamespaceSymbol externalSymbols);
+        SymbolTable externalSymbols);
 }

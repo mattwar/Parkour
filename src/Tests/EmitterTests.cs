@@ -359,7 +359,7 @@ public class EmitterTests
                      Method("Run", SymbolAccess.Public, SymbolModifier.Static, [], Symbol("System.Object"), test)
                      ]));
 
-        var binding = binder.BindDeclarations(declarations.ToImmutableList(), imports.GlobalNamespace);
+        var binding = binder.BindDeclarations(declarations.ToImmutableList(), imports);
         if (binding.Diagnostics.Count > 0)
         {
             var dxs = string.Join("\n", binding.Diagnostics.Select(d => d.ToString()));
@@ -378,7 +378,7 @@ public class EmitterTests
         }
 
         // verify all delared symbols are represented in the assembly
-        VerifySymbols(emitter.Assembly, lowering.LoweredSymbols);
+        VerifySymbols(emitter.Assembly, lowering.DeclaredSymbols);
 
 #if false
         var generator = new Lokad.ILPack.AssemblyGenerator();

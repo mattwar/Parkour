@@ -13,14 +13,12 @@ namespace Tests;
 [TestClass]
 public class LINQTranslationTests
 {
-    private readonly ReflectionSymbols _runtimeSymbols;
-    private readonly SymbolCache _symbols;
+    private readonly ReflectionSymbols _symbols;
     private readonly BindingScope _defaultTestScope;
 
     public LINQTranslationTests()
     {
-        _runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
-        _symbols = _runtimeSymbols.Cache;
+        _symbols = ReflectionSymbols.CurrentMscorlib;
         _defaultTestScope = ExpressionTests.CreateBindingScope(_symbols);
     }
 
@@ -287,7 +285,7 @@ public class LINQTranslationTests
         args ??= System.Array.Empty<object>();
 
         var binder = new StandardBinder();
-        var binding = binder.BindExpression(expression, _symbols.GlobalNamespace, scope ?? _defaultTestScope);
+        var binding = binder.BindExpression(expression, _symbols, scope ?? _defaultTestScope);
         var bound = (LambdaExpression)binding.BoundExpression;
 
         if (bound.ContainsDiagnostics)
@@ -301,7 +299,7 @@ public class LINQTranslationTests
         Assert.IsFalse(bound.ContainsDiagnostics, "expression contains diagnostics");
         Assert.IsFalse(bound.IsUnbound, "expression still contains unbound elements after binding.");
 
-        var translated = new ExpressionTranslator(_runtimeSymbols).TranslateToLambda(bound);
+        var translated = new ExpressionTranslator(_symbols).TranslateToLambda(bound);
 
         var compiled = translated.Compile();
 

@@ -5,14 +5,14 @@ using Symbols;
 public class ExpressionCompilation : Compilation
 {
     public readonly ISyntaxTree _syntaxTree;
-    public readonly GlobalNamespaceSymbol _externalSymbols;
-    public readonly Func<ISyntaxTree, GlobalNamespaceSymbol, ExpressionBinding> _fnBind;
+    public readonly SymbolTable _externalSymbols;
+    public readonly Func<ISyntaxTree, SymbolTable, ExpressionBinding> _fnBind;
     public override ImmutableList<ISourceDocument> Documents { get; }
 
     public ExpressionCompilation(
         ISyntaxTree syntaxTree,
-        GlobalNamespaceSymbol externalSymbols,
-        Func<ISyntaxTree, GlobalNamespaceSymbol, ExpressionBinding> fnBind)
+        SymbolTable externalSymbols,
+        Func<ISyntaxTree, SymbolTable, ExpressionBinding> fnBind)
     {
         _syntaxTree = syntaxTree;
         _externalSymbols = externalSymbols;

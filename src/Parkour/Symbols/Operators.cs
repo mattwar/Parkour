@@ -15,16 +15,16 @@ public sealed class Operators
     /// </summary>
     public ImmutableList<OperatorSymbol> Default { get; }
 
-    private Operators(SymbolCache symbols)
+    private Operators(SymbolTable symbols)
     {
         this.Intrinsic = CreateIntrinsic(symbols);
         this.Default = CreateDefault(symbols, this.Intrinsic);
     }
 
-    private static readonly ConditionalWeakTable<SymbolCache, Operators> _map =
-        new ConditionalWeakTable<SymbolCache, Operators>();
+    private static readonly ConditionalWeakTable<SymbolTable, Operators> _map =
+        new ConditionalWeakTable<SymbolTable, Operators>();
 
-    public static Operators From(SymbolCache symbols)
+    public static Operators From(SymbolTable symbols)
     {
         if (!_map.TryGetValue(symbols, out var intrinsics))
         {
@@ -34,7 +34,7 @@ public sealed class Operators
         return intrinsics;
     }
 
-    private static ImmutableList<OperatorSymbol> CreateIntrinsic(SymbolCache symbols)
+    private static ImmutableList<OperatorSymbol> CreateIntrinsic(SymbolTable symbols)
     {
         // operator intrinsics
         return [
@@ -180,7 +180,7 @@ public sealed class Operators
     /// <summary>
     /// The default set of operators used by <see cref="StandardBinder"/>.
     /// </summary>
-    private static ImmutableList<OperatorSymbol> CreateDefault(SymbolCache symbols, ImmutableList<OperatorSymbol> intrinsice)
+    private static ImmutableList<OperatorSymbol> CreateDefault(SymbolTable symbols, ImmutableList<OperatorSymbol> intrinsice)
     {
         var stringConcat = symbols.String.GetMethod("Concat", [symbols.String, symbols.String]);
 

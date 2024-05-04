@@ -8,13 +8,12 @@ namespace Tests
     public class SymbolTests
     {
         [TestMethod]
-        public void TestSymbolCache_ReflectionSymbols()
+        public void TestCommonSymbols_ReflectionSymbols()
         {
-            var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
-            TestSymbolCache(runtimeSymbols.Cache);
+            TestCommonSymbols(ReflectionSymbols.CurrentMscorlib);
         }
 
-        private void TestSymbolCache(SymbolCache symbols)
+        private void TestCommonSymbols(SymbolTable symbols)
         {
             Assert.AreEqual("System", symbols.System.Name);
             Assert.AreEqual("Object", symbols.Object.Name);
@@ -67,7 +66,7 @@ namespace Tests
 
             var listTBT = listT.BaseTypes;
 
-            var listInt32 = runtimeSymbols.Cache.GetConstructed(listT, [runtimeSymbols.Cache.Int32]);
+            var listInt32 = runtimeSymbols.GetConstructed(listT, [runtimeSymbols.Int32]);
             Assert.IsNotNull(listInt32);
 
             var listBT = listInt32.BaseTypes;

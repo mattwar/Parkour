@@ -8,6 +8,10 @@ namespace Parkour.Emitting;
 /// </summary>
 public abstract class StandardModuleEmitter : ModuleEmitter
 {
+    protected StandardModuleEmitter()
+    {
+    }
+
     /// <summary>
     /// Emits lowered symbols as a module.
     /// </summary>
@@ -19,10 +23,10 @@ public abstract class StandardModuleEmitter : ModuleEmitter
     /// </summary>
     public EmitResult EmitModule(
         DeclarationLowering lowering,
-        Func<MemberSymbol, SymbolCache, ILEmitter, BodyEmitter> fnCreateBodyEmitter)
+        Func<MemberSymbol, SymbolTable, ILEmitter, BodyEmitter> fnCreateBodyEmitter)
     {
         return EmitModule(
-            lowering.LoweredSymbols,
+            lowering.DeclaredSymbols,
             (m, e) => EmitMemberBody(lowering, m, e, fnCreateBodyEmitter));
     }
 
@@ -30,7 +34,7 @@ public abstract class StandardModuleEmitter : ModuleEmitter
     /// Creates a new default <see cref="BodyEmitter"/>
     /// </summary>
     protected virtual BodyEmitter CreateBodyEmitter(
-        MemberSymbol member, SymbolCache cache, ILEmitter ilEmitter)
+        MemberSymbol member, SymbolTable cache, ILEmitter ilEmitter)
     {
         return new StandardBodyEmitter(member, cache, ilEmitter, false);
     }
@@ -42,10 +46,10 @@ public abstract class StandardModuleEmitter : ModuleEmitter
         DeclarationLowering lowering, 
         MemberSymbol memberSymbol,
         ILEmitter ilEmitter,
-        Func<MemberSymbol, SymbolCache, ILEmitter, BodyEmitter> fnCreateBodyEmitter)
+        Func<MemberSymbol, SymbolTable, ILEmitter, BodyEmitter> fnCreateBodyEmitter)
     {
-        var cache = SymbolCache.From(lowering.Binding.ExternalSymbols);
-        var bodyEmitter = new StandardBodyEmitter(memberSymbol, cache, ilEmitter, false);
+        var symbols = lowering.Binding.ExternalSymbols;
+        var bodyEmitter = new StandardBodyEmitter(memberSymbol, symbols, ilEmitter, false);
         switch (memberSymbol)
         {
             case MethodSymbol methodSymbol:

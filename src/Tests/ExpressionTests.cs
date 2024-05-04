@@ -10,18 +10,16 @@ namespace Tests;
 [TestClass]
 public class ExpressionTests
 {
-    private readonly ReflectionSymbols _runtimeSymbols;
-    private readonly SymbolCache _symbols;
+    private readonly ReflectionSymbols _symbols;
     private readonly BindingScope _defaultTestScope;
 
     public ExpressionTests()
     {       
-        _runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
-        _symbols = _runtimeSymbols.Cache;
-        _defaultTestScope = CreateBindingScope(_runtimeSymbols.Cache);
+        _symbols = ReflectionSymbols.CurrentMscorlib;
+        _defaultTestScope = CreateBindingScope(_symbols);
     }
 
-    public static BindingScope CreateBindingScope(SymbolCache symbols)
+    public static BindingScope CreateBindingScope(SymbolTable symbols)
     {
         return SimpleBindingScope.Empty.AddMembers([symbols.GlobalNamespace, symbols.System]);
     }
@@ -31,7 +29,7 @@ public class ExpressionTests
     {
         TestBinding(
             Symbol("System.Int32").Array(),
-            expectedReferencedSymbol: _runtimeSymbols.Cache.GetArray(_symbols.Int32));
+            expectedReferencedSymbol: _symbols.GetArray(_symbols.Int32));
     }
 
     [TestMethod]
@@ -657,7 +655,7 @@ public class ExpressionTests
         BindingScope? scope = null)
     {
         var binder = new StandardBinder();
-        var binding = binder.BindExpression(expression, _symbols.GlobalNamespace, scope ?? _defaultTestScope);
+        var binding = binder.BindExpression(expression, _symbols, scope ?? _defaultTestScope);
         var bound = binding.BoundExpression;
 
         Assert.IsFalse(bound.IsUnbound, "expression contains unbound elements after binding");

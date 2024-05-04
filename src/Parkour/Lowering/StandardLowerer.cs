@@ -32,8 +32,8 @@ public class StandardLowerer : Lowerer
         public override ImmutableList<Declaration> LoweredDeclarations =>
             _binding.BoundDeclarations;
 
-        public override GlobalNamespaceSymbol LoweredSymbols => 
-            _binding.BoundSymbols;
+        public override GlobalNamespaceSymbol DeclaredSymbols => 
+            _binding.DeclaredSymbols;
 
         public override ImmutableList<Diagnostic> Diagnostics =>
             ImmutableList<Diagnostic>.Empty;

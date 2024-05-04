@@ -20,10 +20,9 @@ public abstract class DeclarationLowering
     public abstract ImmutableList<Declaration> LoweredDeclarations { get; }
 
     /// <summary>
-    /// The lowered symbols.
-    /// May include additional symbols introduced during lowering.
+    /// The symbols corresponding to the lowered declarations.
     /// </summary>
-    public abstract GlobalNamespaceSymbol LoweredSymbols { get; }
+    public abstract GlobalNamespaceSymbol DeclaredSymbols { get; }
 
     /// <summary>
     /// Diagnostics determined during lowering.

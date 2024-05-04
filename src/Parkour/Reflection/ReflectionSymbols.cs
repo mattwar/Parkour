@@ -1,34 +1,25 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using Parkour.Symbols;
 
 namespace Parkour.Reflection;
 
+using Symbols;
+
 /// <summary>
-/// Represents collections of <see cref="System.Reflection.Assembly"/>'s
-/// as a <see cref="Parkour.Symbols.GlobalNamespaceSymbol"/>.
+/// A <see cref="SymbolTable"/> of runtime symbols 
+/// from a collection of <see cref="Assembly"/>'s.
 /// </summary>
-public class ReflectionSymbols
+public class ReflectionSymbols : StandardSymbolTable
 {
     /// <summary>
     /// The set of assemblies.
     /// </summary>
     public ImmutableList<Assembly> Assemblies { get; }
 
-    /// <summary>
-    /// The corresponding <see cref="GlobalNamespaceSymbol"/> for the set of assemblies.
-    /// </summary>
-    public GlobalNamespaceSymbol GlobalNamespace => Cache.GlobalNamespace;
-
-    /// <summary>
-    /// The cache of symbols found in <see cref="GlobalNamespace"/>.
-    /// </summary>
-    public SymbolCache Cache { get; }
-   
     private ReflectionSymbols(GlobalNamespaceSymbol globalNamespace, ImmutableList<Assembly> assemblies)
+        : base(globalNamespace)
     {
-        Cache = SymbolCache.From(globalNamespace);
         Assemblies = assemblies;
     }
 
@@ -44,8 +35,8 @@ public class ReflectionSymbols
     private static readonly ConditionalWeakTable<ImmutableList<Assembly>, ReflectionSymbols> _assemblyToRuntimeSymbolsMap =
         new ConditionalWeakTable<ImmutableList<Assembly>, ReflectionSymbols>();
 
-    private static readonly ConditionalWeakTable<NamespaceSymbol, ReflectionSymbols> _namespaceToRuntimeSymbolsMap =
-        new ConditionalWeakTable<NamespaceSymbol, ReflectionSymbols>();
+    private static readonly ConditionalWeakTable<GlobalNamespaceSymbol, ReflectionSymbols> _namespaceToRuntimeSymbolsMap =
+        new ConditionalWeakTable<GlobalNamespaceSymbol, ReflectionSymbols>();
 
     /// <summary>
     /// Gets or creates the <see cref="ReflectionSymbols"/> associated with the assemblies
@@ -59,14 +50,6 @@ public class ReflectionSymbols
         }
 
         return runtimeSymbols;
-    }
-
-    /// <summary>
-    /// Get the <see cref="ReflectionSymbols"/> with the specified global namespace instance.
-    /// </summary>
-    public static bool TryGet(GlobalNamespaceSymbol globalNamespace, [NotNullWhen(true)] out ReflectionSymbols? runtimeSymbols)
-    {
-        return _namespaceToRuntimeSymbolsMap.TryGetValue(globalNamespace, out runtimeSymbols);
     }
 
     private static ReflectionSymbols CreateRuntimeSymbols(ImmutableList<Assembly>? assemblies)
@@ -400,18 +383,28 @@ public class ReflectionSymbols
         return name;
     }
 
-    public TypeSymbol GetType(Type type)
+    public override bool TryGetType(Type type, [NotNullWhen(true)] out TypeSymbol typeSymbol)
     {
         if (type == typeof(void))
-            return SpecialSymbols.Void;
+        {
+            typeSymbol = SpecialSymbols.Void;
+            return true;
+        }
 
         if (GetSymbol(type) is TypeSymbol cached)
-            return cached;
+        {
+            typeSymbol = cached;
+            return true;
+        }
 
         if (FindSymbol(type) is TypeSymbol found)
-            return found;
+        {
+            typeSymbol = found;
+            return true;
+        }
 
-        return (TypeSymbol)GetOrCreateSymbol(type, null)!;
+        typeSymbol = (TypeSymbol)GetOrCreateSymbol(type, null)!;
+        return true;
     }
 
     public static IReadOnlyList<MemberInfo> GetMembers(Type runtimeType) =>
@@ -662,7 +655,7 @@ public class ReflectionSymbols
             && TryGetRuntimeType(lambda.ReturnType, out var returnType, alternateSource))
         {
             Type[] types = [.. parameterTypes, returnType];
-            runtimeType = System.Linq.Expressions.Expression.GetDelegateType(types);
+            runtimeType = global::System.Linq.Expressions.Expression.GetDelegateType(types);
             return true;
         }
         else if (typeSymbol.ConstructedFrom != null

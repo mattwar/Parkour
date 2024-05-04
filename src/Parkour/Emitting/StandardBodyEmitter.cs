@@ -11,18 +11,18 @@ using Symbols;
 public class StandardBodyEmitter : BodyEmitter
 {
     protected MemberSymbol CurrentMember { get; }
-    protected SymbolCache Symbols { get; }
+    protected SymbolTable ExternalSymbols { get; }
     protected ILEmitter Emitter { get; }
     protected bool IsChecked { get; }
 
     public StandardBodyEmitter(
         MemberSymbol currentMember, 
-        SymbolCache cache, 
+        SymbolTable externalSymbols, 
         ILEmitter ilEmitter,
         bool isChecked = false)
     {
         this.CurrentMember = currentMember;
-        this.Symbols = cache;
+        this.ExternalSymbols = externalSymbols;
         this.Emitter = ilEmitter;
         this.IsChecked = isChecked;
     }
@@ -270,7 +270,7 @@ public class StandardBodyEmitter : BodyEmitter
                         if (array.IsSZArray)
                         {
                             EmitExpression(ee.Expression); // the array
-                            EmitExpressionAsType(ee.Arguments[0], this.Symbols.Int32); // the index
+                            EmitExpressionAsType(ee.Arguments[0], this.ExternalSymbols.Int32); // the index
                             EmitExpressionAsType(assign.Source, array.ElementType);
 
                             temp = (assign.ResultType != SpecialSymbols.Void)
@@ -458,7 +458,7 @@ public class StandardBodyEmitter : BodyEmitter
         var whenFalseLabel = new LabelSymbol("whenFalse");
         var endLabel = new LabelSymbol("conditionEnd");
 
-        EmitExpressionAsType(condition.Test, this.Symbols.Boolean);
+        EmitExpressionAsType(condition.Test, this.ExternalSymbols.Boolean);
         this.Emitter.EmitBranchFalse(whenFalseLabel);
 
         if (asAddress)
@@ -594,7 +594,7 @@ public class StandardBodyEmitter : BodyEmitter
                 // array instance
                 EmitExpression(element.Expression);
                 // index
-                EmitExpressionAsType(element.Arguments[0], this.Symbols.Int32);
+                EmitExpressionAsType(element.Arguments[0], this.ExternalSymbols.Int32);
                 // load me
                 this.Emitter.EmitLoadArrayElement(array.ElementType);
             }
@@ -794,7 +794,7 @@ public class StandardBodyEmitter : BodyEmitter
 
     protected virtual void EmitNewArraySize(NewArraySizeExpression newArraySize)
     {
-        EmitExpressionAsType(newArraySize.Size, this.Symbols.Int32);
+        EmitExpressionAsType(newArraySize.Size, this.ExternalSymbols.Int32);
         this.Emitter.EmitNewArray(newArraySize.ElementTypeSymbol!);
     }
 

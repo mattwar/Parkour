@@ -6,7 +6,7 @@ namespace Tiny;
 
 public class TinyLanguageService
 {
-    public static LanguageService Create(string text, GlobalNamespaceSymbol externalSymbols)
+    public static LanguageService Create(string text, SymbolTable externalSymbols)
     {
         var compilation = new TinyCompilation(text, externalSymbols);
         var document = compilation.Documents[0];

@@ -7,7 +7,7 @@ public class ExpressionBinding
     /// <summary>
     /// The external symbols given as input to binding.
     /// </summary>
-    public GlobalNamespaceSymbol ExternalSymbols { get; }
+    public SymbolTable ExternalSymbols { get; }
 
     /// <summary>
     /// The expression given as input to binding.
@@ -22,7 +22,7 @@ public class ExpressionBinding
     public ExpressionBinding(
         Expression unbound, 
         Expression bound,
-        GlobalNamespaceSymbol externalSymbols)
+        SymbolTable externalSymbols)
     {
         this.UnboundExpression = unbound;
         this.BoundExpression = bound;

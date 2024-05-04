@@ -125,11 +125,11 @@ public class DeclarationTests
 
     private void TestBind(Declaration[] declarations, string[] expectedSymbols)
     {
-        var binding = new StandardBinder().BindDeclarations(declarations.ToImmutableList(), _reflectionSymbols.GlobalNamespace);
+        var binding = new StandardBinder().BindDeclarations(declarations.ToImmutableList(), _reflectionSymbols);
 
         Assert.AreEqual(declarations.Length, binding.BoundDeclarations.Count, "bound declarations count");
 
-        var combinedSymbols = CombinedSymbols.Create([_reflectionSymbols.GlobalNamespace, binding.BoundSymbols]);
+        var combinedSymbols = CombinedSymbols.Create([_reflectionSymbols.GlobalNamespace, binding.DeclaredSymbols]);
 
         foreach (var path in expectedSymbols)
         {

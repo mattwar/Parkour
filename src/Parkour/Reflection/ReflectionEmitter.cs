@@ -2,6 +2,7 @@
 using System.Reflection.Emit;
 
 namespace Parkour.Reflection;
+
 using Emitting;
 using Symbols;
 
@@ -342,12 +343,12 @@ public class ReflectionEmitter : StandardModuleEmitter
         {
             if (builder is MethodBuilder methodBuilder)
             {
-                var bodyBuilder = new ReflectionILBuilder(this, methodBuilder.GetILGenerator());
+                var bodyBuilder = new ReflectionILEmitter(this, methodBuilder.GetILGenerator());
                 fnBuildBody(memberSymbol, bodyBuilder);
             }
             else if (builder is ConstructorBuilder constructorBuilder)
             {
-                var bodyBuilder = new ReflectionILBuilder(this, constructorBuilder.GetILGenerator());
+                var bodyBuilder = new ReflectionILEmitter(this, constructorBuilder.GetILGenerator());
                 fnBuildBody(memberSymbol, bodyBuilder);
             }
             else
@@ -521,19 +522,22 @@ public class ReflectionEmitter : StandardModuleEmitter
     /// <summary>
     /// Emits into <see cref="System.Reflection.Emit.ILGenerator"/>
     /// </summary>
-    private class ReflectionILBuilder : Emitting.ILEmitter
+    private class ReflectionILEmitter : Emitting.ILEmitter
     {
-        private readonly ReflectionEmitter _builder;
+        private readonly ReflectionEmitter _emitter;
         private readonly ILGenerator _ilgen;
 
         private readonly Dictionary<Type, Stack<LocalBuilder>> _localPool =
             new Dictionary<Type, Stack<LocalBuilder>>();
 
-        public ReflectionILBuilder(ReflectionEmitter builder, ILGenerator ilgen)
+        public ReflectionILEmitter(ReflectionEmitter builder, ILGenerator ilgen)
         {
-            _builder = builder;
+            _emitter = builder;
             _ilgen = ilgen;
         }
+
+        public override SymbolTable ExternalSymbols =>
+            _emitter._runtimeSymbols;
 
         private readonly Dictionary<LabelSymbol, Label> _labelSymbolToLabelMap =
             new Dictionary<LabelSymbol, Label>();
@@ -576,7 +580,7 @@ public class ReflectionEmitter : StandardModuleEmitter
         {
             if (!_variableToLocalMap.TryGetValue(variable, out var local))
             {
-                var variableType = _builder.GetRuntimeType(variable.VariableType);
+                var variableType = _emitter.GetRuntimeType(variable.VariableType);
                 local = AllocateLocal(variableType);
                 _variableToLocalMap.Add(variable, local);
             }
@@ -725,7 +729,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitLoadArrayElement(TypeSymbol elementTypeSymbol)
         {
-            var type = _builder.GetRuntimeType(elementTypeSymbol);
+            var type = _emitter.GetRuntimeType(elementTypeSymbol);
 
             var typeCode = Type.GetTypeCode(type);
             switch (typeCode)
@@ -779,7 +783,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitStoreArrayElement(TypeSymbol elementTypeSymbol)
         {
-            var type = _builder.GetRuntimeType(elementTypeSymbol);
+            var type = _emitter.GetRuntimeType(elementTypeSymbol);
 
             var typeCode = Type.GetTypeCode(type);
             switch (typeCode)
@@ -819,19 +823,19 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitLoadField(FieldSymbol field)
         {
-            var fi = _builder.GetRuntimeInfo<FieldInfo>(field);
+            var fi = _emitter.GetRuntimeInfo<FieldInfo>(field);
             _ilgen.Emit(OpCodes.Ldfld, fi);
         }
 
         public override void EmitLoadFieldAddress(FieldSymbol field)
         {
-            var fi = _builder.GetRuntimeInfo<FieldInfo>(field);
+            var fi = _emitter.GetRuntimeInfo<FieldInfo>(field);
             _ilgen.Emit(OpCodes.Ldflda, fi);
         }
 
         public override void EmitStoreField(FieldSymbol field)
         {
-            var fi = _builder.GetRuntimeInfo<FieldInfo>(field);
+            var fi = _emitter.GetRuntimeInfo<FieldInfo>(field);
             _ilgen.Emit(OpCodes.Stfld, fi);
         }
 
@@ -984,13 +988,13 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitLoadMethod(MethodSymbol methodSymbol)
         {
-            var info = _builder.GetRuntimeInfo<MethodInfo>(methodSymbol);
+            var info = _emitter.GetRuntimeInfo<MethodInfo>(methodSymbol);
             _ilgen.Emit(OpCodes.Ldftn, info);
         }
 
         public override void EmitLoadToken(MemberSymbol symbol)
         {
-            var info = _builder.GetRuntimeInfo(symbol);
+            var info = _emitter.GetRuntimeInfo(symbol);
             switch (info)
             {
                 case MethodInfo mi:
@@ -1013,7 +1017,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitDefault(TypeSymbol typeSymbol)
         {
-            var type = _builder.GetRuntimeType(typeSymbol);
+            var type = _emitter.GetRuntimeType(typeSymbol);
             EmitDefault(type);
         }
 
@@ -1073,7 +1077,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitCall(MethodSymbol methodSymbol)
         {
-            var method = _builder.GetRuntimeInfo<MethodInfo>(methodSymbol);
+            var method = _emitter.GetRuntimeInfo<MethodInfo>(methodSymbol);
 
             var instanceIsValueType = (method.DeclaringType != null && method.DeclaringType.IsValueType);
             var op = method.IsStatic || instanceIsValueType
@@ -1085,25 +1089,25 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitCall(ConstructorSymbol constructorSymbol)
         {
-            var info = _builder.GetRuntimeInfo<ConstructorInfo>(constructorSymbol);
+            var info = _emitter.GetRuntimeInfo<ConstructorInfo>(constructorSymbol);
             _ilgen.Emit(OpCodes.Call, info);
         }
 
         public override void EmitNew(ConstructorSymbol constructorSymbol)
         {
-            var info = _builder.GetRuntimeInfo<ConstructorInfo>(constructorSymbol);
+            var info = _emitter.GetRuntimeInfo<ConstructorInfo>(constructorSymbol);
             _ilgen.Emit(OpCodes.Newobj, info);
         }
 
         public override void EmitNewArray(TypeSymbol elementTypeSymbol)
         {
-            var info = _builder.GetRuntimeType(elementTypeSymbol);
+            var info = _emitter.GetRuntimeType(elementTypeSymbol);
             _ilgen.Emit(OpCodes.Newarr, info);
         }
 
         public override void EmitInit(TypeSymbol typeSymbol)
         {
-            var type = _builder.GetRuntimeType(typeSymbol);
+            var type = _emitter.GetRuntimeType(typeSymbol);
             var local = AllocateLocal(type);
             _ilgen.Emit(OpCodes.Ldloca, local);
             _ilgen.Emit(OpCodes.Initobj, type);
@@ -1113,8 +1117,8 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitConvert(TypeSymbol sourceTypeSymbol, TypeSymbol targetTypeSymbol, bool isChecked)
         {
-            var sourceType = _builder.GetRuntimeType(sourceTypeSymbol);
-            var targetType = _builder.GetRuntimeType(targetTypeSymbol);
+            var sourceType = _emitter.GetRuntimeType(sourceTypeSymbol);
+            var targetType = _emitter.GetRuntimeType(targetTypeSymbol);
 
             if (sourceType == targetType)
             {
@@ -1534,7 +1538,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitAdd(TypeSymbol operandTypeSymbol, bool isChecked)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Add
                 : IsUnsigned(operandType) ? OpCodes.Add_Ovf_Un
                 : OpCodes.Add_Ovf;
@@ -1543,7 +1547,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitSubtract(TypeSymbol operandTypeSymbol, bool isChecked)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Sub
                 : IsUnsigned(operandType) ? OpCodes.Sub_Ovf_Un
                 : OpCodes.Sub_Ovf;
@@ -1552,7 +1556,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitMultiply(TypeSymbol operandTypeSymbol, bool isChecked)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Mul
                 : IsUnsigned(operandType) ? OpCodes.Mul_Ovf_Un
                 : OpCodes.Mul_Ovf;
@@ -1561,14 +1565,14 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitDivide(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             var op = IsUnsigned(operandType) ? OpCodes.Div_Un : OpCodes.Div;
             _ilgen.Emit(op);
         }
 
         public override void EmitRemainder(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             var op = IsUnsigned(operandType) ? OpCodes.Rem_Un : OpCodes.Rem;
             _ilgen.Emit(op);
         }
@@ -1612,7 +1616,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitShiftLeft(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             var mask = (operandType == typeof(long) || operandType == typeof(ulong)) ? 0x3F : 0x1F;
             EmitLoadInt32(mask);
             _ilgen.Emit(OpCodes.And);
@@ -1621,7 +1625,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitShiftRight(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             var mask = (operandType == typeof(long) || operandType == typeof(ulong)) ? 0x3F : 0x1F;
             EmitLoadInt32(mask);
             _ilgen.Emit(OpCodes.And);
@@ -1635,7 +1639,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitNotEqual(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             if (operandType == typeof(bool))
             {
                 _ilgen.Emit(OpCodes.Xor);
@@ -1651,13 +1655,13 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitLessThan(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Clt_Un : OpCodes.Clt);
         }
 
         public override void EmitLessThanOrEqual(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? OpCodes.Cgt_Un : OpCodes.Cgt);
             _ilgen.Emit(OpCodes.Ldc_I4_0);
             _ilgen.Emit(OpCodes.Ceq);
@@ -1665,13 +1669,13 @@ public class ReflectionEmitter : StandardModuleEmitter
 
         public override void EmitGreaterThan(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Cgt_Un : OpCodes.Cgt);
         }
 
         public override void EmitGreaterThanOrEqual(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _builder.GetRuntimeType(operandTypeSymbol);
+            var operandType = _emitter.GetRuntimeType(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? OpCodes.Clt_Un : OpCodes.Clt);
             _ilgen.Emit(OpCodes.Ldc_I4_0);
             _ilgen.Emit(OpCodes.Ceq);
@@ -1685,12 +1689,12 @@ public class ReflectionEmitter : StandardModuleEmitter
         public override void EmitThrowAndReport(Diagnostic diagnostic)
         {
             EmitThrow(diagnostic.ToString());
-            _builder._diagnostics.Add(diagnostic);
+            _emitter._diagnostics.Add(diagnostic);
         }
 
         public override void EmitThrow(TypeSymbol exceptionTypeSymbol, string message)
         {
-            var exceptionType = _builder.GetRuntimeType(exceptionTypeSymbol);
+            var exceptionType = _emitter.GetRuntimeType(exceptionTypeSymbol);
             EmitThrow(exceptionType, message);
         }
 

@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
 namespace Parkour.Binding;
+
 using Semantics;
 using Symbols;
-using System.Xml.Linq;
 
 /// <summary>
 /// Converts unbound declarations and expressions into bound declarations and expressions
@@ -28,13 +28,13 @@ public class StandardBinder : Binder
     /// <param name="externalSymbols">The global namespace containing all external symbols.</param>
     public override DeclarationBinding BindDeclarations(
         ImmutableList<Declaration> declarations,
-        GlobalNamespaceSymbol externalSymbols)
+        SymbolTable externalSymbols)
     {
         var result = CreateSymbols(declarations, externalSymbols);
 
         BindDeclarations(result.Context.DeclarationContext, declarations);
 
-        return new BindingResult(
+        return new StandardBinding(
             declarations,
             externalSymbols,
             result.DeclaredSymbols,
@@ -48,10 +48,10 @@ public class StandardBinder : Binder
     /// </summary>
     public override ExpressionBinding BindExpression(
         Expression expression,
-        GlobalNamespaceSymbol globalNamespace)
+        SymbolTable externalSymbols)
     {
-        var scope = CreateDefaultBindingScope().AddMembers(globalNamespace);
-        return BindExpression(expression, globalNamespace, scope);
+        var scope = CreateDefaultBindingScope().AddMembers(externalSymbols.GlobalNamespace);
+        return BindExpression(expression, externalSymbols, scope);
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ public class StandardBinder : Binder
     /// </summary>
     public override ExpressionBinding BindExpression(
         Expression expression,
-        GlobalNamespaceSymbol externalSymbols,
+        SymbolTable externalSymbols,
         BindingScope scope)
     {
         var context = new ExpressionContext(CreateInitialSymbolContext(externalSymbols), null, scope);
@@ -74,7 +74,7 @@ public class StandardBinder : Binder
     /// </summary>
     protected class SymbolContext
     {
-        public SymbolCache Symbols { get; }
+        public SymbolTable Symbols { get; }
         public ImmutableList<OperatorSymbol> Operators { get; }
         public BindingScope Scope { get; }
 
@@ -83,7 +83,7 @@ public class StandardBinder : Binder
         private readonly Dictionary<string, ImmutableList<OperatorSymbol>> _kindToOperatorsMap;
 
         private SymbolContext(
-            SymbolCache symbols,
+            SymbolTable symbols,
             ImmutableList<OperatorSymbol> operators,
             BindingScope scope,
             Dictionary<Declaration, Symbol>? declarationToSymbolMap,
@@ -99,7 +99,7 @@ public class StandardBinder : Binder
         }
 
         public SymbolContext(
-            SymbolCache symbols,
+            SymbolTable symbols,
             ImmutableList<OperatorSymbol> operators,
             BindingScope scope)
             : this(symbols, operators, scope, null, null, null)
@@ -265,9 +265,9 @@ public class StandardBinder : Binder
         public SymbolContext SymbolContext { get; }
 
         /// <summary>
-        /// A cache of common symbols.
+        /// All the symbols that can be refered to by the expression.
         /// </summary>
-        public SymbolCache Symbols => SymbolContext.Symbols;
+        public SymbolTable Symbols => SymbolContext.Symbols;
 
         /// <summary>
         /// The declaring type associated with the expression
@@ -363,25 +363,27 @@ public class StandardBinder : Binder
     /// <summary>
     /// Creates the initial set of operators to use for binding.
     /// </summary>
-    protected virtual ImmutableList<OperatorSymbol> GetOperators(SymbolCache symbols) =>
+    protected virtual ImmutableList<OperatorSymbol> GetOperators(SymbolTable symbols) =>
         Operators.From(symbols).Default;
 
     /// <summary>
     /// Creates a <see cref="SymbolContext"/> with a default <see cref="BindingScope"/>
     /// </summary>
-    protected virtual SymbolContext CreateDefaultSymbolContext(GlobalNamespaceSymbol globalNamespace)
+    protected virtual SymbolContext CreateDefaultSymbolContext(SymbolTable symbols)
     {
-        var symbols = SymbolCache.From(globalNamespace);
-        return new SymbolContext(symbols, [], CreateDefaultBindingScope().AddMembers(globalNamespace));
+        return new SymbolContext(symbols, [], CreateDefaultBindingScope().AddMembers(symbols.GlobalNamespace));
     }
+
+    protected virtual SymbolTable CreateDefaultSymbolTable(GlobalNamespaceSymbol globalNamespace) =>
+        new StandardSymbolTable(globalNamespace);
 
     /// <summary>
     /// Creates the symbol context as it is initially used for binding.
     /// </summary>
-    protected virtual SymbolContext CreateInitialSymbolContext(GlobalNamespaceSymbol globalNamespace)
+    protected virtual SymbolContext CreateInitialSymbolContext(SymbolTable symbols)
     {
-        var defContext = CreateDefaultSymbolContext(globalNamespace);
-        return defContext.WithOperators(GetOperators(SymbolCache.From(globalNamespace)));
+        var defContext = CreateDefaultSymbolContext(symbols);
+        return defContext.WithOperators(GetOperators(symbols));
     }
 
     private record struct CreateSymbolsResult(
@@ -394,7 +396,7 @@ public class StandardBinder : Binder
     /// </summary>
     private CreateSymbolsResult CreateSymbols(
         IEnumerable<Declaration> declarations,
-        GlobalNamespaceSymbol externalSymbols)
+        SymbolTable externalSymbols)
     {
         GlobalNamespaceSymbol? declaredSymbols = null;
         SymbolContext? creationContext = null;
@@ -418,11 +420,11 @@ public class StandardBinder : Binder
                 });
 
                 // return both declared and external global namespaces to be combined.
-                return [externalSymbols, declaredSymbols];
+                return [externalSymbols.GlobalNamespace, declaredSymbols];
             });
 
         // symbol context for use in creating declaration symbols.
-        creationContext = CreateDefaultSymbolContext(combinedSymbols);
+        creationContext = CreateDefaultSymbolContext(CreateDefaultSymbolTable(combinedSymbols));
 
         // add operators after context is assigned
         var fullContext = creationContext.WithOperators(GetOperators(creationContext.Symbols));
@@ -1226,11 +1228,11 @@ public class StandardBinder : Binder
     /// </summary>
     public ImmutableList<TExpression> BindExpressionList<TExpression>(
         ImmutableList<TExpression> expressions,
-        GlobalNamespaceSymbol globalNamespace)
+        SymbolTable symbols)
         where TExpression : Expression
     {
-        var scope = CreateDefaultBindingScope().AddSymbol(globalNamespace);
-        return BindExpressionList(expressions, globalNamespace, scope);
+        var scope = CreateDefaultBindingScope().AddSymbol(symbols.GlobalNamespace);
+        return BindExpressionList(expressions, symbols, scope);
     }
 
     /// <summary>
@@ -1238,11 +1240,11 @@ public class StandardBinder : Binder
     /// </summary>
     public ImmutableList<TExpression> BindExpressionList<TExpression>(
         ImmutableList<TExpression> expressions,
-        GlobalNamespaceSymbol globalNamespace,
+        SymbolTable symbols,
         BindingScope scope)
         where TExpression : Expression
     {
-        var context = new ExpressionContext(CreateInitialSymbolContext(globalNamespace), null, scope);
+        var context = new ExpressionContext(CreateInitialSymbolContext(symbols), null, scope);
         return BindExpressionList(context, expressions);
     }
 
@@ -1250,7 +1252,8 @@ public class StandardBinder : Binder
     /// Binds a list of <see cref="Expression"/>
     /// </summary>
     protected virtual ImmutableList<TExpression> BindExpressionList<TExpression>(
-        ExpressionContext context, ImmutableList<TExpression> expressions)
+        ExpressionContext context, 
+        ImmutableList<TExpression> expressions)
         where TExpression : Expression
     {
         if (expressions.Count == 0)
@@ -3414,37 +3417,26 @@ public class StandardBinder : Binder
     }
     #endregion
 
-    #region BindingResult
-    private class BindingResult : DeclarationBinding
+    #region StandardBinding
+    private class StandardBinding : DeclarationBinding
     {
-        /// <summary>
-        /// All the declarations before binding
-        /// </summary>
         public override ImmutableList<Declaration> UnboundDeclarations { get; }
-
-        /// <summary>
-        /// The namespace including only external symbols
-        /// </summary>
-        public override GlobalNamespaceSymbol ExternalSymbols { get; }
-
-        /// <summary>
-        /// The namespace including only declared symbols
-        /// </summary>
-        public override GlobalNamespaceSymbol BoundSymbols { get; }
+        public override SymbolTable ExternalSymbols { get; }
+        public override GlobalNamespaceSymbol DeclaredSymbols { get; }
 
         private readonly ImmutableDictionary<Declaration, Declaration> _unboundToBoundMap;
         public readonly ImmutableDictionary<Symbol, ImmutableList<Declaration>> _symbolToUnboundDeclarationMap;
 
-        public BindingResult(
+        public StandardBinding(
             ImmutableList<Declaration> unboundDeclarations,
-            GlobalNamespaceSymbol externalSymbols,
+            SymbolTable externalSymbols,
             GlobalNamespaceSymbol declarationSymbols,
             ImmutableDictionary<Declaration, Declaration> unboundToBoundMap,
             ImmutableDictionary<Symbol, ImmutableList<Declaration>> symbolToUnboundDeclarationMap)
         {
             this.UnboundDeclarations = unboundDeclarations;
             this.ExternalSymbols = externalSymbols;
-            this.BoundSymbols = declarationSymbols;
+            this.DeclaredSymbols = declarationSymbols;
             _unboundToBoundMap = unboundToBoundMap;
             _symbolToUnboundDeclarationMap = symbolToUnboundDeclarationMap;
         }

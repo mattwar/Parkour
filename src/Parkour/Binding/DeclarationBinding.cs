@@ -16,7 +16,7 @@ public abstract class DeclarationBinding
     /// <summary>
     /// The external symbols given as input to the binder.
     /// </summary>
-    public abstract GlobalNamespaceSymbol ExternalSymbols { get; }
+    public abstract SymbolTable ExternalSymbols { get; }
 
     /// <summary>
     /// The declarations after being bound.
@@ -25,9 +25,9 @@ public abstract class DeclarationBinding
     public abstract ImmutableList<Declaration> BoundDeclarations { get; }
 
     /// <summary>
-    /// The bound symbols corresponding to the declarations.
+    /// The symbols corresponding to the bound declarations.
     /// </summary>
-    public abstract GlobalNamespaceSymbol BoundSymbols { get; }
+    public abstract GlobalNamespaceSymbol DeclaredSymbols { get; }
 
     /// <summary>
     /// All diagnostics determined during binding.

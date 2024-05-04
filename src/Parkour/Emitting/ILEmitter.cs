@@ -6,6 +6,8 @@ using Symbols;
 /// </summary>
 public abstract class ILEmitter
 {
+    public abstract SymbolTable ExternalSymbols { get; }
+
     /// <summary>
     /// Declares the start of a variable's use.
     /// </summary>
