@@ -34,6 +34,8 @@ public sealed class ClassDeclaration : MemberDeclaration
         this.ClassSymbol = classSymbol;
     }
 
+    public override Symbol? DeclaredSymbol => this.ClassSymbol;
+
     public override int ChildCount =>
         this.TypeParameters.Count
         + this.BaseTypes.Count 

@@ -36,6 +36,8 @@ public class ConstructorDeclaration : MemberDeclaration
         this.ReturnLabel = returnLabel;
     }
 
+    public override Symbol? DeclaredSymbol => this.ConstructorSymbol;
+
     public override int ChildCount =>
         this.Parameters.Count + 1;
 

@@ -5,13 +5,13 @@ using Semantics;
 public class DeclarationCompilation : Compilation
 {
     private readonly ImmutableList<ISyntaxTree> _syntaxTrees;
-    private readonly Func<ImmutableList<ISyntaxTree>, DeclarationBinding> _fnBind;
+    private readonly Func<ImmutableList<ISyntaxTree>, BindingInfo> _fnBind;
 
     public override ImmutableList<ISourceDocument> Documents { get; }
 
     public DeclarationCompilation(
         ImmutableList<ISyntaxTree> syntaxTrees,
-        Func<ImmutableList<ISyntaxTree>, DeclarationBinding> fnBind)
+        Func<ImmutableList<ISyntaxTree>, BindingInfo> fnBind)
     {
         _syntaxTrees = syntaxTrees;
         _fnBind = fnBind;
@@ -23,39 +23,45 @@ public class DeclarationCompilation : Compilation
 
     public DeclarationCompilation(
         ImmutableList<ISyntaxTree> syntaxTrees,
-        DeclarationBinding binding)
-        : this(syntaxTrees, _trees => binding)
+        BindingInfo info)
+        : this(syntaxTrees, _trees => info)
     {
     }
 
-    private DeclarationBinding? _binding;
+    public record BindingInfo(
+        ImmutableList<Declaration> BoundDeclarations);
 
-    private DeclarationBinding GetBinding()
+    private BindingInfo? _info;
+
+    private BindingInfo GetInfo()
     {
-        if (_binding == null)
+        if (_info == null)
         {
             var tmp = _fnBind(_syntaxTrees);
-            Interlocked.CompareExchange(ref _binding, tmp, null);
+            Interlocked.CompareExchange(ref _info, tmp, null);
         }
 
-        return _binding;
+        return _info;
     }
 
-    private Dictionary<ISourceDocument, Declaration>? _docToUnboundDeclarations;
+    private Dictionary<ISourceDocument, ImmutableList<Declaration>>? _docToDeclarationMap;
 
-    private Declaration? GetUnboundDeclaration(ISourceDocument document)
+    private ImmutableList<Declaration> GetBoundDeclarations(ISourceDocument document)
     {
-        if (_docToUnboundDeclarations == null)
+        if (_docToDeclarationMap == null)
         {
-            var binding = GetBinding();
-            var tmp = binding.UnboundDeclarations
+            var info = GetInfo();
+
+            var tmp = info.BoundDeclarations
                 .Where(d => d.Location != null)
-                .ToDictionary(d => d.Location!.Document, d => d);
-            Interlocked.CompareExchange(ref _docToUnboundDeclarations, tmp, null);
+                .ToLookup(d => d.Location!.Document, d => d)
+                .ToDictionary(group => group.Key, group => group.ToImmutableList());
+
+            Interlocked.CompareExchange(ref _docToDeclarationMap, tmp, null);
         }
 
-        _docToUnboundDeclarations.TryGetValue(document, out var unbound);
-        return unbound;
+        _docToDeclarationMap.TryGetValue(document, out var declarations);
+        return declarations ?? ImmutableList<Declaration>.Empty;
     }
 
     public override ISyntaxTree? GetSyntaxTree(ISourceDocument document)
@@ -77,18 +83,20 @@ public class DeclarationCompilation : Compilation
 
     public override void GetDiagnostics(ISourceDocument document, Func<Diagnostic, bool>? filter, List<Diagnostic> diagnostics)
     {
+        // get all syntax diagnostics for document
         diagnostics.AddRange(
             _syntaxTrees
-            .SelectMany(t => t.Diagnostics)
+                .Where(t => t.Document == document)
+                .SelectMany(t => t.Diagnostics)
             .Where(d => filter == null || filter(d))
             );
 
-        var binding = GetBinding();
-
-        if (GetUnboundDeclaration(document) is { } unbound
-            && binding.GetBoundDeclaration(unbound) is { } bound)
+        // get all semantic diagnostics for document
+        var info = GetInfo();
+        var docDeclarations = GetBoundDeclarations(document);
+        foreach (var decl in docDeclarations)
         {
-            bound.GetContainedDiagnostics(filter, diagnostics);
+            decl.GetContainedDiagnostics(filter, diagnostics);
         }
     }
 }

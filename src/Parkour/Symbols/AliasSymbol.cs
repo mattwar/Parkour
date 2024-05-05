@@ -15,6 +15,6 @@ public class AliasSymbol : ContainerSymbol
         AliasedSymbol = aliasedSymbol;
     }
 
-    public override int DeclarationCount => 0;
-    public override Symbol? GetDeclaration(int index) => null;
+    public override int DeclaredSymbolCount => 0;
+    public override Symbol? GetDeclaredSymbol(int index) => null;
 }

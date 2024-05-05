@@ -35,6 +35,8 @@ public sealed class IndexerDeclaration : MemberDeclaration
         this.IndexerSymbol = indexerSymbol;
     }
 
+    public override Symbol? DeclaredSymbol => this.IndexerSymbol;
+
     public override int ChildCount => 3;
 
     public override SemanticElement? GetChild(int index) =>

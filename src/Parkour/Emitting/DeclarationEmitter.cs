@@ -1,18 +1,17 @@
 ﻿namespace Parkour.Emitting;
 
+using Semantics;
 using Symbols;
 
 /// <summary>
-/// Emits types as a module.
+/// Emits declarations into a module.
 /// </summary>
-public abstract class ModuleEmitter
+public abstract class DeclarationEmitter
 {
     /// <summary>
-    /// Emits all symbols in the global namespace as a module.
+    /// Emits all declarations.
     /// </summary>
-    public abstract EmitResult EmitModule(
-        GlobalNamespaceSymbol declaredSymbols,
-        Action<MemberSymbol, ILEmitter> fnBuildBody);
+    public abstract EmitResult Emit(ImmutableList<Declaration> declarations);
 
     public class EmitResult
     {

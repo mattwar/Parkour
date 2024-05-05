@@ -157,10 +157,10 @@ public class MethodSymbol : MemberSymbol
         : this.TypeArguments.Count > 0 ? this.TypeArguments.Count
         : 0;
 
-    public override int DeclarationCount =>
+    public override int DeclaredSymbolCount =>
         this.TypeParameters.Count + this.Parameters.Count;
 
-    public override Symbol? GetDeclaration(int index)
+    public override Symbol? GetDeclaredSymbol(int index)
     {
         if (index < this.TypeParameters.Count)
             return this.TypeParameters[index];
@@ -173,15 +173,15 @@ public class MethodSymbol : MemberSymbol
         return null;
     }
 
-    public override int ReferenceCount => 
-        this.DeclarationCount + 1;
+    public override int ReferencedSymbolCount => 
+        this.DeclaredSymbolCount + 1;
 
-    public override Symbol? GetReference(int index)
+    public override Symbol? GetReferencedSymbol(int index)
     {
-        if (index < this.DeclarationCount)
-            return GetDeclaration(index);
+        if (index < this.DeclaredSymbolCount)
+            return GetDeclaredSymbol(index);
         
-        index -= this.DeclarationCount;
+        index -= this.DeclaredSymbolCount;
         
         if (index == 0)
             return this.ReturnType;

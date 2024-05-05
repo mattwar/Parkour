@@ -12,10 +12,10 @@ public sealed class GroupSymbol : TypeSymbol
         Symbols = symbols;
     }
 
-    public override int ReferenceCount =>
+    public override int ReferencedSymbolCount =>
         this.Symbols.Count;
 
-    public override Symbol? GetReference(int index)
+    public override Symbol? GetReferencedSymbol(int index)
     {
         if (index < this.Symbols.Count)
             return this.Symbols[index];

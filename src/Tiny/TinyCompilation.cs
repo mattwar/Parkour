@@ -9,12 +9,12 @@ namespace Tiny;
 public class TinyCompilation : ExpressionCompilation
 {
     public TinyCompilation(SyntaxTree tinyTree, SymbolTable externalSymbols)
-        : base(tinyTree, externalSymbols, Bind)
+        : base(tinyTree, _tree => Bind(_tree, externalSymbols))
     {
     }
 
     public TinyCompilation(string tinyText, SymbolTable externalSymbols)
-        : base(Parse(tinyText), externalSymbols, Bind)
+        : base(Parse(tinyText), _tree => Bind(_tree, externalSymbols))
     {
     }
 
@@ -23,10 +23,11 @@ public class TinyCompilation : ExpressionCompilation
         return new TinyParser().Parse("", tinyText);
     }
 
-    private static ExpressionBinding Bind(ISyntaxTree tree, SymbolTable externalSymbols)
+    private static BindingInfo Bind(ISyntaxTree tree, SymbolTable externalSymbols)
     {
         var tinyTree = (SyntaxTree)tree;
         var unbound = new TinyTranslator().Translate(tinyTree.Root);
-        return new StandardBinder().BindExpression(unbound, externalSymbols);
+        var binding = new StandardDeclarationBinder().BindExpression(unbound, externalSymbols);
+        return new BindingInfo(binding.Expression);
     }
 }

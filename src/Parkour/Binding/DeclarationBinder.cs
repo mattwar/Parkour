@@ -1,9 +1,9 @@
-﻿using Parkour.Semantics;
-using Parkour.Symbols;
+﻿namespace Parkour.Binding;
 
-namespace Parkour.Binding;
+using Semantics;
+using Symbols;
 
-public abstract class Binder
+public abstract class DeclarationBinder
 {
     /// <summary>
     /// Creates symbols for all symbol declarations,

@@ -30,8 +30,8 @@ public class OperatorSymbol : DelegateSymbol
         this.UncheckMethod = uncheckedMethod;
     }
 
-    public override int ReferenceCount => 2;
-    public override Symbol? GetReference(int index) =>
+    public override int ReferencedSymbolCount => 2;
+    public override Symbol? GetReferencedSymbol(int index) =>
         index switch
         {
             0 => this.CheckedMethod,

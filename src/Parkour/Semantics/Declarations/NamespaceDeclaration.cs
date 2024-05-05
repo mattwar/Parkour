@@ -22,8 +22,10 @@ public class NamespaceDeclaration : MemberDeclaration
             diagnostics)
     {
         this.Declarations = declarations;
-        this.NamespaceSymbol = namespaceSymbol;
+        this.NamespaceSymbol = namespaceSymbol;    
     }
+
+    public override Symbol? DeclaredSymbol => this.NamespaceSymbol;
 
     public bool IsGlobalNamespace => 
         this.Name == "";

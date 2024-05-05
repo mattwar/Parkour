@@ -4,16 +4,17 @@ using System.Reflection.Emit;
 namespace Parkour.Reflection;
 
 using Emitting;
+using Semantics;
 using Symbols;
 
 /// <summary>
-/// A <see cref="ModuleEmitter"/> that emits into a <see cref="ModuleBuilder"/>
+/// A <see cref="DeclarationEmitter"/> that emits into a <see cref="ModuleBuilder"/>
 /// </summary>
-public class ReflectionEmitter : StandardModuleEmitter
+public class ReflectionEmitter : StandardDeclarationEmitter
 {
     private readonly AssemblyBuilder _assemblyBuilder;
     private readonly ModuleBuilder _moduleBuilder;
-    private readonly ReflectionSymbols _runtimeSymbols;
+    private readonly ReflectionSymbols _symbols;
     private readonly List<Diagnostic> _diagnostics;
 
     private Dictionary<Symbol, object> _symbolToBuilder =
@@ -23,22 +24,22 @@ public class ReflectionEmitter : StandardModuleEmitter
     public ModuleBuilder Module => _moduleBuilder;
 
     public ReflectionEmitter(
-        ReflectionSymbols reflectionSymbols,
+        ReflectionSymbols symbols,
         AssemblyBuilder assemblyBuilder,
         ModuleBuilder moduleBuilder)
     {
-        _runtimeSymbols = reflectionSymbols;
+        _symbols = symbols;
         _assemblyBuilder = assemblyBuilder;
         _moduleBuilder = moduleBuilder;
         _diagnostics = new List<Diagnostic>();
     }
 
     public ReflectionEmitter(
-        ReflectionSymbols reflectionSymbols,
+        ReflectionSymbols symbols,
         AssemblyBuilder assemblyBuilder,
         string? moduleName = null)
         : this(
-              reflectionSymbols,
+              symbols,
               assemblyBuilder,
               assemblyBuilder.DefineDynamicModule(
                   moduleName ?? $"Module{assemblyBuilder.GetModules().Length}")
@@ -47,17 +48,17 @@ public class ReflectionEmitter : StandardModuleEmitter
     }
 
     public ReflectionEmitter(
-        ReflectionSymbols reflectionSymbols,
+        ReflectionSymbols symbols,
         string assemblyName)
         : this(
-              reflectionSymbols,
+              symbols,
               AssemblyBuilder.DefineDynamicAssembly(
                 new AssemblyName(assemblyName),
                 AssemblyBuilderAccess.RunAndCollect))
     {
     }
 
-    protected override EmitResult EmitModule()
+    protected override EmitResult FinishEmit()
     {
         // TODO: do these need to be in topographical order?
         var typeBuilders = _symbolToBuilder
@@ -337,28 +338,34 @@ public class ReflectionEmitter : StandardModuleEmitter
         }
     }
 
-    protected override void EmitMemberBody(MemberSymbol memberSymbol, Action<MemberSymbol, Emitting.ILEmitter> fnBuildBody)
+    protected override void EmitMemberBody(MemberSymbol memberSymbol, Declaration declaration)
     {
         if (_symbolToBuilder.TryGetValue(memberSymbol, out var builder))
         {
-            if (builder is MethodBuilder methodBuilder)
+            if (declaration is MethodDeclaration methodDecl
+                && memberSymbol is MethodSymbol methodSymbol
+                && builder is MethodBuilder methodBuilder)
             {
-                var bodyBuilder = new ReflectionILEmitter(this, methodBuilder.GetILGenerator());
-                fnBuildBody(memberSymbol, bodyBuilder);
+                var ilEmitter = new ReflectionILEmitter(this, methodBuilder.GetILGenerator());
+                var bodyBuilder = new StandardBodyBuilder(methodSymbol, ilEmitter);
+                bodyBuilder.BuildBody(methodDecl.Body, methodSymbol.ReturnType, methodDecl.ReturnLabel);
             }
-            else if (builder is ConstructorBuilder constructorBuilder)
+            else if (declaration is ConstructorDeclaration constructorDecl
+                && memberSymbol is ConstructorSymbol constructorSymbol
+                && builder is ConstructorBuilder constructorBuilder)
             {
-                var bodyBuilder = new ReflectionILEmitter(this, constructorBuilder.GetILGenerator());
-                fnBuildBody(memberSymbol, bodyBuilder);
+                var ilEmitter = new ReflectionILEmitter(this, constructorBuilder.GetILGenerator());
+                var bodyBuilder = new StandardBodyBuilder(constructorSymbol, ilEmitter);
+                bodyBuilder.BuildBody(constructorDecl.Body, SpecialSymbols.Void, constructorDecl.ReturnLabel);
             }
             else
             {
-                _diagnostics.Add(new Diagnostic($"Cannot emit body for unsupported member '{memberSymbol.FullName}'"));
+                _diagnostics.Add(new Diagnostic($"Cannot emit body for unsupported or invalid symbol '{memberSymbol.FullName}'"));
             }
         }
         else
         {
-            _diagnostics.Add(new Diagnostic($"Cannot emit body for undeclared member '{memberSymbol.FullName}'"));
+            _diagnostics.Add(new Diagnostic($"Cannot emit body for undeclared symbol '{memberSymbol.FullName}'"));
         }
     }
 
@@ -386,7 +393,7 @@ public class ReflectionEmitter : StandardModuleEmitter
 
     private object? GetRuntimeInfo(Symbol symbol)
     {
-        _runtimeSymbols.TryGetRuntimeInfo(symbol, out var info, GetFromBuilders);
+        _symbols.TryGetRuntimeInfo(symbol, out var info, GetFromBuilders);
         return info;
 
         object? GetFromBuilders(Symbol symbol)
@@ -537,7 +544,7 @@ public class ReflectionEmitter : StandardModuleEmitter
         }
 
         public override SymbolTable ExternalSymbols =>
-            _emitter._runtimeSymbols;
+            _emitter._symbols;
 
         private readonly Dictionary<LabelSymbol, Label> _labelSymbolToLabelMap =
             new Dictionary<LabelSymbol, Label>();

@@ -349,7 +349,7 @@ public class EmitterTests
 
     private void TestEmit(List<Declaration> declarations, Expression? test, Action<object?>? fnCheckResult)
     {
-        var binder = new StandardBinder();
+        var binder = new StandardDeclarationBinder();
         var imports = ReflectionSymbols.CurrentMscorlib;
 
         if (test != null)
@@ -366,11 +366,11 @@ public class EmitterTests
             Assert.Fail($"Unexpected diagnostics:\n{dxs}");
         }
 
-        var lowerer = new StandardLowerer();
-        var lowering = lowerer.Lower(binding);
+        var lowerer = new StandardDeclarationLowerer();
+        var lowering = lowerer.LowerDeclarations(binding.Declarations, imports);
 
         var emitter = new ReflectionEmitter(imports, "test_assembly");
-        var result = emitter.EmitModule(lowering);
+        var result = emitter.Emit(lowering.Declarations);
 
         if (result.Diagnostics.Count > 0)
         {
@@ -378,7 +378,7 @@ public class EmitterTests
         }
 
         // verify all delared symbols are represented in the assembly
-        VerifySymbols(emitter.Assembly, lowering.DeclaredSymbols);
+        VerifyDeclarations(emitter.Assembly, lowering.Declarations);
 
 #if false
         var generator = new Lokad.ILPack.AssemblyGenerator();
@@ -400,31 +400,29 @@ public class EmitterTests
         }
     }
 
-    private void VerifySymbols(Assembly assembly, Symbol symbol)
+    private void VerifyDeclarations(Assembly assembly, ImmutableList<Declaration> declarations)
     {
-        switch (symbol)
+        foreach (var decl in declarations)
         {
-            case NamespaceSymbol ns:
-                foreach (var member in ns.Members)
-                {
-                    VerifySymbols(assembly, member);
-                }
-                break;
+            Verify(decl);
+        }
 
-            case TypeSymbol ts:
-                var type = assembly.GetType(ts.FullName);
+        void Verify(Declaration decl)
+        {
+            if (decl is NamespaceDeclaration nd)
+            {
+                VerifyDeclarations(assembly, nd.Declarations);
+            }
+            else if (decl is ClassDeclaration cd
+                && cd.ClassSymbol is ClassSymbol cs)
+            {
+                var type = assembly.GetType(cs.FullName);
                 if (type == null)
                 {
-                    Assert.Fail($"Did not find type for '{ts.FullName}'");
+                    Assert.Fail($"Did not find type for '{cs.FullName}'");
                 }
-
-                foreach (var member in ts.Members)
-                {
-                    VerifySymbols(type, member);
-                }
-
-                break;
-         }
+            }
+        }
     }
 
     private static BindingFlags GetBindingFlags(MemberSymbol symbol)

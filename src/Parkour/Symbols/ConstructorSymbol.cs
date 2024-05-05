@@ -50,10 +50,10 @@ public class ConstructorSymbol : MemberSymbol
     {
     }
 
-    public override int DeclarationCount =>
+    public override int DeclaredSymbolCount =>
         this.Parameters.Count;
 
-    public override Symbol? GetDeclaration(int index) =>
+    public override Symbol? GetDeclaredSymbol(int index) =>
         this.Parameters[index];
 
     internal protected override ConstructorSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)

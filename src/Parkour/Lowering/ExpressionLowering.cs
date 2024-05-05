@@ -6,20 +6,20 @@ namespace Parkour.Lowering;
 public class ExpressionLowering
 {
     /// <summary>
-    /// The input <see cref="ExpressionBinding"/> for the lowering
-    /// </summary>
-    public ExpressionBinding Binding { get; }
-
-    /// <summary>
     /// The lowered expression.
     /// </summary>
     public Expression Expression { get; }
 
+    /// <summary>
+    /// Any diagnostics introduced during lowering.
+    /// </summary>
+    public ImmutableList<Diagnostic> Diagnostics { get; }
+
     public ExpressionLowering(
-        ExpressionBinding binding,
-        Expression expression)
+        Expression expression,
+        ImmutableList<Diagnostic> diagnostics)
     {
-        this.Binding = binding;
         this.Expression = expression;
+        this.Diagnostics = diagnostics;
     }
 }

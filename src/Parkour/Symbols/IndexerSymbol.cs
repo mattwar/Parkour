@@ -90,9 +90,9 @@ public sealed class IndexerSymbol : MemberSymbol
     {
     }
 
-    public override int DeclarationCount => 2;
+    public override int DeclaredSymbolCount => 2;
 
-    public override Symbol? GetDeclaration(int index) =>
+    public override Symbol? GetDeclaredSymbol(int index) =>
         index switch
         {
             0 => GetMethod,
@@ -100,14 +100,14 @@ public sealed class IndexerSymbol : MemberSymbol
             _ => null
         };
 
-    public override int ReferenceCount => this.DeclarationCount + 1;
+    public override int ReferencedSymbolCount => this.DeclaredSymbolCount + 1;
 
-    public override Symbol? GetReference(int index)
+    public override Symbol? GetReferencedSymbol(int index)
     {
-        if (index < this.DeclarationCount)
-            return this.GetDeclaration(index);
+        if (index < this.DeclaredSymbolCount)
+            return this.GetDeclaredSymbol(index);
 
-        index -= this.DeclarationCount;
+        index -= this.DeclaredSymbolCount;
 
         return (index == 0) ? this.ElementType : null;
     }

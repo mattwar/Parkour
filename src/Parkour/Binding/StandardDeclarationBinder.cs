@@ -9,15 +9,15 @@ using Symbols;
 /// Converts unbound declarations and expressions into bound declarations and expressions
 /// with symbols and diagnostics assigned.
 /// </summary>
-public class StandardBinder : Binder
+public class StandardDeclarationBinder : DeclarationBinder
 {
     /// <summary>
-    /// Creates a new instance of <see cref="StandardBinder"/> that 
+    /// Creates a new instance of <see cref="StandardDeclarationBinder"/> that 
     /// converts unbound declarations and expressions into bound declarations and expressions,
     /// by creating new instances of each with declared or referenced symbols assigned
     /// and including any diagnostics.
     /// </summary>
-    public StandardBinder()
+    public StandardDeclarationBinder()
     {
     }
 
@@ -31,16 +31,11 @@ public class StandardBinder : Binder
         SymbolTable externalSymbols)
     {
         var result = CreateSymbols(declarations, externalSymbols);
-
-        BindDeclarations(result.Context.DeclarationContext, declarations);
+        var boundDeclarations = BindDeclarations(result.Context.DeclarationContext, declarations);
 
         return new StandardBinding(
-            declarations,
-            externalSymbols,
-            result.DeclaredSymbols,
-            result.Context.GetUnboundToBoundDeclarationMap(),
-            result.Context.GetSymbolToUnboundDeclarationMap()
-            );
+            boundDeclarations,
+            result.CombinedSymbols);
     }
 
     /// <summary>
@@ -64,7 +59,9 @@ public class StandardBinder : Binder
     {
         var context = new ExpressionContext(CreateInitialSymbolContext(externalSymbols), null, scope);
         var boundExpression = BindExpression(context, expression);
-        return new ExpressionBinding(expression, boundExpression, externalSymbols);
+        var dx = new List<Diagnostic>();
+        boundExpression.GetContainedDiagnostics(dx);
+        return new ExpressionBinding(boundExpression, dx.ToImmutableList());
     }
 
     #region binding contexts
@@ -374,7 +371,7 @@ public class StandardBinder : Binder
         return new SymbolContext(symbols, [], CreateDefaultBindingScope().AddMembers(symbols.GlobalNamespace));
     }
 
-    protected virtual SymbolTable CreateDefaultSymbolTable(GlobalNamespaceSymbol globalNamespace) =>
+    protected virtual SymbolTable CreateSymbolTable(GlobalNamespaceSymbol globalNamespace) =>
         new StandardSymbolTable(globalNamespace);
 
     /// <summary>
@@ -388,7 +385,7 @@ public class StandardBinder : Binder
 
     private record struct CreateSymbolsResult(
         GlobalNamespaceSymbol DeclaredSymbols,
-        GlobalNamespaceSymbol CombinedSymbols,
+        SymbolTable CombinedSymbols,
         SymbolContext Context);
 
     /// <summary>
@@ -424,7 +421,7 @@ public class StandardBinder : Binder
             });
 
         // symbol context for use in creating declaration symbols.
-        creationContext = CreateDefaultSymbolContext(CreateDefaultSymbolTable(combinedSymbols));
+        creationContext = CreateDefaultSymbolContext(CreateSymbolTable(combinedSymbols));
 
         // add operators after context is assigned
         var fullContext = creationContext.WithOperators(GetOperators(creationContext.Symbols));
@@ -437,7 +434,7 @@ public class StandardBinder : Binder
         // this side effect of building a map of declaration->symbol for use in binding
         declaredSymbols.WalkDeclarations(s => { });
 
-        return new CreateSymbolsResult(declaredSymbols, combinedSymbols, fullContext);
+        return new CreateSymbolsResult(declaredSymbols, CreateSymbolTable(combinedSymbols), fullContext);
     }
 
     /// <summary>
@@ -582,7 +579,7 @@ public class StandardBinder : Binder
                 return null;
 
             default:
-                throw new InvalidOperationException($"Unhandled declaration type '{declaration.GetType().Name}' in {nameof(StandardBinder)}.{nameof(CreateDeclarationSymbol)}");
+                throw new InvalidOperationException($"Unhandled declaration type '{declaration.GetType().Name}' in {nameof(StandardDeclarationBinder)}.{nameof(CreateDeclarationSymbol)}");
         }
     }
 
@@ -732,44 +729,51 @@ public class StandardBinder : Binder
     {
         Declaration bound;
 
+        context.TryGetSymbol(declaration, out var symbol);
+
         switch (declaration)
         {
             case ClassDeclaration cld:
-                bound = BindClass(context, cld);
+                bound = BindClass(context, cld, symbol as ClassSymbol);
                 break;
             case ConstructorDeclaration cd:
-                bound = BindConstructor(context, cd);
+                bound = BindConstructor(context, cd, symbol as ConstructorSymbol);
                 break;
             case FieldDeclaration fd:
-                bound = BindField(context, fd);
+                bound = BindField(context, fd, symbol as FieldSymbol);
                 break;
             case IndexerDeclaration id:
-                bound = BindIndexer(context, id);
+                bound = BindIndexer(context, id, symbol as IndexerSymbol);
                 break;
             case MethodDeclaration md:
-                bound = BindMethod(context, md);
+                bound = BindMethod(context, md, symbol as MethodSymbol);
                 break;
             case NamespaceDeclaration nd:
-                bound = BindNamespace(context, nd);
+                bound = BindNamespace(context, nd, symbol as NamespaceSymbol);
                 break;
             case ParameterDeclaration prd:
-                bound = BindParameter(context, prd);
+                bound = BindParameter(context, prd, symbol as ParameterSymbol);
                 break;
             case PropertyDeclaration pd:
-                bound = BindProperty(context, pd);
+                bound = BindProperty(context, pd, symbol as PropertySymbol);
                 break;
             case TypeParameterDeclaration tp:
-                bound = BindTypeParameter(context, tp);
+                bound = BindTypeParameter(context, tp, symbol as TypeParameterSymbol);
                 break;
             case UsingDeclaration ud:
                 bound = BindUsing(context, ud);
                 break;
             default:
-                throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(StandardBinder)}.{nameof(BindDeclaration)}");
+                throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(StandardDeclarationBinder)}.{nameof(BindDeclaration)}");
         }
 
         // record unbound to bound declaration mapping
         context.Map(declaration, bound);
+
+        if (symbol != null)
+        {
+            SymbolDeclarations.AddBoundDeclaration(symbol, bound);
+        }
 
         return bound;
     }
@@ -791,10 +795,9 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual ClassDeclaration BindClass(
         DeclarationContext context,
-        ClassDeclaration cd)
+        ClassDeclaration cd,
+        ClassSymbol? classSymbol)
     {
-        var classSymbol = context.TryGetSymbol(cd, out var symbol) ? symbol as TypeSymbol : null;
-
         var typeParameters = BindDeclarations(context, cd.TypeParameters);
 
         // put class symbol in scope for baseTypes and members
@@ -836,9 +839,9 @@ public class StandardBinder : Binder
 
     protected virtual ConstructorDeclaration BindConstructor(
         DeclarationContext context,
-        ConstructorDeclaration cd)
+        ConstructorDeclaration cd,
+        ConstructorSymbol? constructorSymbol)
     {
-        var constructorSymbol = context.TryGetSymbol(cd, out var symbol) ? symbol as ConstructorSymbol : null;
         var parameters = BindDeclarations(context, cd.Parameters);
         var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, SpecialSymbols.Void);
         var bodyContext = context.ExpressionContext.WithScope(context.Scope.AddSymbol(returnLabel));
@@ -870,9 +873,9 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual FieldDeclaration BindField(
         DeclarationContext context,
-        FieldDeclaration fd)
+        FieldDeclaration fd,
+        FieldSymbol? fieldSymbol)
     {
-        var fieldSymbol = context.TryGetSymbol(fd, out var symbol) ? symbol as FieldSymbol : null;
         var fieldType = BindExpression(context.ExpressionContext, fd.FieldType);
         var initializer = fd.Initializer != null
             ? BindExpression(context.ExpressionContext, fd.Initializer)
@@ -896,10 +899,9 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual IndexerDeclaration BindIndexer(
         DeclarationContext context,
-        IndexerDeclaration id)
+        IndexerDeclaration id,
+        IndexerSymbol? indexerSymbol)
     {
-        var indexerSymbol = context.TryGetSymbol(id, out var symbol) ? symbol as IndexerSymbol : null;
-
         var elementType = BindExpression(context.ExpressionContext, id.ElementType);
 
         var methodContext = context;
@@ -929,10 +931,9 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual MethodDeclaration BindMethod(
         DeclarationContext context,
-        MethodDeclaration md)
+        MethodDeclaration md,
+        MethodSymbol? methodSymbol)
     {
-        var methodSymbol = context.TryGetSymbol(md, out var symbol) ? symbol as MethodSymbol : null;
-
         var typeParameters = BindDeclarations(context, md.TypeParameters);
         var parameters = BindDeclarations(context, md.Parameters);
         var returnType = BindExpression(context.ExpressionContext, md.ReturnType);
@@ -971,10 +972,9 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual NamespaceDeclaration BindNamespace(
         DeclarationContext context,
-        NamespaceDeclaration nd)
+        NamespaceDeclaration nd,
+        NamespaceSymbol? nsSymbol)
     {
-        var nsSymbol = context.TryGetSymbol(nd, out var symbol) ? symbol as NamespaceSymbol : null;
-
         var bodyContext = context;
         if (nsSymbol != null)
         {
@@ -1018,10 +1018,9 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual ParameterDeclaration BindParameter(
         DeclarationContext context,
-        ParameterDeclaration pd)
+        ParameterDeclaration pd,
+        ParameterSymbol? parameterSymbol)
     {
-        var parameterSymbol = context.TryGetSymbol(pd, out var symbol) ? symbol as ParameterSymbol : null;
-
         var parameterType = pd.ParameterType != null
             ? BindExpression(context.ExpressionContext, pd.ParameterType)
             : null;
@@ -1042,10 +1041,9 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual PropertyDeclaration BindProperty(
         DeclarationContext context,
-        PropertyDeclaration pd)
+        PropertyDeclaration pd,
+        PropertySymbol? propertySymbol)
     {
-        var propertySymbol = context.TryGetSymbol(pd, out var symbol) ? symbol as PropertySymbol : null;
-
         var propertyType = BindExpression(context.ExpressionContext, pd.PropertyType);
 
         var backingField = pd.BackingField != null
@@ -1087,18 +1085,17 @@ public class StandardBinder : Binder
     /// </summary>
     protected virtual TypeParameterDeclaration BindTypeParameter(
         DeclarationContext context,
-        TypeParameterDeclaration tp)
+        TypeParameterDeclaration typeParameter,
+        TypeParameterSymbol? typeParameterSymbol)
     {
-        var tpSymbol = context.TryGetSymbol(tp, out var symbol) ? symbol as TypeParameterSymbol : null;
-
-        if (tp.TypeParameterSymbol == tpSymbol)
-            return tp;
+        if (typeParameter.TypeParameterSymbol == typeParameterSymbol)
+            return typeParameter;
 
         return new TypeParameterDeclaration(
-            tp.Name,
-            tp.Location,
-            tpSymbol,
-            tp.Diagnostics);
+            typeParameter.Name,
+            typeParameter.Location,
+            typeParameterSymbol,
+            typeParameter.Diagnostics);
     }
     #endregion
     
@@ -1219,7 +1216,7 @@ public class StandardBinder : Binder
                 return BindVoid(context, vex);
 
             default:
-                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(StandardBinder)}.BindExpression");
+                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(StandardDeclarationBinder)}.BindExpression");
         }
     }
 
@@ -3420,74 +3417,16 @@ public class StandardBinder : Binder
     #region StandardBinding
     private class StandardBinding : DeclarationBinding
     {
-        public override ImmutableList<Declaration> UnboundDeclarations { get; }
-        public override SymbolTable ExternalSymbols { get; }
-        public override GlobalNamespaceSymbol DeclaredSymbols { get; }
-
-        private readonly ImmutableDictionary<Declaration, Declaration> _unboundToBoundMap;
-        public readonly ImmutableDictionary<Symbol, ImmutableList<Declaration>> _symbolToUnboundDeclarationMap;
+        public override ImmutableList<Declaration> Declarations { get; }
+        public override SymbolTable Symbols { get; }
 
         public StandardBinding(
-            ImmutableList<Declaration> unboundDeclarations,
-            SymbolTable externalSymbols,
-            GlobalNamespaceSymbol declarationSymbols,
-            ImmutableDictionary<Declaration, Declaration> unboundToBoundMap,
-            ImmutableDictionary<Symbol, ImmutableList<Declaration>> symbolToUnboundDeclarationMap)
+            ImmutableList<Declaration> declarations,
+            SymbolTable symbols)
         {
-            this.UnboundDeclarations = unboundDeclarations;
-            this.ExternalSymbols = externalSymbols;
-            this.DeclaredSymbols = declarationSymbols;
-            _unboundToBoundMap = unboundToBoundMap;
-            _symbolToUnboundDeclarationMap = symbolToUnboundDeclarationMap;
-        }
 
-        private ImmutableList<Declaration>? _boundDeclarations;
-
-        /// <summary>
-        /// All the declarations after binding
-        /// </summary>
-        public override ImmutableList<Declaration> BoundDeclarations
-        {
-            get
-            {
-                if (_boundDeclarations == null)
-                {
-                    var tmp = UnboundDeclarations
-                        .Select(u => GetBoundDeclaration(u))
-                        .OfType<Declaration>()
-                        .ToImmutableList();
-                    Interlocked.CompareExchange(ref _boundDeclarations, tmp, null);
-                }
-
-                return _boundDeclarations ?? ImmutableList<Declaration>.Empty;
-            }
-        }
-
-        public override Declaration? GetBoundDeclaration(Declaration unboundDeclaration)
-        {
-            _unboundToBoundMap.TryGetValue(unboundDeclaration, out var boundDeclaration);
-            return boundDeclaration;
-        }
-
-
-        public ImmutableDictionary<Symbol, ImmutableList<Declaration>> _symbolToBoundDeclarationMap =
-            ImmutableDictionary<Symbol, ImmutableList<Declaration>>.Empty;
-
-        /// <summary>
-        /// Get the bound declarations associated with a declared symbol.
-        /// </summary>
-        public override ImmutableList<Declaration> GetSymbolDeclarations(Symbol symbol)
-        {
-            if (!_symbolToBoundDeclarationMap.TryGetValue(symbol, out var boundDecls))
-            {
-                if (_symbolToUnboundDeclarationMap.TryGetValue(symbol, out var unboundDecls))
-                {
-                    var tmp = unboundDecls.Select(u => GetBoundDeclaration(u)!).ToImmutableList();
-                    boundDecls = ImmutableInterlocked.GetOrAdd(ref _symbolToBoundDeclarationMap, symbol, tmp);
-                }
-            }
-
-            return boundDecls ?? ImmutableList<Declaration>.Empty;
+            this.Declarations = declarations;
+            this.Symbols = symbols;
         }
 
         private ImmutableList<Diagnostic>? _diagnostics;
@@ -3500,7 +3439,7 @@ public class StandardBinder : Binder
                 {
                     var dxs = new List<Diagnostic>();
 
-                    foreach (var bd in this.BoundDeclarations)
+                    foreach (var bd in this.Declarations)
                     {
                         bd.GetContainedDiagnostics(dxs);
                     }

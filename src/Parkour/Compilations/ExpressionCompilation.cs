@@ -1,43 +1,43 @@
 ﻿namespace Parkour.Compilations;
-using Binding;
-using Symbols;
+
+using Semantics;
 
 public class ExpressionCompilation : Compilation
 {
     public readonly ISyntaxTree _syntaxTree;
-    public readonly SymbolTable _externalSymbols;
-    public readonly Func<ISyntaxTree, SymbolTable, ExpressionBinding> _fnBind;
+    public readonly Func<ISyntaxTree, BindingInfo> _fnBind;
     public override ImmutableList<ISourceDocument> Documents { get; }
 
     public ExpressionCompilation(
         ISyntaxTree syntaxTree,
-        SymbolTable externalSymbols,
-        Func<ISyntaxTree, SymbolTable, ExpressionBinding> fnBind)
+        Func<ISyntaxTree, BindingInfo> fnBind)
     {
         _syntaxTree = syntaxTree;
-        _externalSymbols = externalSymbols;
         _fnBind = fnBind;
         this.Documents = [syntaxTree.Document];
     }
 
     public ExpressionCompilation(
         ISyntaxTree tree,
-        ExpressionBinding binding)
-        : this(tree, binding.ExternalSymbols, (_tree, _externals) => binding)
+        BindingInfo bindingInfo)
+        : this(tree, _tree => bindingInfo)
     {
     }
 
-    public ExpressionBinding? _binding;
+    public record BindingInfo(
+        Expression BoundExpression);
 
-    private ExpressionBinding GetBinding()
+    public BindingInfo? _info;
+
+    private BindingInfo GetInfo()
     {
-        if (_binding == null)
+        if (_info == null)
         {
-            var tmp = _fnBind(_syntaxTree, _externalSymbols);
-            Interlocked.CompareExchange(ref _binding, tmp, null);
+            var tmp = _fnBind(_syntaxTree);
+            Interlocked.CompareExchange(ref _info, tmp, null);
         }
 
-        return _binding;
+        return _info;
     }
 
     public override ISyntaxTree? GetSyntaxTree(ISourceDocument document)
@@ -58,7 +58,7 @@ public class ExpressionCompilation : Compilation
         if (document == _syntaxTree.Document)
         {
             diagnostics.AddRange(_syntaxTree.Diagnostics.Where(d => filter == null || filter(d)));
-            var binding = GetBinding();
+            var binding = GetInfo();
             binding.BoundExpression.GetContainedDiagnostics(filter, diagnostics);
         }
     }

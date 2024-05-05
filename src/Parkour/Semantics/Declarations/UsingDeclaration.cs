@@ -25,6 +25,8 @@ public class UsingDeclaration : Declaration
         this.AliasedSymbol = aliasSymbol;
     }
 
+    public override Symbol? DeclaredSymbol => null;
+
     public override int ChildCount => 1;
     public override SemanticElement? GetChild(int index) =>
         index == 0 ? this.Expression : null;

@@ -654,9 +654,9 @@ public class ExpressionTests
         bool containsDiagnostics = false,
         BindingScope? scope = null)
     {
-        var binder = new StandardBinder();
+        var binder = new StandardDeclarationBinder();
         var binding = binder.BindExpression(expression, _symbols, scope ?? _defaultTestScope);
-        var bound = binding.BoundExpression;
+        var bound = binding.Expression;
 
         Assert.IsFalse(bound.IsUnbound, "expression contains unbound elements after binding");
 

@@ -24,6 +24,8 @@ public sealed class ParameterDeclaration : Declaration
         this.ParameterSymbol = parameterSymbol;
     }
 
+    public override Symbol? DeclaredSymbol => this.ParameterSymbol;
+
     public override int ChildCount => 1;
 
     public override SemanticElement? GetChild(int index) =>

@@ -46,9 +46,9 @@ public sealed class FieldSymbol : MemberSymbol
     {
     }
 
-    public override int ReferenceCount => 0;
+    public override int ReferencedSymbolCount => 0;
 
-    public override Symbol? GetReference(int index)
+    public override Symbol? GetReferencedSymbol(int index)
     {
         return index == 0 ? this.FieldType : null;
     }

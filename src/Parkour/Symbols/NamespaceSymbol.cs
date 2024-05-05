@@ -29,8 +29,8 @@ public class NamespaceSymbol : ContainerSymbol
         _fnMembers = fnMembers;
     }
 
-    public override int DeclarationCount => this.Members.Count;
-    public override Symbol? GetDeclaration(int index) => this.Members[index];
+    public override int DeclaredSymbolCount => this.Members.Count;
+    public override Symbol? GetDeclaredSymbol(int index) => this.Members[index];
 }
 
 public class GlobalNamespaceSymbol : NamespaceSymbol

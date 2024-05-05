@@ -187,18 +187,18 @@ public abstract class TypeSymbol : ContainerSymbol
             ? this.TypeArguments.Count
             : this.TypeParameters.Count;
 
-    public override int DeclarationCount =>
+    public override int DeclaredSymbolCount =>
         this.TypeParameters.Count + this.Members.Count;
 
-    public override Symbol? GetDeclaration(int index) =>
+    public override Symbol? GetDeclaredSymbol(int index) =>
         index < this.TypeParameters.Count
             ? this.TypeParameters[index]
             : this.Members[index - this.TypeParameters.Count];
 
-    public override int ReferenceCount =>
+    public override int ReferencedSymbolCount =>
         this.TypeParameters.Count + this.TypeArguments.Count + this.Members.Count;
 
-    public override Symbol? GetReference(int index)
+    public override Symbol? GetReferencedSymbol(int index)
     {
         if (index < this.TypeParameters.Count)
             return this.TypeParameters[index];

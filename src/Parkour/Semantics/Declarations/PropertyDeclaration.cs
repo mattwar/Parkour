@@ -40,6 +40,8 @@ public sealed class PropertyDeclaration : MemberDeclaration
         this.PropertySymbol = propertySymbol;
     }
 
+    public override Symbol? DeclaredSymbol => this.PropertySymbol;
+
     public override int ChildCount => 4;
 
     public override SemanticElement? GetChild(int index) =>

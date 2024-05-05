@@ -31,6 +31,8 @@ public sealed class FieldDeclaration : MemberDeclaration
         this.FieldSymbol = fieldSymbol;
     }
 
+    public override Symbol? DeclaredSymbol => this.FieldSymbol;
+
     public override int ChildCount => 2;
 
     public override SemanticElement? GetChild(int index) =>

@@ -56,15 +56,15 @@ public sealed class ArraySymbol : TypeSymbol
         _dimensions = isSZArray ? 0 : dimensions;
     }
 
-    public override int ReferenceCount =>
-        this.DeclarationCount + 1;
+    public override int ReferencedSymbolCount =>
+        this.DeclaredSymbolCount + 1;
 
-    public override Symbol? GetReference(int index)
+    public override Symbol? GetReferencedSymbol(int index)
     {
-        if (index < this.DeclarationCount)
-            return this.GetDeclaration(index);
+        if (index < this.DeclaredSymbolCount)
+            return this.GetDeclaredSymbol(index);
 
-        index -= this.DeclarationCount;
+        index -= this.DeclaredSymbolCount;
 
         if (index == 0)
             return this.ElementType;

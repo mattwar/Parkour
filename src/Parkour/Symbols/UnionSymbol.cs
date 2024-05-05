@@ -11,6 +11,6 @@ public sealed class UnionSymbol : TypeSymbol
         Types = types;
     }
 
-    public override int ReferenceCount => this.Types.Count;
-    public override Symbol? GetReference(int index) => index < this.Types.Count ? this.Types[index] : null;
+    public override int ReferencedSymbolCount => this.Types.Count;
+    public override Symbol? GetReferencedSymbol(int index) => index < this.Types.Count ? this.Types[index] : null;
 }

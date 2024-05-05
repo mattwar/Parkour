@@ -12,9 +12,9 @@ public static class SymbolExtensions
 
         action?.Invoke(symbol);
 
-        for (int i = 0, n = symbol.DeclarationCount; i < n; i++)
+        for (int i = 0, n = symbol.DeclaredSymbolCount; i < n; i++)
         {
-            var decl = symbol.GetDeclaration(i);
+            var decl = symbol.GetDeclaredSymbol(i);
             WalkDeclarations(decl, action);
         }
     }

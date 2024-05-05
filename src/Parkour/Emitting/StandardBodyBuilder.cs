@@ -6,28 +6,27 @@ using Semantics;
 using Symbols;
 
 /// <summary>
-/// Emits expressions into an <see cref="ILEmitter"/>
+/// Builds symbol bodies by emitting IL instructions into an <see cref="ILEmitter"/>
 /// </summary>
-public class StandardBodyEmitter : BodyEmitter
+public class StandardBodyBuilder : BodyBuilder
 {
     protected MemberSymbol CurrentMember { get; }
     protected SymbolTable ExternalSymbols { get; }
     protected ILEmitter Emitter { get; }
     protected bool IsChecked { get; }
 
-    public StandardBodyEmitter(
+    public StandardBodyBuilder(
         MemberSymbol currentMember, 
-        SymbolTable externalSymbols, 
         ILEmitter ilEmitter,
         bool isChecked = false)
     {
         this.CurrentMember = currentMember;
-        this.ExternalSymbols = externalSymbols;
+        this.ExternalSymbols = ilEmitter.ExternalSymbols;
         this.Emitter = ilEmitter;
         this.IsChecked = isChecked;
     }
 
-    public override void EmitBody(
+    public override void BuildBody(
         Expression body, 
         TypeSymbol returnType, 
         LabelSymbol? returnLabel)

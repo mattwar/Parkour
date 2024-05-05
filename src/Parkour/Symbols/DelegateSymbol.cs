@@ -137,21 +137,21 @@ public class DelegateSymbol : TypeSymbol
             this.ConstructedFrom ?? (this.IsConstructable ? this : null));
     }
 
-    public override int DeclarationCount =>
+    public override int DeclaredSymbolCount =>
         this.Parameters.Count;
 
-    public override Symbol? GetDeclaration(int index) =>
+    public override Symbol? GetDeclaredSymbol(int index) =>
         this.Parameters[index];
 
-    public override int ReferenceCount =>
-        this.DeclarationCount + 1;
+    public override int ReferencedSymbolCount =>
+        this.DeclaredSymbolCount + 1;
 
-    public override Symbol? GetReference(int index)
+    public override Symbol? GetReferencedSymbol(int index)
     {
-        if (index <= this.DeclarationCount)
-            return this.GetDeclaration(index);
+        if (index <= this.DeclaredSymbolCount)
+            return this.GetDeclaredSymbol(index);
 
-        index -= this.DeclarationCount;
+        index -= this.DeclaredSymbolCount;
 
         if (index == 0)
             return this.ReturnType;

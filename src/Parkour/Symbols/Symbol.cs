@@ -28,24 +28,24 @@ public abstract class Symbol
     /// <summary>
     /// The number of symbols potentially declared by this symbol
     /// </summary>
-    public virtual int DeclarationCount => 0;
+    public virtual int DeclaredSymbolCount => 0;
 
     /// <summary>
     /// Gets the nth symbol declared by this symbol.
     /// </summary>
-    public virtual Symbol? GetDeclaration(int index) => null;
+    public virtual Symbol? GetDeclaredSymbol(int index) => null;
 
     /// <summary>
     /// The number of potential symbols referenced or declared by this symbol.
     /// </summary>
-    public virtual int ReferenceCount => 
-        DeclarationCount;
+    public virtual int ReferencedSymbolCount => 
+        DeclaredSymbolCount;
 
     /// <summary>
     /// Gets the nth symbol referenced or declared by this symbol.
     /// </summary>
-    public virtual Symbol? GetReference(int index) => 
-        GetDeclaration(index);
+    public virtual Symbol? GetReferencedSymbol(int index) => 
+        GetDeclaredSymbol(index);
 
     /// <summary>
     /// Constructs a constructable type with the specified generic type arguements.

@@ -284,9 +284,9 @@ public class LINQTranslationTests
 
         args ??= System.Array.Empty<object>();
 
-        var binder = new StandardBinder();
+        var binder = new StandardDeclarationBinder();
         var binding = binder.BindExpression(expression, _symbols, scope ?? _defaultTestScope);
-        var bound = (LambdaExpression)binding.BoundExpression;
+        var bound = (LambdaExpression)binding.Expression;
 
         if (bound.ContainsDiagnostics)
         {

@@ -44,6 +44,8 @@ public class MethodDeclaration : MemberDeclaration
         this.ReturnLabel = returnLabel;
     }
 
+    public override Symbol? DeclaredSymbol => this.MethodSymbol;
+
     public override int ChildCount =>
         this.TypeParameters.Count 
         + this.Parameters.Count 
