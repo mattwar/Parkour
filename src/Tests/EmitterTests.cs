@@ -93,7 +93,7 @@ public class EmitterTests
 
         // + on strings is concat
         TestEmit(
-            Add(Constant("one"), Constant("two")), 
+            Add(Constant("one"), Constant("two")),
             "onetwo");
 
         // add withi local variable
@@ -414,7 +414,7 @@ public class EmitterTests
                 VerifyDeclarations(assembly, nd.Declarations);
             }
             else if (decl is ClassDeclaration cd
-                && cd.ClassSymbol is ClassSymbol cs)
+                && cd.Symbol is {} cs)
             {
                 var type = assembly.GetType(cs.FullName);
                 if (type == null)

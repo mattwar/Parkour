@@ -8,11 +8,11 @@ using static Parkour.Semantics.SemanticFactory;
 namespace Tests;
 
 [TestClass]
-public class DeclarationTests
+public class BindingTests
 {
     private readonly ReflectionSymbols _reflectionSymbols;
 
-    public DeclarationTests()
+    public BindingTests()
     {
         _reflectionSymbols = ReflectionSymbols.CurrentMscorlib;
     }   
@@ -24,6 +24,23 @@ public class DeclarationTests
             [Class("C", [])],
             ["C"]);
     }
+
+    [TestMethod]
+    public void TestBindStruct()
+    {
+        TestBind(
+            [Struct("S", [])],
+            ["S"]);
+    }
+
+    [TestMethod]
+    public void TestBindInterface()
+    {
+        TestBind(
+            [Interface("I", [])],
+            ["I"]);
+    }
+
 
     [TestMethod]
     public void TestBindClassWithReferencesToSelf()
@@ -69,7 +86,7 @@ public class DeclarationTests
     {
         TestBind(
             [Class("C",
-                [Method("M", [], Name("System.Int32"), Void())])],
+                [Method("M", [], Symbol("System.Int32"), Void())])],
             ["C", "C.M"]);
     }
 
@@ -78,7 +95,7 @@ public class DeclarationTests
     {
         TestBind([
             Class("C", [
-                Method("M", [], Name("System.Int32"), Void())
+                Method("M", [], Symbol("System.Int32"), Void())
                 ])
             ],
             ["C", "C.M"]);
@@ -89,9 +106,25 @@ public class DeclarationTests
     {
         TestBind(
             [Class("C",
-                [Property("P", Name("System.Int32"))])
+                [Property("P", Symbol("System.Int32"))])
                 ],
             ["C", "C.P"]);
+    }
+
+    [TestMethod]
+    public void TestBindIndexerInClass()
+    {
+        TestBind(
+            [Class("C",
+                [
+                    Indexer(
+                        Symbol("System.Int32"), 
+                        [Parameter("index", Symbol("System.Int32"))], 
+                        Name("index"), 
+                        null)
+                ]
+                )],
+            ["C", "C.Item"]);
     }
 
     [TestMethod]

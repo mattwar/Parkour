@@ -3,18 +3,19 @@ using Symbols;
 
 public class NamespaceDeclaration : MemberDeclaration
 {
+    public override NamespaceSymbol? Symbol { get; }
+
     public ImmutableList<Declaration> Declarations { get; }
-    public NamespaceSymbol? NamespaceSymbol { get; }
 
     public NamespaceDeclaration(
         string name, 
         ImmutableList<Declaration> declarations,
         ISourceLocation? location,
-        NamespaceSymbol? namespaceSymbol,
+        NamespaceSymbol? symbol,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(declarations)
-            | NotNullState(namespaceSymbol), 
+            | NotNullState(symbol), 
             name, 
             SymbolAccess.Public, 
             SymbolModifier.None, 
@@ -22,10 +23,50 @@ public class NamespaceDeclaration : MemberDeclaration
             diagnostics)
     {
         this.Declarations = declarations;
-        this.NamespaceSymbol = namespaceSymbol;    
+        this.Symbol = symbol;    
     }
 
-    public override Symbol? DeclaredSymbol => this.NamespaceSymbol;
+    public override NamespaceDeclaration WithName(string name) =>
+        new NamespaceDeclaration(
+            name,
+            this.Declarations,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public override NamespaceDeclaration WithLocation(ISourceLocation? location) =>
+        new NamespaceDeclaration(
+            this.Name,
+            this.Declarations,
+            location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public NamespaceDeclaration WithSymbol(NamespaceSymbol? symbol) =>
+        new NamespaceDeclaration(
+            this.Name,
+            this.Declarations,
+            this.Location,
+            symbol,
+            this.Diagnostics
+            );
+
+    public override NamespaceDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        new NamespaceDeclaration(
+            this.Name,
+            this.Declarations,
+            this.Location,
+            this.Symbol,
+            diagnostics
+            );
+
+    public override NamespaceDeclaration WithAccess(SymbolAccess access) =>
+        this;
+
+    public override NamespaceDeclaration WithModifiers(SymbolModifier modifiers) =>
+        this;
 
     public bool IsGlobalNamespace => 
         this.Name == "";

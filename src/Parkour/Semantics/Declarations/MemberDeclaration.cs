@@ -22,4 +22,7 @@ public abstract class MemberDeclaration : Declaration
         Access = access;
         Modifiers = modifiers;
     }
+
+    public abstract MemberDeclaration WithAccess(SymbolAccess access);
+    public abstract MemberDeclaration WithModifiers(SymbolModifier modifiers);
 }

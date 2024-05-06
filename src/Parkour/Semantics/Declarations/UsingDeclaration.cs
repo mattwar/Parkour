@@ -25,7 +25,43 @@ public class UsingDeclaration : Declaration
         this.AliasedSymbol = aliasSymbol;
     }
 
-    public override Symbol? DeclaredSymbol => null;
+    public override Symbol? Symbol => null;
+
+    public override UsingDeclaration WithName(string name) =>
+        new UsingDeclaration(
+            name, 
+            this.Expression, 
+            this.Location,
+            this.AliasedSymbol,
+            this.Diagnostics
+            );
+
+    public override UsingDeclaration WithLocation(ISourceLocation? location) =>
+        new UsingDeclaration(
+            this.Name,
+            this.Expression, 
+            location, 
+            this.AliasedSymbol,
+            this.Diagnostics
+            );
+
+    public override Declaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        new UsingDeclaration(
+            this.Name,
+            this.Expression,
+            this.Location,
+            this.AliasedSymbol,
+            diagnostics
+            );
+
+    public UsingDeclaration WithExpression(Expression expression) =>
+        new UsingDeclaration(
+            this.Name,
+            expression,
+            this.Location,
+            this.AliasedSymbol,
+            this.Diagnostics
+            );
 
     public override int ChildCount => 1;
     public override SemanticElement? GetChild(int index) =>

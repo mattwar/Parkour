@@ -33,7 +33,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         var result = CreateSymbols(declarations, externalSymbols);
         var boundDeclarations = BindDeclarations(result.Context.DeclarationContext, declarations);
 
-        return new StandardBinding(
+        return new StandardDeclarationBinding(
             boundDeclarations,
             result.CombinedSymbols);
     }
@@ -72,71 +72,41 @@ public class StandardDeclarationBinder : DeclarationBinder
     protected class SymbolContext
     {
         public SymbolTable Symbols { get; }
-        public ImmutableList<OperatorSymbol> Operators { get; }
         public BindingScope Scope { get; }
-
-        private readonly Dictionary<Declaration, Symbol> _declarationToSymbolMap;
-        private readonly Dictionary<Declaration, Declaration> _unboundToBoundMap;
-        private readonly Dictionary<string, ImmutableList<OperatorSymbol>> _kindToOperatorsMap;
 
         private SymbolContext(
             SymbolTable symbols,
-            ImmutableList<OperatorSymbol> operators,
             BindingScope scope,
-            Dictionary<Declaration, Symbol>? declarationToSymbolMap,
-            Dictionary<Declaration, Declaration>? unboundToBoundMap,
-            Dictionary<string, ImmutableList<OperatorSymbol>>? kindToOperatorsMap)
+            Dictionary<Declaration, Symbol> declToSymbolMap)
         {
-            Symbols = symbols;
-            Operators = operators;
-            Scope = scope;
-            _declarationToSymbolMap = declarationToSymbolMap ?? new Dictionary<Declaration, Symbol>();
-            _unboundToBoundMap = unboundToBoundMap ?? new Dictionary<Declaration, Declaration>();
-            _kindToOperatorsMap = kindToOperatorsMap ?? operators.GroupBy(o => o.Kind).ToDictionary(g => g.Key, g => g.ToImmutableList());
+            this.Symbols = symbols;
+            this.Scope = scope;
+            _declToSymbolMap = declToSymbolMap;
         }
 
         public SymbolContext(
             SymbolTable symbols,
-            ImmutableList<OperatorSymbol> operators,
             BindingScope scope)
-            : this(symbols, operators, scope, null, null, null)
+            : this(symbols, scope, new Dictionary<Declaration, Symbol>())
         {
         }
 
         public virtual SymbolContext WithScope(BindingScope scope)
         {
-            return new SymbolContext(this.Symbols, this.Operators, scope, _declarationToSymbolMap, _unboundToBoundMap, _kindToOperatorsMap);
+            return new SymbolContext(this.Symbols, scope, _declToSymbolMap);
         }
 
-        public virtual SymbolContext WithOperators(ImmutableList<OperatorSymbol> operators)
+        private Dictionary<Declaration, Symbol> _declToSymbolMap;
+
+        public void AssociateSymbolWithDeclaration(Declaration declaration, Symbol symbol)
         {
-            return new SymbolContext(this.Symbols, operators, this.Scope, _declarationToSymbolMap, _unboundToBoundMap, null);
+            _declToSymbolMap[declaration] = symbol;
         }
 
-        public void Map(Declaration declaration, Symbol symbol)
+        public Symbol? GetSymbolForDeclaration(Declaration declaration)
         {
-            _declarationToSymbolMap.Add(declaration, symbol);
-        }
-
-        public void Map(IEnumerable<Declaration> declarations, Symbol symbol)
-        {
-            foreach (var decl in declarations)
-            {
-                Map(decl, symbol);
-            }
-        }
-
-        public Symbol? GetDeclaredSymbol(Declaration declaration)
-        {
-            _declarationToSymbolMap.TryGetValue(declaration, out var value);
-            return value;
-        }
-
-        public ImmutableList<OperatorSymbol> GetOperators(string operatorKind)
-        {
-            if (_kindToOperatorsMap.TryGetValue(operatorKind, out var operators))
-                return operators;
-            return ImmutableList<OperatorSymbol>.Empty;
+            _declToSymbolMap.TryGetValue(declaration, out var symbol);
+            return symbol;
         }
 
         private DeclarationContext? _declContext;
@@ -151,25 +121,12 @@ public class StandardDeclarationBinder : DeclarationBinder
                         this, 
                         null,
                         this.Scope,
-                        _declarationToSymbolMap,
-                        _unboundToBoundMap);
+                        _declToSymbolMap);
                     Interlocked.CompareExchange(ref _declContext, tmp, null);
                 }
 
                 return _declContext;
             }
-        }
-
-        internal ImmutableDictionary<Symbol, ImmutableList<Declaration>> GetSymbolToUnboundDeclarationMap()
-        {
-            return _declarationToSymbolMap
-                .GroupBy(kvp => kvp.Value)
-                .ToImmutableDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToImmutableList());
-        }
-
-        internal ImmutableDictionary<Declaration, Declaration> GetUnboundToBoundDeclarationMap()
-        {
-            return _unboundToBoundMap.ToImmutableDictionary();
         }
     }
 
@@ -193,45 +150,37 @@ public class StandardDeclarationBinder : DeclarationBinder
         /// </summary>
         public BindingScope Scope { get; }
 
-        private readonly Dictionary<Declaration, Symbol> _unboundToSymbolMap;
-        private readonly Dictionary<Declaration, Declaration> _unboundToBoundMap;
+        private readonly Dictionary<Declaration, Symbol> _declToSymbolMap;
 
         public DeclarationContext(
             SymbolContext context,
             TypeSymbol? declaringType,
             BindingScope scope,
-            Dictionary<Declaration, Symbol> unboundToSymbolMap,
-            Dictionary<Declaration, Declaration> unboundToBoundMap)
+            Dictionary<Declaration, Symbol> unboundToSymbolMap)
         {
             this.SymbolContext = context;
             this.DeclaringType = declaringType;
             this.Scope = scope;
-            _unboundToSymbolMap = unboundToSymbolMap;
-            _unboundToBoundMap = unboundToBoundMap;
-        }
-
-        public void Map(Declaration unbound, Declaration bound)
-        {
-            _unboundToBoundMap.Add(unbound, bound);
+            _declToSymbolMap = unboundToSymbolMap;
         }
 
         public virtual DeclarationContext WithDeclaringType(TypeSymbol? declaringType)
         {
             if (declaringType == this.DeclaringType)
                 return this;
-            return new DeclarationContext(this.SymbolContext, declaringType, this.Scope, _unboundToSymbolMap, _unboundToBoundMap);
+            return new DeclarationContext(this.SymbolContext, declaringType, this.Scope, _declToSymbolMap);
         }
 
         public virtual DeclarationContext WithScope(BindingScope scope)
         {
             if (scope == this.Scope)
                 return this;
-            return new DeclarationContext(this.SymbolContext, this.DeclaringType, scope, _unboundToSymbolMap, _unboundToBoundMap);
+            return new DeclarationContext(this.SymbolContext, this.DeclaringType, scope, _declToSymbolMap);
         }
 
-        public bool TryGetSymbol(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol)
+        public bool TryGetSymbolForUnboundDeclaration(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol)
         {
-            return _unboundToSymbolMap.TryGetValue(declaration, out symbol);
+            return _declToSymbolMap.TryGetValue(declaration, out symbol);
         }
 
         private ExpressionContext? _exprContext;
@@ -361,26 +310,30 @@ public class StandardDeclarationBinder : DeclarationBinder
     /// Creates the initial set of operators to use for binding.
     /// </summary>
     protected virtual ImmutableList<OperatorSymbol> GetOperators(SymbolTable symbols) =>
-        Operators.From(symbols).Default;
+        OperatorSymbols.From(symbols).Default;
 
     /// <summary>
     /// Creates a <see cref="SymbolContext"/> with a default <see cref="BindingScope"/>
     /// </summary>
     protected virtual SymbolContext CreateDefaultSymbolContext(SymbolTable symbols)
     {
-        return new SymbolContext(symbols, [], CreateDefaultBindingScope().AddMembers(symbols.GlobalNamespace));
+        return new SymbolContext(symbols, CreateDefaultBindingScope().AddMembers(symbols.GlobalNamespace));
     }
-
-    protected virtual SymbolTable CreateSymbolTable(GlobalNamespaceSymbol globalNamespace) =>
-        new StandardSymbolTable(globalNamespace);
 
     /// <summary>
     /// Creates the symbol context as it is initially used for binding.
     /// </summary>
     protected virtual SymbolContext CreateInitialSymbolContext(SymbolTable symbols)
     {
-        var defContext = CreateDefaultSymbolContext(symbols);
-        return defContext.WithOperators(GetOperators(symbols));
+        return CreateDefaultSymbolContext(symbols);
+    }
+
+    /// <summary>
+    /// Create a <see cref="SymbolTable"/> from a global namespace.
+    /// </summary>
+    protected virtual SymbolTable CreateSymbolTable(GlobalNamespaceSymbol globalNamespace)
+    {
+        return new StandardSymbolTable(globalNamespace);
     }
 
     private record struct CreateSymbolsResult(
@@ -423,9 +376,6 @@ public class StandardDeclarationBinder : DeclarationBinder
         // symbol context for use in creating declaration symbols.
         creationContext = CreateDefaultSymbolContext(CreateSymbolTable(combinedSymbols));
 
-        // add operators after context is assigned
-        var fullContext = creationContext.WithOperators(GetOperators(creationContext.Symbols));
-
         // force evaluation of global namespace symbol members
         _ = combinedSymbols.Members;
         _ = declaredSymbols!.Members;
@@ -434,7 +384,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         // this side effect of building a map of declaration->symbol for use in binding
         declaredSymbols.WalkDeclarations(s => { });
 
-        return new CreateSymbolsResult(declaredSymbols, CreateSymbolTable(combinedSymbols), fullContext);
+        return new CreateSymbolsResult(declaredSymbols, CreateSymbolTable(combinedSymbols), creationContext);
     }
 
     /// <summary>
@@ -464,7 +414,6 @@ public class StandardDeclarationBinder : DeclarationBinder
                 @namespace,
                 me =>
                 {
-                    context.Map(g, me);
                     var newContext = context.WithScope(context.Scope.AddMembers(me).AddSymbol(me));
                     return CreateAndCombineSymbols(newContext, me, g.SelectMany(n => n.Declarations));
                 }))
@@ -533,10 +482,7 @@ public class StandardDeclarationBinder : DeclarationBinder
     {
         var symbol = CreateDeclarationSymbol(context, declaringSymbol, declaration);
         if (symbol != null)
-        {
-            context.Map(declaration, symbol);
-        }
-
+            context.AssociateSymbolWithDeclaration(declaration, symbol);
         return symbol;
     }
 
@@ -550,14 +496,20 @@ public class StandardDeclarationBinder : DeclarationBinder
     {
         switch (declaration)
         {
-            case TypeParameterDeclaration tp:
-                return CreateTypeParameterSymbol(context, declaringSymbol, tp);
-
             case ClassDeclaration cd:
                 return CreateClassSymbol(context, declaringSymbol, cd);
 
             case ConstructorDeclaration cd:
                 return CreateConstructorSymbol(context, declaringSymbol, cd);
+
+            case FieldDeclaration fd:
+                return CreateFieldSymbol(context, declaringSymbol, fd);
+
+            case IndexerDeclaration id:
+                return CreateIndexerSymbol(context, declaringSymbol, id);
+
+            case InterfaceDeclaration ifd:
+                return CreateInterfaceSymbol(context, declaringSymbol, ifd);
 
             case MethodDeclaration md:
                 return CreateMethodSymbol(context, declaringSymbol, md);
@@ -565,14 +517,14 @@ public class StandardDeclarationBinder : DeclarationBinder
             case ParameterDeclaration pd:
                 return CreateParameterSymbol(context, declaringSymbol, pd);
 
-            case FieldDeclaration fd:
-                return CreateFieldSymbol(context, declaringSymbol, fd);
-
             case PropertyDeclaration pd:
                 return CreatePropertySymbol(context, declaringSymbol, pd);
 
-            case IndexerDeclaration id:
-                return CreateIndexerSymbol(context, declaringSymbol, id);
+            case StructDeclaration sd:
+                return CreateStructSymbol(context, declaringSymbol, sd);
+
+            case TypeParameterDeclaration tp:
+                return CreateTypeParameterSymbol(context, declaringSymbol, tp);
 
             case UsingDeclaration:
                 // this declaration does not have a symbol that is reachable from the global namespace
@@ -583,39 +535,31 @@ public class StandardDeclarationBinder : DeclarationBinder
         }
     }
 
-    protected virtual Symbol CreateTypeParameterSymbol(
-        SymbolContext context,
-        Symbol? declaringSymbol,
-        TypeParameterDeclaration declaration)
-    {
-        return new TypeParameterSymbol(declaration.Name);
-    }
-
     protected virtual Symbol CreateClassSymbol(
         SymbolContext context,
         Symbol? declaringSymbol,
         ClassDeclaration declaration)
     {
-        SymbolContext classContext = null!;
+        SymbolContext typeContext = null!;
 
-        var classSymbol = new ClassSymbol(
+        var typeSymbol = new ClassSymbol(
             declaration.Name,
             declaringSymbol,
             declaration.Access,
             declaration.Modifiers,
             me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
             () => ImmutableList<TypeSymbol>.Empty,
-            () => declaration.BaseTypes.Select(bt => GetType(classContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
-            me => FlattenDeclarations(declaration.Declarations).Select(d => CreateAndMapDeclarationSymbol(classContext, me, d)).Where(s => s != null).ToImmutableList()!,
+            () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
+            me => FlattenDeclarations(declaration.Declarations).Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
             constructedFrom: null);
 
-        classContext = context.WithScope(
+        typeContext = context.WithScope(
             context.Scope
-                .AddMembers(classSymbol)
-                .AddSymbol(classSymbol)
-                .AddSymbols(classSymbol.TypeParameters));
+                .AddMembers(typeSymbol)
+                .AddSymbol(typeSymbol)
+                .AddSymbols(typeSymbol.TypeParameters));
 
-        return classSymbol;
+        return typeSymbol;
     }
 
     protected virtual Symbol CreateConstructorSymbol(
@@ -629,6 +573,65 @@ public class StandardDeclarationBinder : DeclarationBinder
             declaration.Modifiers,
             me => declaration.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!).ToImmutableList()!
             );
+    }
+
+    protected virtual Symbol CreateFieldSymbol(
+        SymbolContext context,
+        Symbol? declaringSymbol,
+        FieldDeclaration declaration)
+    {
+        return new FieldSymbol(
+            declaration.Name,
+            declaringSymbol as TypeSymbol,
+            declaration.Access,
+            declaration.Modifiers,
+            () => GetType(context, declaration.FieldType) ?? SpecialSymbols.Unknown
+            );
+    }
+
+    protected virtual Symbol CreateIndexerSymbol(
+        SymbolContext context,
+        Symbol? declaringSymbol,
+        IndexerDeclaration declaration)
+    {
+        return new IndexerSymbol(
+            declaration.Name,
+            declaringSymbol as TypeSymbol,
+            declaration.Access,
+            declaration.Modifiers,
+            () => GetType(context, declaration.ElementType) ?? SpecialSymbols.Unknown,
+            me => (MethodSymbol)context.GetSymbolForDeclaration(declaration.GetMethod)!,
+            declaration.SetMethod != null
+                ? me => (MethodSymbol)context.GetSymbolForDeclaration(declaration.SetMethod)!
+                : null
+                );
+    }
+
+    protected virtual Symbol CreateInterfaceSymbol(
+        SymbolContext context,
+        Symbol? declaringSymbol,
+        InterfaceDeclaration declaration)
+    {
+        SymbolContext typeContext = null!;
+
+        var typeSymbol = new InterfaceSymbol(
+            declaration.Name,
+            declaringSymbol,
+            declaration.Access,
+            declaration.Modifiers,
+            me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
+            () => ImmutableList<TypeSymbol>.Empty,
+            () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
+            me => FlattenDeclarations(declaration.Declarations).Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
+            constructedFrom: null);
+
+        typeContext = context.WithScope(
+            context.Scope
+                .AddMembers(typeSymbol)
+                .AddSymbol(typeSymbol)
+                .AddSymbols(typeSymbol.TypeParameters));
+
+        return typeSymbol;
     }
 
     protected virtual Symbol CreateMethodSymbol(
@@ -665,20 +668,6 @@ public class StandardDeclarationBinder : DeclarationBinder
             );
     }
 
-    protected virtual Symbol CreateFieldSymbol(
-        SymbolContext context,
-        Symbol? declaringSymbol,
-        FieldDeclaration declaration)
-    {
-        return new FieldSymbol(
-            declaration.Name,
-            declaringSymbol as TypeSymbol,
-            declaration.Access,
-            declaration.Modifiers,
-            () => GetType(context, declaration.FieldType) ?? SpecialSymbols.Unknown
-            );
-    }
-
     protected virtual Symbol CreatePropertySymbol(
         SymbolContext context,
         Symbol? declaringSymbol,
@@ -691,35 +680,54 @@ public class StandardDeclarationBinder : DeclarationBinder
             declaration.Modifiers,
             () => GetType(context, declaration.PropertyType) ?? SpecialSymbols.Unknown,
             declaration.BackingField != null
-                ? me => (FieldSymbol)context.GetDeclaredSymbol(declaration.BackingField)!
+                ? me => (FieldSymbol)context.GetSymbolForDeclaration(declaration.BackingField)!
                 : null,
-            me => (MethodSymbol)context.GetDeclaredSymbol(declaration.GetMethod)!,
+            me => (MethodSymbol)context.GetSymbolForDeclaration(declaration.GetMethod)!,
             declaration.SetMethod != null
-                ? me => (MethodSymbol)context.GetDeclaredSymbol(declaration.SetMethod)!
+                ? me => (MethodSymbol)context.GetSymbolForDeclaration(declaration.SetMethod)!
                 : null
         );
     }
 
-    protected virtual Symbol CreateIndexerSymbol(
+    protected virtual Symbol CreateStructSymbol(
         SymbolContext context,
         Symbol? declaringSymbol,
-        IndexerDeclaration declaration)
+        StructDeclaration declaration)
     {
-        return new IndexerSymbol(
+        SymbolContext typeContext = null!;
+
+        var typeSymbol = new StructSymbol(
             declaration.Name,
-            declaringSymbol as TypeSymbol,
+            declaringSymbol,
             declaration.Access,
             declaration.Modifiers,
-            () => GetType(context, declaration.ElementType) ?? SpecialSymbols.Unknown,
-            me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, me, declaration.GetMethod)!,
-            declaration.SetMethod != null
-                ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, me, declaration.SetMethod)!
-                : null
-                );
+            me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
+            () => ImmutableList<TypeSymbol>.Empty,
+            () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
+            me => FlattenDeclarations(declaration.Declarations).Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
+            constructedFrom: null);
+
+        typeContext = context.WithScope(
+            context.Scope
+                .AddMembers(typeSymbol)
+                .AddSymbol(typeSymbol)
+                .AddSymbols(typeSymbol.TypeParameters));
+
+        return typeSymbol;
     }
+
+    protected virtual Symbol CreateTypeParameterSymbol(
+        SymbolContext context,
+        Symbol? declaringSymbol,
+        TypeParameterDeclaration declaration)
+    {
+        return new TypeParameterSymbol(declaration.Name);
+    }
+
     #endregion
 
     #region Declaration Binding
+
     /// <summary>
     /// Binds a declaration to its associated symbol
     /// </summary>
@@ -729,12 +737,18 @@ public class StandardDeclarationBinder : DeclarationBinder
     {
         Declaration bound;
 
-        context.TryGetSymbol(declaration, out var symbol);
+        context.TryGetSymbolForUnboundDeclaration(declaration, out var symbol);
 
         switch (declaration)
         {
             case ClassDeclaration cld:
                 bound = BindClass(context, cld, symbol as ClassSymbol);
+                break;
+            case StructDeclaration std:
+                bound = BindStruct(context, std, symbol as StructSymbol);
+                break;
+            case InterfaceDeclaration ifd:
+                bound = BindInterface(context, ifd, symbol as InterfaceSymbol);
                 break;
             case ConstructorDeclaration cd:
                 bound = BindConstructor(context, cd, symbol as ConstructorSymbol);
@@ -767,14 +781,6 @@ public class StandardDeclarationBinder : DeclarationBinder
                 throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(StandardDeclarationBinder)}.{nameof(BindDeclaration)}");
         }
 
-        // record unbound to bound declaration mapping
-        context.Map(declaration, bound);
-
-        if (symbol != null)
-        {
-            SymbolDeclarations.AddBoundDeclaration(symbol, bound);
-        }
-
         return bound;
     }
 
@@ -795,47 +801,41 @@ public class StandardDeclarationBinder : DeclarationBinder
     /// </summary>
     protected virtual ClassDeclaration BindClass(
         DeclarationContext context,
-        ClassDeclaration cd,
-        ClassSymbol? classSymbol)
+        ClassDeclaration decl,
+        ClassSymbol? symbol)
     {
-        var typeParameters = BindDeclarations(context, cd.TypeParameters);
+        var typeParameters = BindDeclarations(context, decl.TypeParameters);
 
-        // put class symbol in scope for baseTypes and members
-        var classContext = classSymbol != null
+        // put symbol in scope for baseTypes and members
+        var typeContext = symbol != null
             ? context
-                .WithScope(context.Scope.AddMembers(classSymbol).AddSymbol(classSymbol))
-                .WithDeclaringType(classSymbol)
+                .WithScope(context.Scope.AddMembers(symbol).AddSymbol(symbol))
+                .WithDeclaringType(symbol)
             : context;
 
-        var baseTypes = BindExpressionList(classContext.ExpressionContext, cd.BaseTypes);
+        var baseTypes = BindExpressionList(typeContext.ExpressionContext, decl.BaseTypes);
+        var declarations = BindDeclarations(typeContext, decl.Declarations);
 
-        // add all class members to scope
-        var bodyContext = classContext;
-        //if (classSymbol != null)
-        //{
-        //    bodyContext = bodyContext.WithScope(bodyContext.Scope.AddMembers(classSymbol).AddSymbol(classSymbol));
-        //}
-
-        var declarations = BindDeclarations(bodyContext, cd.Declarations);
-
-        if (typeParameters == cd.TypeParameters
-            && baseTypes == cd.BaseTypes
-            && declarations == cd.Declarations)
-            return cd;
+        if (typeParameters == decl.TypeParameters
+            && baseTypes == decl.BaseTypes
+            && declarations == decl.Declarations)
+            return decl;
 
         return new ClassDeclaration(
-            cd.Name,
-            cd.Access,
-            cd.Modifiers,
+            decl.Name,
+            decl.Access,
+            decl.Modifiers,
             typeParameters,
             baseTypes,
             declarations,
-            cd.Location,
-            classSymbol,
-            cd.Diagnostics
+            decl.Location,
+            symbol,
+            decl.Diagnostics
             );
     }
     #endregion
+
+    #region Constructor Declaration
 
     protected virtual ConstructorDeclaration BindConstructor(
         DeclarationContext context,
@@ -866,6 +866,8 @@ public class StandardDeclarationBinder : DeclarationBinder
             null
             );
     }
+
+    #endregion
 
     #region Field Declaration
     /// <summary>
@@ -921,6 +923,46 @@ public class StandardDeclarationBinder : DeclarationBinder
             id.Location,
             indexerSymbol,
             id.Diagnostics
+            );
+    }
+    #endregion
+
+    #region Interface Declaration
+    /// <summary>
+    /// Binds <see cref="InterfaceDeclaration"/>
+    /// </summary>
+    protected virtual InterfaceDeclaration BindInterface(
+        DeclarationContext context,
+        InterfaceDeclaration decl,
+        InterfaceSymbol? symbol)
+    {
+        var typeParameters = BindDeclarations(context, decl.TypeParameters);
+
+        // put symbol in scope for baseTypes and members
+        var typeContext = symbol != null
+            ? context
+                .WithScope(context.Scope.AddMembers(symbol).AddSymbol(symbol))
+                .WithDeclaringType(symbol)
+            : context;
+
+        var baseTypes = BindExpressionList(typeContext.ExpressionContext, decl.BaseTypes);
+        var declarations = BindDeclarations(typeContext, decl.Declarations);
+
+        if (typeParameters == decl.TypeParameters
+            && baseTypes == decl.BaseTypes
+            && declarations == decl.Declarations)
+            return decl;
+
+        return new InterfaceDeclaration(
+            decl.Name,
+            decl.Access,
+            decl.Modifiers,
+            typeParameters,
+            baseTypes,
+            declarations,
+            decl.Location,
+            symbol,
+            decl.Diagnostics
             );
     }
     #endregion
@@ -1078,7 +1120,47 @@ public class StandardDeclarationBinder : DeclarationBinder
             );
     }
     #endregion
-    
+
+    #region Struct Declaration
+    /// <summary>
+    /// Binds <see cref="StructDeclaration"/>
+    /// </summary>
+    protected virtual StructDeclaration BindStruct(
+        DeclarationContext context,
+        StructDeclaration decl,
+        StructSymbol? symbol)
+    {
+        var typeParameters = BindDeclarations(context, decl.TypeParameters);
+
+        // put symbol in scope for baseTypes and members
+        var typeContext = symbol != null
+            ? context
+                .WithScope(context.Scope.AddMembers(symbol).AddSymbol(symbol))
+                .WithDeclaringType(symbol)
+            : context;
+
+        var baseTypes = BindExpressionList(typeContext.ExpressionContext, decl.BaseTypes);
+        var declarations = BindDeclarations(typeContext, decl.Declarations);
+
+        if (typeParameters == decl.TypeParameters
+            && baseTypes == decl.BaseTypes
+            && declarations == decl.Declarations)
+            return decl;
+
+        return new StructDeclaration(
+            decl.Name,
+            decl.Access,
+            decl.Modifiers,
+            typeParameters,
+            baseTypes,
+            declarations,
+            decl.Location,
+            symbol,
+            decl.Diagnostics
+            );
+    }
+    #endregion
+
     #region TypeParameter Declaration
     /// <summary>
     /// Binds <see cref="TypeParameterDeclaration"/>
@@ -1088,7 +1170,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         TypeParameterDeclaration typeParameter,
         TypeParameterSymbol? typeParameterSymbol)
     {
-        if (typeParameter.TypeParameterSymbol == typeParameterSymbol)
+        if (typeParameter.Symbol == typeParameterSymbol)
             return typeParameter;
 
         return new TypeParameterDeclaration(
@@ -1130,6 +1212,24 @@ public class StandardDeclarationBinder : DeclarationBinder
     #endregion
 
     #region Expression Binding
+    private ImmutableDictionary<string, ImmutableList<OperatorSymbol>>? _kindToOperatorsMap;
+
+    protected virtual ImmutableList<OperatorSymbol> GetOperators(ExpressionContext context, string operatorKind)
+    {
+        if (_kindToOperatorsMap == null)
+        {
+            _kindToOperatorsMap = OperatorSymbols.From(context.Symbols).Default
+                .GroupBy(op => op.Kind)
+                .ToImmutableDictionary(g => g.Key, g => g.ToImmutableList());
+        }
+
+        if (_kindToOperatorsMap.TryGetValue(operatorKind, out var operators))
+            return operators;
+
+        return ImmutableList<OperatorSymbol>.Empty;
+    }
+
+
     /// <summary>
     /// Binds all unbound expressions
     /// </summary>
@@ -2733,7 +2833,7 @@ public class StandardDeclarationBinder : DeclarationBinder
 
     protected virtual void GetCandidateOperators(ExpressionContext context, string operatorKind, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
-        candidates.AddRange(context.SymbolContext.GetOperators(operatorKind));
+        candidates.AddRange(context.Symbols.GetOperators(operatorKind));
 
         var opName = GetOperatorName(operatorKind);
         foreach (var arg in arguments)
@@ -3415,12 +3515,12 @@ public class StandardDeclarationBinder : DeclarationBinder
     #endregion
 
     #region StandardBinding
-    private class StandardBinding : DeclarationBinding
+    private class StandardDeclarationBinding : DeclarationBinding
     {
         public override ImmutableList<Declaration> Declarations { get; }
         public override SymbolTable Symbols { get; }
 
-        public StandardBinding(
+        public StandardDeclarationBinding(
             ImmutableList<Declaration> declarations,
             SymbolTable symbols)
         {

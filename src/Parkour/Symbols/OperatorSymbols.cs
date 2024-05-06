@@ -3,7 +3,7 @@
 namespace Parkour.Symbols;
 using Symbols;
 
-public sealed class Operators
+public sealed class OperatorSymbols
 {
     /// <summary>
     /// The set of operators that are intrinsic to the runtime.
@@ -15,20 +15,20 @@ public sealed class Operators
     /// </summary>
     public ImmutableList<OperatorSymbol> Default { get; }
 
-    private Operators(SymbolTable symbols)
+    private OperatorSymbols(SymbolTable symbols)
     {
         this.Intrinsic = CreateIntrinsic(symbols);
         this.Default = CreateDefault(symbols, this.Intrinsic);
     }
 
-    private static readonly ConditionalWeakTable<SymbolTable, Operators> _map =
-        new ConditionalWeakTable<SymbolTable, Operators>();
+    private static readonly ConditionalWeakTable<SymbolTable, OperatorSymbols> _map =
+        new ConditionalWeakTable<SymbolTable, OperatorSymbols>();
 
-    public static Operators From(SymbolTable symbols)
+    public static OperatorSymbols From(SymbolTable symbols)
     {
         if (!_map.TryGetValue(symbols, out var intrinsics))
         {
-            intrinsics = _map.GetValue(symbols, s => new Operators(symbols));
+            intrinsics = _map.GetValue(symbols, s => new OperatorSymbols(symbols));
         }
 
         return intrinsics;
@@ -212,10 +212,10 @@ public sealed class Operators
     public static OperatorSymbol BinaryOp(string kind, TypeSymbol leftType, TypeSymbol rightType, TypeSymbol resultType) =>
         new OperatorSymbol(
             kind,
-            me => ImmutableList.Create(
+            me => [
                 new ParameterSymbol("left", me, leftType),
                 new ParameterSymbol("right", me, rightType)
-                ),
+                ],
             () => resultType
             );
 

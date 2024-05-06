@@ -41,7 +41,7 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                     DeclareTypes(nd.Declarations);
                 }
                 else if (decl is ClassDeclaration cd
-                    && decl.DeclaredSymbol is TypeSymbol ts)
+                    && decl.Symbol is TypeSymbol ts)
                 {
                     this.DeclareType(ts);
                     DeclareTypes(cd.Declarations);
@@ -63,7 +63,7 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                     DeclareBaseTypes(nd.Declarations);
                 }
                 else if (decl is ClassDeclaration cd
-                    && decl.DeclaredSymbol is TypeSymbol ts)
+                    && decl.Symbol is TypeSymbol ts)
                 {
                     this.DeclareBaseTypes(ts);
                     DeclareBaseTypes(cd.Declarations);
@@ -89,7 +89,7 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                     DeclareTypeMembers(cd.Declarations);
                 }
                 else if (decl is PropertyDeclaration pd
-                    && pd.PropertySymbol is PropertySymbol ps)
+                    && pd.Symbol is PropertySymbol ps)
                 {
                     if (pd.BackingField != null)
                         Declare(pd.BackingField);
@@ -103,7 +103,7 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                     this.DeclareTypeMember(ps);
                 }
                 else if (decl is IndexerDeclaration xd
-                    && xd.IndexerSymbol is IndexerSymbol xs)
+                    && xd.Symbol is IndexerSymbol xs)
                 {
                     if (xd.GetMethod != null)
                         Declare(xd.GetMethod);
@@ -115,9 +115,8 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                 }
                 else if ((decl is FieldDeclaration
                     || decl is MethodDeclaration
-                    || decl is ConstructorDeclaration
-                    || decl is IndexerDeclaration)
-                    && decl.DeclaredSymbol is MemberSymbol memberSymbol)
+                    || decl is ConstructorDeclaration)
+                    && decl.Symbol is MemberSymbol memberSymbol)
                 {
                     this.DeclareTypeMember(memberSymbol);
                 }
@@ -142,17 +141,17 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                     BuildMemberBodies(cd.Declarations);
                 }
                 else if (decl is MethodDeclaration md
-                    && md.DeclaredSymbol is MethodSymbol ms)
+                    && md.Symbol is MethodSymbol ms)
                 {
                     this.EmitMemberBody(ms, md);
                 }
                 else if (decl is ConstructorDeclaration cod
-                    && cod.DeclaredSymbol is ConstructorSymbol cs)
+                    && cod.Symbol is ConstructorSymbol cs)
                 {
                     this.EmitMemberBody(cs, cod);
                 }
                 else if (decl is PropertyDeclaration pd
-                    && pd.PropertySymbol is PropertySymbol ps)
+                    && pd.Symbol is PropertySymbol ps)
                 {
                     if (pd.GetMethod != null)
                         Build(pd.GetMethod);
@@ -160,7 +159,7 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                         Build(pd.SetMethod);
                 }
                 else if (decl is IndexerDeclaration xd
-                    && xd.IndexerSymbol is IndexerSymbol xs)
+                    && xd.Symbol is IndexerSymbol xs)
                 {
                     if (xd.GetMethod != null)
                         Build(xd.GetMethod);

@@ -2,13 +2,13 @@
 namespace Parkour.Semantics;
 
 using Symbols;
-using Syntax;
 
 public class ConstructorDeclaration : MemberDeclaration
 {
+    public override ConstructorSymbol? Symbol { get; }
+
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
-    public ConstructorSymbol? ConstructorSymbol { get; }
     public LabelSymbol? ReturnLabel { get; }
 
     public ConstructorDeclaration(
@@ -17,13 +17,13 @@ public class ConstructorDeclaration : MemberDeclaration
         ImmutableList<ParameterDeclaration> parameters,
         Expression body,
         ISourceLocation? location,
-        ConstructorSymbol? constructorSymbol,
+        ConstructorSymbol? symbol,
         LabelSymbol? returnLabel,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(parameters) 
             | State(body)
-            | NotNullState(constructorSymbol),
+            | NotNullState(symbol),
             (modifiers & SymbolModifier.Static) == 0 ? ".ctor" : ".cctor",
             access,
             modifiers,
@@ -32,11 +32,108 @@ public class ConstructorDeclaration : MemberDeclaration
     {
         this.Parameters = parameters;
         this.Body = body;
-        this.ConstructorSymbol = constructorSymbol;
+        this.Symbol = symbol;
         this.ReturnLabel = returnLabel;
     }
 
-    public override Symbol? DeclaredSymbol => this.ConstructorSymbol;
+    public override ConstructorDeclaration WithName(string name) =>
+        this;
+
+    public override ConstructorDeclaration WithLocation(ISourceLocation? location) =>
+        new ConstructorDeclaration(
+            this.Access,
+            this.Modifiers,
+            this.Parameters,
+            this.Body,
+            location,
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
+
+    public ConstructorDeclaration WithSymbol(ConstructorSymbol? symbol) =>
+        new ConstructorDeclaration(
+            this.Access,
+            this.Modifiers,
+            this.Parameters,
+            this.Body,
+            this.Location,
+            symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
+
+    public ConstructorDeclaration WithReturnLabel(LabelSymbol? returnLabel)=>
+        new ConstructorDeclaration(
+            this.Access,
+            this.Modifiers,
+            this.Parameters,
+            this.Body,
+            this.Location,
+            this.Symbol,
+            returnLabel,
+            this.Diagnostics
+            );
+
+    public override ConstructorDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        new ConstructorDeclaration(
+            this.Access,
+            this.Modifiers,
+            this.Parameters,
+            this.Body,
+            this.Location,
+            this.Symbol,
+            this.ReturnLabel,
+            diagnostics
+            );
+
+    public override ConstructorDeclaration WithAccess(SymbolAccess access) =>
+        new ConstructorDeclaration(
+            access,
+            this.Modifiers,
+            this.Parameters,
+            this.Body,
+            this.Location,
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
+
+    public override ConstructorDeclaration WithModifiers(SymbolModifier modifiers) =>
+        new ConstructorDeclaration(
+            this.Access,
+            modifiers,
+            this.Parameters,
+            this.Body,
+            this.Location,
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
+
+    public ConstructorDeclaration WithParameters(ImmutableList<ParameterDeclaration> parameters) =>
+        new ConstructorDeclaration(
+            this.Access,
+            this.Modifiers,
+            parameters,
+            this.Body,
+            this.Location,
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
+
+    public ConstructorDeclaration WithBody(Expression body) =>
+        new ConstructorDeclaration(
+            this.Access,
+            this.Modifiers,
+            this.Parameters,
+            body,
+            this.Location,
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
 
     public override int ChildCount =>
         this.Parameters.Count + 1;

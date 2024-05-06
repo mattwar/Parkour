@@ -4,6 +4,8 @@ using Symbols;
 
 public static class SemanticFactory
 {
+    #region Expressions
+
     /// <summary>
     /// Converts the referenced symbol to an array of that type.
     /// </summary>
@@ -443,6 +445,80 @@ public static class SemanticFactory
     public static OperatorExpression GreaterThanOrEqual(Expression left, Expression right, ISourceLocation? location = null) =>
         Operator(OperatorKind.GreaterThanOrEqual, [left, right], location);
 
+    #endregion
+
+    #region Declarations
+
+    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        new ClassDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
+
+    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
+
+    public static ClassDeclaration Class(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, SymbolAccess.Public, SymbolModifier.None, typeParameters, baseTypes, declarations, location);
+
+    public static ClassDeclaration Class(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static ClassDeclaration Class(string name, ImmutableList<Declaration> declarations) =>
+        Class(name, ImmutableList<Expression>.Empty, declarations);
+
+
+    public static StructDeclaration Struct(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        new StructDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
+
+    public static StructDeclaration Struct(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Struct(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static StructDeclaration Struct(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Struct(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
+
+    public static StructDeclaration Struct(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Struct(name, SymbolAccess.Public, SymbolModifier.None, typeParameters, baseTypes, declarations, location);
+
+    public static StructDeclaration Struct(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Struct(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static StructDeclaration Struct(string name, ImmutableList<Declaration> declarations) =>
+        Struct(name, ImmutableList<Expression>.Empty, declarations);
+
+
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        new InterfaceDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
+
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
+
+    public static InterfaceDeclaration Interface(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, SymbolAccess.Public, SymbolModifier.None, typeParameters, baseTypes, declarations, location);
+
+    public static InterfaceDeclaration Interface(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static InterfaceDeclaration Interface(string name, ImmutableList<Declaration> declarations) =>
+        Interface(name, ImmutableList<Expression>.Empty, declarations);
+
+
+    public static NamespaceDeclaration Namespace(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        new NamespaceDeclaration(name, declarations, location, null, null);
+
+    public static TypeParameterDeclaration TypeParameter(string name, ISourceLocation? location = null) =>
+        new TypeParameterDeclaration(name, location, null, null);
+
+    public static UsingDeclaration Using(string name, Expression @namespace, ISourceLocation? location = null) =>
+        new UsingDeclaration(name, @namespace, location, null, null);
+
+    public static UsingDeclaration Using(Expression @namespace, ISourceLocation? location = null) =>
+        new UsingDeclaration("", @namespace, location, null, null);
+
+
     public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, ISourceLocation? location = null) =>
         new ParameterDeclaration(name, parameterType, location, null, null);
 
@@ -501,33 +577,37 @@ public static class SemanticFactory
     public static PropertyDeclaration Property(string name, Expression propertyType, ISourceLocation? location = null) =>
         Property(name, SymbolAccess.Public, SymbolModifier.None, propertyType, location);
 
-    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        new ClassDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
+    public static IndexerDeclaration Indexer(
+        SymbolAccess access, 
+        SymbolModifier modifiers, 
+        Expression elementType, 
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression getter,
+        Expression? setter,
+        ISourceLocation? location = null)
+    {
+        return new IndexerDeclaration(
+            access,
+            modifiers,
+            elementType,
+            Method("get_Item", access, modifiers, parameters, elementType, getter, getter.Location),
+            (setter != null)
+                ? Method("set_Item", access, modifiers, parameters.Add(Parameter("value", elementType)), Void(), setter, setter.Location)
+                : null,
+            location,
+            symbol: null,
+            diagnostics: null);
+    }
 
-    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Class(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+    public static IndexerDeclaration Indexer(
+        Expression elementType,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression getter,
+        Expression? setter,
+        ISourceLocation? location = null
+        ) =>
+        Indexer(SymbolAccess.Public, SymbolModifier.None, elementType, parameters, getter, setter, location);
 
-    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Class(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
-
-    public static ClassDeclaration Class(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Class(name, SymbolAccess.Public, SymbolModifier.None, typeParameters, baseTypes, declarations, location);
-
-    public static ClassDeclaration Class(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Class(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
-
-    public static ClassDeclaration Class(string name, ImmutableList<Declaration> declarations) =>
-        Class(name, ImmutableList<Expression>.Empty, declarations);
-
-    public static NamespaceDeclaration Namespace(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        new NamespaceDeclaration(name, declarations, location, null, null);
-
-    public static TypeParameterDeclaration TypeParameter(string name, ISourceLocation? location = null) =>
-        new TypeParameterDeclaration(name, location, null, null);
-
-    public static UsingDeclaration Using(string name, Expression @namespace, ISourceLocation? location = null) =>
-        new UsingDeclaration(name, @namespace, location, null, null);
-
-    public static UsingDeclaration Using(Expression @namespace, ISourceLocation? location = null) =>
-        new UsingDeclaration("", @namespace, location, null, null);
+    
+    #endregion
 }

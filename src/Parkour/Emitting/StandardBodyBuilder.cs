@@ -767,14 +767,18 @@ public class StandardBodyBuilder : BodyBuilder
                     // copy to local, pass address of local, assign back?
                     throw new NotImplementedException();
                 }
+                else if (propertySymbol.GetMethod != null)
+                {
+                    this.Emitter.EmitCall(propertySymbol.GetMethod);
+                }
                 else
                 {
-                    this.Emitter.EmitCall(propertySymbol.GetMethod!);
+                    this.Emitter.EmitThrowAndReport(new Diagnostic($"Unbound property getter for '{symbol.FullName}'"));
                 }
                 break;
 
             default:
-                this.Emitter.EmitThrowAndReport(new Diagnostic($"Reference to symbol '{symbol.GetType().Name}' cannot be emitted into IL.").WithLocation(location));
+                this.Emitter.EmitThrowAndReport(new Diagnostic($"Reference to unsupported symbol type '{symbol.GetType().Name}' cannot be emitted into IL.").WithLocation(location));
                 break;
         }
     }

@@ -1,13 +1,11 @@
 ﻿namespace Parkour.Semantics;
-
 using Symbols;
-using System.Xml.Linq;
 
-public sealed class ClassDeclaration : TypeDeclaration
+public sealed class InterfaceDeclaration : TypeDeclaration
 {
-    public override ClassSymbol? Symbol { get; }
+    public override InterfaceSymbol? Symbol { get; }
 
-    public ClassDeclaration(
+    public InterfaceDeclaration(
         string name,
         SymbolAccess access,
         SymbolModifier modifiers,
@@ -15,7 +13,7 @@ public sealed class ClassDeclaration : TypeDeclaration
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
         ISourceLocation? location,
-        ClassSymbol? symbol,
+        InterfaceSymbol? symbol,
         ImmutableList<Diagnostic>? diagnostics)
     : base(
         NotNullOrDiagnosticState(symbol, diagnostics),
@@ -31,8 +29,8 @@ public sealed class ClassDeclaration : TypeDeclaration
         this.Symbol = symbol;
     }
 
-    public override ClassDeclaration WithName(string name) =>
-        new ClassDeclaration(
+    public override InterfaceDeclaration WithName(string name) =>
+        new InterfaceDeclaration(
             name,
             this.Access,
             this.Modifiers,
@@ -44,8 +42,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithLocation(ISourceLocation? location) =>
-        new ClassDeclaration(
+    public override InterfaceDeclaration WithLocation(ISourceLocation? location) =>
+        new InterfaceDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -57,8 +55,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public ClassDeclaration WithSymbol(ClassSymbol? symbol) =>
-        new ClassDeclaration(
+    public InterfaceDeclaration WithSymbol(InterfaceSymbol? symbol) =>
+        new InterfaceDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -70,8 +68,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
-        new ClassDeclaration(
+    public override InterfaceDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        new InterfaceDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -83,8 +81,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             diagnostics
             );
 
-    public override ClassDeclaration WithAccess(SymbolAccess access) =>
-        new ClassDeclaration(
+    public override InterfaceDeclaration WithAccess(SymbolAccess access) =>
+        new InterfaceDeclaration(
             this.Name,
             access,
             this.Modifiers,
@@ -96,8 +94,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithModifiers(SymbolModifier modifiers) =>
-        new ClassDeclaration(
+    public override InterfaceDeclaration WithModifiers(SymbolModifier modifiers) =>
+        new InterfaceDeclaration(
             this.Name,
             this.Access,
             modifiers,
@@ -109,8 +107,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
-        new ClassDeclaration(
+    public override InterfaceDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
+        new InterfaceDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -122,8 +120,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithBaseTypes(ImmutableList<Expression> baseTypes) =>
-        new ClassDeclaration(
+    public override InterfaceDeclaration WithBaseTypes(ImmutableList<Expression> baseTypes) =>
+        new InterfaceDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -131,12 +129,12 @@ public sealed class ClassDeclaration : TypeDeclaration
             baseTypes,
             this.Declarations,
             this.Location,
-            symbol: null,
-            diagnostics: null
+            this.Symbol,
+            this.Diagnostics
             );
 
-    public override ClassDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
-        new ClassDeclaration(
+    public override InterfaceDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
+        new InterfaceDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -144,8 +142,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.BaseTypes,
             declarations,
             this.Location,
-            symbol: null,
-            diagnostics: null
+            this.Symbol,
+            this.Diagnostics
             );
 }
-

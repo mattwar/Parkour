@@ -1,13 +1,12 @@
 ﻿namespace Parkour.Semantics;
 
 using Symbols;
-using System.Xml.Linq;
 
-public sealed class ClassDeclaration : TypeDeclaration
+public sealed class StructDeclaration : TypeDeclaration
 {
-    public override ClassSymbol? Symbol { get; }
+    public override StructSymbol? Symbol { get; }
 
-    public ClassDeclaration(
+    public StructDeclaration(
         string name,
         SymbolAccess access,
         SymbolModifier modifiers,
@@ -15,7 +14,7 @@ public sealed class ClassDeclaration : TypeDeclaration
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
         ISourceLocation? location,
-        ClassSymbol? symbol,
+        StructSymbol? symbol,
         ImmutableList<Diagnostic>? diagnostics)
     : base(
         NotNullOrDiagnosticState(symbol, diagnostics),
@@ -31,8 +30,8 @@ public sealed class ClassDeclaration : TypeDeclaration
         this.Symbol = symbol;
     }
 
-    public override ClassDeclaration WithName(string name) =>
-        new ClassDeclaration(
+    public override StructDeclaration WithName(string name) =>
+        new StructDeclaration(
             name,
             this.Access,
             this.Modifiers,
@@ -44,8 +43,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithLocation(ISourceLocation? location) =>
-        new ClassDeclaration(
+    public override StructDeclaration WithLocation(ISourceLocation? location) =>
+        new StructDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -57,8 +56,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public ClassDeclaration WithSymbol(ClassSymbol? symbol) =>
-        new ClassDeclaration(
+    public StructDeclaration WithSymbol(StructSymbol? symbol) =>
+        new StructDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -70,8 +69,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
-        new ClassDeclaration(
+    public override StructDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        new StructDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -83,8 +82,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             diagnostics
             );
 
-    public override ClassDeclaration WithAccess(SymbolAccess access) =>
-        new ClassDeclaration(
+    public override StructDeclaration WithAccess(SymbolAccess access) =>
+        new StructDeclaration(
             this.Name,
             access,
             this.Modifiers,
@@ -96,8 +95,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithModifiers(SymbolModifier modifiers) =>
-        new ClassDeclaration(
+    public override StructDeclaration WithModifiers(SymbolModifier modifiers) =>
+        new StructDeclaration(
             this.Name,
             this.Access,
             modifiers,
@@ -109,8 +108,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
-        new ClassDeclaration(
+    public override StructDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
+        new StructDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -122,8 +121,8 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithBaseTypes(ImmutableList<Expression> baseTypes) =>
-        new ClassDeclaration(
+    public override StructDeclaration WithBaseTypes(ImmutableList<Expression> baseTypes) =>
+        new StructDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -131,12 +130,12 @@ public sealed class ClassDeclaration : TypeDeclaration
             baseTypes,
             this.Declarations,
             this.Location,
-            symbol: null,
-            diagnostics: null
+            this.Symbol,
+            this.Diagnostics
             );
 
-    public override ClassDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
-        new ClassDeclaration(
+    public override StructDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
+        new StructDeclaration(
             this.Name,
             this.Access,
             this.Modifiers,
@@ -144,8 +143,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.BaseTypes,
             declarations,
             this.Location,
-            symbol: null,
-            diagnostics: null
+            this.Symbol,
+            this.Diagnostics
             );
 }
-
