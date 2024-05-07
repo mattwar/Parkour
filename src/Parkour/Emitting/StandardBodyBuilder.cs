@@ -317,7 +317,7 @@ public class StandardBodyBuilder : BodyBuilder
             case MemberExpression member:
                 return member;
             case AdjustedReferenceExpression filter:
-                return GetMemberExpression(filter.Expression);
+                return GetMemberExpression(filter.ElementType);
             default:
                 return null;
         }
@@ -682,7 +682,7 @@ public class StandardBodyBuilder : BodyBuilder
                 return member.Instance;
 
             case AdjustedReferenceExpression filter:
-                return GetMemberInstance(filter.Expression);
+                return GetMemberInstance(filter.ElementType);
 
             default:
                 return null;

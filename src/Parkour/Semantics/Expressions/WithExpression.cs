@@ -22,7 +22,7 @@ public class WithExpression : Expression
             | State(expression)
             | NotNullState(resultType),
             location,
-            resultType,
+            resultType, 
             diagnostics)
     {
         this.Scope = scope;

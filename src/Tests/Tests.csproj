@@ -18,6 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Parkour.Linq\Parkour.Linq.csproj" />
+    <ProjectReference Include="..\Parkour.Reflection\Parkour.Reflection.csproj" />
     <ProjectReference Include="..\Parkour\Parkour.csproj" />
     <ProjectReference Include="..\Tiny\Tiny.csproj" />
   </ItemGroup>

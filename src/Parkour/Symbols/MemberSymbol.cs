@@ -111,7 +111,7 @@ public abstract class MemberSymbol : Symbol
         }
     }
 
-    protected string GetFullName()
+    protected virtual string GetFullName()
     {
         string? fname = null;
 

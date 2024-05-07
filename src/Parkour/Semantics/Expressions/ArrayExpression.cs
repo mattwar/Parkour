@@ -6,23 +6,23 @@ using Symbols;
 /// </summary>
 public class ArrayExpression : AdjustedReferenceExpression
 {
-    public override Expression Expression { get; }
+    public override Expression ElementType { get; }
     public override Symbol? ReferencedSymbol { get; }
 
     public ArrayExpression(
-        Expression expression,
+        Expression elementType,
         ISourceLocation? location,
         Symbol? referencedSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            State(expression)
+            State(elementType)
             | NotNullOrDiagnosticState(referencedSymbol, diagnostics),
             location,
             resultType,
             diagnostics)
     {
-        this.Expression = expression;
+        this.ElementType = elementType;
         this.ReferencedSymbol = referencedSymbol;
     }
 
@@ -31,7 +31,7 @@ public class ArrayExpression : AdjustedReferenceExpression
     public override SemanticElement? GetChild(int index) =>
         index switch
         {
-            0 => this.Expression,
+            0 => this.ElementType,
             _ => null
         };
 }

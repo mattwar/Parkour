@@ -36,12 +36,12 @@ public abstract class SemanticElement
     }
 
     /// <summary>
-    /// The number of child elements this element contains.
+    /// The number of child elements this <see cref="SemanticElement"/> contains.
     /// </summary>
     public abstract int ChildCount { get; }
 
     /// <summary>
-    /// Gets the value of the specified element.
+    /// Gets the child <see cref="SemanticElement"/> at the specified index.
     /// </summary>
     public abstract SemanticElement? GetChild(int index);
 

@@ -102,7 +102,7 @@ public class SemanticWriter
         switch (semantic)
         {
             case ArityExpression arity:
-                Write(arity.Expression);
+                Write(arity.ElementType);
                 Write("<");
                 for (int i = 0; i < arity.Arity - 1; i++)
                     Write(",");
@@ -184,7 +184,7 @@ public class SemanticWriter
                 break;
 
             case ConstructExpression construct:
-                Write(construct.Expression);
+                Write(construct.ElementType);
                 Write("<");
                 for (int i = 0; i < construct.TypeArguments.Count; i++)
                 {

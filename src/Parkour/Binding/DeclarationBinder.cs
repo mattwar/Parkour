@@ -18,13 +18,5 @@ public abstract class DeclarationBinder
     /// </summary>
     public abstract ExpressionBinding BindExpression(
         Expression expression,
-        SymbolTable externalSymbols,
-        BindingScope scope);
-
-    /// <summary>
-    /// Rewrites expressions to include referenced symbols, result types and diagnostics.
-    /// </summary>
-    public abstract ExpressionBinding BindExpression(
-        Expression expression,
         SymbolTable externalSymbols);
 }

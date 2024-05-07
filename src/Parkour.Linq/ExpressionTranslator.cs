@@ -1,8 +1,9 @@
 ﻿using L=System.Linq.Expressions;
+using System.Collections.Immutable;
 using System.Reflection;
 
 namespace Parkour.Linq;
-using Binding;
+
 using Reflection;
 using Semantics;
 using Symbols;
@@ -356,7 +357,7 @@ public class ExpressionTranslator
             case MemberExpression member:
                 return member.Instance;
             case AdjustedReferenceExpression adjust:
-                return GetCallInstance(adjust.Expression);
+                return GetCallInstance(adjust.ElementType);
             default:
                 return expression;
         }

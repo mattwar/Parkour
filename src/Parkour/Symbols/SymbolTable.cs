@@ -189,97 +189,97 @@ public abstract class SymbolTable
         _systemNs ??= GetSymbol<NamespaceSymbol>("System")!;
 
     /// <summary>
-    /// The <see cref="System.Type"/> type.
+    /// The System.Type type.
     /// </summary>
     public TypeSymbol Type =>
         _typeType ??= GetOrCreateCommonType(typeof(System.Type));
 
     /// <summary>
-    /// The <see cref="System.Boolean"/> type.
+    /// The Syste.Boolean type.
     /// </summary>
     public TypeSymbol Boolean =>
         _booleanType ??= GetOrCreateCommonType(typeof(System.Boolean));
 
     /// <summary>
-    /// The <see cref="System.Byte"/> type.
+    /// The System.Byte type.
     /// </summary>
     public TypeSymbol Byte =>
         _byteType ??= GetOrCreateCommonType(typeof(System.Byte));
 
     /// <summary>
-    /// The <see cref="System.SByte"/> type.
+    /// The System.SByte type.
     /// </summary>
     public TypeSymbol SByte =>
         _sbyteType ??= GetOrCreateCommonType(typeof(System.SByte));
 
     /// <summary>
-    /// The <see cref="System.Int16"/> type.
+    /// The System.Int16 type.
     /// </summary>
     public TypeSymbol Int16 =>
         _int16Type ??= GetOrCreateCommonType(typeof(System.Int16));
 
     /// <summary>
-    /// The <see cref="System.UInt16"/> type.
+    /// The System.UInt16 type.
     /// </summary>
     public TypeSymbol UInt16 =>
         _uint16Type ??= GetOrCreateCommonType(typeof(System.UInt16));
 
     /// <summary>
-    /// The <see cref="System.Int32"/> type.
+    /// The System.Int32 type.
     /// </summary>
     public TypeSymbol Int32 =>
         _int32Type ??= GetOrCreateCommonType(typeof(System.Int32));
 
     /// <summary>
-    /// The <see cref="System.UInt32"/> type.
+    /// The System.UInt32 type.
     /// </summary>
     public TypeSymbol UInt32 =>
         _uint32Type ??= GetOrCreateCommonType(typeof(System.UInt32));
 
     /// <summary>
-    /// The <see cref="System.Int64"/> type.
+    /// The System.Int64 type.
     /// </summary>
     public TypeSymbol Int64 =>
         _int64Type ??= GetOrCreateCommonType(typeof(System.Int64));
 
     /// <summary>
-    /// The <see cref="System.UInt64"/> type.
+    /// The System.UInt64 type.
     /// </summary>
     public TypeSymbol UInt64 =>
         _uint64Type ??= GetOrCreateCommonType(typeof(System.UInt64));
 
     /// <summary>
-    /// The <see cref="System.Single"/> type.
+    /// The System.Single type.
     /// </summary>
     public TypeSymbol Single =>
         _singleType ??= GetOrCreateCommonType(typeof(System.Single));
 
     /// <summary>
-    /// The <see cref="System.Double"/> type.
+    /// The System.Double type.
     /// </summary>
     public TypeSymbol Double =>
         _doubleType ??= GetOrCreateCommonType(typeof(System.Double));
 
     /// <summary>
-    /// The <see cref="System.Decimal"/> type.
+    /// The System.Decimal type.
     /// </summary>
     public TypeSymbol Decimal =>
         _decimalType ??= GetOrCreateCommonType(typeof(System.Decimal));
 
     /// <summary>
-    /// The <see cref="System.Char"/> type.
+    /// The System.Char type.
     /// </summary>
     public TypeSymbol Char =>
         _charType ??= GetOrCreateCommonType(typeof(System.Char));
 
     /// <summary>
-    /// The <see cref="System.String"/> type.
+    /// The System.String type.
     /// </summary>
     public TypeSymbol String =>
         _stringType ??= GetOrCreateCommonType(typeof(System.String));
 
     /// <summary>
-    /// The <see cref="System.Object"/> type.
+    /// The System.Object type.
     /// </summary>
     public TypeSymbol Object =>
         _objectType ??= GetOrCreateCommonType(typeof(System.Object));

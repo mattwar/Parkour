@@ -6,7 +6,7 @@ using Symbols;
 /// </summary>
 public class ConstructExpression : AdjustedReferenceExpression
 {
-    public override Expression Expression { get; }
+    public override Expression ElementType { get; }
     public ImmutableList<Expression> TypeArguments { get; }
     public Symbol? ConstructedSymbol { get; }
 
@@ -25,7 +25,7 @@ public class ConstructExpression : AdjustedReferenceExpression
             resultType,
             diagnostics)
     {
-        this.Expression = expression;
+        this.ElementType = expression;
         this.TypeArguments = typeArguments;
         this.ConstructedSymbol = constructedSymbol;
     }
@@ -39,7 +39,7 @@ public class ConstructExpression : AdjustedReferenceExpression
     public override SemanticElement? GetChild(int index) =>
         index switch
         {
-            0 => this.Expression,
+            0 => this.ElementType,
             _ => this.TypeArguments[index - 1]
         };
 }

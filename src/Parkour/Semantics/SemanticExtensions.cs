@@ -1,4 +1,6 @@
-﻿namespace Parkour.Semantics;
+﻿using System;
+
+namespace Parkour.Semantics;
 
 public static class SemanticExtensions
 { 
@@ -141,6 +143,39 @@ public static class SemanticExtensions
             if (element.GetChild(i) is SemanticElement child)
                 Walk(child, walkChildren, action);
         }
+    }
+
+    /// <summary>
+    /// Returns the first element that matches the type and predicate.
+    /// </summary>
+    public static TElement? FirstDescendantOrSelf<TElement>(
+        this SemanticElement? element,
+        Func<SemanticElement, bool>? predicate = null,
+        Func<SemanticElement, bool>? walkChildren = null
+        )
+        where TElement : SemanticElement
+    {
+        if (element == null)
+            return null;
+
+        if (element is TElement telem
+            && (predicate == null || predicate(telem)))
+            return telem;
+
+        if (walkChildren != null && !walkChildren(element))
+            return null;
+
+        for (int i = 0, n = element.ChildCount; i < n; i++)
+        {
+            if (element.GetChild(i) is SemanticElement child)
+            {
+                var childFirst = FirstDescendantOrSelf<TElement>(child, predicate, walkChildren);
+                if (childFirst != null)
+                    return childFirst;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -3,10 +3,10 @@ using Symbols;
 
 public sealed class DefaultExpression : Expression
 {
-    public Expression? TypeExpression { get; }
+    public Expression? Type { get; }
 
     public DefaultExpression(
-        Expression? typeExpression,
+        Expression? type,
         ISourceLocation? location,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
@@ -16,7 +16,7 @@ public sealed class DefaultExpression : Expression
             resultType,
             diagnostics)
     {
-        this.TypeExpression = typeExpression;
+        this.Type = type;
     }
 
     public override int ChildCount => 1;
@@ -24,7 +24,7 @@ public sealed class DefaultExpression : Expression
     public override SemanticElement? GetChild(int index) =>
         index switch
         {
-            0 => this.TypeExpression,
+            0 => this.Type,
             _ => null
         };
 }

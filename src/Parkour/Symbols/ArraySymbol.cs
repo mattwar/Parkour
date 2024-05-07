@@ -83,4 +83,12 @@ public sealed class ArraySymbol : TypeSymbol
             me => context.Substitute(this.Members),
             this.ConstructedFrom);
     }
+
+    protected override string GetFullName()
+    {
+        var elementName = this.ElementType.FullName;
+        if (this.Dimensions == 1)
+            return $"{elementName}[]";
+        return $"{elementName}[{new String(',', this.Dimensions - 1)}]";
+    }
 }

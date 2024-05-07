@@ -7,7 +7,7 @@ namespace Tests;
 using static TestHelpers;
 
 [TestClass]
-public class SyntaxTests
+public class ParsingAnnotationTests
 {
     private static string AtStart = "<Expression>, 'not', '-', <IdentifierToken>, <NumberToken>, <StringToken>, '('";
     private static string AfterPrimary = "'*', '/', '+', '-', '>', '>=', '<', '<=', '==', '!=', 'and', 'or', <any>";
@@ -15,41 +15,41 @@ public class SyntaxTests
     private static string AfterParenthesizedPrimary = "'*', '/', '+', '-', '>', '>=', '<', '<=', '==', '!=', 'and', 'or', ')'";
 
     [TestMethod]
-    public void TestNextTerms_AtStart()
+    public void TestAnnotations_AtStart()
     {
-        TestNextTerms("$", AtStart);
-        TestNextTerms("$X", AtStart);
+        TestAnnotations("$", AtStart);
+        TestAnnotations("$X", AtStart);
     }
 
     [TestMethod]
-    public void TestNextTerms_AfterPrimary()
+    public void TestAnnotations_AfterPrimary()
     {
-        TestNextTerms("X$", AfterPrimary);
-        TestNextTerms("X $", AfterPrimary);
-        TestNextTerms("X $ Y", AfterPrimary);
+        TestAnnotations("X$", AfterPrimary);
+        TestAnnotations("X $", AfterPrimary);
+        TestAnnotations("X $ Y", AfterPrimary);
     }
 
     [TestMethod]
-    public void TestNextTerms_AfterMultiplicative()
+    public void TestAnnotations_AfterMultiplicative()
     {
-        TestNextTerms("X * $", AfterBinaryOp);
-        TestNextTerms("X * X $", AfterPrimary);
+        TestAnnotations("X * $", AfterBinaryOp);
+        TestAnnotations("X * X $", AfterPrimary);
     }
 
     [TestMethod]
-    public void TestNextTerms_AfterAdditive()
+    public void TestAnnotations_AfterAdditive()
     {
-        TestNextTerms("X + $", AfterBinaryOp);
-        TestNextTerms("X + X $", AfterPrimary);
+        TestAnnotations("X + $", AfterBinaryOp);
+        TestAnnotations("X + X $", AfterPrimary);
     }
 
     [TestMethod]
-    public void TestNextTerms_AfterParenthesizedPrimary()
+    public void TestAnnotations_AfterParenthesizedPrimary()
     {
-        TestNextTerms("(X$", AfterParenthesizedPrimary);
+        TestAnnotations("(X$", AfterParenthesizedPrimary);
     }
 
-    private void TestNextTerms(string textWithMarker, params string[] expectedTerms)
+    private void TestAnnotations(string textWithMarker, params string[] expectedTerms)
     {
         var (textWithoutMarker, markerPosition) = StripMarker(textWithMarker);
         var parser = new TinyParser();

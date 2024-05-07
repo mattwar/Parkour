@@ -50,9 +50,9 @@ public class StandardDeclarationBinder : DeclarationBinder
     }
 
     /// <summary>
-    /// Binds all unbound expressions
+    /// Binds all unbound expressions given an initial binding scope
     /// </summary>
-    public override ExpressionBinding BindExpression(
+    public virtual ExpressionBinding BindExpression(
         Expression expression,
         SymbolTable externalSymbols,
         BindingScope scope)
@@ -63,240 +63,6 @@ public class StandardDeclarationBinder : DeclarationBinder
         boundExpression.GetContainedDiagnostics(dx);
         return new ExpressionBinding(boundExpression, dx.ToImmutableList());
     }
-
-    #region binding contexts
-
-    /// <summary>
-    /// Contains useful state for creating symbols for declarations.
-    /// </summary>
-    protected class SymbolContext
-    {
-        public SymbolTable Symbols { get; }
-        public BindingScope Scope { get; }
-
-        private SymbolContext(
-            SymbolTable symbols,
-            BindingScope scope,
-            Dictionary<Declaration, Symbol> declToSymbolMap)
-        {
-            this.Symbols = symbols;
-            this.Scope = scope;
-            _declToSymbolMap = declToSymbolMap;
-        }
-
-        public SymbolContext(
-            SymbolTable symbols,
-            BindingScope scope)
-            : this(symbols, scope, new Dictionary<Declaration, Symbol>())
-        {
-        }
-
-        public virtual SymbolContext WithScope(BindingScope scope)
-        {
-            return new SymbolContext(this.Symbols, scope, _declToSymbolMap);
-        }
-
-        private Dictionary<Declaration, Symbol> _declToSymbolMap;
-
-        public void AssociateSymbolWithDeclaration(Declaration declaration, Symbol symbol)
-        {
-            _declToSymbolMap[declaration] = symbol;
-        }
-
-        public Symbol? GetSymbolForDeclaration(Declaration declaration)
-        {
-            _declToSymbolMap.TryGetValue(declaration, out var symbol);
-            return symbol;
-        }
-
-        private DeclarationContext? _declContext;
-
-        public virtual DeclarationContext DeclarationContext
-        {
-            get
-            {
-                if (_declContext == null)
-                {
-                    var tmp = new DeclarationContext(
-                        this, 
-                        null,
-                        this.Scope,
-                        _declToSymbolMap);
-                    Interlocked.CompareExchange(ref _declContext, tmp, null);
-                }
-
-                return _declContext;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Contains useful state for binding declarations.
-    /// </summary>
-    protected class DeclarationContext    
-    {
-        /// <summary>
-        /// The initial <see cref="SymbolContext"/>
-        /// </summary>
-        public SymbolContext SymbolContext { get; }
-
-        /// <summary>
-        /// The declaring type of the declaration
-        /// </summary>
-        public TypeSymbol? DeclaringType { get; }
-
-        /// <summary>
-        /// The current <see cref="BindingScope"/>
-        /// </summary>
-        public BindingScope Scope { get; }
-
-        private readonly Dictionary<Declaration, Symbol> _declToSymbolMap;
-
-        public DeclarationContext(
-            SymbolContext context,
-            TypeSymbol? declaringType,
-            BindingScope scope,
-            Dictionary<Declaration, Symbol> unboundToSymbolMap)
-        {
-            this.SymbolContext = context;
-            this.DeclaringType = declaringType;
-            this.Scope = scope;
-            _declToSymbolMap = unboundToSymbolMap;
-        }
-
-        public virtual DeclarationContext WithDeclaringType(TypeSymbol? declaringType)
-        {
-            if (declaringType == this.DeclaringType)
-                return this;
-            return new DeclarationContext(this.SymbolContext, declaringType, this.Scope, _declToSymbolMap);
-        }
-
-        public virtual DeclarationContext WithScope(BindingScope scope)
-        {
-            if (scope == this.Scope)
-                return this;
-            return new DeclarationContext(this.SymbolContext, this.DeclaringType, scope, _declToSymbolMap);
-        }
-
-        public bool TryGetSymbolForUnboundDeclaration(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol)
-        {
-            return _declToSymbolMap.TryGetValue(declaration, out symbol);
-        }
-
-        private ExpressionContext? _exprContext;
-
-        public virtual ExpressionContext ExpressionContext
-        {
-            get
-            {
-                if (_exprContext == null)
-                {
-                    var tmp = new ExpressionContext(this.SymbolContext, this.DeclaringType, this.Scope);
-                    Interlocked.CompareExchange(ref _exprContext, tmp, null);
-                }
-
-                return _exprContext;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Contains useful state for binding expressions.
-    /// </summary>
-    protected class ExpressionContext
-    {
-        /// <summary>
-        /// The intial <see cref="BindingContext"/>
-        /// </summary>
-        public SymbolContext SymbolContext { get; }
-
-        /// <summary>
-        /// All the symbols that can be refered to by the expression.
-        /// </summary>
-        public SymbolTable Symbols => SymbolContext.Symbols;
-
-        /// <summary>
-        /// The declaring type associated with the expression
-        /// </summary>
-        public TypeSymbol? DeclaringType { get; }
-
-        /// <summary>
-        /// The current binding scope.
-        /// </summary>
-        public BindingScope Scope { get; }
-
-        /// <summary>
-        /// If true the binder will attempt to rebind an already bound semantic subtree.
-        /// </summary>
-        public bool Rebind { get; }
-
-        /// <summary>
-        /// The target type in scope
-        /// </summary>
-        public TypeSymbol? TargetType { get; }
-
-        private readonly Dictionary<LabelExpression, LabelSymbol> _labelToSymbolMap;
-
-        private ExpressionContext(
-            SymbolContext context,
-            TypeSymbol? declaringType,
-            BindingScope scope,
-            bool rebind,
-            TypeSymbol? targetType,
-            Dictionary<LabelExpression, LabelSymbol>? labelToSymbolMap)
-        {
-            this.SymbolContext = context;
-            this.DeclaringType = declaringType;
-            this.Scope = scope;
-            this.Rebind = rebind;
-            this.TargetType = targetType;
-            _labelToSymbolMap = labelToSymbolMap ?? new Dictionary<LabelExpression, LabelSymbol>();
-        }
-
-        public ExpressionContext(
-            SymbolContext context,
-            TypeSymbol? declaringType,
-            BindingScope scope)
-            : this(context, declaringType, scope, false, null, null)
-        {
-        }
-
-        /// <summary>
-        /// Creates a new instance with <see cref="Scope"/> assigned.
-        /// </summary>
-        public ExpressionContext WithScope(BindingScope scope) =>
-            new ExpressionContext(this.SymbolContext, this.DeclaringType, scope, this.Rebind, this.TargetType, _labelToSymbolMap);
-
-        /// <summary>
-        /// Creates a new instance with <see cref="Rebind"/> assigned.
-        /// </summary>
-        public ExpressionContext WithRebind(bool rebind) =>
-            new ExpressionContext(this.SymbolContext, this.DeclaringType, this.Scope, this.Rebind, this.TargetType, _labelToSymbolMap);
-
-        /// <summary>
-        /// Createsa  new instance with <see cref="TargetType"/> assigned.
-        /// </summary>
-        public ExpressionContext WithTargetType(TypeSymbol? targetType) =>
-            new ExpressionContext(this.SymbolContext, this.DeclaringType, this.Scope, this.Rebind, targetType, _labelToSymbolMap);
-
-        /// <summary>
-        /// Sets the <see cref="LabelSymbol"/> associated with its declaring <see cref="LabelExpression"/>
-        /// </summary>
-        public void SetLabelSymbol(LabelExpression label, LabelSymbol symbol)
-        {
-            _labelToSymbolMap[label] = symbol;
-        }
-
-        /// <summary>
-        /// Gets the <see cref="LabelSymbol"/> associated to the declaring <see cref="LabelExpression"/>
-        /// </summary>
-        public LabelSymbol? GetLabelSymbol(LabelExpression label)
-        {
-            _labelToSymbolMap.TryGetValue(label, out var target);
-            return target;
-        }
-    };
-    #endregion
 
     #region Symbol Creation
 
@@ -1332,31 +1098,6 @@ public class StandardDeclarationBinder : DeclarationBinder
     }
 
     /// <summary>
-    /// Binds a list of expressions.
-    /// </summary>
-    public ImmutableList<TExpression> BindExpressionList<TExpression>(
-        ImmutableList<TExpression> expressions,
-        SymbolTable symbols)
-        where TExpression : Expression
-    {
-        var scope = CreateDefaultBindingScope().AddSymbol(symbols.GlobalNamespace);
-        return BindExpressionList(expressions, symbols, scope);
-    }
-
-    /// <summary>
-    /// Binds a list of expressions.
-    /// </summary>
-    public ImmutableList<TExpression> BindExpressionList<TExpression>(
-        ImmutableList<TExpression> expressions,
-        SymbolTable symbols,
-        BindingScope scope)
-        where TExpression : Expression
-    {
-        var context = new ExpressionContext(CreateInitialSymbolContext(symbols), null, scope);
-        return BindExpressionList(context, expressions);
-    }
-
-    /// <summary>
     /// Binds a list of <see cref="Expression"/>
     /// </summary>
     protected virtual ImmutableList<TExpression> BindExpressionList<TExpression>(
@@ -1367,6 +1108,39 @@ public class StandardDeclarationBinder : DeclarationBinder
         if (expressions.Count == 0)
             return expressions;
         return expressions.Rewrite(e => (TExpression)BindExpression(context, e));
+    }
+
+    /// <summary>
+    /// Binds the type expression and reports an error if the expression does not bind to a type.
+    /// </summary>
+    protected virtual Expression BindTypeExpression(ExpressionContext context, Expression type, List<Diagnostic> diagnostics)
+    {
+        var expr = BindExpression(context.WithTargetType(null), type);
+
+        var isType = 
+            expr.ReferencedSymbol is TypeSymbol
+            || expr.ReferencedSymbol is GroupSymbol gs && gs.Members.Any(m => m is TypeSymbol);
+
+        if (!isType)
+        {
+            diagnostics.Add(BindingDiagnostics.ExpressionIsNotType().WithLocation(type.Location));
+        }
+
+        return expr;
+    }
+
+    /// <summary>
+    /// Binds a list of type expressions.
+    /// </summary>
+    protected virtual ImmutableList<TExpression> BindTypeExpressionList<TExpression>(
+        ExpressionContext context,
+        ImmutableList<TExpression> expressions,
+        List<Diagnostic> diagnostics)
+        where TExpression : Expression
+    {
+        if (expressions.Count == 0)
+            return expressions;
+        return expressions.Rewrite(e => (TExpression)BindTypeExpression(context, e, diagnostics));
     }
 
     /// <summary>
@@ -1401,26 +1175,26 @@ public class StandardDeclarationBinder : DeclarationBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(context, array.Expression);
-            var elementType = expression.ReferencedSymbol as TypeSymbol;
-            var referencedSymbol = elementType != null ? context.Symbols.GetArray(elementType) : null;
-            var resultType = GetReferenceResultType(context, referencedSymbol);
+            var elementTypeExpr = BindTypeExpression(context, array.ElementType, diagnostics);
+            var elementType = elementTypeExpr.ReferencedSymbol as TypeSymbol;
+            var arrayType = elementType != null ? context.Symbols.GetArray(elementType) : null;
+            var resultType = context.Symbols.Type; // a type is a type
 
             if (elementType == null)
             {
                 diagnostics.Add(BindingDiagnostics.ReferencedSymbolNotType().WithLocation(array.Location));
             }
 
-            if (expression == array.Expression
-                && referencedSymbol == array.ReferencedSymbol
+            if (elementTypeExpr == array.ElementType
+                && arrayType == array.ReferencedSymbol
                 && resultType == array.ResultType
                 && diagnostics.Count == 0)
                 return array;
 
             return new ArrayExpression(
-                expression,
+                elementTypeExpr,
                 array.Location,
-                referencedSymbol,
+                arrayType,
                 resultType,
                 diagnostics.ToImmutableList()
                 );
@@ -1442,7 +1216,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(context, arity.Expression);
+            var expression = BindExpression(context, arity.ElementType);
 
             Symbol? referencedSymbol = null;
             if (expression.ReferencedSymbol is GroupSymbol group)
@@ -1461,7 +1235,7 @@ public class StandardDeclarationBinder : DeclarationBinder
 
             var resultType = GetReferenceResultType(context, referencedSymbol);
 
-            if (expression == arity.Expression
+            if (expression == arity.ElementType
                 && referencedSymbol == arity.ReferencedSymbol
                 && resultType == arity.ResultType
                 && diagnostics.Count == 0)
@@ -1782,7 +1556,7 @@ public class StandardDeclarationBinder : DeclarationBinder
             case MemberExpression member:
                 return member.Instance;
             case AdjustedReferenceExpression filter:
-                return GetCallInstance(filter.Expression);
+                return GetCallInstance(filter.ElementType);
             default:
                 return expression;
         }
@@ -1974,8 +1748,8 @@ public class StandardDeclarationBinder : DeclarationBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(context, construct.Expression);
-            var typeArguments = BindExpressionList(context, construct.TypeArguments);
+            var expression = BindExpression(context, construct.ElementType);
+            var typeArguments = BindTypeExpressionList(context, construct.TypeArguments, diagnostics);
 
             Symbol? constructedSymbol = null;
             if (expression.ReferencedSymbol is Symbol symbol)
@@ -1990,7 +1764,7 @@ public class StandardDeclarationBinder : DeclarationBinder
 
             var resultType = GetReferenceResultType(context, constructedSymbol);
 
-            if (expression == construct.Expression
+            if (expression == construct.ElementType
                 && typeArguments == construct.TypeArguments
                 && constructedSymbol == construct.ConstructedSymbol
                 && resultType == construct.ResultType
@@ -2081,7 +1855,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         try
         {
             var convertedType = convert.ConvertedType != null
-                ? BindExpression(context.WithTargetType(null), convert.ConvertedType)
+                ? BindTypeExpression(context, convert.ConvertedType, diagnostics)
                 : null;
 
             var type = convertedType != null
@@ -2413,9 +2187,9 @@ public class StandardDeclarationBinder : DeclarationBinder
             Expression? typeExpr = null;
             TypeSymbol? resultType = null;
 
-            if (dex.TypeExpression != null)
+            if (dex.Type != null)
             {
-                typeExpr = dex.TypeExpression != null ? BindExpression(context.WithTargetType(null), dex.TypeExpression) : null;
+                typeExpr = dex.Type != null ? BindTypeExpression(context, dex.Type, diagnostics) : null;
                 resultType = typeExpr != null ? typeExpr.ReferencedSymbol as TypeSymbol : null;
             }
             else if (context.TargetType != null)
@@ -2428,7 +2202,7 @@ public class StandardDeclarationBinder : DeclarationBinder
                 resultType = SpecialSymbols.Any;
             }
 
-            if (typeExpr == dex.TypeExpression
+            if (typeExpr == dex.Type
                 && resultType == dex.ResultType
                 && diagnostics.Count == 0)
                 return dex;
@@ -2556,23 +2330,32 @@ public class StandardDeclarationBinder : DeclarationBinder
     /// </summary>
     protected virtual Expression BindIsType(ExpressionContext context, IsTypeExpression istype)
     {
-        context = context.WithTargetType(null);
-        var expression = BindExpression(context, istype.Expression);
-        var type = BindExpression(context, istype.Type);
-        var resultType = context.Symbols.Boolean;
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            context = context.WithTargetType(null);
+            var expression = BindExpression(context, istype.Expression);
+            var type = BindTypeExpression(context, istype.Type, diagnostics);
+            var resultType = context.Symbols.Boolean;
 
-        if (expression == istype.Expression
-            && type == istype.Type
-            && resultType == istype.ResultType
-            && istype.Diagnostics.Count == 0)
-            return istype;
+            if (expression == istype.Expression
+                && type == istype.Type
+                && resultType == istype.ResultType
+                && diagnostics.Count == 0
+                && istype.Diagnostics.Count == 0)
+                return istype;
 
-        return new IsTypeExpression(
-            expression,
-            type,
-            istype.Location,
-            resultType,
-            null);
+            return new IsTypeExpression(
+                expression,
+                type,
+                istype.Location,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -2586,7 +2369,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         try
         {
             var receivingType = label.ReceivingType != null 
-                ? BindExpression(context, label.ReceivingType)
+                ? BindTypeExpression(context, label.ReceivingType, diagnostics)
                 : null;
 
             var resultType = receivingType != null 
@@ -2695,7 +2478,7 @@ public class StandardDeclarationBinder : DeclarationBinder
 
                 foreach (var p in parameters)
                 {
-                    var type = p.ParameterType != null ? BindExpression(context, p.ParameterType) : null;
+                    var type = p.ParameterType != null ? BindTypeExpression(context, p.ParameterType, diagnostics) : null;
                     var ptype = type?.ReferencedSymbol as TypeSymbol ?? SpecialSymbols.Any;
                     var psymbol = new ParameterSymbol(p.Name, declaringSymbol, ptype);
                     var pdecl = new ParameterDeclaration(p.Name, type, p.Location, psymbol, null);
@@ -2920,7 +2703,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         };
     }
 
-#endregion
+    #endregion
 
     #region Member Expression
     /// <summary>
@@ -3064,9 +2847,9 @@ public class StandardDeclarationBinder : DeclarationBinder
         {
             var argContext = context.WithTargetType(null);
 
-            var typeExpression = nex.TypeExpression != null ? BindExpression(argContext, nex.TypeExpression) : null;
+            var type = nex.Type != null ? BindTypeExpression(argContext, nex.Type, diagnostics) : null;
             var arguments = BindExpressionList(argContext, nex.Arguments);
-            var referencedType = (typeExpression?.ReferencedSymbol ?? context.TargetType) as TypeSymbol;
+            var referencedType = (type?.ReferencedSymbol ?? context.TargetType) as TypeSymbol;
 
             if (referencedType != null)
                 GetConstructorCandidates(context, referencedType, arguments, candidates);
@@ -3098,7 +2881,7 @@ public class StandardDeclarationBinder : DeclarationBinder
 
             var resultType = constructorSymbol?.ConstructedType;
 
-            if (typeExpression == nex.TypeExpression
+            if (type == nex.Type
                 && arguments == nex.Arguments
                 && constructorSymbol == nex.ConstructorSymbol
                 && resultType == nex.ResultType
@@ -3106,7 +2889,7 @@ public class StandardDeclarationBinder : DeclarationBinder
                 return nex;
 
             return new NewExpression(
-                typeExpression,
+                type,
                 arguments,
                 nex.Location,
                 constructorSymbol,
@@ -3164,7 +2947,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         {
             var targetType = context.TargetType;
             context = context.WithTargetType(null);
-            var elementType = newArraySize.ElementType != null ? BindExpression(context, newArraySize.ElementType) : null;
+            var elementType = newArraySize.ElementType != null ? BindTypeExpression(context, newArraySize.ElementType, diagnostics) : null;
             var size = BindExpression(context, newArraySize.Size);
 
             var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
@@ -3210,7 +2993,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         {
             var targetType = context.TargetType;
             context = context.WithTargetType(null);
-            var elementType = newArrayInit.ElementType != null ? BindExpression(context, newArrayInit.ElementType) : null;
+            var elementType = newArrayInit.ElementType != null ? BindTypeExpression(context, newArrayInit.ElementType, diagnostics) : null;
             var expressions = BindExpressionList(context, newArrayInit.Expressions);
 
             var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
@@ -3339,19 +3122,28 @@ public class StandardDeclarationBinder : DeclarationBinder
     /// </summary>
     protected virtual Expression BindTypeOf(ExpressionContext context, TypeOfExpression toe)
     {
-        var typeEx = BindExpression(context, toe.Type);
-        var resultType = context.Symbols.Type;
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var type = BindTypeExpression(context, toe.Type, diagnostics);
+            var resultType = context.Symbols.Type;
 
-        if (typeEx == toe.Type
-            && resultType == toe.ResultType
-            && toe.Diagnostics.Count == 0)
-            return toe;
+            if (type == toe.Type
+                && resultType == toe.ResultType
+                && toe.Diagnostics.Count == 0
+                && diagnostics.Count == 0)
+                return toe;
 
-        return new TypeOfExpression(
-            typeEx,
-            toe.Location,
-            resultType,
-            null);
+            return new TypeOfExpression(
+                type,
+                toe.Location,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -3370,7 +3162,7 @@ public class StandardDeclarationBinder : DeclarationBinder
 
             if (declaration.VariableType != null)
             {
-                variableType = BindExpression(context.WithTargetType(null), declaration.VariableType);
+                variableType = BindTypeExpression(context.WithTargetType(null), declaration.VariableType, diagnostics);
                 vtype = variableType?.ReferencedSymbol as TypeSymbol ?? context.Symbols.Object;
                 if (declaration.Initializer != null)
                 {
@@ -3431,7 +3223,7 @@ public class StandardDeclarationBinder : DeclarationBinder
     }
     #endregion
 
-#endregion
+    #endregion
 
     #region Misc
     /// <summary>
@@ -3571,6 +3363,240 @@ public class StandardDeclarationBinder : DeclarationBinder
             type == SpecialSymbols.Null
             || type == SpecialSymbols.Unknown;
     }
+    #endregion
+
+    #region binding contexts
+
+    /// <summary>
+    /// Contains useful state for creating symbols for declarations.
+    /// </summary>
+    protected class SymbolContext
+    {
+        public SymbolTable Symbols { get; }
+        public BindingScope Scope { get; }
+
+        private SymbolContext(
+            SymbolTable symbols,
+            BindingScope scope,
+            Dictionary<Declaration, Symbol> declToSymbolMap)
+        {
+            this.Symbols = symbols;
+            this.Scope = scope;
+            _declToSymbolMap = declToSymbolMap;
+        }
+
+        public SymbolContext(
+            SymbolTable symbols,
+            BindingScope scope)
+            : this(symbols, scope, new Dictionary<Declaration, Symbol>())
+        {
+        }
+
+        public virtual SymbolContext WithScope(BindingScope scope)
+        {
+            return new SymbolContext(this.Symbols, scope, _declToSymbolMap);
+        }
+
+        private Dictionary<Declaration, Symbol> _declToSymbolMap;
+
+        public void AssociateSymbolWithDeclaration(Declaration declaration, Symbol symbol)
+        {
+            _declToSymbolMap[declaration] = symbol;
+        }
+
+        public Symbol? GetSymbolForDeclaration(Declaration declaration)
+        {
+            _declToSymbolMap.TryGetValue(declaration, out var symbol);
+            return symbol;
+        }
+
+        private DeclarationContext? _declContext;
+
+        public virtual DeclarationContext DeclarationContext
+        {
+            get
+            {
+                if (_declContext == null)
+                {
+                    var tmp = new DeclarationContext(
+                        this,
+                        null,
+                        this.Scope,
+                        _declToSymbolMap);
+                    Interlocked.CompareExchange(ref _declContext, tmp, null);
+                }
+
+                return _declContext;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Contains useful state for binding declarations.
+    /// </summary>
+    protected class DeclarationContext
+    {
+        /// <summary>
+        /// The initial <see cref="SymbolContext"/>
+        /// </summary>
+        public SymbolContext SymbolContext { get; }
+
+        /// <summary>
+        /// The declaring type of the declaration
+        /// </summary>
+        public TypeSymbol? DeclaringType { get; }
+
+        /// <summary>
+        /// The current <see cref="BindingScope"/>
+        /// </summary>
+        public BindingScope Scope { get; }
+
+        private readonly Dictionary<Declaration, Symbol> _declToSymbolMap;
+
+        public DeclarationContext(
+            SymbolContext context,
+            TypeSymbol? declaringType,
+            BindingScope scope,
+            Dictionary<Declaration, Symbol> unboundToSymbolMap)
+        {
+            this.SymbolContext = context;
+            this.DeclaringType = declaringType;
+            this.Scope = scope;
+            _declToSymbolMap = unboundToSymbolMap;
+        }
+
+        public virtual DeclarationContext WithDeclaringType(TypeSymbol? declaringType)
+        {
+            if (declaringType == this.DeclaringType)
+                return this;
+            return new DeclarationContext(this.SymbolContext, declaringType, this.Scope, _declToSymbolMap);
+        }
+
+        public virtual DeclarationContext WithScope(BindingScope scope)
+        {
+            if (scope == this.Scope)
+                return this;
+            return new DeclarationContext(this.SymbolContext, this.DeclaringType, scope, _declToSymbolMap);
+        }
+
+        public bool TryGetSymbolForUnboundDeclaration(Declaration declaration, [NotNullWhen(true)] out Symbol? symbol)
+        {
+            return _declToSymbolMap.TryGetValue(declaration, out symbol);
+        }
+
+        private ExpressionContext? _exprContext;
+
+        public virtual ExpressionContext ExpressionContext
+        {
+            get
+            {
+                if (_exprContext == null)
+                {
+                    var tmp = new ExpressionContext(this.SymbolContext, this.DeclaringType, this.Scope);
+                    Interlocked.CompareExchange(ref _exprContext, tmp, null);
+                }
+
+                return _exprContext;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Contains useful state for binding expressions.
+    /// </summary>
+    protected class ExpressionContext
+    {
+        /// <summary>
+        /// The intial <see cref="BindingContext"/>
+        /// </summary>
+        public SymbolContext SymbolContext { get; }
+
+        /// <summary>
+        /// All the symbols that can be refered to by the expression.
+        /// </summary>
+        public SymbolTable Symbols => SymbolContext.Symbols;
+
+        /// <summary>
+        /// The declaring type associated with the expression
+        /// </summary>
+        public TypeSymbol? DeclaringType { get; }
+
+        /// <summary>
+        /// The current binding scope.
+        /// </summary>
+        public BindingScope Scope { get; }
+
+        /// <summary>
+        /// If true the binder will attempt to rebind an already bound semantic subtree.
+        /// </summary>
+        public bool Rebind { get; }
+
+        /// <summary>
+        /// The target type in scope
+        /// </summary>
+        public TypeSymbol? TargetType { get; }
+
+        private readonly Dictionary<LabelExpression, LabelSymbol> _labelToSymbolMap;
+
+        private ExpressionContext(
+            SymbolContext context,
+            TypeSymbol? declaringType,
+            BindingScope scope,
+            bool rebind,
+            TypeSymbol? targetType,
+            Dictionary<LabelExpression, LabelSymbol>? labelToSymbolMap)
+        {
+            this.SymbolContext = context;
+            this.DeclaringType = declaringType;
+            this.Scope = scope;
+            this.Rebind = rebind;
+            this.TargetType = targetType;
+            _labelToSymbolMap = labelToSymbolMap ?? new Dictionary<LabelExpression, LabelSymbol>();
+        }
+
+        public ExpressionContext(
+            SymbolContext context,
+            TypeSymbol? declaringType,
+            BindingScope scope)
+            : this(context, declaringType, scope, false, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a new instance with <see cref="Scope"/> assigned.
+        /// </summary>
+        public ExpressionContext WithScope(BindingScope scope) =>
+            new ExpressionContext(this.SymbolContext, this.DeclaringType, scope, this.Rebind, this.TargetType, _labelToSymbolMap);
+
+        /// <summary>
+        /// Creates a new instance with <see cref="Rebind"/> assigned.
+        /// </summary>
+        public ExpressionContext WithRebind(bool rebind) =>
+            new ExpressionContext(this.SymbolContext, this.DeclaringType, this.Scope, this.Rebind, this.TargetType, _labelToSymbolMap);
+
+        /// <summary>
+        /// Createsa  new instance with <see cref="TargetType"/> assigned.
+        /// </summary>
+        public ExpressionContext WithTargetType(TypeSymbol? targetType) =>
+            new ExpressionContext(this.SymbolContext, this.DeclaringType, this.Scope, this.Rebind, targetType, _labelToSymbolMap);
+
+        /// <summary>
+        /// Sets the <see cref="LabelSymbol"/> associated with its declaring <see cref="LabelExpression"/>
+        /// </summary>
+        public void SetLabelSymbol(LabelExpression label, LabelSymbol symbol)
+        {
+            _labelToSymbolMap[label] = symbol;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="LabelSymbol"/> associated to the declaring <see cref="LabelExpression"/>
+        /// </summary>
+        public LabelSymbol? GetLabelSymbol(LabelExpression label)
+        {
+            _labelToSymbolMap.TryGetValue(label, out var target);
+            return target;
+        }
+    };
     #endregion
 
     #region StandardBinding

@@ -15,6 +15,9 @@ internal static class BindingDiagnostics
     public static Diagnostic UnknownFunction(string name) =>
         new Diagnostic($"The name '{name}' does not match a function in this context.");
 
+    public static Diagnostic ExpressionIsNotType() =>
+        new Diagnostic("The expression is not a type.");
+
     public static Diagnostic NoMatchingFunction() =>
         new Diagnostic($"No functions match the arguments.");
 

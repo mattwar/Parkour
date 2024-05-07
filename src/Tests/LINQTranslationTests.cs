@@ -5,7 +5,6 @@ using Parkour.Binding;
 using Parkour.Linq;
 using Parkour.Reflection;
 using Parkour.Semantics;
-using Parkour.Symbols;
 using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;
@@ -14,12 +13,10 @@ namespace Tests;
 public class LINQTranslationTests
 {
     private readonly ReflectionSymbols _symbols;
-    private readonly BindingScope _defaultTestScope;
 
     public LINQTranslationTests()
     {
         _symbols = ReflectionSymbols.CurrentMscorlib;
-        _defaultTestScope = ExpressionTests.CreateBindingScope(_symbols);
     }
 
     [TestMethod]
@@ -274,10 +271,10 @@ public class LINQTranslationTests
             2);
     }
 
-    private void TestRun(Expression expression, object? expectedResult, BindingScope? scope = null) =>
-        TestRun(expression, [], expectedResult, scope);
+    private void TestRun(Expression expression, object? expectedResult) =>
+        TestRun(expression, [], expectedResult);
 
-    private void TestRun(Expression expression, object[] args, object? expectedResult, BindingScope? scope = null)
+    private void TestRun(Expression expression, object[] args, object? expectedResult)
     {
         if (!(expression is LambdaExpression))
             expression = Lambda(expression);
@@ -285,7 +282,7 @@ public class LINQTranslationTests
         args ??= System.Array.Empty<object>();
 
         var binder = new StandardDeclarationBinder();
-        var binding = binder.BindExpression(expression, _symbols, scope ?? _defaultTestScope);
+        var binding = binder.BindExpression(expression, _symbols);
         var bound = (LambdaExpression)binding.Expression;
 
         if (bound.ContainsDiagnostics)
