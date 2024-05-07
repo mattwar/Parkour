@@ -453,6 +453,7 @@ public class StandardDeclarationBinder : DeclarationBinder
     {
         switch (declaration)
         {
+#if false
             case PropertyDeclaration pd:
                 if (pd.BackingField != null)
                     flattened.Add(pd.BackingField);
@@ -469,6 +470,7 @@ public class StandardDeclarationBinder : DeclarationBinder
                     flattened.Add(id.SetMethod);
                 flattened.Add(id);
                 break;
+#endif
             default:
                 flattened.Add(declaration);
                 break;
@@ -600,9 +602,9 @@ public class StandardDeclarationBinder : DeclarationBinder
             declaration.Access,
             declaration.Modifiers,
             () => GetType(context, declaration.ElementType) ?? SpecialSymbols.Unknown,
-            me => (MethodSymbol)context.GetSymbolForDeclaration(declaration.GetMethod)!,
+            me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.GetMethod)!,
             declaration.SetMethod != null
-                ? me => (MethodSymbol)context.GetSymbolForDeclaration(declaration.SetMethod)!
+                ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
                 : null
                 );
     }
@@ -680,11 +682,11 @@ public class StandardDeclarationBinder : DeclarationBinder
             declaration.Modifiers,
             () => GetType(context, declaration.PropertyType) ?? SpecialSymbols.Unknown,
             declaration.BackingField != null
-                ? me => (FieldSymbol)context.GetSymbolForDeclaration(declaration.BackingField)!
+                ? me => (FieldSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.BackingField)!
                 : null,
-            me => (MethodSymbol)context.GetSymbolForDeclaration(declaration.GetMethod)!,
+            me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.GetMethod)!,
             declaration.SetMethod != null
-                ? me => (MethodSymbol)context.GetSymbolForDeclaration(declaration.SetMethod)!
+                ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
                 : null
         );
     }
@@ -724,7 +726,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         return new TypeParameterSymbol(declaration.Name);
     }
 
-    #endregion
+#endregion
 
     #region Declaration Binding
 
@@ -818,7 +820,8 @@ public class StandardDeclarationBinder : DeclarationBinder
 
         if (typeParameters == decl.TypeParameters
             && baseTypes == decl.BaseTypes
-            && declarations == decl.Declarations)
+            && declarations == decl.Declarations
+            && symbol == decl.Symbol)
             return decl;
 
         return new ClassDeclaration(
@@ -950,7 +953,8 @@ public class StandardDeclarationBinder : DeclarationBinder
 
         if (typeParameters == decl.TypeParameters
             && baseTypes == decl.BaseTypes
-            && declarations == decl.Declarations)
+            && declarations == decl.Declarations
+            && symbol == decl.Symbol)
             return decl;
 
         return new InterfaceDeclaration(
@@ -1144,7 +1148,8 @@ public class StandardDeclarationBinder : DeclarationBinder
 
         if (typeParameters == decl.TypeParameters
             && baseTypes == decl.BaseTypes
-            && declarations == decl.Declarations)
+            && declarations == decl.Declarations
+            && symbol == decl.Symbol)
             return decl;
 
         return new StructDeclaration(
@@ -1273,6 +1278,9 @@ public class StandardDeclarationBinder : DeclarationBinder
             case ElementExpression element:
                 return BindElement(context, element);
 
+            case IsTypeExpression istype:
+                return BindIsType(context, istype);
+
             case LabelExpression label:
                 return BindLabel(context, label);
 
@@ -1305,6 +1313,9 @@ public class StandardDeclarationBinder : DeclarationBinder
 
             case ThisExpression me:
                 return BindThis(context, me);
+
+            case TypeOfExpression toe:
+                return BindTypeOf(context, toe);
 
             case ConstructExpression construct:
                 return BindConstruct(context, construct);
@@ -2539,6 +2550,32 @@ public class StandardDeclarationBinder : DeclarationBinder
 
     #endregion
 
+    #region IsType Expression
+    /// <summary>
+    /// Binds <see cref="IsTypeExpression"/>
+    /// </summary>
+    protected virtual Expression BindIsType(ExpressionContext context, IsTypeExpression istype)
+    {
+        context = context.WithTargetType(null);
+        var expression = BindExpression(context, istype.Expression);
+        var type = BindExpression(context, istype.Type);
+        var resultType = context.Symbols.Boolean;
+
+        if (expression == istype.Expression
+            && type == istype.Type
+            && resultType == istype.ResultType
+            && istype.Diagnostics.Count == 0)
+            return istype;
+
+        return new IsTypeExpression(
+            expression,
+            type,
+            istype.Location,
+            resultType,
+            null);
+    }
+    #endregion
+
     #region Label Expression
     /// <summary>
     /// Binds <see cref="LabelExpression"/>
@@ -3293,6 +3330,28 @@ public class StandardDeclarationBinder : DeclarationBinder
                 null,
                 [new Diagnostic("No current type in scope.")]);
         }
+    }
+    #endregion
+
+    #region TypeOf Expression
+    /// <summary>
+    /// Binds <see cref="TypeOfExpression"/>
+    /// </summary>
+    protected virtual Expression BindTypeOf(ExpressionContext context, TypeOfExpression toe)
+    {
+        var typeEx = BindExpression(context, toe.Type);
+        var resultType = context.Symbols.Type;
+
+        if (typeEx == toe.Type
+            && resultType == toe.ResultType
+            && toe.Diagnostics.Count == 0)
+            return toe;
+
+        return new TypeOfExpression(
+            typeEx,
+            toe.Location,
+            resultType,
+            null);
     }
     #endregion
 

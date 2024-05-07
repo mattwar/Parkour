@@ -87,7 +87,8 @@ public class ReflectionEmitter : StandardDeclarationEmitter
             if (_symbolToBuilder.TryGetValue(typeSymbol.DeclaringSymbol, out var pb)
             && pb is TypeBuilder parentBuilder)
             {
-                typeBuilder = parentBuilder.DefineNestedType(name, GetTypeAttributes(typeSymbol));
+                var attrs = GetTypeAttributes(typeSymbol);
+                typeBuilder = parentBuilder.DefineNestedType(name, attrs);
             }
             else
             {
@@ -128,6 +129,10 @@ public class ReflectionEmitter : StandardDeclarationEmitter
             if (baseTypeSymbol != null)
             {
                 typeBuilder.SetParent(GetRuntimeType(baseTypeSymbol));
+            }
+            else if (typeSymbol.IsValueType)
+            {
+                typeBuilder.SetParent(typeof(ValueType));
             }
 
             // TODO: declare interfaces too?
@@ -266,17 +271,34 @@ public class ReflectionEmitter : StandardDeclarationEmitter
     {
         if (TryGetDeclaringTypeBuilder(constructorSymbol, out var typeBuilder))
         {
-            var constructorBuilder = typeBuilder.DefineConstructor(
-                GetMethodAttributes(constructorSymbol),
-                CallingConventions.Standard,
-                constructorSymbol.Parameters.Select(p => GetRuntimeType(p.ParameterType)).ToArray()
-                );
-            _symbolToBuilder.Add(constructorSymbol, constructorBuilder);
-            for (int i = 0; i < constructorSymbol.Parameters.Count; i++)
+            if (constructorSymbol.IsStatic)
             {
-                var parameterSymbol = constructorSymbol.Parameters[i];
-                var parameterBuilder = constructorBuilder.DefineParameter(i, GetParameterAttributes(parameterSymbol), parameterSymbol.Name);
-                _symbolToBuilder.Add(parameterSymbol, parameterBuilder);
+                if (constructorSymbol.Parameters.Count > 0)
+                {
+                    _diagnostics.Add(new Diagnostic($"static constructors cannot have arguments"));
+                }
+                else
+                {
+                    var constructorBuilder = typeBuilder.DefineTypeInitializer();
+                    _symbolToBuilder.Add(constructorSymbol, constructorBuilder);
+                }
+            }
+            else
+            {
+                var constructorBuilder = typeBuilder.DefineConstructor(
+                    GetMethodAttributes(constructorSymbol),
+                    CallingConventions.Standard,
+                    constructorSymbol.Parameters.Select(p => GetRuntimeType(p.ParameterType)).ToArray()
+                    );
+
+                _symbolToBuilder.Add(constructorSymbol, constructorBuilder);
+
+                for (int i = 0; i < constructorSymbol.Parameters.Count; i++)
+                {
+                    var parameterSymbol = constructorSymbol.Parameters[i];
+                    var parameterBuilder = constructorBuilder.DefineParameter(i, GetParameterAttributes(parameterSymbol), parameterSymbol.Name);
+                    _symbolToBuilder.Add(parameterSymbol, parameterBuilder);
+                }
             }
         }
         else
@@ -407,12 +429,24 @@ public class ReflectionEmitter : StandardDeclarationEmitter
     {
         TypeAttributes attrs = default;
 
-        if ((ts.Modifiers & SymbolModifier.Abstract) != 0)
-            attrs |= TypeAttributes.Abstract;
-        else if ((ts.Modifiers & SymbolModifier.Sealed) != 0)
-            attrs |= TypeAttributes.Sealed;
-        else if ((ts.Modifiers & SymbolModifier.Special) != 0)
-            attrs |= TypeAttributes.SpecialName;
+        switch (ts)
+        {
+            case ClassSymbol:
+            case StructSymbol:
+                attrs |= TypeAttributes.Class;
+
+                if ((ts.Modifiers & SymbolModifier.Abstract) != 0)
+                    attrs |= TypeAttributes.Abstract;
+                else if ((ts.Modifiers & SymbolModifier.Sealed) != 0)
+                    attrs |= TypeAttributes.Sealed;
+                else if ((ts.Modifiers & SymbolModifier.Special) != 0)
+                    attrs |= TypeAttributes.SpecialName;
+                break;
+            case InterfaceSymbol:
+                attrs |= TypeAttributes.Interface | TypeAttributes.Abstract;
+                break;
+        }
+
 
         var isNested = ts.DeclaringSymbol is TypeSymbol;
         switch (ts.Access)

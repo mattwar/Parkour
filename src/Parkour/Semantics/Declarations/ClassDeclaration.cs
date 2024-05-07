@@ -24,7 +24,7 @@ public sealed class ClassDeclaration : TypeDeclaration
         modifiers,
         typeParameters,
         baseTypes,
-        declarations,
+        WithDefaultConstructor(declarations, location),
         location,
         diagnostics)
     {

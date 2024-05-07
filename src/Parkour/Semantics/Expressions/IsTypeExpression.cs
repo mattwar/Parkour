@@ -1,27 +1,28 @@
 ﻿namespace Parkour.Semantics;
+
 using Symbols;
 
-public class TypeTestExpression : Expression
+public class IsTypeExpression : Expression
 {
     public Expression Expression { get; }
-    public Expression? TypeExpression { get; }
+    public Expression Type { get; }
 
-    public TypeTestExpression(
+    public IsTypeExpression(
         Expression expression,
-        Expression? typeExpression,
+        Expression type,
         ISourceLocation? location,
         TypeSymbol? resultType,
-        ImmutableList<Diagnostic> diagnostics)
+        ImmutableList<Diagnostic>? diagnostics)
         : base(
             State(expression)
-            | State(typeExpression)
+            | State(type)
             | NotNullState(resultType),
             location,
             resultType,
             diagnostics)
     {
         this.Expression = expression;
-        this.TypeExpression = typeExpression;
+        this.Type = type;
     }
 
     public override int ChildCount => 2;
@@ -30,7 +31,7 @@ public class TypeTestExpression : Expression
         index switch
         {
             0 => this.Expression,
-            1 => this.TypeExpression,
+            1 => this.Type,
             _ => null
         };
 }

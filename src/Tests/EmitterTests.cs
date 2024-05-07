@@ -17,11 +17,38 @@ public class EmitterTests
     public void TestEmptyClass()
     {
         TestEmit(
-            Class("C", [])
+            Class("C", [Constructor()]),
+            New(Name("C")),
+            result =>
+            {
+                Assert.IsNotNull(result);
+                Assert.AreEqual("C", result.GetType().Name);
+            }
             );
 
         TestEmit(
             Namespace("N", [Class("C", [])])
+            );
+    }
+
+    [TestMethod]
+    public void TestEmptyStruct()
+    {
+        TestEmit(
+            Struct("S", []),
+            Default(Symbol("S")),
+            result =>
+            {
+                Assert.IsNotNull(result);
+            }
+            );
+    }
+
+    [TestMethod]
+    public void TestEmptyInterface()
+    {
+        TestEmit(
+            Interface("I", [])
             );
     }
 

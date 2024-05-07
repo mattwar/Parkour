@@ -23,7 +23,7 @@ public sealed class StructDeclaration : TypeDeclaration
         modifiers,
         typeParameters,
         baseTypes,
-        declarations,
+        WithDefaultConstructor(declarations, location),
         location,
         diagnostics)
     {

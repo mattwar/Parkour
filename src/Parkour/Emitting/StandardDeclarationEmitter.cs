@@ -40,11 +40,11 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                 {
                     DeclareTypes(nd.Declarations);
                 }
-                else if (decl is ClassDeclaration cd
+                else if (decl is TypeDeclaration td
                     && decl.Symbol is TypeSymbol ts)
                 {
                     this.DeclareType(ts);
-                    DeclareTypes(cd.Declarations);
+                    DeclareTypes(td.Declarations);
                 }
             }
         }
@@ -62,11 +62,11 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                 {
                     DeclareBaseTypes(nd.Declarations);
                 }
-                else if (decl is ClassDeclaration cd
-                    && decl.Symbol is TypeSymbol ts)
+                else if (decl is TypeDeclaration td
+                    && td.Symbol is TypeSymbol ts)
                 {
                     this.DeclareBaseTypes(ts);
-                    DeclareBaseTypes(cd.Declarations);
+                    DeclareBaseTypes(td.Declarations);
                 }
             }
         }
@@ -84,9 +84,9 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                 {
                     DeclareTypeMembers(nd.Declarations);
                 }
-                else if (decl is ClassDeclaration cd)
+                else if (decl is TypeDeclaration td)
                 {
-                    DeclareTypeMembers(cd.Declarations);
+                    DeclareTypeMembers(td.Declarations);
                 }
                 else if (decl is PropertyDeclaration pd
                     && pd.Symbol is PropertySymbol ps)
@@ -136,9 +136,9 @@ public abstract class StandardDeclarationEmitter : DeclarationEmitter
                 {
                     BuildMemberBodies(nd.Declarations);
                 }
-                else if (decl is ClassDeclaration cd)
+                else if (decl is TypeDeclaration td)
                 {
-                    BuildMemberBodies(cd.Declarations);
+                    BuildMemberBodies(td.Declarations);
                 }
                 else if (decl is MethodDeclaration md
                     && md.Symbol is MethodSymbol ms)

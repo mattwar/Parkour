@@ -47,7 +47,7 @@ public static class SymbolExtensions
     public static Symbol? GetFirstSymbolFromPath(this NamespaceSymbol @namespace, string dottedPath) =>
         GetFirstSymbolFromPath<Symbol>(@namespace, dottedPath);
 
-    private static readonly char[] _namePathSplitChars = new[] { '.', '+' };
+    private static readonly char[] _namePathSplitChars = new[] { '.', '+', '`' };
 
     public static bool IsDottedPath(string path) =>
         path.IndexOfAny(_namePathSplitChars) > 0;
@@ -68,25 +68,63 @@ public static class SymbolExtensions
 
             while (nameStart < dottedName.Length)
             {
-                var nextSplit = dottedName.IndexOfAny(_namePathSplitChars, nameStart);
-                var nameEnd = nextSplit > nameStart ? nextSplit : dottedName.Length;
-                var nameLength = nameEnd - nameStart;
+                int nameEnd;
+                int nameLength;
 
-                var arity = 0;
-                var arityStart = dottedName.IndexOf('`', nameStart);
-                if (arityStart > nameStart && arityStart < nameEnd)
+                var nextSplit = dottedName.IndexOfAny(_namePathSplitChars, nameStart);
+
+                // if quoted name ignore split character
+                if (dottedName[nameStart] == '[')
                 {
-                    var aritySpan = dottedName.AsSpan().Slice(arityStart + 1, nameEnd - arityStart - 1);
+                    nameStart++;
+                    var nextClose = dottedName.IndexOf(']', nameStart);
+                    if (nextClose > nameStart)
+                    {
+                        nameLength = nextClose - nameStart;
+                        nameEnd = nextClose + 1;
+                        nextSplit = nameEnd;
+                    }
+                    else
+                    {
+                        nameLength = nextSplit - nameStart;
+                        nameEnd = nextSplit;
+                    }
+                }
+                else
+                {
+                    nameEnd = nextSplit > nameStart ? nextSplit : dottedName.Length;
+                    nameLength = nameEnd - nameStart;
+                }
+
+                // check for arity following name
+                var arity = 0;
+                if (nameEnd < dottedName.Length && dottedName[nameEnd] == '`')
+                {
+                    var arityEnd = nameEnd + 1;
+                    while (arityEnd < dottedName.Length && char.IsDigit(dottedName[arityEnd]))
+                    {
+                        arityEnd++;
+                    }
+
+                    var aritySpan = dottedName.AsSpan().Slice(nameEnd + 1, arityEnd - (nameEnd + 1));
                     int.TryParse(aritySpan, out arity);
-                    nameLength = arityStart - nameStart;
+
+                    nameEnd = arityEnd;
                 }
 
                 results.Clear();
                 GetSymbolsInContainers(dottedName, nameStart, nameLength, containers, results);
                 RemoveArityMismatch(results, arity);
-                nameStart = nameEnd + 1;
                 containers.Clear();
                 containers.AddRange(results);
+
+                nameStart = nameEnd;
+
+                if (nameEnd < dottedName.Length
+                    && _namePathSplitChars.Contains(dottedName[nameEnd]))
+                {
+                    nameStart++;
+                }
             }
 
             // we might get here if dotted path ends in a dot (so just return last set of results)

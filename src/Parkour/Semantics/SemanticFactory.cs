@@ -133,24 +133,6 @@ public static class SemanticFactory
         new ConvertExpression(expression, convertedType, location, null, null, null);
 
     /// <summary>
-    /// Declares a variable of a specific type and initializer.
-    /// </summary>
-    public static VariableExpression Variable(Expression variableType, string name, Expression initializer, ISourceLocation? location = null) =>
-        new VariableExpression(name, variableType, initializer, location, null, null, null);
-
-    /// <summary>
-    /// Declares a variable of a specific type.
-    /// </summary>
-    public static VariableExpression Variable(Expression variableType, string name, ISourceLocation? location = null) =>
-        new VariableExpression(name, variableType, null, location, null, null, null);
-
-    /// <summary>
-    /// Declares and initializes a variable.
-    /// </summary>
-    public static VariableExpression Variable(string name, Expression initializer, ISourceLocation? location = null) =>
-        new VariableExpression(name, null, initializer, location, null, null, null);
-
-    /// <summary>
     /// Produces the default value for the specified type.
     /// </summary>
     public static DefaultExpression Default(Expression type, ISourceLocation? location = null) =>
@@ -161,6 +143,27 @@ public static class SemanticFactory
     /// </summary>
     public static DefaultExpression Default(ISourceLocation? location = null) =>
         new DefaultExpression(null, location, null, null);
+
+    /// <summary>
+    /// A loop that iterates a variable over a range
+    /// </summary>
+    public static Expression For(string name, Expression start, Expression end, Expression body, ISourceLocation? location = null) =>
+        For(name, start, end, body, Constant(1), location);
+
+    /// <summary>
+    /// A loop that iterates a variable over a range
+    /// </summary>
+    public static Expression For(string name, Expression start, Expression end, Expression increment, Expression body, ISourceLocation? location = null) =>
+        Block(
+            Variable(name, start),
+            Loop(
+                If(LessThan(Name(name), end),
+                    Block(
+                        body,
+                        Assign(Name(name), Add(Name(name), increment))),
+                    Break())
+                ),
+            Name(name));
 
     /// <summary>
     /// Branches to the specified label.
@@ -182,6 +185,12 @@ public static class SemanticFactory
     /// </summary>
     public static ConditionExpression If(Expression test, Expression whenTrue, ISourceLocation? location = null) =>
         Condition(test, whenTrue, location);
+
+    /// <summary>
+    /// Checks the type of a value
+    /// </summary>
+    public static IsTypeExpression IsType(Expression expression, Expression type, ISourceLocation? location = null) =>
+        new IsTypeExpression(expression, type, location, null, null);
 
     /// <summary>
     /// A label for branch targets.
@@ -305,6 +314,30 @@ public static class SemanticFactory
         new ThisExpression(location, null, null);
 
     /// <summary>
+    /// Returns the runtime type of a type expression.
+    /// </summary>
+    public static TypeOfExpression TypeOf(Expression type, ISourceLocation? location = null) =>
+        new TypeOfExpression(type, location, null, null);
+
+    /// <summary>
+    /// Declares a variable of a specific type and initializer.
+    /// </summary>
+    public static VariableExpression Variable(Expression variableType, string name, Expression initializer, ISourceLocation? location = null) =>
+        new VariableExpression(name, variableType, initializer, location, null, null, null);
+
+    /// <summary>
+    /// Declares a variable of a specific type.
+    /// </summary>
+    public static VariableExpression Variable(Expression variableType, string name, ISourceLocation? location = null) =>
+        new VariableExpression(name, variableType, null, location, null, null, null);
+
+    /// <summary>
+    /// Declares and initializes a variable.
+    /// </summary>
+    public static VariableExpression Variable(string name, Expression initializer, ISourceLocation? location = null) =>
+        new VariableExpression(name, null, initializer, location, null, null, null);
+
+    /// <summary>
     /// An expression that does nothing and returns nothing.
     /// </summary>
     public static VoidExpression Void(ISourceLocation? location = null) => 
@@ -312,34 +345,15 @@ public static class SemanticFactory
             ? VoidExpression.Default
             : new VoidExpression(location);
 
-
     /// <summary>
     /// A loop that continues to repeat the body until the test fails or a break exists the loop.
     /// </summary>
     public static Expression While(Expression test, Expression body, ISourceLocation? location = null) =>
         Loop(If(test, body, Break()));
 
-    /// <summary>
-    /// A loop that iterates a variable over a range
-    /// </summary>
-    public static Expression For(string name, Expression start, Expression end, Expression body, ISourceLocation? location = null) =>
-        For(name, start, end, body, Constant(1), location);
 
-    /// <summary>
-    /// A loop that iterates a variable over a range
-    /// </summary>
-    public static Expression For(string name, Expression start, Expression end, Expression increment, Expression body, ISourceLocation? location = null) =>
-        Block(
-            Variable(name, start),
-            Loop(
-                If(LessThan(Name(name), end),
-                    Block(
-                        body,
-                        Assign(Name(name), Add(Name(name), increment))),
-                    Break())
-                ),
-            Name(name));
 
+    #region Operators
     /// <summary>
     /// Applies the Add operator to two values.
     /// </summary>
@@ -444,6 +458,8 @@ public static class SemanticFactory
 
     public static OperatorExpression GreaterThanOrEqual(Expression left, Expression right, ISourceLocation? location = null) =>
         Operator(OperatorKind.GreaterThanOrEqual, [left, right], location);
+
+    #endregion
 
     #endregion
 

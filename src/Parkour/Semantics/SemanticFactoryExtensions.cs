@@ -1,7 +1,67 @@
 ﻿namespace Parkour.Semantics;
 
+using Symbols;
+
 public static class SemanticFactoryExtensions
 {
+    #region Declarations
+
+    public static PropertyDeclaration WithGetBody(
+        this PropertyDeclaration property, 
+        Expression body) 
+        =>
+        property.WithGetMethod(
+            property.GetMethod != null
+                ? property.GetMethod.WithBody(body)
+                : SemanticFactory.Method(
+                    "get_" + property.Name, 
+                    property.Access, 
+                    property.Modifiers, 
+                    parameters: [],
+                    property.PropertyType, 
+                    body, 
+                    body.Location
+                )
+            );
+
+    public static PropertyDeclaration WithGetAccess(
+        this PropertyDeclaration property,
+        SymbolAccess access)
+        =>
+        property.WithGetMethod(
+            property.GetMethod.WithAccess(access)
+            );
+
+    public static PropertyDeclaration WithSetBody(
+        this PropertyDeclaration property, 
+        Expression body) 
+        =>
+        property.WithSetMethod(
+            property.SetMethod != null
+                ? property.SetMethod.WithBody(body)
+                : SemanticFactory.Method(
+                    "set_" + property.Name, 
+                    property.Access, 
+                    property.Modifiers, 
+                    [SemanticFactory.Parameter("value", property.PropertyType, body.Location)], 
+                    SemanticFactory.Symbol("System.Void"), 
+                    body, 
+                    body.Location
+                    )
+            );
+
+    public static PropertyDeclaration WithSetAccess(
+        this PropertyDeclaration property,
+        SymbolAccess access)
+        =>
+        property.SetMethod != null
+            ? property.WithSetMethod(property.SetMethod.WithAccess(access))
+            : property;
+
+    #endregion
+
+    #region Expressions
+
     /// <summary>
     /// Converts the referenced symbol to an array of that element type.
     /// </summary>
@@ -74,4 +134,7 @@ public static class SemanticFactoryExtensions
     /// </summary>
     public static MemberExpression Member(this Expression expression, string name, ISourceLocation? location = null) =>
         SemanticFactory.Member(expression, name, location);
+
+    #endregion
+
 }
