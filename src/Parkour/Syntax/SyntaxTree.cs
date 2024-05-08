@@ -55,6 +55,38 @@ public partial class SyntaxTree
     #region ISyntaxTree
     ISourceDocument ISyntaxTree.Document => this;
     ISyntaxElement ISyntaxTree.Root => this.Root;
+
+    ImmutableList<ISyntaxToken> ISyntaxTree.GetTokens(int start, int length)
+    {
+        var tokens = new List<ISyntaxToken>();
+        GetTokens(this.Root);
+        return tokens.ToImmutableList();
+
+        void GetTokens(ISyntaxElement element)
+        {
+            if (element is ISyntaxNode node)
+            {
+                for (int i = 0, n = node.ChildCount; i < n; i++)
+                {
+                    var child = node.GetChild(i);
+                    if (child != null && OverlapsRange(child, start, length))
+                    {
+                        GetTokens(child);
+                    }
+                }
+            }
+            else if (element is ISyntaxToken token
+                && OverlapsRange(token, start, length))
+            {
+                tokens.Add(token);
+            }
+        }
+    }
+
+    private static bool OverlapsRange(ISyntaxElement element, int start, int length) =>
+        element.TextStart < start + length
+        && element.TextStart + element.TextLength >= start;
+
     #endregion
 }
 

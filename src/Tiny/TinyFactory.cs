@@ -104,8 +104,6 @@ namespace Tiny
         public static SyntaxToken EndOfTextToken(string trivia = "") =>
             new SyntaxToken(TinyTokenKinds.EndOfTextToken, trivia, "");
 
-
-
         public static TinyExpression Identifier(SyntaxToken token) =>
             new TinyIdentifier(token);
 

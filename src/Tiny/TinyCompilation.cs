@@ -14,7 +14,7 @@ public class TinyCompilation : ExpressionCompilation
     }
 
     public TinyCompilation(string tinyText, SymbolTable externalSymbols)
-        : base(Parse(tinyText), _tree => Bind(_tree, externalSymbols))
+        : this(Parse(tinyText), externalSymbols)
     {
     }
 

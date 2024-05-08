@@ -21,4 +21,9 @@ public interface ISyntaxTree
     /// The collected syntax diagnostics found in this <see cref="SyntaxTree"/>
     /// </summary>
     public ImmutableList<Diagnostic> Diagnostics { get; }
+
+    /// <summary>
+    /// Gets the tokens that overlap with the text range.
+    /// </summary>
+    public ImmutableList<ISyntaxToken> GetTokens(int start, int length);
 }

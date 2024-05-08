@@ -4,9 +4,10 @@ using Semantics;
 
 public class ExpressionCompilation : Compilation
 {
+    public override ImmutableList<ISourceDocument> Documents { get; }
+
     public readonly ISyntaxTree _syntaxTree;
     public readonly Func<ISyntaxTree, BindingInfo> _fnBind;
-    public override ImmutableList<ISourceDocument> Documents { get; }
 
     public ExpressionCompilation(
         ISyntaxTree syntaxTree,
@@ -42,7 +43,9 @@ public class ExpressionCompilation : Compilation
 
     public override ISyntaxTree? GetSyntaxTree(ISourceDocument document)
     {
-        return document as ISyntaxTree;
+        if (document == _syntaxTree.Document)
+            return _syntaxTree;
+        return null;
     }
 
     public override void GetAnnotations<TAnnotation>(ISourceDocument document, int position, Func<TAnnotation, bool>? filter, List<TAnnotation> annotations)
