@@ -2,21 +2,21 @@
 
 public sealed class FieldSymbol : MemberSymbol
 {
-    private Func<TypeSymbol>? _fnFieldType;
-    private TypeSymbol? _fieldType;
+    private Func<TypeSymbol>? _fnType;
+    private TypeSymbol? _type;
 
-    public TypeSymbol FieldType
+    public TypeSymbol Type
     {
         get
         {
-            if (_fieldType == null && _fnFieldType is { } fn)
+            if (_type == null && _fnType is { } fn)
             {
-                _fnFieldType = null;
+                _fnType = null;
                 var tmp = fn();
-                Interlocked.CompareExchange(ref _fieldType, tmp, null);
+                Interlocked.CompareExchange(ref _type, tmp, null);
             }
 
-            return _fieldType ?? SpecialSymbols.Unknown;
+            return _type ?? SpecialSymbols.Unknown;
         }
     }
 
@@ -25,10 +25,10 @@ public sealed class FieldSymbol : MemberSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        Func<TypeSymbol> fnFieldType)
+        Func<TypeSymbol> fnType)
         : base(name, declaringSymbol, access, modifiers)
     {
-        _fnFieldType = fnFieldType;
+        _fnType = fnType;
     }
 
     public FieldSymbol(
@@ -36,13 +36,13 @@ public sealed class FieldSymbol : MemberSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        TypeSymbol fieldType)
+        TypeSymbol type)
         : this(
             name,
             declaringSymbol,
             access,
             modifiers,
-            () => fieldType)
+            () => type)
     {
     }
 
@@ -50,7 +50,7 @@ public sealed class FieldSymbol : MemberSymbol
 
     public override Symbol? GetReferencedSymbol(int index)
     {
-        return index == 0 ? this.FieldType : null;
+        return index == 0 ? this.Type : null;
     }
 
     internal protected override FieldSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
@@ -60,6 +60,6 @@ public sealed class FieldSymbol : MemberSymbol
             declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            () => context.Substitute(this.FieldType));
+            () => context.Substitute(this.Type));
     }
 }

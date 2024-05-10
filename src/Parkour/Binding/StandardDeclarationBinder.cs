@@ -1642,7 +1642,7 @@ public class StandardDeclarationBinder : DeclarationBinder
 
         for (int i = 0; i < parameters.Count; i++)
         {
-            var conversion = GetConversion(context, arguments[i].ResultType, parameters[i].ParameterType);
+            var conversion = GetConversion(context, arguments[i].ResultType, parameters[i].Type);
             if (conversion == ConversionKind.None)
                 return false;
         }
@@ -1662,7 +1662,7 @@ public class StandardDeclarationBinder : DeclarationBinder
         {
             var parameter = parameters[i];
             var argument = arguments[i];
-            var convertedArg = ConvertTo(context, argument, parameter.ParameterType);
+            var convertedArg = ConvertTo(context, argument, parameter.Type);
             arguments = arguments.SetItem(i, convertedArg);
         }
 
@@ -2151,12 +2151,12 @@ public class StandardDeclarationBinder : DeclarationBinder
             DelegateSymbol function =>
                 function.ReturnType == target
                 && function.Parameters.Count == 1
-                && GetConversion(context, source, function.Parameters[0].ParameterType) != ConversionKind.None,
+                && GetConversion(context, source, function.Parameters[0].Type) != ConversionKind.None,
             MethodSymbol method =>
                 method.IsStatic
                 && method.ReturnType == target
                 && method.Parameters.Count == 1
-                && GetConversion(context, source, method.Parameters[0].ParameterType) != ConversionKind.None,
+                && GetConversion(context, source, method.Parameters[0].Type) != ConversionKind.None,
             _ => false
         };
     }
@@ -3075,10 +3075,10 @@ public class StandardDeclarationBinder : DeclarationBinder
     protected virtual TypeSymbol? GetReferenceResultType(ExpressionContext context, Symbol? referencedSymbol) =>
         referencedSymbol switch
         {
-            VariableSymbol v => v.VariableType,
-            ParameterSymbol p => p.ParameterType,
-            FieldSymbol f => f.FieldType,
-            PropertySymbol p => p.PropertyType,
+            VariableSymbol v => v.Type,
+            ParameterSymbol p => p.Type,
+            FieldSymbol f => f.Type,
+            PropertySymbol p => p.Type,
             IndexerSymbol i => i.ElementType,
             DelegateSymbol f => f,
             GroupSymbol g => g,
@@ -3185,14 +3185,14 @@ public class StandardDeclarationBinder : DeclarationBinder
             if (variableType == declaration.VariableType
                 && initializer == declaration.Initializer
                 && declaration.VariableSymbol != null
-                && declaration.VariableSymbol.VariableType == vtype
+                && declaration.VariableSymbol.Type == vtype
                 && declaration.ResultType == vtype)
             {
                 return declaration;
             }
 
             var variable = declaration.VariableSymbol != null
-                && declaration.VariableSymbol.VariableType == vtype
+                && declaration.VariableSymbol.Type == vtype
                 ? declaration.VariableSymbol
                 : new VariableSymbol(declaration.Name, vtype ?? SpecialSymbols.Any);
 

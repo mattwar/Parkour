@@ -193,14 +193,14 @@ public class StandardBodyBuilder : BodyBuilder
         switch (targetSymbol)
         {
             case VariableSymbol variableSymbol:
-                EmitExpressionAsType(assign.Source, variableSymbol.VariableType);
+                EmitExpressionAsType(assign.Source, variableSymbol.Type);
                 this.Emitter.EmitStoreVariable(variableSymbol);
                 if (assign.ResultType != SpecialSymbols.Void)
                     this.Emitter.EmitLoadVariable(variableSymbol);
                 break;
 
             case ParameterSymbol parameterSymbol:
-                EmitExpressionAsType(assign.Source, parameterSymbol.ParameterType);
+                EmitExpressionAsType(assign.Source, parameterSymbol.Type);
                 this.Emitter.EmitStoreParameter(parameterSymbol);
                 if (assign.ResultType != SpecialSymbols.Void)
                     this.Emitter.EmitLoadParameter(parameterSymbol);
@@ -223,10 +223,10 @@ public class StandardBodyBuilder : BodyBuilder
                     }
                 }
 
-                EmitExpressionAsType(assign.Source, fieldSymbol.FieldType);
+                EmitExpressionAsType(assign.Source, fieldSymbol.Type);
 
                 temp = (assign.ResultType != SpecialSymbols.Void)
-                    ? CopyToTemporaryVariable(fieldSymbol.FieldType)
+                    ? CopyToTemporaryVariable(fieldSymbol.Type)
                     : null;
 
                 this.Emitter.EmitStoreField(fieldSymbol);
@@ -251,10 +251,10 @@ public class StandardBodyBuilder : BodyBuilder
                         }
                     }
 
-                    EmitExpressionAsType(assign.Source, propertySymbol.PropertyType);
+                    EmitExpressionAsType(assign.Source, propertySymbol.Type);
 
                     temp = (assign.ResultType != SpecialSymbols.Void)
-                        ? CopyToTemporaryVariable(propertySymbol.PropertyType)
+                        ? CopyToTemporaryVariable(propertySymbol.Type)
                         : null;
 
                     this.Emitter.EmitCall(propertySymbol.SetMethod);
@@ -445,7 +445,7 @@ public class StandardBodyBuilder : BodyBuilder
     /// </summary>
     protected virtual void EmitArgument(ParameterSymbol parameter, Expression argument)
     {
-        EmitExpressionAsType(argument, parameter.ParameterType);
+        EmitExpressionAsType(argument, parameter.Type);
     }
 
     #endregion
@@ -868,7 +868,7 @@ public class StandardBodyBuilder : BodyBuilder
         ImmutableList<Expression> arguments,
         ISourceLocation? location)
     {
-        var operandType = opsym.Parameters[0].ParameterType;
+        var operandType = opsym.Parameters[0].Type;
         switch (opsym.Kind)
         {
             case OperatorKind.Add:
@@ -1019,7 +1019,7 @@ public class StandardBodyBuilder : BodyBuilder
             }
             else
             {
-                this.Emitter.EmitDefault(variable.VariableSymbol.VariableType);
+                this.Emitter.EmitDefault(variable.VariableSymbol.Type);
             }
 
             this.Emitter.EmitStoreVariable(variable.VariableSymbol);

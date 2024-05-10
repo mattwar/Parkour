@@ -652,7 +652,7 @@ public class ReflectionSymbols : StandardSymbolTable
             return true;
         }
         else if (typeSymbol is DelegateSymbol lambda
-            && TryGetRuntimeTypes(lambda.Parameters.Select(p => p.ParameterType), out var parameterTypes, alternateSource)
+            && TryGetRuntimeTypes(lambda.Parameters.Select(p => p.Type), out var parameterTypes, alternateSource)
             && TryGetRuntimeType(lambda.ReturnType, out var returnType, alternateSource))
         {
             Type[] types = [.. parameterTypes, returnType];

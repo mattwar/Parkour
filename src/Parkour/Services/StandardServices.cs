@@ -25,24 +25,24 @@ public class StandardServices
     public virtual ImmutableList<string> GetClassificationKinds() =>
         ImmutableList<string>.Empty;
 
-    public virtual Task<ClassificationResult> GetClassificationsAsync(int start, int length, CancellationToken cancellationToken) =>
-        Task.FromResult(ClassificationResult.Empty);
+    public virtual ClassificationResult GetClassifications(int start, int length, CancellationToken cancellationToken) =>
+        ClassificationResult.Empty;
 
-    public virtual Task<CompletionResult> GetCompletionsAsync(int position, char? lastKey, CancellationToken cancellationToken) =>
-        Task.FromResult(CompletionResult.Empty);
+    public virtual CompletionResult GetCompletions(int position, char? lastKey, CancellationToken cancellationToken) =>
+        CompletionResult.Empty;
 
-    public virtual Task<DiagnosticResult> GetDiagnosticsAsync(int position, CancellationToken cancellationToken) =>
-        Task.FromResult(DiagnosticResult.Empty);
+    public virtual DiagnosticResult GetDiagnostics(int start, int length, CancellationToken cancellationToken) =>
+        DiagnosticResult.Empty;
 
-    public virtual Task<HoverTextResult> GetHoverTextAsync(int position, CancellationToken cancellationToken) =>
-        Task.FromResult(HoverTextResult.Empty);
+    public virtual HoverTextResult GetHoverText(int position, CancellationToken cancellationToken) =>
+        HoverTextResult.Empty;
 
-    public virtual Task<CodeActionResult> GetActionsAsync(int position, CancellationToken cancellationToken) =>
-        Task.FromResult(CodeActionResult.Empty);
+    public virtual CodeActionResult GetActions(int position, CancellationToken cancellationToken) =>
+        CodeActionResult.Empty;
 
-    public virtual Task<CodeOperationResult> GetOperationsAsync(ICodeAction action, CancellationToken cancellationToken) =>
-        Task.FromResult(CodeOperationResult.Empty);
+    public virtual CodeOperationResult GetOperations(ICodeAction action, CancellationToken cancellationToken) =>
+        CodeOperationResult.Empty;
 
-    public virtual Task<FormattingResult> FormatAsync(int start, int length, CancellationToken cancellationToken) =>
-        Task.FromResult(new FormattingResult(this.Document.Text.Substring(start, length)));
+    public virtual FormattingResult Format(int start, int length, CancellationToken cancellationToken) =>
+        new FormattingResult(this.Document.Text.Substring(start, length));
 }

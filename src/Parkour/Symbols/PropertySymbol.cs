@@ -2,21 +2,21 @@
 
 public sealed class PropertySymbol : MemberSymbol
 {
-    private Func<TypeSymbol>? _fnPropertyType;
-    private TypeSymbol? _propertyType;
+    private Func<TypeSymbol>? _fnType;
+    private TypeSymbol? _type;
 
-    public TypeSymbol PropertyType 
+    public TypeSymbol Type 
     { 
         get
         {
-            if (_propertyType == null && _fnPropertyType is { } fn)
+            if (_type == null && _fnType is { } fn)
             {
-                _fnPropertyType = null;
+                _fnType = null;
                 var tmp = fn();
-                Interlocked.CompareExchange(ref _propertyType, tmp, null);
+                Interlocked.CompareExchange(ref _type, tmp, null);
             }
 
-            return _propertyType!;
+            return _type!;
         }
     }
 
@@ -79,14 +79,14 @@ public sealed class PropertySymbol : MemberSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        Func<TypeSymbol> fnPropertyType,
+        Func<TypeSymbol> fnType,
         Func<PropertySymbol, FieldSymbol>? fnBackingField,
         Func<PropertySymbol, MethodSymbol>? fnGetMethod,
         Func<PropertySymbol, MethodSymbol>? fnSetMethod)
         : base(name, declaringSymbol, access, modifiers)
     {
         _fnBackingField = fnBackingField;
-        _fnPropertyType = fnPropertyType;
+        _fnType = fnType;
         _fnGetMethod = fnGetMethod;
         _fnSetMethod = fnSetMethod;
     }
@@ -96,7 +96,7 @@ public sealed class PropertySymbol : MemberSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        TypeSymbol propertyType,
+        TypeSymbol type,
         FieldSymbol? backingField,
         MethodSymbol? getMethod,
         MethodSymbol? setMethod)
@@ -105,7 +105,7 @@ public sealed class PropertySymbol : MemberSymbol
             declaringSymbol,
             access,
             modifiers,
-            () => propertyType,
+            () => type,
             backingField != null ? me => backingField : null,
             getMethod != null ? me => getMethod : null,
             setMethod != null ? me => setMethod : null)
@@ -128,7 +128,7 @@ public sealed class PropertySymbol : MemberSymbol
         if (index < this.DeclaredSymbolCount)
             return this.GetDeclaredSymbol(index);
         index -= this.DeclaredSymbolCount;
-        return index == 0 ? this.PropertyType : null;
+        return index == 0 ? this.Type : null;
     }
 
     internal protected override Symbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
@@ -138,7 +138,7 @@ public sealed class PropertySymbol : MemberSymbol
             declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            () => context.Substitute(this.PropertyType),
+            () => context.Substitute(this.Type),
             this.BackingField != null
                 ? me => context.Substitute(this.BackingField)
                 : null,

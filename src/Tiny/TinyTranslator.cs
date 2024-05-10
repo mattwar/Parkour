@@ -21,9 +21,9 @@ public class TinyTranslator
             return token.Kind switch
             {
                 TinyTokenKinds.NumberToken =>
-                    Constant(double.Parse(token.Text)),
+                    Constant(double.Parse(token.Text), token),
                 TinyTokenKinds.IdentifierToken =>
-                    Name(token.Text),
+                    Name(token.Text, token),
                 _ => throw new InvalidOperationException($"Unhandled token kind: '{token.Kind}'")
             };
         }
@@ -32,36 +32,40 @@ public class TinyTranslator
             return element.Kind switch
             {
                 TinyNodeKinds.Add =>
-                    Add(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    Add(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.Subtract =>
-                    Subtract(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    Subtract(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.Multiply =>
-                    Multiply(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    Multiply(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.Divide =>
-                    Divide(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    Divide(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.Negate =>
-                    Negate(Translate(element.GetChild(0)!)),
+                    Negate(Translate(element.GetChild(0)!), element.GetChild(1)),
                 TinyNodeKinds.Equal =>
-                    Equal(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    Equal(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.NotEqual =>
-                    NotEqual(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    NotEqual(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.LessThan =>
-                    LessThan(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    LessThan(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.LessThanOrEqual =>
-                    LessThanOrEqual(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    LessThanOrEqual(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.GreaterThan =>
-                    GreaterThan(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    GreaterThan(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.GreaterThanOrEqual =>
-                    GreaterThanOrEqual(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    GreaterThanOrEqual(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.And =>
-                    BitwiseAnd(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    BitwiseAnd(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.Or =>
-                    BitwiseOr(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!)),
+                    BitwiseOr(Translate(element.GetChild(0)!), Translate(element.GetChild(2)!), element.GetChild(1)),
                 TinyNodeKinds.Not =>
-                    BitwiseNot(Translate(element.GetChild(0)!)),
+                    BitwiseNot(Translate(element.GetChild(0)!), element.GetChild(1)),
                 TinyNodeKinds.ParenthesizedExpression =>
                     Translate(element.GetChild(0)!),
                 TinyNodeKinds.Root =>
+                    Translate(element.GetChild(0)!),
+                TinyNodeKinds.LiteralNumber =>
+                    Translate(element.GetChild(0)!),
+                TinyNodeKinds.LiteralString =>
                     Translate(element.GetChild(0)!),
                 _ => throw new InvalidOperationException($"Unhandled node kind: '{element.Kind}'")
             };

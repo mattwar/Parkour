@@ -26,4 +26,9 @@ public interface ISyntaxTree
     /// Gets the tokens that overlap with the text range.
     /// </summary>
     public ImmutableList<ISyntaxToken> GetTokens(int start, int length);
+
+    /// <summary>
+    /// Gets the token at the position.
+    /// </summary>
+    public ISyntaxToken? GetToken(int position);
 }

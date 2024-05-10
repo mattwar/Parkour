@@ -12,8 +12,19 @@ public class TinyServices : CompilationServices
     {
     }
 
-    protected override ImmutableDictionary<string, string>? GetTokenClassifications() =>
-        _tokenClassifications;
+    private static ImmutableList<string> _allClassifications =
+        new string[]
+        {
+            ClassificationKinds.Name,
+            ClassificationKinds.NumericLiteral,
+            ClassificationKinds.StringLiteral,
+            ClassificationKinds.Punctuation,
+            ClassificationKinds.Keyword
+
+        }.ToImmutableList();
+
+    public override ImmutableList<string> GetClassificationKinds() =>
+        _allClassifications;
 
     private static ImmutableDictionary<string, string> _tokenClassifications =
         new Dictionary<string, string>
@@ -43,9 +54,10 @@ public class TinyServices : CompilationServices
             { TinyTokenKinds.QuestionMarkToken, ClassificationKinds.Punctuation }
         }.ToImmutableDictionary();
 
-    public static StandardServices Create(string text, SymbolTable externalSymbols)
+    protected override string GetTokenClassification(ISyntaxToken token)
     {
-        var compilation = new TinyCompilation(text, externalSymbols);       
-        return new TinyServices(compilation, compilation.Documents[0]);
+        return _tokenClassifications.TryGetValue(token.Kind, out var classification)
+            ? classification
+            : ClassificationKinds.Text;
     }
 }

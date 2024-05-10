@@ -53,7 +53,7 @@ public class ParsingAnnotationTests
     {
         var (textWithoutMarker, markerPosition) = StripMarker(textWithMarker);
         var parser = new TinyParser();
-        var tree = parser.Parse("test", textWithoutMarker);
+        var tree = parser.Parse(new SourceDocument("test", textWithoutMarker));
 
         var actualTerms = new List<string>();
         tree.Annotations.GetAnnotations(markerPosition, null, actualTerms);

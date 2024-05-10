@@ -27,6 +27,9 @@ public class OperatorExpression : Expression
         this.OperatorSymbol = operatorSymbol;
     }
 
-    public override int ChildCount => 0;
-    public override SemanticElement? GetChild(int index) => null;
+    public override int ChildCount => 
+        this.Arguments.Count;
+
+    public override SemanticElement? GetChild(int index) =>
+        index < this.Arguments.Count ? this.Arguments[index] : null;
 }

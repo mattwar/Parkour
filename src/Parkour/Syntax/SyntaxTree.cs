@@ -1,22 +1,19 @@
 ﻿namespace Parkour.Syntax;
 
 public partial class SyntaxTree
-    : ISyntaxTree, ISourceDocument
+    : ISyntaxTree
 {
-    public string Name { get; }
-    public string Text { get; }
+    public ISourceDocument Document { get; }
     public IAnnotationSource Annotations { get; }
 
     private readonly SyntaxElement _root;
    
     public SyntaxTree(
-        string name,
-        string text,
+        ISourceDocument document,
         SyntaxElement root,
         IAnnotationSource annotations)
     {
-        Name = name;
-        Text = text;
+        this.Document = document;
         _root = root;
         Annotations = annotations;
 
@@ -52,8 +49,35 @@ public partial class SyntaxTree
         }
     }
 
+    /// <summary>
+    /// Gets the token at the position.
+    /// </summary>
+    public SyntaxToken? GetToken(int position)
+    {
+        return GetToken(_root);
+
+        SyntaxToken? GetToken(SyntaxElement element)
+        {
+            if (element is SyntaxToken token
+                && token.TextStart <= position && token.End > position)
+            {
+                return token;
+            }
+
+            for (int i = 0, n = element.ChildCount; i < n; i++)
+            {
+                var child = element.GetChild(i);
+                if (child != null && child.Start <= position && child.End > position)
+                {
+                    return GetToken(child);
+                }
+            }
+
+            return null;
+        }
+    }
+
     #region ISyntaxTree
-    ISourceDocument ISyntaxTree.Document => this;
     ISyntaxElement ISyntaxTree.Root => this.Root;
 
     ImmutableList<ISyntaxToken> ISyntaxTree.GetTokens(int start, int length)
@@ -82,6 +106,9 @@ public partial class SyntaxTree
             }
         }
     }
+
+    ISyntaxToken? ISyntaxTree.GetToken(int position) =>
+        this.GetToken(position);
 
     private static bool OverlapsRange(ISyntaxElement element, int start, int length) =>
         element.TextStart < start + length

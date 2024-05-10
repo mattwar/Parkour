@@ -1013,7 +1013,7 @@ public abstract class SyntaxElement
 
     #region ISourceLocation
     ISourceDocument ISourceLocation.Document => 
-        ((ISyntaxTree)this).Document;
+        this.Tree?.Document!;  // will have tree when tree constructed
 
     int ISourceLocation.Start => 
         this.TextStart;

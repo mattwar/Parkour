@@ -46,6 +46,37 @@ public abstract class SemanticElement
     public abstract SemanticElement? GetChild(int index);
 
     /// <summary>
+    /// Get the first element at the location specified.
+    /// </summary>
+    public virtual SemanticElement? GetElementAtLocation(int position)
+    {
+        return GetElement(this);
+
+        SemanticElement? GetElement(SemanticElement element)
+        {
+            if (element.Location is { } location
+                && position >= location.Start
+                && position < location.End)
+            {
+                return element;
+            }
+
+            for (int i = 0, n = element.ChildCount; i < n; i++)
+            {
+                var child = element.GetChild(i);
+                if (child != null)
+                {
+                    var childBest = GetElement(child);
+                    if (childBest != null)
+                        return childBest;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Returns the element in a textual form, useful for debugging.
     /// </summary>
     public string ToDebugText() =>

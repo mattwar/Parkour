@@ -60,7 +60,8 @@ public class TinyTests
 
     public void TestSyntax(string text, SyntaxElement expected, bool trivia = false)
     {
-        var tree = new TinyParser().Parse("test", text);
+        var doc = new SourceDocument("test", text);
+        var tree = new TinyParser().Parse(doc);
         var root = tree.Root;
         AssertSyntaxEquals(expected, root);
     }
@@ -87,13 +88,13 @@ public class TinyTests
             ]);
     }
 
-    public void TestClassification(string text, string[] expectedClassifications)
+    private void TestClassification(string text, string[] expectedClassifications)
     {
-        var tree = new TinyParser().Parse("test", text);
-        var compilation = new TinyCompilation(tree, ReflectionSymbols.CurrentMscorlib);
-        var services = new TinyServices(compilation, compilation.Documents[0]);
+        var document = new SourceDocument("test", text);
+        var compilation = new TinyCompilation(document, ReflectionSymbols.CurrentMscorlib);
+        var services = new TinyServices(compilation, document);
 
-        var classifications = services.GetClassificationsAsync(0, text.Length, default).Result.Classifications;
+        var classifications = services.GetClassifications(0, text.Length, default).Classifications;
         Assert.AreEqual(expectedClassifications.Length, classifications.Count, "classification count");
 
         if (expectedClassifications.Zip(classifications).Any(x => x.First != x.Second.Classification))
@@ -101,6 +102,28 @@ public class TinyTests
             var expected = string.Join(", ", expectedClassifications);
             var actual = string.Join(", ", classifications.Select(c => c.Classification));
             Assert.Fail($"expected classifications:\n{expected}\nactual:\n{actual}");
+        }
+    }
+
+    [TestMethod]
+    public void TestHoverText()
+    {
+        TestHoverText("1$23 + 456", ["System.Double"]);
+    }
+
+    private void TestHoverText(string text, string[] sections)
+    {
+        var (textWithoutMarker, position) = StripMarker(text);
+        var document = new SourceDocument("test", textWithoutMarker);
+        var compilation = new TinyCompilation(document, ReflectionSymbols.CurrentMscorlib);
+        var services = new TinyServices(compilation, document);
+
+        var hoverText = services.GetHoverText(position, default);
+
+        Assert.AreEqual(sections.Length, hoverText.Sections.Count, "sections");
+        for (int i = 0; i < sections.Length; i++) 
+        {
+            Assert.AreEqual(sections[i], hoverText.Sections[i].Text, "hover text section");
         }
     }
 }

@@ -259,7 +259,7 @@ public abstract class TypeSymbol : ContainerSymbol
         var typeComparer = TypeEqualityComparer.Instance;
         for (int i = 0; i < parameters.Count; i++)
         {
-            if (!typeComparer.Equals(parameters[i].ParameterType, parameterTypes[i]))
+            if (!typeComparer.Equals(parameters[i].Type, parameterTypes[i]))
                 return false;
         }
 

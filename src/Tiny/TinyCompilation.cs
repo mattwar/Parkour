@@ -1,33 +1,39 @@
-﻿using Parkour;
+﻿using System.Collections.Immutable;
+using Parkour;
 using Parkour.Compilations;
 using Parkour.Binding;
+using Parkour.Semantics;
 using Parkour.Syntax;
 using Parkour.Symbols;
 
 namespace Tiny;
 
-public class TinyCompilation : ExpressionCompilation
+public class TinyCompilation : SemanticCompilation
 {
-    public TinyCompilation(SyntaxTree tinyTree, SymbolTable externalSymbols)
-        : base(tinyTree, _tree => Bind(_tree, externalSymbols))
+    private readonly SymbolTable _imports;
+
+    public TinyCompilation(ISourceDocument document, SymbolTable imports)
+        : base([document])
     {
+        _imports = imports;
     }
 
-    public TinyCompilation(string tinyText, SymbolTable externalSymbols)
-        : this(Parse(tinyText), externalSymbols)
+    protected override ParseInfo Parse()
     {
+        var doc = this.Documents[0];
+        var tree = new TinyParser().Parse(doc);
+        return new ParseInfo([tree]);
     }
 
-    private static SyntaxTree Parse(string tinyText)
+    protected override BindingInfo Bind()
     {
-        return new TinyParser().Parse("", tinyText);
-    }
+        if (this.GetSyntaxTree(this.Documents[0]) is SyntaxTree tree)
+        {
+            var unbound = new TinyTranslator().Translate(tree.Root);
+            var binding = new StandardDeclarationBinder().BindExpression(unbound, _imports);
+            return new BindingInfo(_imports, [binding.Expression]);
+       }
 
-    private static BindingInfo Bind(ISyntaxTree tree, SymbolTable externalSymbols)
-    {
-        var tinyTree = (SyntaxTree)tree;
-        var unbound = new TinyTranslator().Translate(tinyTree.Root);
-        var binding = new StandardDeclarationBinder().BindExpression(unbound, externalSymbols);
-        return new BindingInfo(binding.Expression);
+        return new BindingInfo(_imports, ImmutableList<SemanticElement>.Empty);
     }
 }

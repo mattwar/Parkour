@@ -14,4 +14,9 @@ public interface ISyntaxElement
     /// The number of characters from the start of the first token to the end of the last token in the document.
     /// </summary>
     public int TextLength { get; }
+
+    /// <summary>
+    /// The position after the end of the text
+    /// </summary>
+    public int TextEnd => TextStart + TextLength;
 }

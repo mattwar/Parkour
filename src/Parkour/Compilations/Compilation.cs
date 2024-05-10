@@ -23,11 +23,10 @@ public abstract class Compilation
     /// <summary>
     /// Gets all the diagnositcs for the document.
     /// </summary>
-    public virtual void GetDiagnostics(
-        ISourceDocument document, 
-        Func<Diagnostic, bool>? filter,
-        List<Diagnostic> diagnostics)
+    public virtual ImmutableList<Diagnostic> GetDiagnostics(
+        ISourceDocument document)
     {
+        return ImmutableList<Diagnostic>.Empty;
     }
 
     /// <summary>
@@ -39,4 +38,17 @@ public abstract class Compilation
         List<ISymbol> symbols)
     {
     }
+
+    public virtual SemanticInfo GetSemanticInfo(ISourceDocument document, int position) =>
+        SemanticInfo.None;
+}
+
+public record SemanticInfo(
+    string Kind,
+    ISymbol? ResultType,
+    ISymbol? ReferencedSymbol
+    )
+{
+    public static readonly SemanticInfo None =
+        new SemanticInfo("", null, null);
 }

@@ -13,51 +13,34 @@ public class CompilationServices : StandardServices
         this.Compilation = compilation;
     }
 
-    public override Task<ClassificationResult> GetClassificationsAsync(int start, int length, CancellationToken cancellationToken)
+    public override ClassificationResult GetClassifications(int start, int length, CancellationToken cancellationToken)
     {
         var tree = this.Compilation.GetSyntaxTree(this.Document);
         if (tree == null)
-            return Task.FromResult(ClassificationResult.Empty);
+            return ClassificationResult.Empty;
        
         var tokens = tree.GetTokens(start, length);
         
-        var map = GetTokenClassifications();
-
         var classifications = tokens.Select(t =>
-            new ClassifiedSpan(
-                map != null
-                    ? (map.TryGetValue(t.Kind, out var tc)
-                        ? tc 
-                        : ClassificationKinds.Text)
-                    : ClassificationKinds.Text,
-                t.TextStart,
-                t.TextLength)
+            new ClassifiedSpan(GetTokenClassification(t), t.TextStart, t.TextLength)
             ).ToImmutableList();
 
-        return Task.FromResult(new ClassificationResult(classifications));
+        return new ClassificationResult(classifications);
     }
+
+    protected virtual string GetTokenClassification(ISyntaxToken token) =>
+        ClassificationKinds.Text;
 
     public override ImmutableList<string> GetClassificationKinds()
     {
-        var map = GetTokenClassifications();
-        if (map != null)
-        {
-            return map.Values.Distinct().ToImmutableList();
-        }
-        else
-        {
-            return [ClassificationKinds.Text];
-        }
+        return [ClassificationKinds.Text];
     }
 
-    protected virtual ImmutableDictionary<string, string>? GetTokenClassifications() =>
-        null;
-
-    public override Task<CompletionResult> GetCompletionsAsync(int position, char? lastKey, CancellationToken cancellation)
+    public override CompletionResult GetCompletions(int position, char? lastKey, CancellationToken cancellation)
     {
         var tree = this.Compilation.GetSyntaxTree(this.Document);
         if (tree == null)
-            return Task.FromResult(CompletionResult.Empty);
+            return CompletionResult.Empty;
 
         var completions = new List<CompletionItem>();
 
@@ -73,20 +56,67 @@ public class CompilationServices : StandardServices
         completions.AddRange(symbols.Select(s => new CompletionItem(s.Name, s.Name, s.Name)));
         completions.Sort((a, b) => string.Compare(a.DisplayText, b.DisplayText));
 
-        return Task.FromResult(new CompletionResult(completions.ToImmutableList()));
+        return new CompletionResult(completions.ToImmutableList());
     }
 
-    public override Task<DiagnosticResult> GetDiagnosticsAsync(int position, CancellationToken cancellation)
+    public override DiagnosticResult GetDiagnostics(int start, int length, CancellationToken cancellation)
+    {
+        var compilation = this.Compilation;
+        var docDiagnostics = compilation.GetDiagnostics(this.Document);
+
+        if (start == 0 && length == this.Document.Text.Length)
+            return new DiagnosticResult(docDiagnostics);
+
+        var diagnostics = docDiagnostics
+            .Where(
+                d => d.Location != null
+                && d.Location.End > start
+                && d.Location.Start < start + length
+                )
+            .ToImmutableList();
+
+        return new DiagnosticResult(diagnostics);
+    }
+
+    public override HoverTextResult GetHoverText(int position, CancellationToken cancellationToken)
     {
         var compilation = this.Compilation;
 
-        var diagnostics = new List<Diagnostic>();
+        var info = compilation.GetSemanticInfo(this.Document, position);
+        var diagnostics = GetDiagnostics(position, 0, cancellationToken);
 
-        compilation.GetDiagnostics(
-            this.Document, 
-            d => d.Location != null && position >= d.Location.Start && position <= d.Location.End,
-            diagnostics);
+        var sections = new List<HoverTextSection>();
+        if (info.ReferencedSymbol != null
+            || info.ResultType != null)
+        {
+            var glyph = info.ReferencedSymbol != null 
+                ? GetGlyph(info.ReferencedSymbol) 
+                : "Expression";
 
-        return Task.FromResult(new DiagnosticResult(diagnostics.ToImmutableList()));
+            var text =
+                info.ReferencedSymbol != null ?
+                    (info.ReferencedSymbol.FullName != info.ReferencedSymbol.Name
+                        ? $"{info.ReferencedSymbol.Name} ({info.ReferencedSymbol.FullName})"
+                        : info.ReferencedSymbol.Name)
+                : info.ResultType != null ? info.ResultType.FullName
+                : "";
+
+            var section = new HoverTextSection(glyph, text, ImmutableList<StyledRange>.Empty);
+            sections.Add(section);
+        }
+
+        if (diagnostics.Diagnostics.Count > 0)
+        {
+            sections.Add(
+                new HoverTextSection(
+                    "Diagnostic",
+                    diagnostics.Diagnostics[0].ToString(),
+                    ImmutableList<StyledRange>.Empty));
+        }
+
+        return new HoverTextResult(sections.ToImmutableList());
     }
+
+    protected virtual string GetGlyph(ISymbol symbol) =>
+        symbol.Kind;
 }

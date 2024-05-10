@@ -2,13 +2,13 @@
 
 public sealed class VariableSymbol : Symbol
 {
-    public TypeSymbol VariableType { get; }
+    public TypeSymbol Type { get; }
 
-    public VariableSymbol(string name, TypeSymbol variableType) : base(name)
+    public VariableSymbol(string name, TypeSymbol type) : base(name)
     {
-        VariableType = variableType;
+        Type = type;
     }
 
     public override int ReferencedSymbolCount => 1;
-    public override Symbol? GetReferencedSymbol(int index) => index == 0 ? this.VariableType : null;
+    public override Symbol? GetReferencedSymbol(int index) => index == 0 ? this.Type : null;
 }

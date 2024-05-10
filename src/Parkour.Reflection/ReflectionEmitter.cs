@@ -173,7 +173,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
     {
         if (TryGetDeclaringTypeBuilder(fieldSymbol, out var typeBuilder))
         {
-            var fieldType = GetRuntimeType(fieldSymbol.FieldType);
+            var fieldType = GetRuntimeType(fieldSymbol.Type);
             var fieldAttrs = GetFieldAttributes(fieldSymbol);
             var fieldBuilder = typeBuilder.DefineField(
                 fieldSymbol.Name,
@@ -217,7 +217,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
             // set parameter types after defining type parametres
             methodBuilder.SetParameters(
                 methodSymbol.Parameters
-                .Select(p => GetRuntimeType(p.ParameterType))
+                .Select(p => GetRuntimeType(p.Type))
                 .ToArray());
 
             for (int i = 0; i < methodSymbol.Parameters.Count; i++)
@@ -252,7 +252,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
             // set parameter types after defining type parametres
             methodBuilder.SetParameters(
                 methodSymbol.Parameters
-                .Select(p => GetRuntimeType(p.ParameterType))
+                .Select(p => GetRuntimeType(p.Type))
                 .ToArray());
 
             for (int i = 0; i < methodSymbol.Parameters.Count; i++)
@@ -289,7 +289,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
                 var constructorBuilder = typeBuilder.DefineConstructor(
                     GetMethodAttributes(constructorSymbol),
                     CallingConventions.Standard,
-                    constructorSymbol.Parameters.Select(p => GetRuntimeType(p.ParameterType)).ToArray()
+                    constructorSymbol.Parameters.Select(p => GetRuntimeType(p.Type)).ToArray()
                     );
 
                 _symbolToBuilder.Add(constructorSymbol, constructorBuilder);
@@ -309,7 +309,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
     }
 
     private void DeclareProperty(PropertySymbol propertySymbol) =>
-        DeclarePropertyOrIndexer(propertySymbol, propertySymbol.PropertyType, propertySymbol.GetMethod, propertySymbol.SetMethod);
+        DeclarePropertyOrIndexer(propertySymbol, propertySymbol.Type, propertySymbol.GetMethod, propertySymbol.SetMethod);
 
     private void DeclareIndexer(IndexerSymbol indexerSymbol) =>
         DeclarePropertyOrIndexer(indexerSymbol, indexerSymbol.ElementType, indexerSymbol.GetMethod, indexerSymbol.SetMethod);
@@ -622,7 +622,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
         {
             if (!_variableToLocalMap.TryGetValue(variable, out var local))
             {
-                var variableType = _emitter.GetRuntimeType(variable.VariableType);
+                var variableType = _emitter.GetRuntimeType(variable.Type);
                 local = AllocateLocal(variableType);
                 _variableToLocalMap.Add(variable, local);
             }

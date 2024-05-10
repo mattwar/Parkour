@@ -184,7 +184,7 @@ public class ExpressionTranslator
         var variables = new List<L.ParameterExpression>();
         foreach (var decl in variableDecls)
         {
-            var v = DeclareVariable(decl.VariableSymbol!, decl.VariableSymbol!.VariableType);
+            var v = DeclareVariable(decl.VariableSymbol!, decl.VariableSymbol!.Type);
             variables.Add(v);
         }
 
@@ -272,7 +272,7 @@ public class ExpressionTranslator
             case DelegateSymbol function:
                 {
                     var fn = Translate(call.Expression);
-                    var parameterTypes = function.Parameters.Select(p => TranslateType(p.ParameterType)).ToArray();
+                    var parameterTypes = function.Parameters.Select(p => TranslateType(p.Type)).ToArray();
                     var arguments = TranslateArguments(call.Arguments, parameterTypes);
                     return L.Expression.Invoke(fn, arguments);
                 }
@@ -432,7 +432,7 @@ public class ExpressionTranslator
     private L.Expression TranslateLambda(LambdaExpression lambda)
     {
         var parameters = lambda.FunctionSymbol!.Parameters
-            .Select(p => DeclareVariable(p, p.ParameterType))
+            .Select(p => DeclareVariable(p, p.Type))
             .ToArray();
 
         L.Expression lambdaBody;

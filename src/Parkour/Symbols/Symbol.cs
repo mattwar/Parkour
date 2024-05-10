@@ -10,6 +10,17 @@ public abstract class Symbol
 
     public virtual string FullName => Name;
 
+    string ISymbol.Kind 
+    {
+        get
+        {
+            var typeName = this.GetType().Name;
+            return typeName.EndsWith("Symbol")
+                ? typeName.Substring(0, typeName.Length - 6)
+                : typeName;
+        }
+    }
+
     protected Symbol(string name)
     {
         Name = name;
