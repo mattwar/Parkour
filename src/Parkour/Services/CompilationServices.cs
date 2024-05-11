@@ -43,18 +43,14 @@ public class CompilationServices : StandardServices
             return CompletionResult.Empty;
 
         var completions = new List<CompletionItem>();
-
-        var annotations = new List<object>();
-        this.Compilation.GetAnnotations(this.Document, position, a => a is String || a is CompletionItem, annotations);
-
-        completions.AddRange(annotations.OfType<string>().Select(term => new CompletionItem(term, term, term)));
+        var annotations = this.Compilation.GetAnnotations<object>(this.Document, position, a => a is String || a is CompletionItem);
+        completions.AddRange(annotations.OfType<string>().Select(term => new CompletionItem(term)));
         completions.AddRange(annotations.OfType<CompletionItem>());
 
-        var symbols = new List<ISymbol>();
-        this.Compilation.GetSymbolsInScope(this.Document, position, symbols);
+        var symbols = this.Compilation.GetSymbolsInScope(this.Document, position);
+        completions.AddRange(symbols.Select(s => new CompletionItem(s.Name)));
 
-        completions.AddRange(symbols.Select(s => new CompletionItem(s.Name, s.Name, s.Name)));
-        completions.Sort((a, b) => string.Compare(a.DisplayText, b.DisplayText));
+        completions.Sort((a, b) => string.Compare(a.OrderText, b.OrderText));
 
         return new CompletionResult(completions.ToImmutableList());
     }

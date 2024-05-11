@@ -4,9 +4,9 @@ using Parkour.Semantics;
 
 namespace Parkour.Lowering;
 
-public class StandardDeclarationLowerer : DeclarationLowerer
+public class StandardSemanticLowerer : SemanticLowerer
 {
-    public StandardDeclarationLowerer()
+    public StandardSemanticLowerer()
     {
     }
 

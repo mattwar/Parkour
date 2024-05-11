@@ -13,6 +13,11 @@ public class CompletionItem
     public string MatchText { get; }
 
     /// <summary>
+    /// The text used to order the item in the completion list.
+    /// </summary>
+    public string OrderText { get; }
+
+    /// <summary>
     /// The part of the insertion text that is applied before the editor caret.
     /// </summary>
     public string BeforeText { get; }
@@ -24,13 +29,15 @@ public class CompletionItem
 
     public CompletionItem(
         string displayText,
-        string matchText,
-        string beforeText,
+        string? matchText = null,
+        string? orderText = null,
+        string? beforeText = null,
         string? afterText = null)
     {
         this.DisplayText = displayText;
-        this.MatchText = matchText;
-        this.BeforeText = beforeText;
+        this.MatchText = matchText ?? displayText;
+        this.OrderText = orderText ?? displayText;
+        this.BeforeText = beforeText ?? displayText;
         this.AfterText = afterText ?? "";
     }
 }

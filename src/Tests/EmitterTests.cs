@@ -376,7 +376,7 @@ public class EmitterTests
 
     private void TestEmit(List<Declaration> declarations, Expression? test, Action<object?>? fnCheckResult)
     {
-        var binder = new StandardDeclarationBinder();
+        var binder = new StandardSemanticBinder();
         var imports = ReflectionSymbols.CurrentMscorlib;
 
         if (test != null)
@@ -393,7 +393,7 @@ public class EmitterTests
             Assert.Fail($"Unexpected diagnostics:\n{dxs}");
         }
 
-        var lowerer = new StandardDeclarationLowerer();
+        var lowerer = new StandardSemanticLowerer();
         var lowering = lowerer.LowerDeclarations(binding.Declarations, imports);
 
         var emitter = new ReflectionEmitter(imports, "test_assembly");

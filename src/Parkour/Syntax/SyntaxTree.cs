@@ -4,18 +4,15 @@ public partial class SyntaxTree
     : ISyntaxTree
 {
     public ISourceDocument Document { get; }
-    public IAnnotationSource Annotations { get; }
 
     private readonly SyntaxElement _root;
    
     public SyntaxTree(
         ISourceDocument document,
-        SyntaxElement root,
-        IAnnotationSource annotations)
+        SyntaxElement root)
     {
         this.Document = document;
         _root = root;
-        Annotations = annotations;
 
         // assigns this tree to root, and freezes all syntax elements.
         _root.SetTree(this);

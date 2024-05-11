@@ -1091,7 +1091,7 @@ public class BindingTests
         Action<ImmutableList<Declaration>>? fnValidateDecls = null,
         Action<Expression>? fnValidateExpr = null)
     {
-        var binder = new StandardDeclarationBinder();
+        var binder = new StandardSemanticBinder();
 
         SymbolTable bindSymbols = _reflectionSymbols;
 

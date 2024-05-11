@@ -4,19 +4,20 @@ using Semantics;
 using Symbols;
 
 /// <summary>
-/// Rewrites declarations and expressions into a form compatible with emitting.
+/// Converts high-level semantics into low-level semantics,
+/// rewriting declarations and expressions into a form compatible with emitting.
 /// </summary>
-public abstract class DeclarationLowerer
+public abstract class SemanticLowerer
 {
     /// <summary>
-    /// Rewrites declarations and body expressions into a form compatible with emitting.
+    /// Converts high-level declarations into low-level declarations.
     /// </summary>
     public abstract DeclarationLowering LowerDeclarations(
         ImmutableList<Declaration> declarations,
         SymbolTable externalSymbols);
 
     /// <summary>
-    /// Rewrites expressions into a form compatible with emitting into a method body.
+    /// Converts high-level expressions into low-level expressions.
     /// </summary>
     public abstract ExpressionLowering LowerExpression(
         Expression expression,

@@ -281,7 +281,7 @@ public class LINQTranslationTests
 
         args ??= System.Array.Empty<object>();
 
-        var binder = new StandardDeclarationBinder();
+        var binder = new StandardSemanticBinder();
         var binding = binder.BindExpression(expression, _symbols);
         var bound = (LambdaExpression)binding.Expression;
 

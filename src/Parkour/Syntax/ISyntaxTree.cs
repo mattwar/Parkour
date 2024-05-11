@@ -5,30 +5,25 @@ public interface ISyntaxTree
     /// <summary>
     /// The document this <see cref="SyntaxTree"/> is sourced from.
     /// </summary>
-    public ISourceDocument Document { get; }
+    ISourceDocument Document { get; }
 
     /// <summary>
     /// The root element of this <see cref="ISyntaxTree"/>
     /// </summary>
-    public ISyntaxElement Root { get; }
-
-    /// <summary>
-    /// A means to discover annotations related the parsing of this syntax tree.
-    /// </summary>
-    public IAnnotationSource Annotations { get; }
+    ISyntaxElement Root { get; }
 
     /// <summary>
     /// The collected syntax diagnostics found in this <see cref="SyntaxTree"/>
     /// </summary>
-    public ImmutableList<Diagnostic> Diagnostics { get; }
+    ImmutableList<Diagnostic> Diagnostics { get; }
 
     /// <summary>
     /// Gets the tokens that overlap with the text range.
     /// </summary>
-    public ImmutableList<ISyntaxToken> GetTokens(int start, int length);
+    ImmutableList<ISyntaxToken> GetTokens(int start, int length);
 
     /// <summary>
     /// Gets the token at the position.
     /// </summary>
-    public ISyntaxToken? GetToken(int position);
+    ISyntaxToken? GetToken(int position);
 }

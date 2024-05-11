@@ -8,15 +8,14 @@ namespace Tiny
 
     public class TinyParser
     {
-        private readonly Parser<LexicalToken, SyntaxElement> _parser;
+        public Parser<LexicalToken, SyntaxElement> Parser { get; }
 
         public SyntaxTree Parse(ISourceDocument document)
         {
             var lexer = new TinyLexer();
             var tokens = lexer.Parse(document.Text);
-            var result = _parser.Parse(tokens.AsSpan());
-            var annotations = new LexcialAnnotationSource(_parser, tokens);
-            return new SyntaxTree(document, result.Output, annotations);
+            var result = this.Parser.Parse(tokens.AsSpan());
+            return new SyntaxTree(document, result.Output);
         }
 
         public TinyParser()
@@ -145,7 +144,7 @@ namespace Tiny
                 Map(Expression, Skipped,
                     (expr, remainder) => (SyntaxElement)TinyFactory.Root(expr, remainder));
 
-            _parser = Root;
+            this.Parser = Root;
         }
     }
 }

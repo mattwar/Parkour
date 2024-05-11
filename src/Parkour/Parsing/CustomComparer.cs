@@ -7,7 +7,9 @@ internal class CustomEqualityComparer<T> : EqualityComparer<T>
     private readonly Func<T, T, bool> _fnEquals;
     private readonly Func<T, int> _fnHashCode;
     
-    public CustomEqualityComparer(Func<T, T, bool> fnEquals, Func<T, int> fnHashCode)
+    public CustomEqualityComparer(
+        Func<T, T, bool> fnEquals, 
+        Func<T, int> fnHashCode)
     {
         _fnEquals = fnEquals;
         _fnHashCode = fnHashCode;

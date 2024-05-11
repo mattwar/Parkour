@@ -5,14 +5,14 @@ namespace Parkour.Parsing;
 /// An annotation source that finds annotations in the parsing grammar
 /// by scanning to the position using the original input.
 /// </summary>
-public class LexcialAnnotationSource
-    : IAnnotationSource
+public class LexicalParsingContext
+    : IParsingContext
 {
     private readonly Parser<LexicalToken> _parser;
     private readonly ImmutableArray<LexicalToken> _tokens;
     private readonly int _textLength;
 
-    public LexcialAnnotationSource(
+    public LexicalParsingContext(
         Parser<LexicalToken> parser, 
         ImmutableArray<LexicalToken> tokens)
     {
@@ -21,10 +21,9 @@ public class LexcialAnnotationSource
         _textLength = tokens.Sum(t => t.Length);
     }
 
-    public void GetAnnotations<TAnnotation>(
+    public ImmutableList<TAnnotation> GetAnnotations<TAnnotation>(
         int position, 
-        Func<TAnnotation, bool>? filter, 
-        List<TAnnotation> annotations)
+        Func<TAnnotation, bool>? filter = null)
     {
         var tokenIndex = GetTokenIndex(position, out var textOffsetInToken);
         if (tokenIndex >= 0)
@@ -48,13 +47,14 @@ public class LexcialAnnotationSource
                     !afterMissing && parser.Annotations.Count > 0,
                 nextParsers);
 
-            annotations.AddRange(
-                nextParsers
-                    .SelectMany(p => p.Annotations)
-                    .OfType<TAnnotation>()
-                    .Where(ta => filter == null || filter(ta))
-                );
+            return nextParsers
+                .SelectMany(p => p.Annotations)
+                .OfType<TAnnotation>()
+                .Where(ta => filter == null || filter(ta))
+                .ToImmutableList();
         }
+
+        return ImmutableList<TAnnotation>.Empty;
     }
 
     /// <summary>

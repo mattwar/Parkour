@@ -1,8 +1,13 @@
 ﻿namespace Parkour.Compilations;
 
+using Parsing;
 using Semantics;
 using Symbols;
 
+/// <summary>
+/// A compilation that knows how to parse its documents into syntax trees
+/// and bind them into semantic elements.
+/// </summary>
 public abstract class SemanticCompilation : Compilation
 {
     public override ImmutableList<ISourceDocument> Documents { get; }
@@ -13,33 +18,20 @@ public abstract class SemanticCompilation : Compilation
         this.Documents = documents;
     }
 
-    protected abstract ParseInfo Parse();
+    protected abstract ParsingInfo Parse(ISourceDocument document);
     protected abstract BindingInfo Bind();
 
-    public ImmutableList<ISyntaxTree> SyntaxTrees => 
-        this.GetParseInfo().SyntaxTrees;
+    protected record ParsingInfo(
+        ISyntaxTree SyntaxTree,
+        IParsingContext ParsingContext);
 
-    public record ParseInfo(
-        ImmutableList<ISyntaxTree> SyntaxTrees);
-
-    public record BindingInfo(
+    protected record BindingInfo(
         SymbolTable Symbols,
         ImmutableList<SemanticElement> BoundElements);
 
-    private ParseInfo? _parseInfo;
     private BindingInfo? _bindingInfo;
 
-    private ParseInfo GetParseInfo()
-    {
-        if (_parseInfo == null)
-        {
-            var tmp = this.Parse();
-            Interlocked.CompareExchange(ref _parseInfo, tmp, null);
-        }
-        return _parseInfo;
-    }
-
-    private BindingInfo GetBindingInfo()
+    protected BindingInfo GetBindingInfo()
     {
         if (_bindingInfo == null)
         {
@@ -50,26 +42,28 @@ public abstract class SemanticCompilation : Compilation
         return _bindingInfo;
     }
 
-    private ImmutableDictionary<ISourceDocument, ISyntaxTree>? _docToTreeMap;
+    private ImmutableDictionary<ISourceDocument, ParsingInfo> _docToParsingInfoMap =
+        ImmutableDictionary<ISourceDocument, ParsingInfo>.Empty;
 
-    public override ISyntaxTree? GetSyntaxTree(ISourceDocument document)
+    protected ParsingInfo? GetParsingInfo(ISourceDocument document)
     {
-        if (_docToTreeMap == null)
+        if (!_docToParsingInfoMap.TryGetValue(document, out var info))
         {
-            var info = this.GetParseInfo();
-            var map = info.SyntaxTrees.ToImmutableDictionary(t => t.Document, t => t);
-            Interlocked.CompareExchange(ref _docToTreeMap, map, null);
+            var tmp = this.Parse(document);
+            info = ImmutableInterlocked.GetOrAdd(ref _docToParsingInfoMap, document, tmp);
         }
 
-        _docToTreeMap.TryGetValue(document, out var tree);
-        return tree;
+        return info;
     }
 
-    private Dictionary<ISourceDocument, ImmutableList<SemanticElement>>? _docToElementMap;
+    public override ISyntaxTree? GetSyntaxTree(ISourceDocument document) =>
+        this.GetParsingInfo(document)?.SyntaxTree;
 
-    private ImmutableList<SemanticElement> GetBoundElements(ISourceDocument document)
+    private Dictionary<ISourceDocument, ImmutableList<SemanticElement>>? _docToRootElementsMap;
+
+    private ImmutableList<SemanticElement> GetRootElements(ISourceDocument document)
     {
-        if (_docToElementMap == null)
+        if (_docToRootElementsMap == null)
         {
             var info = GetBindingInfo();
 
@@ -78,23 +72,24 @@ public abstract class SemanticCompilation : Compilation
                 .ToLookup(d => d.Location!.Document, d => d)
                 .ToDictionary(group => group.Key, group => group.ToImmutableList());
 
-            Interlocked.CompareExchange(ref _docToElementMap, tmp, null);
+            Interlocked.CompareExchange(ref _docToRootElementsMap, tmp, null);
         }
 
-        _docToElementMap.TryGetValue(document, out var declarations);
+        _docToRootElementsMap.TryGetValue(document, out var declarations);
         return declarations ?? ImmutableList<SemanticElement>.Empty;
     }
 
-    public override void GetAnnotations<TAnnotation>(
+    public override ImmutableList<TAnnotation> GetAnnotations<TAnnotation>(
         ISourceDocument document, 
         int position, 
-        Func<TAnnotation, bool>? filter, 
-        List<TAnnotation> annotations)
+        Func<TAnnotation, bool>? filter = null)
     {
-        if (GetSyntaxTree(document) is { } tree)
+        if (GetParsingInfo(document) is { } info)
         {
-            tree.Annotations.GetAnnotations(position, filter, annotations);
+            return info.ParsingContext.GetAnnotations(position, filter);
         }
+
+        return ImmutableList<TAnnotation>.Empty;
     }
 
     private ImmutableDictionary<ISourceDocument, ImmutableList<Diagnostic>> _docDiagnostics =
@@ -113,7 +108,7 @@ public abstract class SemanticCompilation : Compilation
             }
 
             // get all semantic diagnostics
-            var docDeclarations = GetBoundElements(document);
+            var docDeclarations = GetRootElements(document);
             foreach (var decl in docDeclarations)
             {
                 decl.GetContainedDiagnostics(list);
@@ -142,11 +137,11 @@ public abstract class SemanticCompilation : Compilation
             && tree.GetToken(position) is { } token
             && position >= token.TextStart
             && position < token.TextEnd
-            && GetBoundElements(document) is { } declarations)
+            && GetRootElements(document) is { } rootElements)
         {
-            foreach (var decl in declarations)
+            foreach (var root in rootElements)
             {
-                var element = decl.GetElementAtLocation(token.TextStart);
+                var element = root.GetElementAtLocation(token.TextStart);
                 if (element != null)
                     return element;
             }
@@ -154,4 +149,45 @@ public abstract class SemanticCompilation : Compilation
 
         return null;
     }
+
+#if false
+    private ImmutableDictionary<ISourceDocument, ImmutableDictionary<ISourceLocation, SemanticElement>> _docToLocationMap =
+        ImmutableDictionary<ISourceDocument, ImmutableDictionary<ISourceLocation, SemanticElement>>.Empty;
+
+    protected SemanticElement? GetElementAtLocation(ISourceLocation location)
+    {
+        if (!_docToLocationMap.TryGetValue(location.Document, out var locationMap))
+        {
+            var rootElements = GetRootElements(location.Document);
+            var map = new Dictionary<ISourceLocation, SemanticElement>();
+
+            foreach (var rootElement in rootElements)
+            {
+                BuildMap(rootElement);
+
+                void BuildMap(SemanticElement element)
+                {
+                    if (element.Location != null)
+                    {
+                        map[element.Location] = element;
+                    }
+
+                    for (int i = 0; i < element.ChildCount; i++)
+                    {
+                        var child = element.GetChild(i);
+                        if (child != null)
+                        {
+                            BuildMap(child);
+                        }
+                    }
+                }
+            }
+
+            locationMap = ImmutableInterlocked.GetOrAdd(ref _docToLocationMap, location.Document, _ => map.ToImmutableDictionary());
+        }
+
+        locationMap.TryGetValue(location, out var element);
+        return element;
+    }
+#endif
 }

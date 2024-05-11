@@ -9,15 +9,15 @@ using Symbols;
 /// Converts unbound declarations and expressions into bound declarations and expressions
 /// with symbols and diagnostics assigned.
 /// </summary>
-public class StandardDeclarationBinder : DeclarationBinder
+public class StandardSemanticBinder : SemanticBinder
 {
     /// <summary>
-    /// Creates a new instance of <see cref="StandardDeclarationBinder"/> that 
+    /// Creates a new instance of <see cref="StandardSemanticBinder"/> that 
     /// converts unbound declarations and expressions into bound declarations and expressions,
     /// by creating new instances of each with declared or referenced symbols assigned
     /// and including any diagnostics.
     /// </summary>
-    public StandardDeclarationBinder()
+    public StandardSemanticBinder()
     {
     }
 
@@ -299,7 +299,7 @@ public class StandardDeclarationBinder : DeclarationBinder
                 return null;
 
             default:
-                throw new InvalidOperationException($"Unhandled declaration type '{declaration.GetType().Name}' in {nameof(StandardDeclarationBinder)}.{nameof(CreateDeclarationSymbol)}");
+                throw new InvalidOperationException($"Unhandled declaration type '{declaration.GetType().Name}' in {nameof(StandardSemanticBinder)}.{nameof(CreateDeclarationSymbol)}");
         }
     }
 
@@ -546,7 +546,7 @@ public class StandardDeclarationBinder : DeclarationBinder
                 bound = BindUsing(context, ud);
                 break;
             default:
-                throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(StandardDeclarationBinder)}.{nameof(BindDeclaration)}");
+                throw new InvalidCastException($"Unhandled declaration '{declaration.GetType().Name}' in {nameof(StandardSemanticBinder)}.{nameof(BindDeclaration)}");
         }
 
         return bound;
@@ -1093,7 +1093,7 @@ public class StandardDeclarationBinder : DeclarationBinder
                 return BindVoid(context, vex);
 
             default:
-                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(StandardDeclarationBinder)}.BindExpression");
+                throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(StandardSemanticBinder)}.BindExpression");
         }
     }
 

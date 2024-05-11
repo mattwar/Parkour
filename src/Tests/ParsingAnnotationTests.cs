@@ -1,5 +1,5 @@
 using Parkour;
-using Parkour.Parsing;
+using Parkour.Reflection;
 
 using Tiny;
 
@@ -52,11 +52,11 @@ public class ParsingAnnotationTests
     private void TestAnnotations(string textWithMarker, params string[] expectedTerms)
     {
         var (textWithoutMarker, markerPosition) = StripMarker(textWithMarker);
-        var parser = new TinyParser();
-        var tree = parser.Parse(new SourceDocument("test", textWithoutMarker));
 
-        var actualTerms = new List<string>();
-        tree.Annotations.GetAnnotations(markerPosition, null, actualTerms);
+        var doc = new SourceDocument("test", textWithoutMarker);
+        var compilation = new TinyCompilation(doc, ReflectionSymbols.CurrentMscorlib);
+
+        var actualTerms = compilation.GetAnnotations<string>(doc, markerPosition);
 
         var expectedList = string.Join(", ", expectedTerms);
         var actualList = string.Join(", ", actualTerms);

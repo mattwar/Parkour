@@ -8,7 +8,11 @@ public struct LexicalToken
     public string Text { get; }
     public Diagnostic? Diagnostic { get; }
 
-    public LexicalToken(string kind, string trivia, string text, Diagnostic? diagnostic = null)
+    public LexicalToken(
+        string kind, 
+        string trivia, 
+        string text, 
+        Diagnostic? diagnostic = null)
     {
         Kind = kind ?? "";
         Trivia = trivia ?? "";

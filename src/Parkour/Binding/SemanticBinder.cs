@@ -3,7 +3,10 @@
 using Semantics;
 using Symbols;
 
-public abstract class DeclarationBinder
+/// <summary>
+/// Binds semantic elements (declarations and expressions).
+/// </summary>
+public abstract class SemanticBinder
 {
     /// <summary>
     /// Creates symbols for all symbol declarations,

@@ -8,10 +8,10 @@ public interface ISyntaxNode : ISyntaxElement
     /// <summary>
     /// The number of child <see cref="ISyntaxElement"/> contained by the span of this element.
     /// </summary>
-    public int ChildCount { get; }
+    int ChildCount { get; }
 
     /// <summary>
     /// Returns the <see cref="ISyntaxElement"/> at the specified index position.
     /// </summary>
-    public ISyntaxElement? GetChild(int index);
+    ISyntaxElement? GetChild(int index);
 }

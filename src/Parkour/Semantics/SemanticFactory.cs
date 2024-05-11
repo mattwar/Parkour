@@ -2,6 +2,9 @@
 using Binding;
 using Symbols;
 
+/// <summary>
+/// Factory for constructing unbound semantic elements.
+/// </summary>
 public static class SemanticFactory
 {
     #region Expressions

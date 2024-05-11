@@ -8,10 +8,10 @@ public interface ISyntaxToken : ISyntaxElement
     /// <summary>
     /// The text of the token.
     /// </summary>
-    public string Text { get; }
+    string Text { get; }
 
     /// <summary>
     /// The kind of the token.
     /// </summary>
-    public string Kind { get; }
+    string Kind { get; }
 }
