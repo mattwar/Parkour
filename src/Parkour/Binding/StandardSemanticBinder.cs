@@ -1020,6 +1020,9 @@ public class StandardSemanticBinder : SemanticBinder
             case AssignExpression assign:
                 return BindAssign(context, assign);
 
+            case AsTypeExpression asType:
+                return BindAsType(context, asType);
+
             case BlockExpression block:
                 return BindBlock(context, block);
 
@@ -1043,9 +1046,6 @@ public class StandardSemanticBinder : SemanticBinder
 
             case ElementExpression element:
                 return BindElement(context, element);
-
-            case IsTypeExpression istype:
-                return BindIsType(context, istype);
 
             case LabelExpression label:
                 return BindLabel(context, label);
@@ -1079,6 +1079,9 @@ public class StandardSemanticBinder : SemanticBinder
 
             case ThisExpression me:
                 return BindThis(context, me);
+
+            case IsTypeExpression istype:
+                return BindIsType(context, istype);
 
             case TypeOfExpression toe:
                 return BindTypeOf(context, toe);
@@ -1312,6 +1315,43 @@ public class StandardSemanticBinder : SemanticBinder
                     || (e.Expression.ReferencedSymbol is IndexerSymbol i && i.SetMethod != null))
         };
 
+    #endregion
+
+    #region AsType Expression
+    /// <summary>
+    /// Binds <see cref="AsTypeExpression"/>
+    /// </summary>
+    protected virtual Expression BindAsType(ExpressionContext context, AsTypeExpression asType)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            context = context.WithTargetType(null);
+            var expression = BindExpression(context, asType.Expression);
+            var type = BindTypeExpression(context, asType.Type, diagnostics);
+            var typeSymbol = type.ReferencedSymbol as TypeSymbol;
+
+            if (expression == asType.Expression
+                && type == asType.Type
+                && typeSymbol == asType.TypeSymbol
+                && typeSymbol == asType.ResultType
+                && diagnostics.Count == 0
+                && asType.Diagnostics.Count == 0)
+                return asType;
+
+            return new AsTypeExpression(
+                expression,
+                type,
+                asType.Location,
+                typeSymbol,
+                typeSymbol,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
     #endregion
 
     #region Block Expression
@@ -2226,16 +2266,23 @@ public class StandardSemanticBinder : SemanticBinder
             var expr = BindExpression(context, element.Expression);
             var arguments = BindExpressionList(context, element.Arguments);
 
-            if (expr.ResultType is ArraySymbol array)
+            TypeSymbol indexedType = expr.ResultType;
+            if (expr.ReferencedSymbol is TypeSymbol referencedType)
+            {
+                indexedType = referencedType;
+            }
+
+            if (indexedType is ArraySymbol array)
             {
                 return new ElementExpression(expr, arguments, element.Location, null, array.ElementType, diagnostics.ToImmutableList());
             }
             else
             {
-                GetMatchingTypeMembers(
-                    expr.ResultType,
-                    null,
-                    s => s is IndexerSymbol x && x.GetMethod != null,
+                GetIndexerCandidates(
+                    context,
+                    indexedType,
+                    isStatic: expr.ReferencedSymbol is TypeSymbol,
+                    element.Arguments,
                     candidates);
 
                 IndexerSymbol? indexer = null;
@@ -2304,6 +2351,7 @@ public class StandardSemanticBinder : SemanticBinder
     protected virtual void GetIndexerCandidates(
         ExpressionContext context,
         TypeSymbol targetType,
+        bool isStatic,
         ImmutableList<Expression> arguments,
         List<Symbol> candidates)
     {
@@ -2311,8 +2359,9 @@ public class StandardSemanticBinder : SemanticBinder
             targetType,
             null,
             s => s is IndexerSymbol x
-                && x.SetMethod != null
-                && x.SetMethod.Parameters.Count == arguments.Count,
+                && x.IsStatic == isStatic
+                && x.GetMethod != null
+                && x.GetMethod.Parameters.Count == arguments.Count,
             candidates);
     }
 
@@ -2336,10 +2385,12 @@ public class StandardSemanticBinder : SemanticBinder
             context = context.WithTargetType(null);
             var expression = BindExpression(context, istype.Expression);
             var type = BindTypeExpression(context, istype.Type, diagnostics);
+            var typeSymbol = type.ReferencedSymbol as TypeSymbol;
             var resultType = context.Symbols.Boolean;
 
             if (expression == istype.Expression
                 && type == istype.Type
+                && typeSymbol == istype.TypeSymbol
                 && resultType == istype.ResultType
                 && diagnostics.Count == 0
                 && istype.Diagnostics.Count == 0)
@@ -2349,6 +2400,7 @@ public class StandardSemanticBinder : SemanticBinder
                 expression,
                 type,
                 istype.Location,
+                typeSymbol,
                 resultType,
                 diagnostics.ToImmutableList());
         }
@@ -3126,9 +3178,11 @@ public class StandardSemanticBinder : SemanticBinder
         try
         {
             var type = BindTypeExpression(context, toe.Type, diagnostics);
+            var typeSymbol = type.ReferencedSymbol as TypeSymbol;
             var resultType = context.Symbols.Type;
 
             if (type == toe.Type
+                && typeSymbol == toe.TypeSymbol
                 && resultType == toe.ResultType
                 && toe.Diagnostics.Count == 0
                 && diagnostics.Count == 0)
@@ -3137,6 +3191,7 @@ public class StandardSemanticBinder : SemanticBinder
             return new TypeOfExpression(
                 type,
                 toe.Location,
+                typeSymbol,
                 resultType,
                 diagnostics.ToImmutableList());
         }

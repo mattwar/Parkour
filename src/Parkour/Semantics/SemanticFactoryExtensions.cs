@@ -105,18 +105,6 @@ public static class SemanticFactoryExtensions
         SemanticFactory.Call(target.Member(name), arguments);
 
     /// <summary>
-    /// Accesses the element of an expression
-    /// </summary>
-    public static ElementExpression Element(this Expression target, Expression index, ISourceLocation? location = null) =>
-        SemanticFactory.Element(target, index, location);
-
-    /// <summary>
-    /// Accesses the element of an expression
-    /// </summary>
-    public static ElementExpression Element(this Expression target, ImmutableList<Expression> indices, ISourceLocation? location = null) =>
-        SemanticFactory.Element(target, indices, location);
-
-    /// <summary>
     /// Converts the referenced symbol to a constructed version of that symbol
     /// with the specified type arguments.
     /// </summary>
@@ -128,6 +116,30 @@ public static class SemanticFactoryExtensions
     /// </summary>
     public static ConvertExpression ConvertTo(this Expression expression, Expression convertedType, ISourceLocation? location = null) =>
         SemanticFactory.Convert(expression, convertedType, location);
+
+    /// <summary>
+    /// Tests the expression if it is an instance of the specified type.
+    /// </summary>
+    public static IsTypeExpression IsType(this Expression expression, Expression type, ISourceLocation? location = null) =>
+        SemanticFactory.IsType(expression, type, location);
+
+    /// <summary>
+    /// Converts the expression to the specified type if it is an instance of that type or null if it is not.
+    /// </summary>
+    public static AsTypeExpression AsType(this Expression expression, Expression type, ISourceLocation? location = null) =>
+        SemanticFactory.AsType(expression, type, location);
+
+    /// <summary>
+    /// Accesses the element of an expression
+    /// </summary>
+    public static ElementExpression Element(this Expression target, Expression index, ISourceLocation? location = null) =>
+        SemanticFactory.Element(target, index, location);
+
+    /// <summary>
+    /// Accesses the element of an expression
+    /// </summary>
+    public static ElementExpression Element(this Expression target, ImmutableList<Expression> indices, ISourceLocation? location = null) =>
+        SemanticFactory.Element(target, indices, location);
 
     /// <summary>
     /// Accesses the member of the expression's type or instance.

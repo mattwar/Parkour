@@ -67,6 +67,11 @@ public abstract class MemberSymbol : Symbol
     /// </summary>
     public bool IsReadOnly => (this.Modifiers & SymbolModifier.ReadOnly) != 0;
 
+    /// <summary>
+    /// True if the symbol is constant.
+    /// </summary>
+    public bool IsConstant => (this.Modifiers & SymbolModifier.Constant) != 0;
+
     public MemberSymbol(
         string name, 
         Symbol? declaringSymbol,

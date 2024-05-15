@@ -200,7 +200,8 @@ public class ReflectionSymbols : StandardSymbolTable
                         declaringSymbol as TypeSymbol,
                         GetAccess(field),
                         GetModifiers(field),
-                        () => GetType(field.FieldType));
+                        () => GetType(field.FieldType),
+                        field.IsLiteral ? field.GetRawConstantValue() : null);
 
                 case PropertyInfo property:
                     var indexParameters = property.GetIndexParameters();
@@ -477,7 +478,8 @@ public class ReflectionSymbols : StandardSymbolTable
                 (type.IsAbstract ? SymbolModifier.Abstract : SymbolModifier.None)
                 | (type.IsSealed ? SymbolModifier.Sealed : SymbolModifier.None),
             FieldInfo field =>
-                (field.IsStatic ? SymbolModifier.Static : SymbolModifier.None),
+                (field.IsStatic ? SymbolModifier.Static : SymbolModifier.None)
+                | (field.IsLiteral ? SymbolModifier.Constant : SymbolModifier.None),
             PropertyInfo property =>
                 GetModifiers(property.GetGetMethod()!),
             MethodBase method =>

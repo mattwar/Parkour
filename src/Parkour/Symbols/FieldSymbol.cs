@@ -20,15 +20,22 @@ public sealed class FieldSymbol : MemberSymbol
         }
     }
 
+    /// <summary>
+    /// The value of the constant field.
+    /// </summary>
+    public object? ConstantValue { get; }
+
     public FieldSymbol(
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        Func<TypeSymbol> fnType)
+        Func<TypeSymbol> fnType,
+        object? constantValue = null)
         : base(name, declaringSymbol, access, modifiers)
     {
         _fnType = fnType;
+        this.ConstantValue = constantValue;
     }
 
     public FieldSymbol(
@@ -36,13 +43,15 @@ public sealed class FieldSymbol : MemberSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         SymbolModifier modifiers,
-        TypeSymbol type)
+        TypeSymbol type,
+        object? constantValue = null)
         : this(
             name,
             declaringSymbol,
             access,
             modifiers,
-            () => type)
+            () => type,
+            constantValue)
     {
     }
 

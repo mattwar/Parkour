@@ -4,6 +4,7 @@ namespace Parkour.Emitting;
 
 using Semantics;
 using Symbols;
+using System.Net;
 
 /// <summary>
 /// Builds symbol bodies by emitting IL instructions into an <see cref="ILEmitter"/>
@@ -48,7 +49,7 @@ public class StandardBodyBuilder : BodyBuilder
     /// <summary>
     /// Emits an expression.
     /// </summary>
-    protected virtual void EmitExpression(Expression expression, bool asAddress = false)
+    protected virtual void EmitExpression(Expression expression)
     {
         if (expression.Diagnostics.Count > 0)
         {
@@ -63,11 +64,15 @@ public class StandardBodyBuilder : BodyBuilder
         switch (expression)
         {
             case AdjustedReferenceExpression are:
-                EmitAdjustedReferenceExpression(are, asAddress);
+                EmitAdjustedReferenceExpression(are, asAddress: false);
                 break;
 
             case AssignExpression assign:
                 EmitAssign(assign);
+                break;
+
+            case AsTypeExpression asType:
+                EmitAsType(asType);
                 break;
 
             case BlockExpression block:
@@ -83,7 +88,7 @@ public class StandardBodyBuilder : BodyBuilder
                 break;
 
             case ConditionExpression condition:
-                EmitCondition(condition, asAddress);
+                EmitCondition(condition, asAddress: false);
                 break;
 
             case ConstantExpression constant:
@@ -102,6 +107,10 @@ public class StandardBodyBuilder : BodyBuilder
                 EmitElement(element);
                 break;
 
+            case IsTypeExpression isType:
+                EmitIsType(isType);
+                break;
+
             case LabelExpression label:
                 EmitLabel(label);
                 break;
@@ -111,11 +120,11 @@ public class StandardBodyBuilder : BodyBuilder
                 break;
 
             case MemberExpression mex:
-                EmitMember(mex, asAddress);
+                EmitMember(mex, asAddress: false);
                 break;
 
             case NameExpression nre:
-                EmitNameReference(nre, asAddress);
+                EmitNameReference(nre, asAddress: false);
                 break;
 
             case NewExpression ne:
@@ -135,11 +144,15 @@ public class StandardBodyBuilder : BodyBuilder
                 break;
 
             case SymbolExpression sre:
-                EmitSymbolReference(sre, asAddress);
+                EmitSymbolReference(sre, asAddress: false);
                 break;
 
             case ThisExpression me:
-                EmitThis(me, asAddress);
+                EmitThis(me, asAddress: false);
+                break;
+
+            case TypeOfExpression tof:
+                EmitTypeOf(tof);
                 break;
 
             case VariableExpression variable:
@@ -155,6 +168,18 @@ public class StandardBodyBuilder : BodyBuilder
         }
     }
 
+    protected virtual void EmitExpression(Expression expression, bool asAddress)
+    {
+        if (asAddress)
+        {
+            this.EmitExpressionAddress(expression);
+        }
+        else
+        {
+            this.EmitExpression(expression);
+        }
+    }
+
     /// <summary>
     /// Emits the expression and then adjusts the result on the stack as necessary to match the target type.
     /// </summary>
@@ -164,6 +189,39 @@ public class StandardBodyBuilder : BodyBuilder
         if (expression.ResultType != targetType)
         {
             this.Emitter.EmitConvert(expression.ResultType, targetType, true);
+        }
+    }
+
+    protected virtual void EmitExpressionAddress(Expression expression)
+    {
+        switch (expression)
+        {
+            case AdjustedReferenceExpression are:
+                EmitAdjustedReferenceExpression(are, asAddress: true);
+                break;
+
+            case ConditionExpression condition:
+                EmitCondition(condition, asAddress: true);
+                break;
+
+            case MemberExpression mex:
+                EmitMember(mex, asAddress: true);
+                break;
+
+            case NameExpression nre:
+                EmitNameReference(nre, asAddress: true);
+                break;
+
+            case ThisExpression me:
+                EmitThis(me, asAddress: true);
+                break;
+
+            default:
+                var tmp = new VariableSymbol("tmp", expression.ResultType);
+                this.EmitExpression(expression);
+                this.Emitter.EmitStoreVariable(tmp);
+                this.Emitter.EmitLoadVariableAddress(tmp);
+                break;
         }
     }
 
@@ -282,8 +340,19 @@ public class StandardBodyBuilder : BodyBuilder
                     else if (ee.IndexerSymbol != null
                         && ee.IndexerSymbol.SetMethod != null)
                     {
-                        //EmitMethodCall(context, ee.IndexerSymbol.SetMethod, ee.Expression, ee.Arguments.Add(assign.Source), ee.Location);
-                        throw new NotImplementedException();
+                        EmitMethodCallInstance(ee.IndexerSymbol.SetMethod, ee.Expression, ee.Location);
+
+                        // emit index arguments
+                        EmitArguments(ee.IndexerSymbol.SetMethod.Parameters, ee.Arguments);
+
+                        // final argument (value)
+                        EmitExpressionAsType(assign.Source, ee.IndexerSymbol.ElementType);
+
+                        temp = (assign.ResultType != SpecialSymbols.Void)
+                            ? CopyToTemporaryVariable(ee.IndexerSymbol.ElementType)
+                            : null;
+
+                        this.Emitter.EmitCall(ee.IndexerSymbol.SetMethod);
                     }
                 }
                 break;
@@ -323,6 +392,46 @@ public class StandardBodyBuilder : BodyBuilder
         }
     }
 
+    #endregion
+
+    #region AsType Emit
+    public virtual void EmitAsType(AsTypeExpression asType)
+    {
+        if (asType.TypeSymbol != null)
+        {
+            if (asType.TypeSymbol.IsValueType)
+            {
+                this.EmitExpression(asType.Expression);
+                var isSameType = TypeEqualityComparer.Instance.Equals(asType.Expression.ResultType, asType.TypeSymbol);
+                if (!isSameType)
+                {
+                    this.Emitter.EmitPop();
+                    this.Emitter.EmitDefault(asType.TypeSymbol);
+                }
+            }
+            else if (asType.Expression.ResultType.IsValueType)
+            {
+                // box and check
+                this.EmitExpressionAsType(asType.Expression, ExternalSymbols.Object);
+                this.Emitter.EmitAsType(asType.TypeSymbol);
+            }
+            else if (asType.Expression.ResultType == SpecialSymbols.Void)
+            {
+                this.EmitExpression(asType.Expression);
+                this.Emitter.EmitPop();
+                this.Emitter.EmitDefault(asType.TypeSymbol);
+            }
+            else
+            {
+                this.EmitExpression(asType.Expression);
+                this.Emitter.EmitAsType(asType.TypeSymbol);
+            }
+        }
+        else
+        {
+            this.Emitter.EmitLoadNull();
+        }
+    }
     #endregion
 
     #region Block Emit
@@ -408,6 +517,13 @@ public class StandardBodyBuilder : BodyBuilder
         ImmutableList<Expression> arguments, 
         ISourceLocation? location)
     {
+        EmitMethodCallInstance(methodSymbol, instance, location);
+        EmitArguments(methodSymbol.Parameters, arguments);
+        this.Emitter.EmitCall(methodSymbol);
+    }
+
+    protected virtual void EmitMethodCallInstance(MethodSymbol methodSymbol, Expression? instance, ISourceLocation? location)
+    {
         if (!methodSymbol.IsStatic)
         {
             if (instance == null)
@@ -423,10 +539,6 @@ public class StandardBodyBuilder : BodyBuilder
                 this.Emitter.EmitThrowAndReport(new Diagnostic($"Non-static method '{methodSymbol.Name}' has no declaring type.").WithLocation(location));
             }
         }
-
-        EmitArguments(methodSymbol.Parameters, arguments);
-
-        this.Emitter.EmitCall(methodSymbol);
     }
 
     /// <summary>
@@ -485,62 +597,63 @@ public class StandardBodyBuilder : BodyBuilder
     /// </summary>
     protected virtual void EmitConstant(ConstantExpression constant)
     {
-        EmitValue(this.Emitter, constant.Value, constant.Location);
+        var valueType = EmitValue(constant.Value, constant.Location);
+        this.Emitter.EmitConvert(valueType, constant.ResultType, isChecked: false);
     }
 
-    private void EmitValue(ILEmitter emitter, object? value, ISourceLocation? location)
+    private TypeSymbol EmitValue(object? value, ISourceLocation? location)
     {
         switch (value)
         {
             case null:
-                emitter.EmitLoadNull();
-                break;
+                this.Emitter.EmitLoadNull();
+                return this.ExternalSymbols.Object;
             case bool boolval:
-                emitter.EmitLoadBool(boolval);
-                break;
+                this.Emitter.EmitLoadBool(boolval);
+                return this.ExternalSymbols.Boolean;
             case byte byteval:
-                emitter.EmitLoadByte(byteval);
-                break;
+                this.Emitter.EmitLoadByte(byteval);
+                return this.ExternalSymbols.Byte;
             case sbyte sbyteval:
-                emitter.EmitLoadSByte(sbyteval);
-                break;
+                this.Emitter.EmitLoadSByte(sbyteval);
+                return this.ExternalSymbols.SByte;
             case short int16val:
-                emitter.EmitLoadInt16(int16val);
-                break;
+                this.Emitter.EmitLoadInt16(int16val);
+                return this.ExternalSymbols.Int16;
             case ushort uint16val:
-                emitter.EmitLoadUInt16(uint16val);
-                break;
+                this.Emitter.EmitLoadUInt16(uint16val);
+                return this.ExternalSymbols.UInt16;
             case int int32val:
-                emitter.EmitLoadInt32(int32val);
-                break;
+                this.Emitter.EmitLoadInt32(int32val);
+                return this.ExternalSymbols.Int32;
             case uint uint32val:
-                emitter.EmitLoadUInt32(uint32val);
-                break;
+                this.Emitter.EmitLoadUInt32(uint32val);
+                return this.ExternalSymbols.UInt32;
             case long int64val:
-                emitter.EmitLoadInt64(int64val);
-                break;
+                this.Emitter.EmitLoadInt64(int64val);
+                return this.ExternalSymbols.Int64;
             case ulong uint64val:
-                emitter.EmitLoadUInt64(uint64val);
-                break;
+                this.Emitter.EmitLoadUInt64(uint64val);
+                return this.ExternalSymbols.UInt64;
             case float singleVal:
-                emitter.EmitLoadSingle(singleVal);
-                break;
+                this.Emitter.EmitLoadSingle(singleVal);
+                return this.ExternalSymbols.Single;
             case double doubleVal:
-                emitter.EmitLoadDouble(doubleVal);
-                break;
+                this.Emitter.EmitLoadDouble(doubleVal);
+                return this.ExternalSymbols.Double;
             case decimal decimalVal:
-                emitter.EmitLoadDecimal(decimalVal);
-                break;
+                this.Emitter.EmitLoadDecimal(decimalVal);
+                return this.ExternalSymbols.Decimal;
             case string stringVal:
-                emitter.EmitLoadString(stringVal);
-                break;
+                this.Emitter.EmitLoadString(stringVal);
+                return this.ExternalSymbols.String;
             case char charVal:
-                emitter.EmitLoadChar(charVal);
-                break;
+                this.Emitter.EmitLoadChar(charVal);
+                return this.ExternalSymbols.Char;
             default:
                 // some other object literal?
-                emitter.EmitThrowAndReport(new Diagnostic($"Cannot represent a value of type '{value.GetType().FullName}' in IL.").WithLocation(location));
-                break;
+                this.Emitter.EmitThrowAndReport(new Diagnostic($"Cannot represent a value of type '{value.GetType().FullName}' in IL.").WithLocation(location));
+                return this.ExternalSymbols.DoesNotReturn;
         }
     }
 
@@ -605,6 +718,52 @@ public class StandardBodyBuilder : BodyBuilder
         }
     }
 
+    #endregion
+
+    #region IsType Emit
+    public virtual void EmitIsType(IsTypeExpression isType)
+    {
+        if (isType.TypeSymbol != null)
+        {
+            // TODO: consider type parameters
+            if (isType.Expression.ResultType.IsValueType)
+            {
+                // we statically know this.
+                this.EmitExpression(isType.Expression);
+                this.Emitter.EmitPop();
+                var isAssignable = isType.Expression.ResultType.IsAssignableTo(isType.TypeSymbol);
+                this.Emitter.EmitLoadBool(isAssignable);
+                return;
+            }
+            else if (isType.Expression.ResultType == SpecialSymbols.Void)
+            {
+                this.EmitExpression(isType.Expression);
+                this.Emitter.EmitLoadBool(isType.TypeSymbol == SpecialSymbols.Void);
+            }
+            else 
+            {
+                this.EmitExpression(isType.Expression);
+
+                var isAssignable = isType.Expression.ResultType.IsAssignableTo(isType.TypeSymbol);
+                if (isAssignable)
+                {
+                    // statically known
+                    this.Emitter.EmitPop();
+                    this.Emitter.EmitLoadBool(true);
+                }
+                else
+                {
+                    this.Emitter.EmitAsType(isType.TypeSymbol);
+                    this.Emitter.EmitLoadNull();
+                    this.Emitter.EmitNotEqual(isType.TypeSymbol);
+                }
+            }
+        }
+        else
+        {
+            this.Emitter.EmitLoadBool(false);
+        }
+    }
     #endregion
 
     #region Label Emit
@@ -751,13 +910,28 @@ public class StandardBodyBuilder : BodyBuilder
                 break;
 
             case FieldSymbol fieldSymbol:
-                if (asAddress)
+                if (fieldSymbol.IsConstant)
                 {
-                    this.Emitter.EmitLoadFieldAddress(fieldSymbol);
+                    var valueType = this.EmitValue(fieldSymbol.ConstantValue, location);
+                    this.Emitter.EmitConvert(valueType, fieldSymbol.Type, isChecked: false);
+
+                    if (asAddress)
+                    {
+                        var tmp = new VariableSymbol("tmp", fieldSymbol.Type);
+                        this.Emitter.EmitStoreVariable(tmp);
+                        this.Emitter.EmitLoadVariableAddress(tmp);
+                    }
                 }
                 else
                 {
-                    this.Emitter.EmitLoadField(fieldSymbol);
+                    if (asAddress)
+                    {
+                        this.Emitter.EmitLoadFieldAddress(fieldSymbol);
+                    }
+                    else
+                    {
+                        this.Emitter.EmitLoadField(fieldSymbol);
+                    }
                 }
                 break;
 
@@ -998,6 +1172,30 @@ public class StandardBodyBuilder : BodyBuilder
         else
         {
             this.Emitter.EmitLoadInstance();
+        }
+    }
+
+    #endregion
+
+    #region TypeOf Emit
+
+    private MethodSymbol? _getTypeFromHandleSymbol;
+
+    protected virtual void EmitTypeOf(TypeOfExpression tof)
+    {
+        if (_getTypeFromHandleSymbol == null)
+        {
+            _getTypeFromHandleSymbol = this.Emitter.ExternalSymbols.Type.GetFirstMember("GetTypeFromHandle") as MethodSymbol;
+        }
+
+        if (tof.TypeSymbol != null && _getTypeFromHandleSymbol != null)
+        {
+            this.Emitter.EmitLoadToken(tof.TypeSymbol);
+            this.Emitter.EmitCall(_getTypeFromHandleSymbol);
+        }
+        else
+        {
+            this.Emitter.EmitThrowAndReport(new Diagnostic($"Missing runtime method Type.GetTypeFromHandle"));
         }
     }
 

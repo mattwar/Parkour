@@ -4,12 +4,13 @@
 public enum SymbolModifier
 {
     None = 0,
-    Static = 0b0000_0001,
-    Abstract = 0b0000_0010,
-    Virtual = 0b0000_0100,
-    Override = 0b0000_1000,
-    Sealed = 0b0001_0000,
-    HideBySig = 0b0010_0000,
-    Special = 0b0100_0000,
-    ReadOnly = 0b1000_0000
+    Static      = 1,
+    Abstract    = 1 << 2,
+    Virtual     = 1 << 3,
+    Override    = 1 << 4,
+    Sealed      = 1 << 5,
+    HideBySig   = 1 << 6,
+    Special     = 1 << 7,
+    ReadOnly    = 1 << 8,
+    Constant    = 1 << 9
 }

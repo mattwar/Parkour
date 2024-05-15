@@ -265,4 +265,43 @@ public abstract class TypeSymbol : ContainerSymbol
 
         return true;
     }
+
+    private static readonly ObjectPool<HashSet<TypeSymbol>> _hashSetPool =
+        new ObjectPool<HashSet<TypeSymbol>>(() => new HashSet<TypeSymbol>(), hs => hs.Clear());
+
+    /// <summary>
+    /// Returns true if this type is assignable to the specified type.
+    /// </summary>
+    public bool IsAssignableTo(TypeSymbol type)
+    {
+        var visited = _hashSetPool.AllocateFromPool();
+        var result = Check(this);
+        _hashSetPool.ReturnToPool(visited);
+        return result;
+
+        bool Check(TypeSymbol checkType)
+        {
+            if (visited.Add(checkType))
+            {
+                if (TypeEqualityComparer.Instance.Equals(checkType, type))
+                    return true;
+
+                // check immediate base types
+                foreach (var bt in checkType.BaseTypes)
+                {
+                    if (TypeEqualityComparer.Instance.Equals(bt, type))
+                        return true;
+                }
+
+                // check base types of base types
+                foreach (var bt in checkType.BaseTypes)
+                {
+                    if (Check(bt))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+    }
 }

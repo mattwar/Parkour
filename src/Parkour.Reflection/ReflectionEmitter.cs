@@ -866,19 +866,40 @@ public class ReflectionEmitter : StandardDeclarationEmitter
         public override void EmitLoadField(FieldSymbol field)
         {
             var fi = _emitter.GetRuntimeInfo<FieldInfo>(field);
-            _ilgen.Emit(OpCodes.Ldfld, fi);
+            if (fi.IsStatic)
+            {
+                _ilgen.Emit(OpCodes.Ldsfld, fi);
+            }
+            else
+            {
+                _ilgen.Emit(OpCodes.Ldfld, fi);
+            }
         }
 
         public override void EmitLoadFieldAddress(FieldSymbol field)
         {
             var fi = _emitter.GetRuntimeInfo<FieldInfo>(field);
-            _ilgen.Emit(OpCodes.Ldflda, fi);
+            if (fi.IsStatic)
+            {
+                _ilgen.Emit(OpCodes.Ldsflda, fi);
+            }
+            else
+            {
+                _ilgen.Emit(OpCodes.Ldflda, fi);
+            }
         }
 
         public override void EmitStoreField(FieldSymbol field)
         {
             var fi = _emitter.GetRuntimeInfo<FieldInfo>(field);
-            _ilgen.Emit(OpCodes.Stfld, fi);
+            if (fi.IsStatic)
+            {
+                _ilgen.Emit(OpCodes.Stsfld, fi);
+            }
+            else
+            {
+                _ilgen.Emit(OpCodes.Stfld, fi);
+            }
         }
 
         public override void EmitLoadVariable(VariableSymbol variable)
@@ -1576,6 +1597,12 @@ public class ReflectionEmitter : StandardDeclarationEmitter
                 default:
                     return false;
             }
+        }
+
+        public override void EmitAsType(TypeSymbol instanceTypeSymbol)
+        {
+            var instanceType = _emitter.GetRuntimeType(instanceTypeSymbol);
+            _ilgen.Emit(OpCodes.Isinst, instanceType);
         }
 
         public override void EmitAdd(TypeSymbol operandTypeSymbol, bool isChecked)

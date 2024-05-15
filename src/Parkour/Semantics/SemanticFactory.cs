@@ -190,10 +190,16 @@ public static class SemanticFactory
         Condition(test, whenTrue, location);
 
     /// <summary>
-    /// Checks the type of a value
+    /// Tests the expression if it is an instance of the specified type.
     /// </summary>
     public static IsTypeExpression IsType(Expression expression, Expression type, ISourceLocation? location = null) =>
-        new IsTypeExpression(expression, type, location, null, null);
+        new IsTypeExpression(expression, type, location, null, null, null);
+
+    /// <summary>
+    /// Casts the expression as the type or null if the value is not an instance of the type.
+    /// </summary>
+    public static AsTypeExpression AsType(Expression expression, Expression type, ISourceLocation? location = null) =>
+        new AsTypeExpression(expression, type, location, null, null, null);
 
     /// <summary>
     /// A label for branch targets.
@@ -291,7 +297,6 @@ public static class SemanticFactory
     public static OperatorExpression Operator(string name, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
         new OperatorExpression(name, arguments, location, null, null, null);
 
-
     /// <summary>
     /// Return from a method or lambda.
     /// </summary>
@@ -320,7 +325,7 @@ public static class SemanticFactory
     /// Returns the runtime type of a type expression.
     /// </summary>
     public static TypeOfExpression TypeOf(Expression type, ISourceLocation? location = null) =>
-        new TypeOfExpression(type, location, null, null);
+        new TypeOfExpression(type, location, null, null, null);
 
     /// <summary>
     /// Declares a variable of a specific type and initializer.
@@ -588,7 +593,7 @@ public static class SemanticFactory
             modifiers,
             Method("get_" + name, access, modifiers | SymbolModifier.HideBySig | SymbolModifier.Special, ImmutableList<ParameterDeclaration>.Empty, propertyType, Name(fieldName)),
             Method("set_" + name, access, modifiers | SymbolModifier.HideBySig | SymbolModifier.Special, [Parameter("value", propertyType)], Void(), Assign(Name(fieldName), Name("value"))),
-            Field(fieldName, SymbolAccess.Private, SymbolModifier.None, propertyType, null),
+            Field(fieldName, SymbolAccess.Private, modifiers, propertyType, null),
             propertyType,
             location);
     }

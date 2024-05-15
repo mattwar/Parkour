@@ -6,6 +6,7 @@ using Parkour.Symbols;
 using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;
+using static TestHelpers;
 
 [TestClass]
 public class BindingTests
@@ -16,22 +17,6 @@ public class BindingTests
     {
         _reflectionSymbols = ReflectionSymbols.CurrentMscorlib;
     }
-
-    private static SymbolExpression VoidType = Symbol("System.Void");
-    private static SymbolExpression BooleanType = Symbol("System.Boolean");
-    private static SymbolExpression Int16Type = Symbol("System.Int16");
-    private static SymbolExpression Int32Type = Symbol("System.Int32");
-    private static SymbolExpression Int64Type = Symbol("System.Int64");
-    private static SymbolExpression SingleType = Symbol("System.Single");
-    private static SymbolExpression DoubleType = Symbol("System.Double");
-    private static SymbolExpression StringType = Symbol("System.String");
-    private static SymbolExpression ObjectType = Symbol("System.Object");
-    private static Expression Int32ArrayType = Int32Type.Array();
-    private static Expression StringArrayType = StringType.Array();
-    private static SymbolExpression ListTType = Symbol("System.Collections.Generic.List`1");
-    private static Expression ListInt32Type = ListTType.Construct([Int32Type]);
-    private static Expression ListStringType = ListTType.Construct([StringType]);
-    private static SymbolExpression SystemCollectionsGenericNamespace = Symbol("System.Collections.Generic");
 
     [TestMethod]
     public void TestDeclaration_Class()

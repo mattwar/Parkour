@@ -290,6 +290,12 @@ public abstract class ILEmitter
     public abstract void EmitConvert(TypeSymbol sourceType, TypeSymbol targetType, bool isChecked);
 
     /// <summary>
+    /// Replaces the value on the top of the evaluation stack with its converted value or null if it cannot be converted.
+    /// [a] [b] [c] => [a as Type] [b] [c]
+    /// </summary>
+    public abstract void EmitAsType(TypeSymbol instanceType);
+
+    /// <summary>
     /// Adds the top two primitive numeric values on the execution stack:
     /// [a] [b] [c] => [b + a] [c]
     /// </summary>

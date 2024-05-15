@@ -2,13 +2,16 @@
 
 using Symbols;
 
-public class IsTypeExpression : Expression
+/// <summary>
+/// Converts the expression to the specified type if it is an instance of that type or null if it is not.
+/// </summary>
+public class AsTypeExpression : Expression
 {
     public Expression Expression { get; }
     public Expression Type { get; }
     public TypeSymbol? TypeSymbol { get; }
 
-    public IsTypeExpression(
+    public AsTypeExpression(
         Expression expression,
         Expression type,
         ISourceLocation? location,

@@ -1,12 +1,35 @@
-﻿using Parkour;
+﻿using System.Reflection;
+using Parkour;
+using Parkour.Semantics;
 using Parkour.Syntax;
-using System.Reflection;
+using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;
 
 public static class TestHelpers
 {
-    public static (string textWithoutMarker, int markerPosition) StripMarker(string textWithMarker, string marker = "$")
+    public static SymbolExpression VoidType = Symbol("System.Void");
+    public static SymbolExpression BooleanType = Symbol("System.Boolean");
+    public static SymbolExpression Int16Type = Symbol("System.Int16");
+    public static SymbolExpression Int32Type = Symbol("System.Int32");
+    public static SymbolExpression Int64Type = Symbol("System.Int64");
+    public static SymbolExpression SingleType = Symbol("System.Single");
+    public static SymbolExpression DoubleType = Symbol("System.Double");
+    public static SymbolExpression StringType = Symbol("System.String");
+    public static SymbolExpression ObjectType = Symbol("System.Object");
+    public static Expression Int32ArrayType = Int32Type.Array();
+    public static Expression StringArrayType = StringType.Array();
+    public static SymbolExpression ListTType = Symbol("System.Collections.Generic.List`1");
+    public static Expression ListInt32Type = ListTType.Construct([Int32Type]);
+    public static Expression ListStringType = ListTType.Construct([StringType]);
+    public static SymbolExpression SystemCollectionsGenericNamespace = Symbol("System.Collections.Generic");
+
+    /// <summary>
+    /// Strips the marker from the text,
+    /// returns the text without the marker and the position of the marker.
+    /// </summary>
+    public static (string textWithoutMarker, int markerPosition) 
+        StripMarker(string textWithMarker, string marker = "$")
     {
         var index = textWithMarker.IndexOf(marker);
         if (index >= 0)
