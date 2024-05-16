@@ -25,10 +25,10 @@ public class ConstructorSymbol : MemberSymbol
     public ConstructorSymbol(
         TypeSymbol declaringType,
         SymbolAccess access, 
-        SymbolModifier modifiers, 
+        BitSet<SymbolModifier> modifiers, 
         Func<ConstructorSymbol, ImmutableList<ParameterSymbol>> fnParameters)
         : base(
-            (modifiers & SymbolModifier.Static) != 0 ? ".cctor" : ".ctor", 
+            modifiers.Contains(SymbolModifier.Static) ? ".cctor" : ".ctor", 
             declaringType, 
             access, 
             modifiers)
@@ -39,7 +39,7 @@ public class ConstructorSymbol : MemberSymbol
     public ConstructorSymbol(
         TypeSymbol declaringType,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         ImmutableList<ParameterSymbol> parameters,
         TypeSymbol returnType)
         : this(

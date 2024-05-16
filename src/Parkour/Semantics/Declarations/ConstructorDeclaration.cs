@@ -13,7 +13,7 @@ public class ConstructorDeclaration : MemberDeclaration
 
     public ConstructorDeclaration(
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         ImmutableList<ParameterDeclaration> parameters,
         Expression body,
         ISourceLocation? location,
@@ -24,7 +24,7 @@ public class ConstructorDeclaration : MemberDeclaration
             CombineState(parameters) 
             | State(body)
             | NotNullState(symbol),
-            (modifiers & SymbolModifier.Static) == 0 ? ".ctor" : ".cctor",
+            modifiers.Contains(SymbolModifier.Static) ? ".ctor" : ".cctor",
             access,
             modifiers,
             location,
@@ -99,7 +99,7 @@ public class ConstructorDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override ConstructorDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override ConstructorDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new ConstructorDeclaration(
             this.Access,
             modifiers,

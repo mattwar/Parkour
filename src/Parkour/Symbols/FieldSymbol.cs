@@ -29,7 +29,7 @@ public sealed class FieldSymbol : MemberSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Func<TypeSymbol> fnType,
         object? constantValue = null)
         : base(name, declaringSymbol, access, modifiers)
@@ -42,7 +42,7 @@ public sealed class FieldSymbol : MemberSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         TypeSymbol type,
         object? constantValue = null)
         : this(

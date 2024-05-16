@@ -436,11 +436,11 @@ public class ReflectionEmitter : StandardDeclarationEmitter
             case StructSymbol:
                 attrs |= TypeAttributes.Class;
 
-                if ((ts.Modifiers & SymbolModifier.Abstract) != 0)
+                if (ts.Modifiers.Contains(SymbolModifier.Abstract))
                     attrs |= TypeAttributes.Abstract;
-                else if ((ts.Modifiers & SymbolModifier.Sealed) != 0)
+                else if (ts.Modifiers.Contains(SymbolModifier.Sealed))
                     attrs |= TypeAttributes.Sealed;
-                else if ((ts.Modifiers & SymbolModifier.Special) != 0)
+                else if (ts.Modifiers.Contains(SymbolModifier.Special))
                     attrs |= TypeAttributes.SpecialName;
                 break;
             case InterfaceSymbol:
@@ -450,26 +450,29 @@ public class ReflectionEmitter : StandardDeclarationEmitter
 
 
         var isNested = ts.DeclaringSymbol is TypeSymbol;
-        switch (ts.Access)
+        if (ts.Access == SymbolAccess.Private)
         {
-            case SymbolAccess.Private:
-                attrs |= isNested ? TypeAttributes.NestedPrivate : TypeAttributes.NotPublic;
-                break;
-            case SymbolAccess.Public:
-                attrs |= isNested ? TypeAttributes.NestedPublic : TypeAttributes.NotPublic;
-                break;
-            case SymbolAccess.Internal:
-                attrs |= isNested ? TypeAttributes.NestedAssembly : TypeAttributes.NotPublic;
-                break;
-            case SymbolAccess.Protected:
-                attrs |= isNested ? TypeAttributes.NestedFamily : TypeAttributes.NotPublic;
-                break;
-            case SymbolAccess.ProtectedOrInternal:
-                attrs |= isNested ? TypeAttributes.NestedFamORAssem : TypeAttributes.NotPublic;
-                break;
-            case SymbolAccess.ProtectedAndInternal:
-                attrs |= isNested ? TypeAttributes.NestedFamANDAssem : TypeAttributes.NotPublic;
-                break;
+            attrs |= isNested ? TypeAttributes.NestedPrivate : TypeAttributes.NotPublic;
+        }
+        else if (ts.Access == SymbolAccess.Public)
+        {
+            attrs |= isNested ? TypeAttributes.NestedPublic : TypeAttributes.NotPublic;
+        }
+        else if (ts.Access == SymbolAccess.Internal)
+        {
+            attrs |= isNested ? TypeAttributes.NestedAssembly : TypeAttributes.NotPublic;
+        }
+        else if (ts.Access == SymbolAccess.Protected)
+        {
+            attrs |= isNested ? TypeAttributes.NestedFamily : TypeAttributes.NotPublic;
+        }
+        else if (ts.Access == SymbolAccess.ProtectedOrInternal)
+        {
+            attrs |= isNested ? TypeAttributes.NestedFamORAssem : TypeAttributes.NotPublic;
+        }
+        else if (ts.Access == SymbolAccess.ProtectedAndInternal)
+        {
+            attrs |= isNested ? TypeAttributes.NestedFamANDAssem : TypeAttributes.NotPublic;
         }
 
         return attrs;
@@ -479,32 +482,35 @@ public class ReflectionEmitter : StandardDeclarationEmitter
     {
         FieldAttributes attrs = default;
 
-        if ((field.Modifiers & SymbolModifier.Static) != 0)
+        if (field.Modifiers.Contains(SymbolModifier.Static))
             attrs |= FieldAttributes.Static;
 
-        if ((field.Modifiers & SymbolModifier.Special) != 0)
+        if (field.Modifiers.Contains(SymbolModifier.Special))
             attrs |= FieldAttributes.SpecialName;
 
-        switch (field.Access)
+        if (field.Access == SymbolAccess.Private)
         {
-            case SymbolAccess.Private:
-                attrs |= FieldAttributes.Private;
-                break;
-            case SymbolAccess.Public:
-                attrs |= FieldAttributes.Public;
-                break;
-            case SymbolAccess.Protected:
-                attrs |= FieldAttributes.Family;
-                break;
-            case SymbolAccess.Internal:
-                attrs |= FieldAttributes.Assembly;
-                break;
-            case SymbolAccess.ProtectedOrInternal:
-                attrs |= FieldAttributes.FamORAssem;
-                break;
-            case SymbolAccess.ProtectedAndInternal:
-                attrs |= FieldAttributes.FamANDAssem;
-                break;
+            attrs |= FieldAttributes.Private;
+        }
+        else if (field.Access == SymbolAccess.Public)
+        {
+            attrs |= FieldAttributes.Public;
+        }
+        else if (field.Access == SymbolAccess.Protected)
+        {
+            attrs |= FieldAttributes.Family;
+        }
+        else if (field.Access == SymbolAccess.Internal)
+        {
+            attrs |= FieldAttributes.Assembly;
+        }
+        else if (field.Access == SymbolAccess.ProtectedOrInternal)
+        {
+            attrs |= FieldAttributes.FamORAssem;
+        }
+        else if (field.Access == SymbolAccess.ProtectedAndInternal)
+        {
+            attrs |= FieldAttributes.FamANDAssem;
         }
 
         return attrs;
@@ -514,36 +520,39 @@ public class ReflectionEmitter : StandardDeclarationEmitter
     {
         MethodAttributes attrs = default;
 
-        if ((method.Modifiers & SymbolModifier.Static) != 0)
+        if (method.Modifiers.Contains(SymbolModifier.Static))
             attrs |= MethodAttributes.Static;
 
         if (method.DeclaringSymbol == null
             || method.DeclaringSymbol is NamespaceSymbol)
             attrs |= MethodAttributes.Static;
 
-        if ((method.Modifiers & SymbolModifier.Special) != 0)
+        if (method.Modifiers.Contains(SymbolModifier.Special))
             attrs |= MethodAttributes.SpecialName;
 
-        switch (method.Access)
+        if (method.Access == SymbolAccess.Private)
         {
-            case SymbolAccess.Private:
-                attrs |= MethodAttributes.Private;
-                break;
-            case SymbolAccess.Public:
-                attrs |= MethodAttributes.Public;
-                break;
-            case SymbolAccess.Protected:
-                attrs |= MethodAttributes.Family;
-                break;
-            case SymbolAccess.Internal:
-                attrs |= MethodAttributes.Assembly;
-                break;
-            case SymbolAccess.ProtectedOrInternal:
-                attrs |= MethodAttributes.FamORAssem;
-                break;
-            case SymbolAccess.ProtectedAndInternal:
-                attrs |= MethodAttributes.FamANDAssem;
-                break;
+            attrs |= MethodAttributes.Private;
+        }
+        else if (method.Access == SymbolAccess.Public)
+        {
+            attrs |= MethodAttributes.Public;
+        }
+        else if (method.Access == SymbolAccess.Protected)
+        {
+            attrs |= MethodAttributes.Family;
+        }
+        else if (method.Access == SymbolAccess.Internal)
+        {
+            attrs |= MethodAttributes.Assembly;
+        }
+        else if (method.Access == SymbolAccess.ProtectedOrInternal)
+        {
+            attrs |= MethodAttributes.FamORAssem;
+        }
+        else if (method.Access == SymbolAccess.ProtectedAndInternal)
+        {
+            attrs |= MethodAttributes.FamANDAssem;
         }
 
         return attrs;

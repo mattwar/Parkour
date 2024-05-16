@@ -8,7 +8,7 @@ public class ClassSymbol : TypeSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
@@ -22,7 +22,7 @@ public class ClassSymbol : TypeSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers)
+        BitSet<SymbolModifier> modifiers)
         : this(name, declaringSymbol, access, modifiers, null, null, null, null, null)
     {
     }

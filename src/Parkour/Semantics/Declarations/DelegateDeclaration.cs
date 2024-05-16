@@ -12,7 +12,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
     public DelegateDeclaration(
         string name,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration> declarations,
@@ -112,7 +112,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override DelegateDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override DelegateDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new DelegateDeclaration(
             this.Name,
             this.Access,

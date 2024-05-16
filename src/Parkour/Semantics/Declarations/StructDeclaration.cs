@@ -9,7 +9,7 @@ public sealed class StructDeclaration : TypeDeclaration
     public StructDeclaration(
         string name,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
@@ -95,7 +95,7 @@ public sealed class StructDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override StructDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override StructDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new StructDeclaration(
             this.Name,
             this.Access,

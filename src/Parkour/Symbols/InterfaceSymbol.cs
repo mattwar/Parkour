@@ -6,7 +6,7 @@ public class InterfaceSymbol : TypeSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,

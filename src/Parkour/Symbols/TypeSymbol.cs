@@ -18,7 +18,7 @@ public abstract class TypeSymbol : ContainerSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
@@ -37,7 +37,7 @@ public abstract class TypeSymbol : ContainerSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers)
+        BitSet<SymbolModifier> modifiers)
         : this(
             name,
             declaringSymbol,

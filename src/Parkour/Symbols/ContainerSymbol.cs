@@ -11,7 +11,7 @@ public abstract class ContainerSymbol : MemberSymbol
         string name, 
         Symbol? declaringSymbol,
         SymbolAccess access, 
-        SymbolModifier modifiers)
+        BitSet<SymbolModifier> modifiers)
         : base(name, declaringSymbol, access, modifiers)
     {
     }

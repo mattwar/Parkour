@@ -471,7 +471,7 @@ public class ReflectionSymbols : StandardSymbolTable
             _ => SymbolAccess.Private
         };
 
-    public static SymbolModifier GetModifiers(MemberInfo info) =>
+    public static BitSet<SymbolModifier> GetModifiers(MemberInfo info) =>
         info switch
         {
             System.Type type =>

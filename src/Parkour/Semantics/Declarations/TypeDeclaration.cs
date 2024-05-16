@@ -11,7 +11,7 @@ public abstract class TypeDeclaration : MemberDeclaration
         ContainsState state,
         string name,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
@@ -60,7 +60,7 @@ public abstract class TypeDeclaration : MemberDeclaration
         declarations ??= ImmutableList<Declaration>.Empty;
 
         // include a default constructor if no instance constructor is specified
-        if (declarations.Any(d => d is ConstructorDeclaration cd && (cd.Modifiers & SymbolModifier.Static) == 0))
+        if (declarations.Any(d => d is ConstructorDeclaration cd && cd.Modifiers.Contains(SymbolModifier.Static)))
             return declarations;
 
         return declarations.Add(SemanticFactory.Constructor(location));

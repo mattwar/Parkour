@@ -15,7 +15,7 @@ public class MethodDeclaration : MemberDeclaration
     public MethodDeclaration(
         string name, 
         SymbolAccess access, 
-        SymbolModifier modifiers, 
+        BitSet<SymbolModifier> modifiers, 
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<ParameterDeclaration> parameters,
         Expression returnType,
@@ -134,7 +134,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override MethodDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override MethodDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new MethodDeclaration(
             this.Name,
             this.Access,

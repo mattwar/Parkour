@@ -13,7 +13,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
     public IndexerDeclaration(
         string name,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Expression elementType,
         MethodDeclaration getMethod,
         MethodDeclaration? setMethod,
@@ -39,7 +39,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
 
     public IndexerDeclaration(
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Expression elementType,
         MethodDeclaration getMethod,
         MethodDeclaration? setMethod,
@@ -112,7 +112,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override IndexerDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override IndexerDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new IndexerDeclaration(
             this.Name,
             this.Access,

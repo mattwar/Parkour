@@ -473,13 +473,13 @@ public static class SemanticFactory
 
     #region Declarations
 
-    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static ClassDeclaration Class(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         new ClassDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
 
-    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static ClassDeclaration Class(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Class(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
 
-    public static ClassDeclaration Class(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static ClassDeclaration Class(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Class(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
 
     public static ClassDeclaration Class(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
@@ -492,13 +492,13 @@ public static class SemanticFactory
         Class(name, ImmutableList<Expression>.Empty, declarations);
 
 
-    public static StructDeclaration Struct(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static StructDeclaration Struct(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         new StructDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
 
-    public static StructDeclaration Struct(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static StructDeclaration Struct(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Struct(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
 
-    public static StructDeclaration Struct(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static StructDeclaration Struct(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Struct(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
 
     public static StructDeclaration Struct(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
@@ -511,13 +511,13 @@ public static class SemanticFactory
         Struct(name, ImmutableList<Expression>.Empty, declarations);
 
 
-    public static InterfaceDeclaration Interface(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         new InterfaceDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
 
-    public static InterfaceDeclaration Interface(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Interface(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
 
-    public static InterfaceDeclaration Interface(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Interface(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
 
     public static InterfaceDeclaration Interface(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
@@ -546,16 +546,16 @@ public static class SemanticFactory
     public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, ISourceLocation? location = null) =>
         new ParameterDeclaration(name, parameterType, location, null, null);
 
-    public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
+    public static MethodDeclaration Method(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
         new MethodDeclaration(name, access, modifiers, typeParameters, parameters, returnType, body, location, null, null, null);
 
-    public static MethodDeclaration Method(string name, SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
+    public static MethodDeclaration Method(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
         Method(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, parameters, returnType, body, location);
 
     public static MethodDeclaration Method(string name, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
         Method(name, SymbolAccess.Public, SymbolModifier.None, parameters, returnType, body, location);
 
-    public static ConstructorDeclaration Constructor(SymbolAccess access, SymbolModifier modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
+    public static ConstructorDeclaration Constructor(SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
         new ConstructorDeclaration(access, modifiers, parameters, body, location, null, null, null);
 
     public static ConstructorDeclaration Constructor(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
@@ -567,24 +567,24 @@ public static class SemanticFactory
     public static ConstructorDeclaration Constructor(ISourceLocation? location = null) =>
         Constructor(SymbolAccess.Public, SymbolModifier.None, [], Block(), location);
 
-    public static FieldDeclaration Field(string name, SymbolAccess access, SymbolModifier modifiers, Expression fieldType, Expression? initalizer = null, ISourceLocation? location = null) =>
+    public static FieldDeclaration Field(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, Expression fieldType, Expression? initalizer = null, ISourceLocation? location = null) =>
         new FieldDeclaration(name, access, modifiers, fieldType, initalizer, location, null, null);
 
     public static FieldDeclaration Field(string name, Expression fieldType, Expression? initalizer = null, ISourceLocation? location = null) =>
         Field(name, SymbolAccess.Public, SymbolModifier.None, fieldType, initalizer, location);
 
-    public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, MethodDeclaration getMethod, MethodDeclaration? setMethod, FieldDeclaration? backingField, Expression propertyType, ISourceLocation? location = null) =>
+    public static PropertyDeclaration Property(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, MethodDeclaration getMethod, MethodDeclaration? setMethod, FieldDeclaration? backingField, Expression propertyType, ISourceLocation? location = null) =>
         new PropertyDeclaration(name, access, modifiers, propertyType, backingField, getMethod, setMethod, location, null, null);
 
     public static PropertyDeclaration Property(string name, MethodDeclaration getMethod, MethodDeclaration? setMethod = null, ISourceLocation? location = null) =>
         Property(name, getMethod.Access, getMethod.Modifiers, getMethod, setMethod, null, getMethod.ReturnType, location);
 
-    public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, Expression propertyType, Expression expression, ISourceLocation? location = null) =>
+    public static PropertyDeclaration Property(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, Expression propertyType, Expression expression, ISourceLocation? location = null) =>
         Property(
             name, 
             Method("get_" + name, access, modifiers | SymbolModifier.HideBySig | SymbolModifier.Special, ImmutableList<ParameterDeclaration>.Empty, expression, propertyType, location), null, location);
 
-    public static PropertyDeclaration Property(string name, SymbolAccess access, SymbolModifier modifiers, Expression propertyType, ISourceLocation? location = null)
+    public static PropertyDeclaration Property(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, Expression propertyType, ISourceLocation? location = null)
     {
         var fieldName = $"__{name}_backingField";
         return Property(
@@ -603,7 +603,7 @@ public static class SemanticFactory
 
     public static IndexerDeclaration Indexer(
         SymbolAccess access, 
-        SymbolModifier modifiers, 
+        BitSet<SymbolModifier> modifiers, 
         Expression elementType, 
         ImmutableList<ParameterDeclaration> parameters,
         Expression getter,

@@ -12,7 +12,7 @@ public sealed class FieldDeclaration : MemberDeclaration
     public FieldDeclaration(
         string name,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Expression fieldType,
         Expression? initializer,
         ISourceLocation? location,
@@ -92,7 +92,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override FieldDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override FieldDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new FieldDeclaration(
             this.Name,
             this.Access,

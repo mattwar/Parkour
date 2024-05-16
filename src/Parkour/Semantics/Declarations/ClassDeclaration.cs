@@ -10,7 +10,7 @@ public sealed class ClassDeclaration : TypeDeclaration
     public ClassDeclaration(
         string name,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
@@ -96,7 +96,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override ClassDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override ClassDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new ClassDeclaration(
             this.Name,
             this.Access,

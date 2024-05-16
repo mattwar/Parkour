@@ -13,7 +13,7 @@ public abstract class MemberSymbol : Symbol
     /// <summary>
     /// Declaration modifiers for the symbol.
     /// </summary>
-    public SymbolModifier Modifiers { get; }
+    public BitSet<SymbolModifier> Modifiers { get; }
 
     /// <summary>
     /// The symbol that declares this symbol.
@@ -30,53 +30,53 @@ public abstract class MemberSymbol : Symbol
     /// <summary>
     /// True if the symbol is considered to be static.
     /// </summary>
-    public bool IsStatic => (Modifiers & SymbolModifier.Static) != 0;
+    public bool IsStatic => this.Modifiers.Contains(SymbolModifier.Static);
 
     /// <summary>
     /// True if the symbol is considered to be abstract.
     /// </summary>
-    public bool IsAbstract => (Modifiers & SymbolModifier.Abstract) != 0;
+    public bool IsAbstract => this.Modifiers.Contains(SymbolModifier.Abstract);
 
     /// <summary>
     /// True if the symbol is considered to be virtual.
     /// </summary>
-    public bool IsVirtual => (Modifiers & SymbolModifier.Virtual) != 0;
+    public bool IsVirtual => this.Modifiers.Contains(SymbolModifier.Virtual);
 
     /// <summary>
     /// True if the symbol is considered to be an override.
     /// </summary>
-    public bool IsOverride => (Modifiers & SymbolModifier.Override) != 0;
+    public bool IsOverride => this.Modifiers.Contains(SymbolModifier.Override);
 
     /// <summary>
     /// True if the symbol is considered to be sealed.
     /// </summary>
-    public bool IsSealed => (Modifiers & SymbolModifier.Sealed) != 0;
+    public bool IsSealed => this.Modifiers.Contains(SymbolModifier.Sealed);
 
     /// <summary>
     /// True if the symbol is considered to be hidden.
     /// </summary>
-    public bool IsHideBySig => (Modifiers & SymbolModifier.HideBySig) != 0;
+    public bool IsHideBySig => this.Modifiers.Contains(SymbolModifier.HideBySig);
 
     /// <summary>
     /// True if the symbol is considered to be special.
     /// </summary>
-    public bool IsSpecial => (Modifiers & SymbolModifier.Special) != 0;
+    public bool IsSpecial => this.Modifiers.Contains(SymbolModifier.Special);
 
     /// <summary>
     /// True if the symbol is considered to be read only.
     /// </summary>
-    public bool IsReadOnly => (this.Modifiers & SymbolModifier.ReadOnly) != 0;
+    public bool IsReadOnly => this.Modifiers.Contains(SymbolModifier.ReadOnly);
 
     /// <summary>
     /// True if the symbol is constant.
     /// </summary>
-    public bool IsConstant => (this.Modifiers & SymbolModifier.Constant) != 0;
+    public bool IsConstant => this.Modifiers.Contains(SymbolModifier.Constant);
 
     public MemberSymbol(
         string name, 
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers)
+        BitSet<SymbolModifier> modifiers)
         : base(name)
     {
         this.DeclaringSymbol = declaringSymbol;

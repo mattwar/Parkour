@@ -8,7 +8,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
     public InterfaceDeclaration(
         string name,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
@@ -94,7 +94,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override InterfaceDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override InterfaceDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new InterfaceDeclaration(
             this.Name,
             this.Access,

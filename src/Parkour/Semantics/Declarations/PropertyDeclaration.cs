@@ -14,7 +14,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
     public PropertyDeclaration(
         string name,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Expression propertyType,
         FieldDeclaration? backingField,
         MethodDeclaration getMethod,
@@ -111,7 +111,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override PropertyDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override PropertyDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         new PropertyDeclaration(
             this.Name,
             this.Access,

@@ -368,39 +368,41 @@ public class SemanticWriter
         }
     }
 
-    private void WriteAccessAndModifiers(SymbolAccess access, SymbolModifier modifiers)
+    private void WriteAccessAndModifiers(SymbolAccess access, BitSet<SymbolModifier> modifiers)
     {
-        Write(access switch
-        {
-            SymbolAccess.Public => "public ",
-            SymbolAccess.Internal => "internal ",
-            SymbolAccess.Protected => "protected ",
-            SymbolAccess.ProtectedAndInternal => "protectedAndInternal ",
-            SymbolAccess.ProtectedOrInternal => "protectedOrInternal ",
-            _ => ""
-        });
+        Write(
+            access == SymbolAccess.Public ? "public "
+            : access == SymbolAccess.Internal ? "internal "
+            : access == SymbolAccess.Protected ? "protected "
+            : access == SymbolAccess.ProtectedAndInternal ? "protectedAndInternal "
+            : access == SymbolAccess.ProtectedOrInternal ? "protectedOrInternal "
+            : ""
+            );
 
         if (modifiers != SymbolModifier.None)
         {
-            if ((modifiers & SymbolModifier.Static) != 0)
+            if (modifiers.Contains(SymbolModifier.Constant))
+                Write("const ");
+
+            if (modifiers.Contains(SymbolModifier.Static))
                 Write("static ");
 
-            if ((modifiers & SymbolModifier.Abstract) != 0)
+            if (modifiers.Contains(SymbolModifier.Abstract))
                 Write("abstract ");
 
-            if ((modifiers & SymbolModifier.Virtual) != 0)
+            if (modifiers.Contains(SymbolModifier.Virtual))
                 Write("virtual ");
 
-            if ((modifiers & SymbolModifier.Sealed) != 0)
+            if (modifiers.Contains(SymbolModifier.Sealed))
                 Write("sealed ");
 
-            if ((modifiers & SymbolModifier.ReadOnly) != 0)
+            if (modifiers.Contains(SymbolModifier.ReadOnly))
                 Write("readonly ");
 
-            if ((modifiers & SymbolModifier.Special) != 0)
+            if (modifiers.Contains(SymbolModifier.Special))
                 Write("special ");
 
-            if ((modifiers & SymbolModifier.HideBySig) != 0)
+            if (modifiers.Contains(SymbolModifier.HideBySig))
                 Write("hidden ");
         }
     }

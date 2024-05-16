@@ -60,7 +60,7 @@ public sealed class IndexerSymbol : MemberSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         Func<TypeSymbol> fnElementType,
         Func<IndexerSymbol, MethodSymbol>? fnGetMethod,
         Func<IndexerSymbol, MethodSymbol>? fnSetMethod)
@@ -75,7 +75,7 @@ public sealed class IndexerSymbol : MemberSymbol
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        SymbolModifier modifiers,
+        BitSet<SymbolModifier> modifiers,
         TypeSymbol elementType,
         MethodSymbol? getMethod,
         MethodSymbol? setMethod)

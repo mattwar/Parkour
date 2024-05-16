@@ -65,7 +65,7 @@ public class NamespaceDeclaration : MemberDeclaration
     public override NamespaceDeclaration WithAccess(SymbolAccess access) =>
         this;
 
-    public override NamespaceDeclaration WithModifiers(SymbolModifier modifiers) =>
+    public override NamespaceDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         this;
 
     public bool IsGlobalNamespace => 
