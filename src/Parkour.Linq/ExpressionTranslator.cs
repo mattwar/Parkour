@@ -96,8 +96,6 @@ public class ExpressionTranslator
                 return TranslateSymbolReference(symbolRef);
             case VariableExpression variable:
                 return TranslateVariable(variable);
-            case VoidExpression @void:
-                return TranslateVoid(@void);
             default:
                 throw new InvalidOperationException($"Unhandled semantic type '{expression.GetType().Name}' in {nameof(ExpressionTranslator)}.Translate");
         }
@@ -223,7 +221,7 @@ public class ExpressionTranslator
         if (label == null)
             throw new InvalidOperationException($"No branch target defined for '{branch.LabelName}'");
 
-        if (branch.Expression == null || branch.Expression.ResultType == SpecialSymbols.Void)
+        if (branch.Expression == null || branch.Expression.ResultType == _runtimeSymbols.Void)
         {
             if (branch.IsBreak)
                 return L.Expression.Break(label);
@@ -424,7 +422,7 @@ public class ExpressionTranslator
             SetCurrentBranchTarget(label.LabelSymbol!, labelTarget);
         }
 
-        if (label.ResultType == SpecialSymbols.Void)
+        if (label.ResultType == _runtimeSymbols.Void)
             return L.Expression.Label(labelTarget);
         return L.Expression.Label(labelTarget, L.Expression.Default(labelTarget.Type));
     }
@@ -437,7 +435,7 @@ public class ExpressionTranslator
 
         L.Expression lambdaBody;
 
-        if (lambda.ReturnType == SpecialSymbols.Void
+        if (lambda.ReturnType == _runtimeSymbols.Void
             || lambda.ReturnType == null)
         {
             var returnTarget = L.Expression.Label(lambda.ReturnLabel!.Name);
@@ -627,14 +625,6 @@ public class ExpressionTranslator
                 return variable;
             }
         }
-    }
-
-    private static readonly L.Expression _void =
-        L.Expression.Block(typeof(void));
-
-    private L.Expression TranslateVoid(VoidExpression vex)
-    {
-        return _void;
     }
 
     private Dictionary<LabelSymbol, L.LabelTarget> _currentBranchTargets =

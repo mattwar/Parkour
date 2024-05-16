@@ -4,15 +4,10 @@ public sealed class LabelSymbol : Symbol
 {
     public TypeSymbol Type { get; }
 
-    public LabelSymbol(string name, TypeSymbol? type)
+    public LabelSymbol(string name, TypeSymbol type)
         : base(name)
     {
-        Type = type ?? SpecialSymbols.Void;
-    }
-
-    public LabelSymbol(string name)
-        : this(name, SpecialSymbols.Void)
-    {
+        Type = type;
     }
 
     public override int ReferencedSymbolCount => 1;

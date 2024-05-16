@@ -15,17 +15,17 @@ namespace Tests
 
         private void TestCommonSymbols(SymbolTable symbols)
         {
-            Assert.AreEqual("System", symbols.System.Name);
-            Assert.AreEqual("Object", symbols.Object.Name);
-            Assert.AreEqual("Boolean", symbols.Boolean.Name);
-            Assert.AreEqual("Byte", symbols.Byte.Name);
-            Assert.AreEqual("Int32", symbols.Int32.Name);
-            Assert.AreEqual("Int64", symbols.Int64.Name);
-            Assert.AreEqual("Single", symbols.Single.Name);
-            Assert.AreEqual("Double", symbols.Double.Name);
-            Assert.AreEqual("Decimal", symbols.Decimal.Name);
-            Assert.AreEqual("String", symbols.String.Name);
-            Assert.AreEqual("Char", symbols.Char.Name);
+            Assert.AreEqual("System", symbols.System.FullName);
+            Assert.AreEqual("System.Object", symbols.Object.FullName);
+            Assert.AreEqual("System.Boolean", symbols.Boolean.FullName);
+            Assert.AreEqual("System.Byte", symbols.Byte.FullName);
+            Assert.AreEqual("System.Int32", symbols.Int32.FullName);
+            Assert.AreEqual("System.Int64", symbols.Int64.FullName);
+            Assert.AreEqual("System.Single", symbols.Single.FullName);
+            Assert.AreEqual("System.Double", symbols.Double.FullName);
+            Assert.AreEqual("System.Decimal", symbols.Decimal.FullName);
+            Assert.AreEqual("System.String", symbols.String.FullName);
+            Assert.AreEqual("System.Char", symbols.Char.FullName);
         }
 
         [TestMethod]

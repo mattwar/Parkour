@@ -379,7 +379,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
             {
                 var ilEmitter = new ReflectionILEmitter(this, constructorBuilder.GetILGenerator());
                 var bodyBuilder = new StandardBodyBuilder(constructorSymbol, ilEmitter);
-                bodyBuilder.BuildBody(constructorDecl.Body, SpecialSymbols.Void, constructorDecl.ReturnLabel);
+                bodyBuilder.BuildBody(constructorDecl.Body, _symbols.Void, constructorDecl.ReturnLabel);
             }
             else
             {

@@ -150,43 +150,18 @@ public abstract class SymbolTable
 
     #endregion
 
-    #region Common Symbols
-    /// <summary>
-    /// The type is not yet known.
-    /// </summary>
-    public TypeSymbol Unknown => SpecialSymbols.Unknown;
-
-    /// <summary>
-    /// The type of a namespace symbol.
-    /// </summary>
-    public TypeSymbol Namespace => SpecialSymbols.Namespace;
-
-    /// <summary>
-    /// The type of a null literal that has not infered another type.
-    /// </summary>
-    public TypeSymbol Null => SpecialSymbols.Null;
-
-    /// <summary>
-    /// The any type is used for parameters to indicate it can receive and type.
-    /// </summary>
-    public TypeSymbol Any => SpecialSymbols.Any;
-
-    /// <summary>
-    /// Indicates no value is returned.
-    /// </summary>
-    public TypeSymbol Void => SpecialSymbols.Void;
-
-    /// <summary>
-    /// Inidicates the expression does not return.
-    /// Used for branches and throw expressions.
-    /// </summary>
-    public TypeSymbol DoesNotReturn => SpecialSymbols.DoesNotReturn;
-
+    #region Common Symbols found in symbol tree
     /// <summary>
     /// The System namespace.
     /// </summary>
     public NamespaceSymbol System =>
         _systemNs ??= GetSymbol<NamespaceSymbol>("System")!;
+
+    /// <summary>
+    /// Indicates no value is returned.
+    /// </summary>
+    public TypeSymbol Void => 
+        _voidType ??= GetOrCreateCommonType(typeof(void));
 
     /// <summary>
     /// The System.Type type.
@@ -293,8 +268,9 @@ public abstract class SymbolTable
             ? typeSymbol
             : new ClassSymbol(type.Name);
 
-    public NamespaceSymbol? _systemNs;
-    public TypeSymbol? _typeType;
+    private NamespaceSymbol? _systemNs;
+    private TypeSymbol? _typeType;
+    private TypeSymbol? _voidType; 
     private TypeSymbol? _booleanType;
     private TypeSymbol? _byteType;
     private TypeSymbol? _sbyteType;

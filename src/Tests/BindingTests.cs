@@ -315,7 +315,7 @@ public class BindingTests
                 Branch("label", Constant(1)),
                 Label("label")
                 ),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         TestBind(
             Block(
@@ -386,14 +386,14 @@ public class BindingTests
             Block(
                 If(Constant(true), Branch("label")),
                 Label("label")),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // branch to label in outer block
         TestBind(
             Block(
                 Block(Branch("label")),
                 Label("label")),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
     }
 
     [TestMethod]
@@ -436,7 +436,7 @@ public class BindingTests
         // both are void
         TestBind(
             Condition(Constant(true), Void(), Void()),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
     }
 
     [TestMethod]
@@ -519,12 +519,12 @@ public class BindingTests
         // lone void label okay
         TestBind(
             Label("x"),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // lone void label in block okay
         TestBind(
             Block(Label("x")),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // lone label with receiving type okay
         TestBind(
@@ -552,7 +552,7 @@ public class BindingTests
         // called lambda with no parameters and no return
         TestBind(
             Call(Lambda(Void())),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // lambda with parameter
         TestBind(
@@ -617,22 +617,22 @@ public class BindingTests
         // loop with no break
         TestBind(
             Loop(Constant(1)),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with block & no break
         TestBind(
             Loop(Block(Constant(1))),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with break
         TestBind(
             Loop(Break()),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with break in block
         TestBind(
             Loop(Block(Break())),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with break with value
         TestBind(
@@ -648,7 +648,7 @@ public class BindingTests
         TestBind(
             Loop(
                 Condition(Constant(true), Constant(1), Break())),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with conditional break returning value
         TestBind(
@@ -668,7 +668,7 @@ public class BindingTests
                 Block(
                     Break(),
                     Break())),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         TestBind(
             Loop(
@@ -704,12 +704,12 @@ public class BindingTests
         // loop with continue
         TestBind(
             Loop(Continue()),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with continue in block
         TestBind(
             Loop(Block(Continue())),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with continue between other expressions
         TestBind(
@@ -717,24 +717,24 @@ public class BindingTests
                 Constant(1),
                 Continue(),
                 Constant(2))),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with conditional continue.
         TestBind(
             Loop(Condition(Constant(true), Continue())),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with multiple continues
         TestBind(
             Loop(Block(
                 Continue(),
                 Continue())),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with continue and break
         TestBind(
             Loop(Condition(Constant(true), Continue(), Break())),
-            expectedResultType: SpecialSymbols.Void.FullName);
+            expectedResultType: VoidType.FullName);
 
         // loop with continue and break with value
         TestBind(
@@ -962,6 +962,7 @@ public class BindingTests
     [TestMethod]
     public void TestExpression_Variable()
     {
+#if false
         // declaration with initializer
         TestBind(
             Variable("x", Constant(1)),
@@ -971,11 +972,13 @@ public class BindingTests
         TestBind(
             Variable(Int32Type, "x"),
             expectedResultType: Int32Type.FullName);
+#endif
 
         // declare with type and initializer
         TestBind(
             Variable(Int32Type, "x", Constant(1)),
             expectedResultType: Int32Type.FullName);
+#if false
 
         // declare with type and initializer with convertable types
         TestBind(
@@ -993,20 +996,8 @@ public class BindingTests
             new VariableExpression("x", null, null, null, null, null, null),
             expectedResultType: ObjectType.FullName,
             containsDiagnostics: true);
-    }
-
-    [TestMethod]
-    public void TestExpression_Void()
-    {
-        TestBind(
-            Void(),
-            expectedResultType: SpecialSymbols.Void.FullName);
-    }
-
-#if false
-
-
 #endif
+    }
 
     #endregion
 

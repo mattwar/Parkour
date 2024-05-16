@@ -348,10 +348,8 @@ public static class SemanticFactory
     /// <summary>
     /// An expression that does nothing and returns nothing.
     /// </summary>
-    public static VoidExpression Void(ISourceLocation? location = null) => 
-        location == null 
-            ? VoidExpression.Default
-            : new VoidExpression(location);
+    public static Expression Void(ISourceLocation? location = null) =>
+        Block([], location);
 
     /// <summary>
     /// A loop that continues to repeat the body until the test fails or a break exists the loop.

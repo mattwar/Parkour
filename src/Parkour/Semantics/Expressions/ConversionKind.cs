@@ -13,11 +13,6 @@ public enum ConversionKind
     SameType,
 
     /// <summary>
-    /// Conversion to Any type.
-    /// </summary>
-    Any,
-
-    /// <summary>
     /// Conversion to Unknown type.
     /// </summary>
     Unknown,

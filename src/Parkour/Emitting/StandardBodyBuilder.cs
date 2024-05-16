@@ -159,9 +159,6 @@ public class StandardBodyBuilder : BodyBuilder
                 EmitVariable(variable);
                 break;
 
-            case VoidExpression vex:
-                break;
-
             default:
                 this.Emitter.EmitThrowAndReport(new Diagnostic($"Could not emit IL for expression '{expression.GetType().Name}'").WithLocation(expression.Location));
                 break;
@@ -253,14 +250,14 @@ public class StandardBodyBuilder : BodyBuilder
             case VariableSymbol variableSymbol:
                 EmitExpressionAsType(assign.Source, variableSymbol.Type);
                 this.Emitter.EmitStoreVariable(variableSymbol);
-                if (assign.ResultType != SpecialSymbols.Void)
+                if (assign.ResultType != this.ExternalSymbols.Void)
                     this.Emitter.EmitLoadVariable(variableSymbol);
                 break;
 
             case ParameterSymbol parameterSymbol:
                 EmitExpressionAsType(assign.Source, parameterSymbol.Type);
                 this.Emitter.EmitStoreParameter(parameterSymbol);
-                if (assign.ResultType != SpecialSymbols.Void)
+                if (assign.ResultType != this.ExternalSymbols.Void)
                     this.Emitter.EmitLoadParameter(parameterSymbol);
                 break;
 
@@ -283,7 +280,7 @@ public class StandardBodyBuilder : BodyBuilder
 
                 EmitExpressionAsType(assign.Source, fieldSymbol.Type);
 
-                temp = (assign.ResultType != SpecialSymbols.Void)
+                temp = (assign.ResultType != this.ExternalSymbols.Void)
                     ? CopyToTemporaryVariable(fieldSymbol.Type)
                     : null;
 
@@ -311,7 +308,7 @@ public class StandardBodyBuilder : BodyBuilder
 
                     EmitExpressionAsType(assign.Source, propertySymbol.Type);
 
-                    temp = (assign.ResultType != SpecialSymbols.Void)
+                    temp = (assign.ResultType != this.ExternalSymbols.Void)
                         ? CopyToTemporaryVariable(propertySymbol.Type)
                         : null;
 
@@ -330,7 +327,7 @@ public class StandardBodyBuilder : BodyBuilder
                             EmitExpressionAsType(ee.Arguments[0], this.ExternalSymbols.Int32); // the index
                             EmitExpressionAsType(assign.Source, array.ElementType);
 
-                            temp = (assign.ResultType != SpecialSymbols.Void)
+                            temp = (assign.ResultType != this.ExternalSymbols.Void)
                                 ? CopyToTemporaryVariable(array.ElementType)
                                 : null;
 
@@ -348,7 +345,7 @@ public class StandardBodyBuilder : BodyBuilder
                         // final argument (value)
                         EmitExpressionAsType(assign.Source, ee.IndexerSymbol.ElementType);
 
-                        temp = (assign.ResultType != SpecialSymbols.Void)
+                        temp = (assign.ResultType != this.ExternalSymbols.Void)
                             ? CopyToTemporaryVariable(ee.IndexerSymbol.ElementType)
                             : null;
 
@@ -415,7 +412,7 @@ public class StandardBodyBuilder : BodyBuilder
                 this.EmitExpressionAsType(asType.Expression, ExternalSymbols.Object);
                 this.Emitter.EmitAsType(asType.TypeSymbol);
             }
-            else if (asType.Expression.ResultType == SpecialSymbols.Void)
+            else if (asType.Expression.ResultType == this.ExternalSymbols.Void)
             {
                 this.EmitExpression(asType.Expression);
                 this.Emitter.EmitPop();
@@ -456,7 +453,7 @@ public class StandardBodyBuilder : BodyBuilder
         {
             if (i < block.Expressions.Count - 1)
             {
-                EmitExpressionAsType(block.Expressions[i], SpecialSymbols.Void);
+                EmitExpressionAsType(block.Expressions[i], this.ExternalSymbols.Void);
             }
             else
             {
@@ -566,8 +563,8 @@ public class StandardBodyBuilder : BodyBuilder
 
     protected virtual void EmitCondition(ConditionExpression condition, bool asAddress)
     {
-        var whenFalseLabel = new LabelSymbol("whenFalse");
-        var endLabel = new LabelSymbol("conditionEnd");
+        var whenFalseLabel = new LabelSymbol("whenFalse", this.ExternalSymbols.Void);
+        var endLabel = new LabelSymbol("conditionEnd", this.ExternalSymbols.Void);
 
         EmitExpressionAsType(condition.Test, this.ExternalSymbols.Boolean);
         this.Emitter.EmitBranchFalse(whenFalseLabel);
@@ -653,7 +650,7 @@ public class StandardBodyBuilder : BodyBuilder
             default:
                 // some other object literal?
                 this.Emitter.EmitThrowAndReport(new Diagnostic($"Cannot represent a value of type '{value.GetType().FullName}' in IL.").WithLocation(location));
-                return this.ExternalSymbols.DoesNotReturn;
+                return SpecialSymbols.DoesNotReturn;
         }
     }
 
@@ -735,10 +732,10 @@ public class StandardBodyBuilder : BodyBuilder
                 this.Emitter.EmitLoadBool(isAssignable);
                 return;
             }
-            else if (isType.Expression.ResultType == SpecialSymbols.Void)
+            else if (isType.Expression.ResultType == this.ExternalSymbols.Void)
             {
                 this.EmitExpression(isType.Expression);
-                this.Emitter.EmitLoadBool(isType.TypeSymbol == SpecialSymbols.Void);
+                this.Emitter.EmitLoadBool(isType.TypeSymbol == this.ExternalSymbols.Void);
             }
             else 
             {
@@ -785,7 +782,7 @@ public class StandardBodyBuilder : BodyBuilder
     /// </summary>
     protected virtual void EmitLoop(LoopExpression loop)
     {
-        var continueTarget = loop.ContinueTarget ?? new LabelSymbol("continue");
+        var continueTarget = loop.ContinueTarget ?? new LabelSymbol("continue", this.ExternalSymbols.Void);
         this.Emitter.MarkLabel(continueTarget);
         EmitExpressionAsType(loop.Body, loop.ResultType);
         this.Emitter.EmitBranch(continueTarget);
@@ -992,7 +989,7 @@ public class StandardBodyBuilder : BodyBuilder
             this.Emitter.EmitStoreArrayElement(newArrayInit.ElementTypeSymbol!);
         }
 
-        if (newArrayInit.ResultType != SpecialSymbols.Void)
+        if (newArrayInit.ResultType != this.ExternalSymbols.Void)
             this.Emitter.EmitLoadVariable(array);
 
         this.Emitter.DeclareVariableEnd(array);
@@ -1131,8 +1128,8 @@ public class StandardBodyBuilder : BodyBuilder
                 break;
 
             case OperatorKind.LogicalAndAlso:
-                var andAlsoFalse = new LabelSymbol("andAlsoFalse");
-                var andAlsoEnd = new LabelSymbol("andAlsoEnd");
+                var andAlsoFalse = new LabelSymbol("andAlsoFalse", this.ExternalSymbols.Void);
+                var andAlsoEnd = new LabelSymbol("andAlsoEnd", this.ExternalSymbols.Void);
                 EmitArgument(opsym.Parameters[0], arguments[0]);
                 this.Emitter.EmitBranchFalse(andAlsoFalse);
                 EmitArgument(opsym.Parameters[1], arguments[1]);
@@ -1143,8 +1140,8 @@ public class StandardBodyBuilder : BodyBuilder
                 break;
 
             case OperatorKind.LogicalOrElse:
-                var orElseTrue = new LabelSymbol("orElseTrue");
-                var orElseEnd = new LabelSymbol("orElseEnd");
+                var orElseTrue = new LabelSymbol("orElseTrue", this.ExternalSymbols.Void);
+                var orElseEnd = new LabelSymbol("orElseEnd", this.ExternalSymbols.Void);
                 EmitArgument(opsym.Parameters[0], arguments[0]);
                 this.Emitter.EmitBranchTrue(orElseTrue);
                 EmitArgument(opsym.Parameters[1], arguments[1]);
@@ -1222,18 +1219,11 @@ public class StandardBodyBuilder : BodyBuilder
 
             this.Emitter.EmitStoreVariable(variable.VariableSymbol);
 
-            if (variable.ResultType != SpecialSymbols.Void)
+            if (variable.ResultType != this.ExternalSymbols.Void)
             {
                 this.Emitter.EmitLoadVariable(variable.VariableSymbol);
             }
         }
-    }
-    #endregion
-
-    #region Void Emit
-    protected virtual void EmitVoid(VoidExpression vex)
-    {
-        // do nothing.. it is void. :)
     }
     #endregion
 }

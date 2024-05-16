@@ -387,12 +387,6 @@ public class ReflectionSymbols : StandardSymbolTable
 
     public override bool TryGetType(Type type, [NotNullWhen(true)] out TypeSymbol typeSymbol)
     {
-        if (type == typeof(void))
-        {
-            typeSymbol = SpecialSymbols.Void;
-            return true;
-        }
-
         if (GetSymbol(type) is TypeSymbol cached)
         {
             typeSymbol = cached;
@@ -633,13 +627,13 @@ public class ReflectionSymbols : StandardSymbolTable
             return true;
         }
 
-        if (typeSymbol == SpecialSymbols.Void
+        if (typeSymbol == this.Void
             || typeSymbol == SpecialSymbols.DoesNotReturn)
         {
             runtimeType = typeof(void);
             return true;
         }
-        else if (typeSymbol == SpecialSymbols.Any
+        else if (typeSymbol == this.Object
             || typeSymbol == SpecialSymbols.Null
             || typeSymbol == SpecialSymbols.Unknown)
         {

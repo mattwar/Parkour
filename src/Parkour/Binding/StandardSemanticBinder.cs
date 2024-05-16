@@ -432,7 +432,7 @@ public class StandardSemanticBinder : SemanticBinder
             declaringSymbol,
             () => declaration.ParameterType != null
                 ? GetType(context, declaration.ParameterType) ?? SpecialSymbols.Unknown
-                : SpecialSymbols.Any
+                : context.Symbols.Object
             );
     }
 
@@ -612,7 +612,7 @@ public class StandardSemanticBinder : SemanticBinder
         ConstructorSymbol? constructorSymbol)
     {
         var parameters = BindDeclarations(context, cd.Parameters);
-        var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, SpecialSymbols.Void);
+        var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, context.Symbols.Void);
         var bodyContext = context.ExpressionContext.WithScope(context.Scope.AddSymbol(returnLabel));
 
         // add parameters to scope for body
@@ -749,7 +749,7 @@ public class StandardSemanticBinder : SemanticBinder
         var typeParameters = BindDeclarations(context, md.TypeParameters);
         var parameters = BindDeclarations(context, md.Parameters);
         var returnType = BindExpression(context.ExpressionContext, md.ReturnType);
-        var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, methodSymbol?.ReturnType ?? SpecialSymbols.Void);
+        var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, methodSymbol?.ReturnType ?? context.Symbols.Void);
 
         var bodyContext = context.ExpressionContext.WithScope(context.Scope.AddSymbol(returnLabel));
 
@@ -1092,9 +1092,6 @@ public class StandardSemanticBinder : SemanticBinder
             case VariableExpression variable:
                 return BindVariable(context, variable);
 
-            case VoidExpression vex:
-                return BindVoid(context, vex);
-
             default:
                 throw new InvalidOperationException($"Unhandled semantic '{expression.GetType().Name}' in {nameof(StandardSemanticBinder)}.BindExpression");
         }
@@ -1376,7 +1373,7 @@ public class StandardSemanticBinder : SemanticBinder
                     var type = label.ReceivingType != null 
                         ? GetType(labelContext, label.ReceivingType)
                         : context.Symbols.Void;
-                    var labelSymbol = label.LabelSymbol ?? new LabelSymbol(label.Name, type);
+                    var labelSymbol = label.LabelSymbol ?? new LabelSymbol(label.Name, type!);
                     labelSymbols.Add(labelSymbol);
                     context.SetLabelSymbol(label, labelSymbol);
                 }
@@ -1403,7 +1400,7 @@ public class StandardSemanticBinder : SemanticBinder
 
             var resultType = boundExpressions.Count > 0
                 ? boundExpressions[^1].ResultType
-                : SpecialSymbols.Void;
+                : context.Symbols.Void;
 
             if (boundExpressions == block.Expressions
                 && block.ResultType == resultType
@@ -1426,13 +1423,13 @@ public class StandardSemanticBinder : SemanticBinder
     /// <summary>
     /// Gets all the branch expression types for a label.
     /// </summary>
-    protected virtual void GetBranchExpressionTypes(Expression blockBody, LabelSymbol label, List<TypeSymbol> types)
+    protected virtual void GetBranchExpressionTypes(ExpressionContext context, Expression blockBody, LabelSymbol label, List<TypeSymbol> types)
     {
         types.AddRange(
             blockBody.SelectWhere(
                 s => s is Expression e && !HasIsolatedBody(e),
                 s => s is BranchExpression b && b.LabelSymbol == label,
-                s => ((BranchExpression)s).Expression != null ? ((BranchExpression)s).Expression!.ResultType : SpecialSymbols.Void));
+                s => ((BranchExpression)s).Expression != null ? ((BranchExpression)s).Expression!.ResultType : context.Symbols.Void));
     }
 
     /// <summary>
@@ -1460,7 +1457,7 @@ public class StandardSemanticBinder : SemanticBinder
 
             var expressionType = expression != null 
                 ? expression.ResultType 
-                : SpecialSymbols.Void;
+                : context.Symbols.Void;
 
             if (labelSymbol == null)
             {
@@ -1944,8 +1941,8 @@ public class StandardSemanticBinder : SemanticBinder
     protected virtual Expression ConvertTo(ExpressionContext context, Expression expression, TypeSymbol type)
     {
         // ignore void
-        if (type == SpecialSymbols.Void
-            || expression.ResultType == SpecialSymbols.Void)
+        if (type == context.Symbols.Void
+            || expression.ResultType == context.Symbols.Void)
             return expression;
 
         // remove unnecessary conversions added by this method on prior bindings
@@ -2047,8 +2044,9 @@ public class StandardSemanticBinder : SemanticBinder
         if (sourceType == SpecialSymbols.DoesNotReturn)
             return ConversionKind.DoesNotReturn;
 
-        if (targetType == SpecialSymbols.Any)
-            return ConversionKind.Any;
+        if (targetType == context.Symbols.Object
+            && sourceType.IsValueType)
+            return ConversionKind.Boxing;
 
         if (targetType == SpecialSymbols.Unknown)
             return ConversionKind.Unknown;
@@ -2143,7 +2141,7 @@ public class StandardSemanticBinder : SemanticBinder
         if (sourceType == SpecialSymbols.DoesNotReturn)
             return true;
 
-        if (targetType == SpecialSymbols.Any)
+        if (targetType == context.Symbols.Object)
             return true;
 
         if (CanDownCast(context, sourceType, targetType))
@@ -2239,7 +2237,7 @@ public class StandardSemanticBinder : SemanticBinder
             else
             {
                 diagnostics.Add(BindingDiagnostics.DefaultTypeCannotBeInferred().WithLocation(dex.Location));
-                resultType = SpecialSymbols.Any;
+                resultType = context.Symbols.Object;
             }
 
             if (typeExpr == dex.Type
@@ -2426,10 +2424,10 @@ public class StandardSemanticBinder : SemanticBinder
 
             var resultType = receivingType != null 
                 ? receivingType.ReferencedSymbol as TypeSymbol 
-                : SpecialSymbols.Void;
+                : context.Symbols.Void;
 
             var targetSymbol = context.GetLabelSymbol(label) 
-                ?? new LabelSymbol(label.Name, resultType); // not found, must not have been inside a block
+                ?? new LabelSymbol(label.Name, resultType!); // not found, must not have been inside a block
 
             if (label.ReceivingType == receivingType
                 && label.LabelSymbol == targetSymbol
@@ -2463,7 +2461,7 @@ public class StandardSemanticBinder : SemanticBinder
         {
             DelegateSymbol? lambdaSymbol = lambda.FunctionSymbol;
             LabelSymbol? returnLabel = lambda.ReturnLabel
-                ?? new LabelSymbol(LabelSymbol.ReturnLabelName, SpecialSymbols.Any);
+                ?? new LabelSymbol(LabelSymbol.ReturnLabelName, context.Symbols.Object);
             ImmutableList<ParameterDeclaration> parameters = lambda.Parameters;
             Expression body = lambda.Body;
             TypeSymbol? returnType = null;
@@ -2473,7 +2471,7 @@ public class StandardSemanticBinder : SemanticBinder
             if (returnLabel.Type != returnType)
             {
                 context = context.WithRebind(true);
-                returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, returnType);
+                returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, returnType!);
                 BindLambdaSymbol(context);
             }
 
@@ -2531,7 +2529,7 @@ public class StandardSemanticBinder : SemanticBinder
                 foreach (var p in parameters)
                 {
                     var type = p.ParameterType != null ? BindTypeExpression(context, p.ParameterType, diagnostics) : null;
-                    var ptype = type?.ReferencedSymbol as TypeSymbol ?? SpecialSymbols.Any;
+                    var ptype = type?.ReferencedSymbol as TypeSymbol ?? context.Symbols.Object;
                     var psymbol = new ParameterSymbol(p.Name, declaringSymbol, ptype);
                     var pdecl = new ParameterDeclaration(p.Name, type, p.Location, psymbol, null);
                     symbols.Add(psymbol);
@@ -2571,7 +2569,7 @@ public class StandardSemanticBinder : SemanticBinder
         var types = _typeListPool.AllocateFromPool();
         try
         {
-            GetBranchExpressionTypes(body, returnTarget, types);
+            GetBranchExpressionTypes(context, body, returnTarget, types);
             types.Add(body.ResultType);
             var best = GetBestCommonType(context, types, voidIsBetter: false) ?? context.Symbols.Object;
             return best;
@@ -2593,8 +2591,8 @@ public class StandardSemanticBinder : SemanticBinder
         var types = _typeListPool.AllocateFromPool();
         try
         {
-            var breakTarget = loop.BreakTarget ?? new LabelSymbol(LabelSymbol.BreakLabelName, SpecialSymbols.Any);
-            var continueTarget = loop.ContinueTarget ?? new LabelSymbol(LabelSymbol.ContinueLabelName, SpecialSymbols.Void);
+            var breakTarget = loop.BreakTarget ?? new LabelSymbol(LabelSymbol.BreakLabelName, context.Symbols.Object);
+            var continueTarget = loop.ContinueTarget ?? new LabelSymbol(LabelSymbol.ContinueLabelName, context.Symbols.Void);
 
             var bodyContext = context.WithScope(
                 context.Scope.AddSymbols(new[] { breakTarget, continueTarget }));
@@ -2602,8 +2600,8 @@ public class StandardSemanticBinder : SemanticBinder
             var body = BindExpression(bodyContext, loop.Body);
 
             // result type is the common type of all the break branches.
-            GetBranchExpressionTypes(body, breakTarget, types);
-            var resultType = GetBestCommonType(context, types, voidIsBetter: false) ?? SpecialSymbols.Void;
+            GetBranchExpressionTypes(context, body, breakTarget, types);
+            var resultType = GetBestCommonType(context, types, voidIsBetter: false) ?? context.Symbols.Void;
 
             if (breakTarget.Type != resultType)
             {
@@ -3134,9 +3132,9 @@ public class StandardSemanticBinder : SemanticBinder
             IndexerSymbol i => i.ElementType,
             DelegateSymbol f => f,
             GroupSymbol g => g,
-            MethodSymbol => SpecialSymbols.Void,
+            MethodSymbol => context.Symbols.Void,
             TypeSymbol => context.Symbols.Type,
-            NamespaceSymbol => context.Symbols.Namespace,
+            NamespaceSymbol => SpecialSymbols.Namespace,
             _ => null
         };
     #endregion
@@ -3249,7 +3247,7 @@ public class StandardSemanticBinder : SemanticBinder
             var variable = declaration.VariableSymbol != null
                 && declaration.VariableSymbol.Type == vtype
                 ? declaration.VariableSymbol
-                : new VariableSymbol(declaration.Name, vtype ?? SpecialSymbols.Any);
+                : new VariableSymbol(declaration.Name, vtype ?? context.Symbols.Object);
 
             return new VariableExpression(
                 declaration.Name,
@@ -3267,16 +3265,6 @@ public class StandardSemanticBinder : SemanticBinder
     }
     #endregion
 
-    #region Void Expression
-    /// <summary>
-    /// Binds <see cref="VoidExpression"/>
-    /// </summary>
-    protected virtual VoidExpression BindVoid(ExpressionContext context, VoidExpression vex)
-    {
-        // nothing to actually bind
-        return vex;
-    }
-    #endregion
 
     #endregion
 
@@ -3411,7 +3399,7 @@ public class StandardSemanticBinder : SemanticBinder
         }
 
         bool IsVoidLike(TypeSymbol type) =>
-            type == SpecialSymbols.Void
+            type == context.Symbols.Void
             || type == SpecialSymbols.DoesNotReturn;
 
         bool IgnoreType(TypeSymbol type) =>
@@ -3495,6 +3483,9 @@ public class StandardSemanticBinder : SemanticBinder
         /// The initial <see cref="SymbolContext"/>
         /// </summary>
         public SymbolContext SymbolContext { get; }
+
+
+        public SymbolTable Symbols => this.SymbolContext.Symbols;
 
         /// <summary>
         /// The declaring type of the declaration
