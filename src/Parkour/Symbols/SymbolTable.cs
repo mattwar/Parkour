@@ -81,8 +81,17 @@ public abstract class SymbolTable
     /// Get the declared symbol with the full name.
     /// If multiple symbols are found with the same full name, the first is returned.
     /// </summary>
-    public abstract bool TryGetSymbol<TSymbol>(string dottedName, [NotNullWhen(true)] out TSymbol symbol)
+    public abstract bool TryGetSymbol<TSymbol>(
+        string dottedName,
+        [NotNullWhen(true)] out TSymbol symbol)
         where TSymbol : Symbol;
+
+    /// <summary>
+    /// Get the declared symbol with the full name.
+    /// If multiple symbols are found with the same full name, the first is returned.
+    /// </summary>
+    public bool TryGetSymbol(string dottedName, [NotNullWhen(true)] out Symbol symbol) =>
+        TryGetSymbol<Symbol>(dottedName, out symbol);
 
     /// <summary>
     /// Get the declared symbol given the symbol's full name.

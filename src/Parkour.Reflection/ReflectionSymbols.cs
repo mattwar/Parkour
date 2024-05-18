@@ -181,7 +181,7 @@ public class ReflectionSymbols : StandardSymbolTable
                 {
                     declaringSymbol ??=
                         (type.DeclaringType != null) ? GetOrCreateSymbol(type.DeclaringType, null) as MemberSymbol
-                        : (type.Namespace != null) ? this.GlobalNamespace.GetFirstSymbolFromPath<NamespaceSymbol>(type.Namespace)
+                        : (type.Namespace != null) ? this.GetFirstSymbolFromPath<NamespaceSymbol>(type.Namespace)
                         : null;
                 }
                 else if (runtimeSymbol is MemberInfo member)
@@ -494,12 +494,12 @@ public class ReflectionSymbols : StandardSymbolTable
         // note: constructed types and members won't appear in the global namespace
         if (runtimeSymbol is Type type && type.IsGenericTypeDefinition)
         {
-            return this.GlobalNamespace.GetFirstSymbolFromPath<TypeSymbol>(GetFullName(type));
+            return this.GetFirstSymbolFromPath<TypeSymbol>(GetFullName(type));
         }
         else if (runtimeSymbol is MemberInfo member
             && member.DeclaringType != null && member.DeclaringType.IsGenericTypeDefinition)
         {
-            return this.GlobalNamespace.GetFirstSymbolFromPath(GetFullName(member));
+            return this.GetFirstSymbolFromPath(GetFullName(member));
         }
 
         return null;

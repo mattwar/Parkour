@@ -47,12 +47,12 @@ namespace Tests
             var rs = ReflectionSymbols.CurrentMscorlib;
 
             //TestFindSymbol(ns, "System.Int32");
-            TestFindSymbol(rs.GlobalNamespace, "System.Collections.Generic.List`1");
+            TestFindSymbol(rs, "System.Collections.Generic.List`1");
         }
 
-        private void TestFindSymbol(NamespaceSymbol symbol, string pathName)
+        private void TestFindSymbol(SymbolTable symbols, string pathName)
         {
-            var found = symbol.GetFirstSymbolFromPath(pathName);
+            var found = symbols.GetSymbol(pathName);
             Assert.IsNotNull(found);
         }
 
@@ -61,7 +61,7 @@ namespace Tests
         {
             var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
 
-            var listT = (TypeSymbol?)runtimeSymbols.GlobalNamespace.GetFirstSymbolFromPath("System.Collections.Generic.List`1");
+            var listT = runtimeSymbols.GetType("System.Collections.Generic.List`1");
             Assert.IsNotNull(listT);
 
             var listTBT = listT.BaseTypes;
