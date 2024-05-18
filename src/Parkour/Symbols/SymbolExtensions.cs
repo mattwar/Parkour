@@ -160,4 +160,107 @@ public static class SymbolExtensions
     private static readonly ObjectPool<List<Symbol>> _symbolListPool =
         new ObjectPool<List<Symbol>>(() => new List<Symbol>(), list => list.Clear());
 
+    /// <summary>
+    /// Gets all the members of this type and all base types that match the predicate.
+    /// </summary>
+    public static void GetHierarchyMembers(
+        this ContainerSymbol symbol, 
+        Func<Symbol, bool> predicate,
+        bool firstMatchesOnly,
+        List<Symbol> symbols)
+    {
+        var initialCount = symbols.Count;
+
+        symbol.GetMembers(predicate, symbols);
+
+        if (symbol is TypeSymbol typeSymbol)
+        {
+            if (firstMatchesOnly && symbols.Count > initialCount)
+                return;
+
+            foreach (var bt in typeSymbol.BaseTypes)
+            {
+                if (!bt.IsInterface || typeSymbol.IsInterface)
+                {
+                    bt.GetMembers(predicate, symbols);
+
+                    if (firstMatchesOnly && symbols.Count > initialCount)
+                        return;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets all the members of this type and all base types that match the name and predicate.
+    /// </summary>
+    public static void GetHierarchyMembers(
+        this ContainerSymbol symbol, 
+        string name, int start, int length, 
+        Func<Symbol, bool>? predicate,
+        bool firstMatchesOnly,
+        List<Symbol> symbols)
+    {
+        var initialCount = symbols.Count;
+
+        symbol.GetMembers(name, start, length, predicate, symbols);
+
+        if (symbol is TypeSymbol typeSymbol)
+        {
+            if (firstMatchesOnly && symbols.Count > initialCount)
+                return;
+
+            foreach (var bt in typeSymbol.BaseTypes)
+            {
+                if (!bt.IsInterface || typeSymbol.IsInterface)
+                {
+                    bt.GetMembers(name, start, length, predicate, symbols);
+
+                    if (firstMatchesOnly && symbols.Count > initialCount)
+                        return;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets all the members of this type and all base types that match the name and predicate.
+    /// </summary>
+    public static void GetHierarchyMembers(
+        this ContainerSymbol symbol, 
+        string name, 
+        Func<Symbol, bool>? predicate,
+        bool firstMatchesOnly,
+        List<Symbol> symbols) 
+        =>
+        GetHierarchyMembers(symbol, name, 0, name.Length, predicate, firstMatchesOnly, symbols);
+
+    /// <summary>
+    /// Gets the first member of this type and all base types that matches the predicate.
+    /// </summary>
+    public static TSymbol? GetFirstHierarchyMember<TSymbol>(
+        this ContainerSymbol symbol, 
+        string? name, 
+        Func<TSymbol, bool>? predicate)
+        where TSymbol: Symbol
+    {
+        var member = symbol.GetFirstMember(name, predicate);
+        if (member != null)
+            return member;
+
+        if (symbol is TypeSymbol typeSymbol)
+        {
+            foreach (var bt in typeSymbol.BaseTypes)
+            {
+                if (!bt.IsInterface || typeSymbol.IsInterface)
+                {
+                    member = bt.GetFirstMember(name, predicate);
+                    if (member != null)
+                        return member;
+                }
+            }
+        }
+
+        return null;
+    }
 }

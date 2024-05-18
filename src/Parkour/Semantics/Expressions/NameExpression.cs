@@ -2,7 +2,8 @@
 using Symbols;
 
 /// <summary>
-/// References a named symbol or symbols in scope.
+/// References a named symbol or symbols in the current scope,
+/// based on the lookup rules of the binder.
 /// </summary>
 public sealed class NameExpression : Expression
 {

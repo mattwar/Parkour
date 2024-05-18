@@ -1,5 +1,9 @@
 ﻿namespace Parkour.Semantics;
 
+/// <summary>
+/// Assigns the result of the source expression to the location
+/// specified by the target expression.
+/// </summary>
 public sealed class AssignExpression : Expression
 {
     public Expression Target { get; }

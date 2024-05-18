@@ -2,6 +2,9 @@
 
 using Symbols;
 
+/// <summary>
+/// Creates a new array single dimensional array initialized with the values of the expressions.
+/// </summary>
 public class NewArrayInitExpression : Expression
 {
     public Expression? ElementType { get; }

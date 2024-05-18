@@ -2,22 +2,25 @@
 
 using Symbols;
 
+/// <summary>
+/// Creates a new single dimensional array 
+/// </summary>
 public class NewArraySizeExpression : Expression
 {
     public Expression? ElementType { get; }
-    public Expression Size { get; }
+    public ImmutableList<Expression> Sizes { get; }
     public TypeSymbol? ElementTypeSymbol { get; }
 
     public NewArraySizeExpression(
         Expression? elementType,
-        Expression size,
+        ImmutableList<Expression> sizes,
         ISourceLocation? location,
         TypeSymbol? elementTypeSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             State(elementType)
-            | State(size)
+            | CombineState(sizes)
             | NotNullOrDiagnosticState(elementTypeSymbol, diagnostics)
             | NotNullState(resultType),
             location,
@@ -25,17 +28,17 @@ public class NewArraySizeExpression : Expression
             diagnostics)
     {
         ElementType = elementType;
-        Size = size;
+        Sizes = sizes;
         ElementTypeSymbol = elementTypeSymbol;
     }
 
-    public override int ChildCount => 2;
+    public override int ChildCount => 1 + this.Sizes.Count;
 
-    public override SemanticElement? GetChild(int index) =>
-        index switch
-        {
-            0 => ElementType,
-            1 => Size,
-            _ => null
-        };
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index == 0)
+            return this.ElementType;
+        index--;
+        return (index < this.Sizes.Count) ? this.Sizes[index] : null;
+    }
 }

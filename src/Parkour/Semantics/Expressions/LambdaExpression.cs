@@ -1,6 +1,9 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Defines an inline function.
+/// </summary>
 public sealed class LambdaExpression : Expression
 {
     public string Name { get; }
@@ -45,4 +48,3 @@ public sealed class LambdaExpression : Expression
             ? this.Parameters[index]
             : this.Body;
 }
-

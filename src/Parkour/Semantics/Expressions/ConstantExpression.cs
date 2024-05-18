@@ -1,6 +1,9 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// A value known at compile time.
+/// </summary>
 public sealed class ConstantExpression : Expression
 {
     public object? Value { get; }
@@ -22,4 +25,3 @@ public sealed class ConstantExpression : Expression
     public override int ChildCount => 0;
     public override SemanticElement? GetChild(int index) => null;
 }
-

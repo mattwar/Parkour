@@ -2,6 +2,10 @@
 using Symbols;
 using Syntax;
 
+/// <summary>
+/// If the Test expression results in true the WhenTrue expression is evaluated,
+/// otherwise the WhenFalse expression is evaluated.
+/// </summary>
 public sealed class ConditionExpression : Expression
 {
     public Expression Test { get; }

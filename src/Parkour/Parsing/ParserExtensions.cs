@@ -53,8 +53,10 @@ public static partial class ParserExtensions
 
     /// <summary>
     /// A parser that applies the output of the left parser to the right parser and 
-    /// then repeatedly applies the output of the right parser back to itself
+    /// then repeatedly applies the output of the right parser back to the right parser
     /// until the right no longer succeeds.
+    /// Similar to LeftReduce, but the aggregation occurs within the right parser,
+    /// accessing the result of the left parser via a function.
     /// </summary>
     public static Parser<TInput, TOutput> ApplyRepeat<TInput, TOutput>(
         this Parser<TInput, TOutput> leftParser,
@@ -65,6 +67,8 @@ public static partial class ParserExtensions
     /// A parser that applies the output of the left parser to the right parser and 
     /// then repeatedly applies the output of the right parser back to itself
     /// within the repeatable range.
+    /// Similar to LeftReduce, but the aggregation occurs within the right parser,
+    /// accessing the result of the left parser via a function.
     /// </summary>
     public static Parser<TInput, TOutput> ApplyRepeat<TInput, TOutput>(
         this Parser<TInput, TOutput> leftParser,
@@ -92,7 +96,8 @@ public static partial class ParserExtensions
         Convert(parser, converter, [term]);
 
     /// <summary>
-    /// A parser the returns the output of the first parser that would succeed on the same input.
+    /// A parser the returns the output of the nextParser if this parser does not succeed.
+    /// Similar to Or, but ordered.
     /// </summary>
     public static Parser<TInput, TOutput> Else<TInput, TOutput>(
         this Parser<TInput, TOutput> parser,
@@ -100,7 +105,8 @@ public static partial class ParserExtensions
         new FirstParser<TInput, TOutput>(parser, nextParser);
 
     /// <summary>
-    /// A parser the returns the output of the first parser that would succeed on the same input.
+    /// A parser the returns the output of the nextParser if this parser does not succeed.
+    /// Similar to Or, but ordered.
     /// </summary>
     public static Parser<TInput, IReadOnlyList<TOutput>> Else<TInput, TOutput>(
         this Parser<TInput, IReadOnlyList<TOutput>> parser,
@@ -108,7 +114,8 @@ public static partial class ParserExtensions
         new FirstMultiParser<TInput, TOutput>(parser, nextParser);
 
     /// <summary>
-    /// A parser the returns the output of the first parser that would succeed on the same input.
+    /// A parser the returns the output of the nextParser if this parser does not succeed.
+    /// Similar to Or, but ordered.
     /// </summary>
     public static Parser<TInput, IReadOnlyList<TOutput>> Else<TInput, TOutput>(
         this Parser<TInput, IReadOnlyList<TOutput>> parser,
@@ -116,7 +123,8 @@ public static partial class ParserExtensions
         new FirstMultiParser<TInput, TOutput>(parser, nextParser.ToMultiParser());
 
     /// <summary>
-    /// A parser the returns the output of the first parser that would succeed on the same input.
+    /// A parser the returns the output of the nextParser if this parser does not succeed.
+    /// Similar to Or, but ordered.
     /// </summary>
     public static Parser<TInput, IReadOnlyList<TOutput>> Else<TInput, TOutput>(
         this Parser<TInput, TOutput> parser,
@@ -142,6 +150,7 @@ public static partial class ParserExtensions
     /// <summary>
     /// A parser that aggregates the output of the first parser with zero or more outputs of the second parser.
     /// This is typically used with postfix and infix operators:  x ++ ++ 
+    /// Similar to ApplyRepeat, but the aggregation occurs in a separate aggregation function.
     /// </summary>
     public static Parser<TInput, TOutput1> LeftReduce<TInput, TOutput1, TOutput2>(
         this Parser<TInput, TOutput1> leftParser,
@@ -212,7 +221,8 @@ public static partial class ParserExtensions
         new OptionalMultiParser<TInput, TOutput>(parser, fnMissing);
 
     /// <summary>
-    /// A parser the returns the output of the parser that would consume the most input.
+    /// A parser the returns the output of either this parser or the next parser, whichever would consumes the most input.
+    /// Similar to Else, but unordered.
     /// </summary>
     public static Parser<TInput, TOutput> Or<TInput, TOutput>(
         this Parser<TInput, TOutput> parser,
@@ -220,7 +230,8 @@ public static partial class ParserExtensions
         new BestParser<TInput, TOutput>(parser, nextParser);
 
     /// <summary>
-    /// A parser the returns the output of the parser that would consume the most input.
+    /// A parser the returns the output of either this parser or the next parser, whichever would consumes the most input.
+    /// Similar to Else, but unordered.
     /// </summary>
     public static Parser<TInput, IReadOnlyList<TOutput>> Or<TInput, TOutput>(
         this Parser<TInput, IReadOnlyList<TOutput>> parser,
@@ -228,7 +239,8 @@ public static partial class ParserExtensions
         new BestMultiParser<TInput, TOutput>(parser, nextParser);
 
     /// <summary>
-    /// A parser the returns the output of the parser that would consume the most input.
+    /// A parser the returns the output of either this parser or the next parser, whichever would consumes the most input.
+    /// Similar to Else, but unordered.
     /// </summary>
     public static Parser<TInput, IReadOnlyList<TOutput>> Or<TInput, TOutput>(
         this Parser<TInput, IReadOnlyList<TOutput>> parser,
@@ -236,7 +248,8 @@ public static partial class ParserExtensions
         new BestMultiParser<TInput, TOutput>(parser, nextParser.ToMultiParser());
 
     /// <summary>
-    /// A parser the returns the output of the parser that would consume the most input.
+    /// A parser the returns the output of either this parser or the next parser, whichever would consumes the most input.
+    /// Similar to Else, but unordered.
     /// </summary>
     public static Parser<TInput, IReadOnlyList<TOutput>> Or<TInput, TOutput>(
         this Parser<TInput, TOutput> parser,

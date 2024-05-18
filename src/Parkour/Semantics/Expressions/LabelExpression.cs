@@ -1,6 +1,9 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Marks a location that a branch may target.
+/// </summary>
 public class LabelExpression : Expression
 {
     public string Name { get; }

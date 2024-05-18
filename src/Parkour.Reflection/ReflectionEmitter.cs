@@ -1171,7 +1171,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
             _ilgen.Emit(OpCodes.Newobj, info);
         }
 
-        public override void EmitNewArray(TypeSymbol elementTypeSymbol)
+        public override void EmitNewSZArray(TypeSymbol elementTypeSymbol)
         {
             var info = _emitter.GetRuntimeType(elementTypeSymbol);
             _ilgen.Emit(OpCodes.Newarr, info);

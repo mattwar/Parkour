@@ -23,24 +23,28 @@ public static class ParserFactory<TInput> where TInput : notnull
 
     /// <summary>
     /// A parser that produces that output from the parser that would consume the most input.
+    /// Similar to First, but unordered.
     /// </summary>
     public static Parser<TInput, TOutput> Best<TOutput>(params Parser<TInput, TOutput>[] parsers) =>
         new BestParser<TInput, TOutput>(parsers);
 
     /// <summary>
     /// A parser that produces that output from the parser that would consume the most input.
+    /// Similar to First, but unordered.
     /// </summary>
     public static Parser <TInput, IReadOnlyList<TOutput>> Best<TOutput>(params Parser<TInput, IReadOnlyList<TOutput>>[] parsers) =>
         new BestMultiParser<TInput, TOutput>(parsers);
 
     /// <summary>
     /// A parser that produces the output of the first parser that would succeed.
+    /// Similar to Best, but ordered.
     /// </summary>
     public static Parser<TInput, TOutput> First<TOutput>(params Parser<TInput, TOutput>[] parsers) =>
         new FirstParser<TInput, TOutput>(parsers);
 
     /// <summary>
     /// A parser that produces the output of the first parser that would succeed.
+    /// Similar to Best, but ordered.
     /// </summary>
     public static Parser<TInput, IReadOnlyList<TOutput>> First<TOutput>(params Parser<TInput, IReadOnlyList<TOutput>>[] parsers) =>
         new FirstMultiParser<TInput, TOutput>(parsers);

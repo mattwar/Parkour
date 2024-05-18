@@ -275,7 +275,7 @@ public abstract class ILEmitter
     /// Creates a new zero-based single dimensional array.
     /// [size] [a] [b] [c] => [array] [a] [b] [c]
     /// </summary>
-    public abstract void EmitNewArray(TypeSymbol elementTypeSymbol);
+    public abstract void EmitNewSZArray(TypeSymbol elementTypeSymbol);
 
     /// <summary>
     /// Loads an initialized value-type value onto the top of the evaluation stack.

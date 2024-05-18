@@ -6,7 +6,7 @@ using Symbols;
 /// </summary>
 public class ArityExpression : AdjustedReferenceExpression
 {
-    public override Expression ElementType { get; }
+    public override Expression TypeOrMember { get; }
     public int Arity { get; }
     public override Symbol? ReferencedSymbol { get; }
 
@@ -24,7 +24,7 @@ public class ArityExpression : AdjustedReferenceExpression
             resultType,
             diagnostics)
     {
-        this.ElementType = expression;
+        this.TypeOrMember = expression;
         this.Arity = arity;
         this.ReferencedSymbol = referencedSymbol;
     }
@@ -34,7 +34,7 @@ public class ArityExpression : AdjustedReferenceExpression
     public override SemanticElement? GetChild(int index) =>
         index switch
         {
-            0 => this.ElementType,
+            0 => this.TypeOrMember,
             _ => null
         };
 }

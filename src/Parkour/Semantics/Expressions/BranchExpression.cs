@@ -1,6 +1,10 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Evaluates the expression (if specified)
+/// and branches to the location identified by the label.
+/// </summary>
 public sealed class BranchExpression : Expression
 {
     public string LabelName { get; }

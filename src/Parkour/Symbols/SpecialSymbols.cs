@@ -3,22 +3,23 @@
 public static class SpecialSymbols
 {
     /// <summary>
-    /// The type is unknown.
+    /// The result type of an expression with control flow that does not actually return,
+    /// (like branch or throw), but otherwise the same as Void.
     /// </summary>
-    public static readonly TypeSymbol Unknown = new ClassSymbol("Unknown");
+    public static readonly TypeSymbol DoesNotReturn = new ClassSymbol(nameof(DoesNotReturn));
 
     /// <summary>
-    /// The type of a namespace symbol.
+    /// The result type of the namespace portion of a type expression.
     /// </summary>
-    public static readonly TypeSymbol Namespace = new ClassSymbol("Namespace");
+    public static readonly TypeSymbol Namespace = new ClassSymbol(nameof(Namespace));
 
     /// <summary>
-    /// The type of a null literal, not assigned.
+    /// The result type of a constant expression with null value that is not yet inferred from context.
     /// </summary>
-    public static readonly TypeSymbol Null = new ClassSymbol("Null");
+    public static readonly TypeSymbol Null = new ClassSymbol(nameof(Null));
 
     /// <summary>
-    /// Similar to None and Void, but indicates the expression does not actually return.
+    /// The result type of an expression when it is not known (unbound or not found).
     /// </summary>
-    public static readonly TypeSymbol DoesNotReturn = new ClassSymbol("DoesNotReturn");
+    public static readonly TypeSymbol Unknown = new ClassSymbol(nameof(Unknown));
 }

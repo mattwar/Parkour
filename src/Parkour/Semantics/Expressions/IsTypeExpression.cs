@@ -2,6 +2,9 @@
 
 using Symbols;
 
+/// <summary>
+/// Tests the type of the value produced by the expression.
+/// </summary>
 public class IsTypeExpression : Expression
 {
     public Expression Expression { get; }

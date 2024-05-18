@@ -383,7 +383,7 @@ public class StandardBodyBuilder : BodyBuilder
             case MemberExpression member:
                 return member;
             case AdjustedReferenceExpression filter:
-                return GetMemberExpression(filter.ElementType);
+                return GetMemberExpression(filter.TypeOrMember);
             default:
                 return null;
         }
@@ -838,7 +838,7 @@ public class StandardBodyBuilder : BodyBuilder
                 return member.Instance;
 
             case AdjustedReferenceExpression filter:
-                return GetMemberInstance(filter.ElementType);
+                return GetMemberInstance(filter.TypeOrMember);
 
             default:
                 return null;
@@ -968,32 +968,129 @@ public class StandardBodyBuilder : BodyBuilder
 
     protected virtual void EmitNewArraySize(NewArraySizeExpression newArraySize)
     {
-        EmitExpressionAsType(newArraySize.Size, this.ExternalSymbols.Int32);
-        this.Emitter.EmitNewArray(newArraySize.ElementTypeSymbol!);
+        if (newArraySize.ElementTypeSymbol != null)
+        {
+            switch (newArraySize.Sizes.Count)
+            {
+                case 1:
+                    EmitExpressionAsType(newArraySize.Sizes[0], this.ExternalSymbols.Int32);
+                    this.Emitter.EmitNewSZArray(newArraySize.ElementTypeSymbol);
+                    return;
+                case 2:
+                    InitArrayCreateInstance();
+                    if (_Array_CreateInstance_2 != null)
+                    {
+                        EmitTypeOf(newArraySize.ElementTypeSymbol);
+                        EmitExpressionAsType(newArraySize.Sizes[0], this.ExternalSymbols.Int32);
+                        EmitExpressionAsType(newArraySize.Sizes[1], this.ExternalSymbols.Int32);
+                        this.Emitter.EmitCall(_Array_CreateInstance_2);
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
+                    }
+                    break;
+                case 3:
+                    InitArrayCreateInstance();
+                    if (_Array_CreateInstance_3 != null)
+                    {
+                        EmitTypeOf(newArraySize.ElementTypeSymbol);
+                        EmitExpressionAsType(newArraySize.Sizes[0], this.ExternalSymbols.Int32);
+                        EmitExpressionAsType(newArraySize.Sizes[1], this.ExternalSymbols.Int32);
+                        EmitExpressionAsType(newArraySize.Sizes[2], this.ExternalSymbols.Int32);
+                        this.Emitter.EmitCall(_Array_CreateInstance_3);
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
+                    }
+                    break;
+                default:
+                    InitArrayCreateInstance();
+                    if (_Array_CreateInstance_Any != null)
+                    {
+                        EmitTypeOf(newArraySize.ElementTypeSymbol);
+                        EmitNewArrayInit(this.ExternalSymbols.Int32, newArraySize.Sizes);
+                        this.Emitter.EmitCall(_Array_CreateInstance_Any);
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
+                    }
+                    break;
+            }
+        }
     }
+
+    private void InitArrayCreateInstance()
+    {
+        if (_Array_CreateInstance_2 != null)
+            return;
+
+        var arraySymbol = this.ExternalSymbols.GetType("System.Array");
+
+        _Array_CreateInstance_2 = arraySymbol.GetFirstHierarchyMember<MethodSymbol>(
+            "CreateInstance",
+            s => s.IsStatic
+                 && s.Parameters.Count == 3
+                 && s.Parameters[0].Type == this.ExternalSymbols.Type
+                 && s.Parameters[1].Type == this.ExternalSymbols.Int32
+                 && s.Parameters[2].Type == this.ExternalSymbols.Int32);
+
+        _Array_CreateInstance_3 = arraySymbol.GetFirstHierarchyMember<MethodSymbol>(
+            "CreateInstance",
+            s => s.IsStatic
+                 && s.Parameters.Count == 4
+                 && s.Parameters[0].Type == this.ExternalSymbols.Type
+                 && s.Parameters[1].Type == this.ExternalSymbols.Int32
+                 && s.Parameters[2].Type == this.ExternalSymbols.Int32
+                 && s.Parameters[3].Type == this.ExternalSymbols.Int32);
+
+        _Array_CreateInstance_Any = arraySymbol.GetFirstHierarchyMember<MethodSymbol>(
+            "CreateInstance",
+            s => s.IsStatic
+                 && s.Parameters.Count == 2
+                 && s.Parameters[0].Type == this.ExternalSymbols.Type
+                 && s.Parameters[1].Type == this.ExternalSymbols.GetArray(this.ExternalSymbols.Int32));
+    }
+
+    private MethodSymbol? _Array_CreateInstance_2;
+    private MethodSymbol? _Array_CreateInstance_3;
+    private MethodSymbol? _Array_CreateInstance_Any;
 
     protected virtual void EmitNewArrayInit(NewArrayInitExpression newArrayInit)
     {
-        this.Emitter.EmitLoadInt32(newArrayInit.Expressions.Count);
-
-        var array = new VariableSymbol("array", newArrayInit.ResultType);
-        this.Emitter.DeclareVariableStart(array);
-        this.Emitter.EmitNewArray(newArrayInit.ElementTypeSymbol!);
-        this.Emitter.EmitStoreVariable(array);
-
-        for (int i = 0; i < newArrayInit.Expressions.Count; i++)
+        if (newArrayInit.ElementTypeSymbol != null)
         {
-            this.Emitter.EmitLoadVariable(array);  // array
+            this.EmitNewArrayInit(newArrayInit.ElementTypeSymbol, newArrayInit.Expressions);
+        }
+        else
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    private void EmitNewArrayInit(TypeSymbol elementType, ImmutableList<Expression> expressions)
+    {
+        this.Emitter.EmitLoadInt32(expressions.Count);
+
+        var tmp = new VariableSymbol("array", this.ExternalSymbols.GetArray(elementType));
+        this.Emitter.DeclareVariableStart(tmp);
+        this.Emitter.EmitNewSZArray(elementType);
+        this.Emitter.EmitStoreVariable(tmp);
+
+        for (int i = 0; i < expressions.Count; i++)
+        {
+            this.Emitter.EmitLoadVariable(tmp);    // array
             this.Emitter.EmitLoadInt32(i);         // index
-            EmitExpressionAsType(newArrayInit.Expressions[i], newArrayInit.ElementTypeSymbol!);
-            this.Emitter.EmitStoreArrayElement(newArrayInit.ElementTypeSymbol!);
+            EmitExpressionAsType(expressions[i], elementType);
+            this.Emitter.EmitStoreArrayElement(elementType);
         }
 
-        if (newArrayInit.ResultType != this.ExternalSymbols.Void)
-            this.Emitter.EmitLoadVariable(array);
-
-        this.Emitter.DeclareVariableEnd(array);
+        this.Emitter.EmitLoadVariable(tmp);
+        this.Emitter.DeclareVariableEnd(tmp);
     }
+
     #endregion
 
     #region Operator Emit
@@ -1180,19 +1277,27 @@ public class StandardBodyBuilder : BodyBuilder
 
     protected virtual void EmitTypeOf(TypeOfExpression tof)
     {
+        if (tof.TypeSymbol != null)
+        {
+            EmitTypeOf(tof.TypeSymbol);
+        }
+        else
+        {
+            this.Emitter.EmitThrowAndReport(new Diagnostic($"Missing runtime method Type.GetTypeFromHandle"));
+        }
+    }
+
+    private void EmitTypeOf(TypeSymbol type)
+    {
         if (_getTypeFromHandleSymbol == null)
         {
             _getTypeFromHandleSymbol = this.Emitter.ExternalSymbols.Type.GetFirstMember("GetTypeFromHandle") as MethodSymbol;
         }
 
-        if (tof.TypeSymbol != null && _getTypeFromHandleSymbol != null)
+        if (_getTypeFromHandleSymbol != null)
         {
-            this.Emitter.EmitLoadToken(tof.TypeSymbol);
+            this.Emitter.EmitLoadToken(type);
             this.Emitter.EmitCall(_getTypeFromHandleSymbol);
-        }
-        else
-        {
-            this.Emitter.EmitThrowAndReport(new Diagnostic($"Missing runtime method Type.GetTypeFromHandle"));
         }
     }
 

@@ -35,18 +35,21 @@ public class SimpleBindingScope : BindingScope
     public override BindingScope NewScope() =>
         new SimpleBindingScope(null, null, this);
 
-    public override void FindMatchingSymbols(string? name, Func<Symbol, bool>? predicate, List<Symbol> list)
+    public override void FindMatchingSymbols(
+        string? name, 
+        Func<Symbol, bool>? predicate, 
+        List<Symbol> list)
     {
         // look at container members
         foreach (var container in _containers)
         {
             if (name != null)
             {
-                container.GetMembers(name, predicate, list);
+                container.GetHierarchyMembers(name, predicate, firstMatchesOnly: true, list);
             }
             else if (predicate != null)
             {
-                container.GetMembers(predicate, list);
+                container.GetHierarchyMembers(predicate, firstMatchesOnly: true, list);
             }
             else
             {
@@ -66,11 +69,13 @@ public class SimpleBindingScope : BindingScope
         }
     }
 
-    public override TSymbol FindMatchingSymbol<TSymbol>(string? name, Func<TSymbol, bool>? predicate) 
+    public override TSymbol FindFirstMatchingSymbol<TSymbol>(
+        string? name, 
+        Func<TSymbol, bool>? predicate)
     {
         foreach (var container in _containers)
         {
-            var symbol = container.GetFirstMember(name, predicate);
+            var symbol = container.GetFirstHierarchyMember(name, predicate);
             if (symbol != null)
                 return symbol;
         }

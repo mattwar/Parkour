@@ -3,7 +3,8 @@
 using Symbols;
 
 /// <summary>
-/// Converts the expression to the specified type if it is an instance of that type or null if it is not.
+/// Converts the expression to the specified type if it is an instance of that type 
+/// or null if it is not.
 /// </summary>
 public class AsTypeExpression : Expression
 {

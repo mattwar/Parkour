@@ -6,7 +6,7 @@ using Symbols;
 /// </summary>
 public class ArrayExpression : AdjustedReferenceExpression
 {
-    public override Expression ElementType { get; }
+    public override Expression TypeOrMember { get; }
     public override Symbol? ReferencedSymbol { get; }
 
     public ArrayExpression(
@@ -22,7 +22,7 @@ public class ArrayExpression : AdjustedReferenceExpression
             resultType,
             diagnostics)
     {
-        this.ElementType = elementType;
+        this.TypeOrMember = elementType;
         this.ReferencedSymbol = referencedSymbol;
     }
 
@@ -31,7 +31,7 @@ public class ArrayExpression : AdjustedReferenceExpression
     public override SemanticElement? GetChild(int index) =>
         index switch
         {
-            0 => this.ElementType,
+            0 => this.TypeOrMember,
             _ => null
         };
 }

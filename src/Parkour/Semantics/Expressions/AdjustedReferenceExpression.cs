@@ -6,7 +6,7 @@ using Symbols;
 /// </summary>
 public abstract class AdjustedReferenceExpression : Expression
 {
-    public abstract Expression ElementType { get; }
+    public abstract Expression TypeOrMember { get; }
 
     internal protected AdjustedReferenceExpression(
         ContainsState state,

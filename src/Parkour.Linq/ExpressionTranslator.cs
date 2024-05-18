@@ -355,7 +355,7 @@ public class ExpressionTranslator
             case MemberExpression member:
                 return member.Instance;
             case AdjustedReferenceExpression adjust:
-                return GetCallInstance(adjust.ElementType);
+                return GetCallInstance(adjust.TypeOrMember);
             default:
                 return expression;
         }
@@ -533,8 +533,8 @@ public class ExpressionTranslator
     private L.Expression TranslateNewArraySize(NewArraySizeExpression newArray)
     {
         var elementType = TranslateType(newArray.ElementTypeSymbol!);
-        var size = Translate(newArray.Size);
-        return L.Expression.NewArrayBounds(elementType, size);
+        var sizes = newArray.Sizes.Select(s => Translate(s)).ToArray();
+        return L.Expression.NewArrayBounds(elementType, sizes);
     }
 
     private L.Expression TranslateNewArrayInit(NewArrayInitExpression newArray)

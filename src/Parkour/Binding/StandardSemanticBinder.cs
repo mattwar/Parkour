@@ -1175,7 +1175,7 @@ public class StandardSemanticBinder : SemanticBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var elementTypeExpr = BindTypeExpression(context, array.ElementType, diagnostics);
+            var elementTypeExpr = BindTypeExpression(context, array.TypeOrMember, diagnostics);
             var elementType = elementTypeExpr.ReferencedSymbol as TypeSymbol;
             var arrayType = elementType != null ? context.Symbols.GetArray(elementType) : null;
             var resultType = context.Symbols.Type; // a type is a type
@@ -1185,7 +1185,7 @@ public class StandardSemanticBinder : SemanticBinder
                 diagnostics.Add(BindingDiagnostics.ReferencedSymbolNotType().WithLocation(array.Location));
             }
 
-            if (elementTypeExpr == array.ElementType
+            if (elementTypeExpr == array.TypeOrMember
                 && arrayType == array.ReferencedSymbol
                 && resultType == array.ResultType
                 && diagnostics.Count == 0)
@@ -1216,7 +1216,7 @@ public class StandardSemanticBinder : SemanticBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(context, arity.ElementType);
+            var expression = BindExpression(context, arity.TypeOrMember);
 
             Symbol? referencedSymbol = null;
             if (expression.ReferencedSymbol is GroupSymbol group)
@@ -1235,7 +1235,7 @@ public class StandardSemanticBinder : SemanticBinder
 
             var resultType = GetReferenceResultType(context, referencedSymbol);
 
-            if (expression == arity.ElementType
+            if (expression == arity.TypeOrMember
                 && referencedSymbol == arity.ReferencedSymbol
                 && resultType == arity.ResultType
                 && diagnostics.Count == 0)
@@ -1493,7 +1493,7 @@ public class StandardSemanticBinder : SemanticBinder
     /// </summary>
     protected virtual LabelSymbol? GetLabel(ExpressionContext context, string name)
     {
-        return context.Scope.FindMatchingSymbol<LabelSymbol>(name, null);
+        return context.Scope.FindFirstMatchingSymbol<LabelSymbol>(name, null);
     }
     #endregion
 
@@ -1593,7 +1593,7 @@ public class StandardSemanticBinder : SemanticBinder
             case MemberExpression member:
                 return member.Instance;
             case AdjustedReferenceExpression filter:
-                return GetCallInstance(filter.ElementType);
+                return GetCallInstance(filter.TypeOrMember);
             default:
                 return expression;
         }
@@ -1785,7 +1785,7 @@ public class StandardSemanticBinder : SemanticBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
-            var expression = BindExpression(context, construct.ElementType);
+            var expression = BindExpression(context, construct.TypeOrMember);
             var typeArguments = BindTypeExpressionList(context, construct.TypeArguments, diagnostics);
 
             Symbol? constructedSymbol = null;
@@ -1801,7 +1801,7 @@ public class StandardSemanticBinder : SemanticBinder
 
             var resultType = GetReferenceResultType(context, constructedSymbol);
 
-            if (expression == construct.ElementType
+            if (expression == construct.TypeOrMember
                 && typeArguments == construct.TypeArguments
                 && constructedSymbol == construct.ConstructedSymbol
                 && resultType == construct.ResultType
@@ -2804,6 +2804,7 @@ public class StandardSemanticBinder : SemanticBinder
         {
             if (expression.ReferencedSymbol is TypeSymbol type)
             {
+                // expression was type expression, match static members of that type
                 GetMatchingTypeMembers(
                     type,
                     name,
@@ -2812,6 +2813,7 @@ public class StandardSemanticBinder : SemanticBinder
             }
             else if (expression.ReferencedSymbol is ContainerSymbol container)
             {
+                // expression was namespace (or other non-type container)
                 container.GetMembers(
                     name,
                     s => s is MemberSymbol m,
@@ -2819,6 +2821,7 @@ public class StandardSemanticBinder : SemanticBinder
             }
             else
             {
+                // expression was an instance, match non-static members
                 GetMatchingTypeMembers(
                     expression.ResultType,
                     name,
@@ -2998,7 +3001,7 @@ public class StandardSemanticBinder : SemanticBinder
             var targetType = context.TargetType;
             context = context.WithTargetType(null);
             var elementType = newArraySize.ElementType != null ? BindTypeExpression(context, newArraySize.ElementType, diagnostics) : null;
-            var size = BindExpression(context, newArraySize.Size);
+            var sizes = BindExpressionList(context, newArraySize.Sizes);
 
             var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
             var elementTypeSymbol = elementType?.ReferencedSymbol as TypeSymbol
@@ -3011,7 +3014,7 @@ public class StandardSemanticBinder : SemanticBinder
             }
 
             if (elementType == newArraySize.ElementType
-                && size == newArraySize.Size
+                && sizes == newArraySize.Sizes
                 && elementTypeSymbol == newArraySize.ElementTypeSymbol
                 && resultType == newArraySize.ResultType
                 && diagnostics.Count == 0)
@@ -3019,7 +3022,7 @@ public class StandardSemanticBinder : SemanticBinder
 
             return new NewArraySizeExpression(
                 elementType,
-                size,
+                sizes,
                 newArraySize.Location,
                 elementTypeSymbol,
                 resultType,
@@ -3274,26 +3277,13 @@ public class StandardSemanticBinder : SemanticBinder
     /// </summary>
     protected virtual void GetMatchingTypeMembers(TypeSymbol type, string? name, Func<Symbol, bool>? predicate, List<Symbol> members)
     {
-        TypeSymbol? symbol = type;
-        int initialCount = members.Count;
-
-        while (symbol != null)
+        if (name != null)
         {
-            if (name != null)
-            {
-                symbol.GetMembers(name, predicate, members);
-            }
-            else if (predicate != null)
-            {
-                symbol.GetMembers(predicate, members);
-            }
-
-            if (members.Count > initialCount)
-                break;
-
-            // look in base type
-            // todo: handle interfaces separately
-            symbol = symbol.BaseTypes.FirstOrDefault();
+            type.GetHierarchyMembers(name, predicate, firstMatchesOnly: true, members);
+        }
+        else if (predicate != null)
+        {
+            type.GetHierarchyMembers(predicate, firstMatchesOnly: true, members);
         }
     }
 

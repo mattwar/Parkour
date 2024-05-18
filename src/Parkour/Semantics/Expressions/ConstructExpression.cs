@@ -2,30 +2,30 @@
 using Symbols;
 
 /// <summary>
-/// Constructs a type expression by giving it type arguments.
+/// Constructs a constructable type or member by giving it type arguments.
 /// </summary>
 public class ConstructExpression : AdjustedReferenceExpression
 {
-    public override Expression ElementType { get; }
+    public override Expression TypeOrMember { get; }
     public ImmutableList<Expression> TypeArguments { get; }
     public Symbol? ConstructedSymbol { get; }
 
     public ConstructExpression(
-        Expression expression,
+        Expression typeOrMember,
         ImmutableList<Expression> typeArguments,
         ISourceLocation? location,
         Symbol? constructedSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            State(expression)
+            State(typeOrMember)
             | CombineState(typeArguments)
             | NotNullOrDiagnosticState(constructedSymbol, diagnostics),
             location,
             resultType,
             diagnostics)
     {
-        this.ElementType = expression;
+        this.TypeOrMember = typeOrMember;
         this.TypeArguments = typeArguments;
         this.ConstructedSymbol = constructedSymbol;
     }
@@ -39,7 +39,7 @@ public class ConstructExpression : AdjustedReferenceExpression
     public override SemanticElement? GetChild(int index) =>
         index switch
         {
-            0 => this.ElementType,
+            0 => this.TypeOrMember,
             _ => this.TypeArguments[index - 1]
         };
 }

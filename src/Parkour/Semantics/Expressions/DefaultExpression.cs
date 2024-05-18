@@ -1,6 +1,10 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Produces the default value for the type,
+/// which is null for reference types and zero-initialized for value types.
+/// </summary>
 public sealed class DefaultExpression : Expression
 {
     public Expression? Type { get; }

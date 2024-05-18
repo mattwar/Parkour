@@ -1,6 +1,9 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Converts the value produced by the expression to the specified type.
+/// </summary>
 public class ConvertExpression : Expression
 {
     public Expression Expression { get; }

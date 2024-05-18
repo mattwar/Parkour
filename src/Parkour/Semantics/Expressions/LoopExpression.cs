@@ -1,6 +1,11 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Repeats the evaluation of expression until 
+/// the loop is exited by branching to the break target
+/// or other targets outside the loop.
+/// </summary>
 public sealed class LoopExpression : Expression
 {
     public Expression Body { get; }

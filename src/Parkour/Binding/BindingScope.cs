@@ -53,7 +53,7 @@ public abstract class BindingScope
     /// <summary>
     /// Finds the most recently added matching symbol in the current scope
     /// </summary>
-    public abstract TSymbol? FindMatchingSymbol<TSymbol>(string? name, Func<TSymbol, bool>? predicate)
+    public abstract TSymbol? FindFirstMatchingSymbol<TSymbol>(string? name, Func<TSymbol, bool>? predicate)
         where TSymbol : Symbol;
 
     /// <summary>

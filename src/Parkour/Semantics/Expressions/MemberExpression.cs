@@ -2,6 +2,10 @@
 
 namespace Parkour.Semantics;
 
+/// <summary>
+/// Accesses a member of the instance expression.
+/// If the instance expression is a type expression, a static member can be accessed.
+/// </summary>
 public sealed class MemberExpression : Expression
 {
     public Expression Instance { get; }

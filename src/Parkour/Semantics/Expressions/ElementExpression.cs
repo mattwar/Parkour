@@ -1,6 +1,9 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Return the indexed element from the array or indexable instance.
+/// </summary>
 public sealed class ElementExpression : Expression
 {
     public Expression Expression { get; }

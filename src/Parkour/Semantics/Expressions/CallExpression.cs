@@ -1,6 +1,10 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Calls the method or delagate identified by the expression
+/// with the specified arguments.
+/// </summary>
 public sealed class CallExpression : Expression
 {
     public Expression Expression { get; }

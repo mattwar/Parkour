@@ -77,7 +77,7 @@ public abstract class ContainerSymbol : MemberSymbol
         GetMembers(name, 0, name.Length, null, symbols);
 
     /// <summary>
-    /// Gets the first symbol that matches the predicate.
+    /// Gets the first member that matches the predicate.
     /// </summary>
     public virtual TSymbol? GetFirstMember<TSymbol>(string? name, Func<TSymbol, bool>? predicate)
         where TSymbol : Symbol

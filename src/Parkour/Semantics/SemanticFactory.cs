@@ -283,13 +283,19 @@ public static class SemanticFactory
     /// Creates a new array instance of the specified size.
     /// </summary>
     public static NewArraySizeExpression NewArray(Expression elementType, Expression size, ISourceLocation? location = null) =>
-        new NewArraySizeExpression(elementType, size, location, null, null, null);
+        new NewArraySizeExpression(elementType, [size], location, null, null, null);
 
     /// <summary>
     /// Creates a new array instance of the specified size, with inferred element type.
     /// </summary>
     public static NewArraySizeExpression NewArray(Expression size, ISourceLocation? location = null) =>
-        new NewArraySizeExpression(null, size, location, null, null, null);
+        new NewArraySizeExpression(null, [size], location, null, null, null);
+
+    /// <summary>
+    /// Creates a new multidimensional array instance of the specified dimension sizes.
+    /// </summary>
+    public static NewArraySizeExpression NewMultiDimensionalArray(Expression elementType, ImmutableList<Expression> sizes, ISourceLocation? location = null) =>
+        new NewArraySizeExpression(elementType, sizes, location, null, null, null);
 
     /// <summary>
     /// Invokes an intrinsic operator.

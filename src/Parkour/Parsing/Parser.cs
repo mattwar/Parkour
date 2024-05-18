@@ -2,30 +2,50 @@
 
 namespace Parkour.Parsing;
 
-public record struct ScanResult(bool Success, int Length);
-public record struct ParseIntoResult(bool Success, int Length);
-public record struct ParseResult<TOutput>(bool Success, int Length, TOutput Output);
-public record struct SearchResult(bool Success, int Length, bool AfterMissing);
-
+/// <summary>
+/// A parser that can parse the input into a single weakly-typed output item.
+/// (Also scan and search)
+/// </summary>
 [System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class Parser<TInput>
 {
+    /// <summary>
+    /// Parse zero or more input items and produce a single weakly-typed output item.
+    /// </summary>
     public abstract ParseResult<object> ParseAsObject(
         ReadOnlySpan<TInput> input);
 
+    /// <summary>
+    /// Determine if (and how many) input items match the parser's grammar.
+    /// </summary>
     public abstract ScanResult Scan(
         ReadOnlySpan<TInput> input);
 
+    /// <summary>
+    /// Analyze the scanning of the input items, by calling the callback for each
+    /// parser that considered.
+    /// </summary>
     public abstract SearchResult Search(
         ReadOnlySpan<TInput> input,
         bool afterMissing,
         SearchCallback<TInput>? fnCallback);
 
+    /// <summary>
+    /// True if the parser is required to succeed even if the grammar does not match.
+    /// Similar to optional, but will always return non-null result.
+    /// </summary>
     public virtual bool IsRequired => false;
 
+    /// <summary>
+    /// A list of zero or more annotations associated with the parser.
+    /// </summary>
     public virtual ImmutableList<object> Annotations =>
         ImmutableList<object>.Empty;
 
+    /// <summary>
+    /// The basic term associated with the parser (if any).
+    /// Used mostly for debugging.
+    /// </summary>
     public virtual string? Term =>
         this.Annotations.OfType<string>().FirstOrDefault();
 
@@ -46,15 +66,14 @@ public abstract class Parser<TInput>
     }
 }
 
-public delegate void SearchCallback<TInput>(Parser<TInput> parser, ReadOnlySpan<TInput> remainingInput, bool afterMissing);
-public delegate TState BeforeAction<TInput, TState>(Parser<TInput> parser, ReadOnlySpan<TInput> input, TState state);
-public delegate TState AfterAction<TInput, TState>(Parser<TInput> parser, ReadOnlySpan<TInput> remainingInput, bool success, TState state);
-
 /// <summary>
-/// A parser that can parse the input and return a single output item.
+/// A parser that can parse the input into a single strongly-typed output item.
 /// </summary>
 public abstract class Parser<TInput, TOutput> : Parser<TInput>
 {
+    /// <summary>
+    /// Parse zero or more input items and produce a single strongly-typed output item.
+    /// </summary>
     public abstract ParseResult<TOutput> Parse(ReadOnlySpan<TInput> input);
 
     public override ParseResult<object> ParseAsObject(ReadOnlySpan<TInput> input)
@@ -70,10 +89,13 @@ public abstract class Parser<TInput, TOutput> : Parser<TInput>
 }
 
 /// <summary>
-/// A parser that can parse the input and return multiple output items.
+/// A parser that can parse the input into multiple output items.
 /// </summary>
 public abstract class MultiParser<TInput, TOutput> : Parser<TInput, IReadOnlyList<TOutput>>
 {
+    /// <summary>
+    /// Parse zero or more input items and produce zero or more strongly-typed output items into the output list.
+    /// </summary>
     public abstract ParseIntoResult ParseInto(ReadOnlySpan<TInput> input, List<TOutput> outputList);
 
     public override ParseResult<IReadOnlyList<TOutput>> Parse(ReadOnlySpan<TInput> input)
@@ -90,6 +112,31 @@ public abstract class MultiParser<TInput, TOutput> : Parser<TInput, IReadOnlyLis
         }
     }
 }
+
+/// <summary>
+/// Result of calling Parser.Scan
+/// </summary>
+public record struct ScanResult(bool Success, int Length);
+
+/// <summary>
+/// Result of calling Parser.ParseInto
+/// </summary>
+public record struct ParseIntoResult(bool Success, int Length);
+
+/// <summary>
+/// Result of calling Parser.Parse
+/// </summary>
+public record struct ParseResult<TOutput>(bool Success, int Length, TOutput Output);
+
+/// <summary>
+/// Result of calling Parser.Search
+/// </summary>
+public record struct SearchResult(bool Success, int Length, bool AfterMissing);
+
+/// <summary>
+/// A function that is called for each parser while searching.
+/// </summary>
+public delegate void SearchCallback<TInput>(Parser<TInput> parser, ReadOnlySpan<TInput> remainingInput, bool afterMissing);
 
 /// <summary>
 /// Returns the number of items in the span that match.

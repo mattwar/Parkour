@@ -594,6 +594,10 @@ public class EmitterTests
             NewArray(Int32Type, [Constant(1), Constant(2)]),
             expectedResult: new int[] { 1, 2 }
             );
+
+        TestEmit(
+            NewMultiDimensionalArray(StringType, [Constant(2), Constant(3)]),
+            expectedResult: new string[2, 3]);
     }
 
     [TestMethod]
