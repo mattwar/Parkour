@@ -2,7 +2,7 @@
 using Symbols;
 
 /// <summary>
-/// References a symbol by its full name, regardless of scoping.
+/// References a symbol via the current symbol table.
 /// </summary>
 public sealed class SymbolExpression : Expression
 {

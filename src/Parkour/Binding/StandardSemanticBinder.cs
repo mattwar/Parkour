@@ -45,7 +45,7 @@ public class StandardSemanticBinder : SemanticBinder
         Expression expression,
         SymbolTable externalSymbols)
     {
-        var scope = CreateDefaultBindingScope().AddMembers(externalSymbols.GlobalNamespace);
+        var scope = CreateDefaultBindingScope().AddContainer(externalSymbols.GlobalNamespace);
         return BindExpression(expression, externalSymbols, scope);
     }
 
@@ -55,7 +55,7 @@ public class StandardSemanticBinder : SemanticBinder
     public virtual ExpressionBinding BindExpression(
         Expression expression,
         SymbolTable externalSymbols,
-        BindingScope scope)
+        Scope scope)
     {
         var context = new ExpressionContext(CreateInitialSymbolContext(externalSymbols), null, scope);
         var boundExpression = BindExpression(context, expression);
@@ -67,10 +67,10 @@ public class StandardSemanticBinder : SemanticBinder
     #region Symbol Creation
 
     /// <summary>
-    /// Gets an empty <see cref="BindingScope"/>.
+    /// Gets an empty <see cref="Scope"/>.
     /// </summary>
-    public virtual BindingScope CreateDefaultBindingScope() =>
-        SimpleBindingScope.Empty;
+    protected virtual Scope CreateDefaultBindingScope() =>
+        Scope.Empty;
 
     /// <summary>
     /// Creates the initial set of operators to use for binding.
@@ -79,11 +79,11 @@ public class StandardSemanticBinder : SemanticBinder
         OperatorSymbols.From(symbols).Default;
 
     /// <summary>
-    /// Creates a <see cref="SymbolContext"/> with a default <see cref="BindingScope"/>
+    /// Creates a <see cref="SymbolContext"/> with a default <see cref="Scope"/>
     /// </summary>
     protected virtual SymbolContext CreateDefaultSymbolContext(SymbolTable symbols)
     {
-        return new SymbolContext(symbols, CreateDefaultBindingScope().AddMembers(symbols.GlobalNamespace));
+        return new SymbolContext(symbols, CreateDefaultBindingScope().AddContainer(symbols.GlobalNamespace));
     }
 
     /// <summary>
@@ -180,7 +180,7 @@ public class StandardSemanticBinder : SemanticBinder
                 @namespace,
                 me =>
                 {
-                    var newContext = context.WithScope(context.Scope.AddMembers(me).AddSymbol(me));
+                    var newContext = context.WithScope(context.Scope.AddSymbolAndMembers(me));
                     return CreateAndCombineSymbols(newContext, me, g.SelectMany(n => n.Declarations));
                 }))
             .ToList();
@@ -323,9 +323,9 @@ public class StandardSemanticBinder : SemanticBinder
 
         typeContext = context.WithScope(
             context.Scope
-                .AddMembers(typeSymbol)
-                .AddSymbol(typeSymbol)
-                .AddSymbols(typeSymbol.TypeParameters));
+                .AddSymbolAndMembers(typeSymbol)
+                .AddSymbols(typeSymbol.TypeParameters)
+                );
 
         return typeSymbol;
     }
@@ -395,8 +395,7 @@ public class StandardSemanticBinder : SemanticBinder
 
         typeContext = context.WithScope(
             context.Scope
-                .AddMembers(typeSymbol)
-                .AddSymbol(typeSymbol)
+                .AddSymbolAndMembers(typeSymbol)
                 .AddSymbols(typeSymbol.TypeParameters));
 
         return typeSymbol;
@@ -477,8 +476,7 @@ public class StandardSemanticBinder : SemanticBinder
 
         typeContext = context.WithScope(
             context.Scope
-                .AddMembers(typeSymbol)
-                .AddSymbol(typeSymbol)
+                .AddSymbolAndMembers(typeSymbol)
                 .AddSymbols(typeSymbol.TypeParameters));
 
         return typeSymbol;
@@ -577,7 +575,7 @@ public class StandardSemanticBinder : SemanticBinder
         // put symbol in scope for baseTypes and members
         var typeContext = symbol != null
             ? context
-                .WithScope(context.Scope.AddMembers(symbol).AddSymbol(symbol))
+                .WithScope(context.Scope.AddSymbolAndMembers(symbol))
                 .WithDeclaringType(symbol)
             : context;
 
@@ -710,7 +708,7 @@ public class StandardSemanticBinder : SemanticBinder
         // put symbol in scope for baseTypes and members
         var typeContext = symbol != null
             ? context
-                .WithScope(context.Scope.AddMembers(symbol).AddSymbol(symbol))
+                .WithScope(context.Scope.AddSymbolAndMembers(symbol))
                 .WithDeclaringType(symbol)
             : context;
 
@@ -790,7 +788,7 @@ public class StandardSemanticBinder : SemanticBinder
         var bodyContext = context;
         if (nsSymbol != null)
         {
-            bodyContext = bodyContext.WithScope(bodyContext.Scope.AddMembers(nsSymbol).AddSymbol(nsSymbol));
+            bodyContext = bodyContext.WithScope(bodyContext.Scope.AddSymbolAndMembers(nsSymbol));
         }
 
         var (declarations, finalContext) = nd.Declarations.Rewrite(bodyContext, (d, _context) =>
@@ -807,7 +805,7 @@ public class StandardSemanticBinder : SemanticBinder
                 }
                 else if (ud.Expression.ReferencedSymbol is NamespaceSymbol ns)
                 {
-                    _context = _context.WithScope(_context.Scope.AddSymbol(ns).AddMembers(ns));
+                    _context = _context.WithScope(_context.Scope.AddSymbolAndMembers(ns));
                 }
             }
 
@@ -905,7 +903,7 @@ public class StandardSemanticBinder : SemanticBinder
         // put symbol in scope for baseTypes and members
         var typeContext = symbol != null
             ? context
-                .WithScope(context.Scope.AddMembers(symbol).AddSymbol(symbol))
+                .WithScope(context.Scope.AddSymbolAndMembers(symbol))
                 .WithDeclaringType(symbol)
             : context;
 
@@ -1493,7 +1491,7 @@ public class StandardSemanticBinder : SemanticBinder
     /// </summary>
     protected virtual LabelSymbol? GetLabel(ExpressionContext context, string name)
     {
-        return context.Scope.FindFirstMatchingSymbol<LabelSymbol>(name, null);
+        return this.GetFirstMatchingSymbolInScope<LabelSymbol>(context.Scope, name, null);
     }
     #endregion
 
@@ -2878,7 +2876,7 @@ public class StandardSemanticBinder : SemanticBinder
         var symbols = _symbolListPool.AllocateFromPool();
         try
         {
-            context.Scope.FindMatchingSymbols(name, null, symbols, FindScope.First);
+            this.GetMatchingSymbolsInScope(context.Scope, name, null, symbols);
             return context.Symbols.GetGroup(symbols);
         }
         finally
@@ -3275,7 +3273,8 @@ public class StandardSemanticBinder : SemanticBinder
     /// <summary>
     /// Gets the matching members of a type
     /// </summary>
-    protected virtual void GetMatchingTypeMembers(TypeSymbol type, string? name, Func<Symbol, bool>? predicate, List<Symbol> members)
+    protected virtual void GetMatchingTypeMembers(
+        TypeSymbol type, string? name, Func<Symbol, bool>? predicate, List<Symbol> members)
     {
         if (name != null)
         {
@@ -3285,6 +3284,103 @@ public class StandardSemanticBinder : SemanticBinder
         {
             type.GetHierarchyMembers(predicate, firstMatchesOnly: true, members);
         }
+    }
+
+    protected virtual TSymbol? GetFirstMatchingTypeMember<TSymbol>(
+        TypeSymbol type, string? name, Func<TSymbol, bool>? predicate)
+        where TSymbol: Symbol
+    {
+        return type.GetFirstHierarchyMember<TSymbol>(name, predicate);
+    }
+
+    /// <summary>
+    /// Gets the matching symbols in the specified scope.
+    /// </summary>
+    protected virtual void GetMatchingSymbolsInScope(
+        Scope scope, 
+        string? name, 
+        Func<Symbol, bool>? predicate, 
+        List<Symbol> symbols)
+    {
+        var originalCount = symbols.Count;
+
+        while (scope != null)
+        {
+            for (int i = scope.Symbols.Count - 1; i >= 0; i--)
+            {
+                var symbol = scope.Symbols[i];
+                if ((name == null || symbol.Name == name)
+                    && (predicate == null || predicate(symbol)))
+                {
+                    symbols.Add(symbol);
+                }
+            }
+
+            for (int i = scope.Containers.Count - 1; i >= 0; i--)
+            {
+                var container = scope.Containers[i];
+                if (container is TypeSymbol typeSymbol)
+                {
+                    this.GetMatchingTypeMembers(typeSymbol, name, predicate, symbols);
+                }
+                else if (name != null)
+                {
+                    container.GetMembers(name, predicate, symbols);
+                }
+                else if (predicate != null)
+                {
+                    container.GetMembers(predicate, symbols);
+                }
+            }
+
+            if (symbols.Count > originalCount)
+                return;
+
+            scope = scope.OuterScope!;
+        }
+    }
+
+    /// <summary>
+    /// Gets the first matching symbol in the specified scope.
+    /// </summary>
+    protected virtual TSymbol? GetFirstMatchingSymbolInScope<TSymbol>(
+        Scope scope, string? name, Func<TSymbol, bool>? predicate)
+        where TSymbol : Symbol
+    {
+        while (scope != null)
+        {
+            for (int i = scope.Symbols.Count - 1; i >= 0; i--)
+            {
+                var symbol = scope.Symbols[i];
+                if (symbol is TSymbol tsymbol
+                    && (name == null || symbol.Name == name)
+                    && (predicate == null || predicate(tsymbol)))
+                {
+                    return tsymbol;
+                }
+            }
+
+            for (int i = scope.Containers.Count - 1; i >= 0; i--)
+            {
+                var container = scope.Containers[i];
+                if (container is TypeSymbol typeSymbol)
+                {
+                    var first = this.GetFirstMatchingTypeMember(typeSymbol, name, predicate);
+                    if (first != null)
+                        return first;
+                }
+                else
+                {
+                    var first = container.GetFirstMember(name, predicate);
+                    if (first != null)
+                        return first;
+                }
+            }
+
+            scope = scope.OuterScope!;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -3398,6 +3494,81 @@ public class StandardSemanticBinder : SemanticBinder
     }
     #endregion
 
+    #region Scope
+    /// <summary>
+    /// Represents the symbols in scope at particular locations.
+    /// </summary>
+    public class Scope
+    {
+        /// <summary>
+        /// The immediate outer scope.
+        /// </summary>
+        public Scope? OuterScope { get; }
+
+        /// <summary>
+        /// The symbols visible in this scope.
+        /// </summary>
+        public ImmutableList<Symbol> Symbols { get; }
+
+        /// <summary>
+        /// The containers with members visible in this scope.
+        /// </summary>
+        public ImmutableList<ContainerSymbol> Containers { get; }
+
+        /// <summary>
+        /// Creates a new instance of a scope.
+        /// </summary>
+        public Scope(
+            ImmutableList<Symbol> symbols, 
+            ImmutableList<ContainerSymbol> containers,
+            Scope? outerScope)
+        {
+            this.OuterScope = outerScope;
+            this.Symbols = symbols;
+            this.Containers = containers;
+        }
+
+        /// <summary>
+        /// An empty scope.
+        /// </summary>
+        public static readonly Scope Empty =
+            new Scope(
+                ImmutableList<Symbol>.Empty, 
+                ImmutableList<ContainerSymbol>.Empty, 
+                null);
+
+        /// <summary>
+        /// Returns a copy of this scope with the new symbol added.
+        /// </summary>
+        public Scope AddSymbol(Symbol symbol) =>
+            new Scope(this.Symbols.Add(symbol), this.Containers, this.OuterScope);
+
+        /// <summary>
+        /// Returns a copy of this scope with the new symbols added.
+        /// </summary>
+        public Scope AddSymbols(IEnumerable<Symbol> symbols) =>
+            new Scope(this.Symbols.AddRange(symbols), this.Containers, this.OuterScope);
+
+        /// <summary>
+        /// Returns a copy of this scope with the container added.
+        /// </summary>
+        public Scope AddContainer(ContainerSymbol container) =>
+            new Scope(this.Symbols, this.Containers.Add(container), this.OuterScope);
+
+        /// <summary>
+        /// Returns a copy of this scope with the containers added.
+        /// </summary>
+        public Scope AddContainers(ImmutableList<ContainerSymbol> containers) =>
+            new Scope(this.Symbols, this.Containers.AddRange(containers), this.OuterScope);
+
+        /// <summary>
+        /// Returns a copy of this scope with the symbol and its members added to the scope.
+        /// </summary>
+        public Scope AddSymbolAndMembers(ContainerSymbol container) =>
+            new Scope(this.Symbols.Add(container), this.Containers.Add(container), this.OuterScope);
+    }
+    #endregion
+
     #region binding contexts
 
     /// <summary>
@@ -3406,11 +3577,11 @@ public class StandardSemanticBinder : SemanticBinder
     protected class SymbolContext
     {
         public SymbolTable Symbols { get; }
-        public BindingScope Scope { get; }
+        public Scope Scope { get; }
 
         private SymbolContext(
             SymbolTable symbols,
-            BindingScope scope,
+            Scope scope,
             Dictionary<Declaration, Symbol> declToSymbolMap)
         {
             this.Symbols = symbols;
@@ -3420,12 +3591,12 @@ public class StandardSemanticBinder : SemanticBinder
 
         public SymbolContext(
             SymbolTable symbols,
-            BindingScope scope)
+            Scope scope)
             : this(symbols, scope, new Dictionary<Declaration, Symbol>())
         {
         }
 
-        public virtual SymbolContext WithScope(BindingScope scope)
+        public virtual SymbolContext WithScope(Scope scope)
         {
             return new SymbolContext(this.Symbols, scope, _declToSymbolMap);
         }
@@ -3483,16 +3654,16 @@ public class StandardSemanticBinder : SemanticBinder
         public TypeSymbol? DeclaringType { get; }
 
         /// <summary>
-        /// The current <see cref="BindingScope"/>
+        /// The current <see cref="StandardSemanticBinder.Scope"/>
         /// </summary>
-        public BindingScope Scope { get; }
+        public Scope Scope { get; }
 
         private readonly Dictionary<Declaration, Symbol> _declToSymbolMap;
 
         public DeclarationContext(
             SymbolContext context,
             TypeSymbol? declaringType,
-            BindingScope scope,
+            Scope scope,
             Dictionary<Declaration, Symbol> unboundToSymbolMap)
         {
             this.SymbolContext = context;
@@ -3508,7 +3679,7 @@ public class StandardSemanticBinder : SemanticBinder
             return new DeclarationContext(this.SymbolContext, declaringType, this.Scope, _declToSymbolMap);
         }
 
-        public virtual DeclarationContext WithScope(BindingScope scope)
+        public virtual DeclarationContext WithScope(Scope scope)
         {
             if (scope == this.Scope)
                 return this;
@@ -3560,7 +3731,7 @@ public class StandardSemanticBinder : SemanticBinder
         /// <summary>
         /// The current binding scope.
         /// </summary>
-        public BindingScope Scope { get; }
+        public Scope Scope { get; }
 
         /// <summary>
         /// If true the binder will attempt to rebind an already bound semantic subtree.
@@ -3577,7 +3748,7 @@ public class StandardSemanticBinder : SemanticBinder
         private ExpressionContext(
             SymbolContext context,
             TypeSymbol? declaringType,
-            BindingScope scope,
+            Scope scope,
             bool rebind,
             TypeSymbol? targetType,
             Dictionary<LabelExpression, LabelSymbol>? labelToSymbolMap)
@@ -3593,7 +3764,7 @@ public class StandardSemanticBinder : SemanticBinder
         public ExpressionContext(
             SymbolContext context,
             TypeSymbol? declaringType,
-            BindingScope scope)
+            Scope scope)
             : this(context, declaringType, scope, false, null, null)
         {
         }
@@ -3601,7 +3772,7 @@ public class StandardSemanticBinder : SemanticBinder
         /// <summary>
         /// Creates a new instance with <see cref="Scope"/> assigned.
         /// </summary>
-        public ExpressionContext WithScope(BindingScope scope) =>
+        public ExpressionContext WithScope(Scope scope) =>
             new ExpressionContext(this.SymbolContext, this.DeclaringType, scope, this.Rebind, this.TargetType, _labelToSymbolMap);
 
         /// <summary>
