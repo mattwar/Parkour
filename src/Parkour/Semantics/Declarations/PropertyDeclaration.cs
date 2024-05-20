@@ -42,6 +42,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
     }
 
     public override PropertyDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new PropertyDeclaration(
             name,
             this.Access,
@@ -56,6 +57,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             );
 
     public override PropertyDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new PropertyDeclaration(
             this.Name,
             this.Access,
@@ -70,6 +72,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             );
 
     public PropertyDeclaration WithSymbol(PropertySymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new PropertyDeclaration(
             this.Name,
             this.Access,
@@ -84,6 +87,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             );
 
     public override PropertyDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new PropertyDeclaration(
             this.Name,
             this.Access,
@@ -98,6 +102,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             );
 
     public override PropertyDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new PropertyDeclaration(
             this.Name,
             access,
@@ -112,6 +117,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             );
 
     public override PropertyDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new PropertyDeclaration(
             this.Name,
             this.Access,
@@ -125,7 +131,23 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
+    public PropertyDeclaration WithPropertyType(Expression propertyType) =>
+        propertyType == this.PropertyType ? this :
+        new PropertyDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            propertyType,
+            this.BackingField,
+            this.GetMethod,
+            this.SetMethod,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
     public PropertyDeclaration WithBackingField(FieldDeclaration? backingField) =>
+        backingField == this.BackingField ? this :
         new PropertyDeclaration(
             this.Name,
             this.Access,
@@ -140,6 +162,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             );
 
     public PropertyDeclaration WithGetMethod(MethodDeclaration getMethod) =>
+        getMethod == this.GetMethod ? this :
         new PropertyDeclaration(
             this.Name,
             this.Access,
@@ -154,6 +177,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             );
 
     public PropertyDeclaration WithSetMethod(MethodDeclaration? setMethod) =>
+        setMethod == this.SetMethod ? this :
         new PropertyDeclaration(
             this.Name,
             this.Access,
@@ -178,4 +202,17 @@ public sealed class PropertyDeclaration : MemberDeclaration
             3 => this.BackingField,
             _ => null
         };
+
+    public override PropertyDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var propType = rewriter.Rewrite(this.PropertyType);
+        var backingField = rewriter.Rewrite(this.BackingField);
+        var getMethod = rewriter.Rewrite(this.GetMethod);
+        var setMethod = rewriter.Rewrite(this.SetMethod);
+        return this
+            .WithPropertyType(propType!)
+            .WithBackingField(backingField)
+            .WithGetMethod(getMethod!)
+            .WithSetMethod(setMethod);
+    }
 }

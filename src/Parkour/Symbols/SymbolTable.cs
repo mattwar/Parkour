@@ -339,4 +339,19 @@ public abstract class SymbolTable
     }
 
     #endregion
+
+    public Type? GetRuntimeType(TypeSymbol typeSymbol) =>
+        typeSymbol == this.Byte ? typeof(byte)
+        : typeSymbol == this.SByte ? typeof(sbyte)
+        : typeSymbol == this.Int16 ? typeof(short)
+        : typeSymbol == this.UInt16 ? typeof(ushort)
+        : typeSymbol == this.Int32 ? typeof(int)
+        : typeSymbol == this.UInt32 ? typeof(uint)
+        : typeSymbol == this.Int64 ? typeof(long)
+        : typeSymbol == this.UInt64 ? typeof(ulong)
+        : typeSymbol == this.Single ? typeof(float)
+        : typeSymbol == this.Double ? typeof(double)
+        : typeSymbol == this.Decimal ? typeof(Decimal)
+        : typeSymbol == this.String ? typeof(string)
+        : null;
 }

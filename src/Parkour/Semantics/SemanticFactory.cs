@@ -25,7 +25,7 @@ public static class SemanticFactory
     /// Assign a source value to a target location.
     /// </summary>
     public static AssignExpression Assign(Expression target, Expression expression, ISourceLocation? location = null) =>
-        new AssignExpression(target, expression, location, null);
+        new AssignExpression(target, expression, location, null, null);
 
     /// <summary>
     /// Defines a block expression of multiple expressions. The final expression determines the block expression's result.
@@ -210,20 +210,20 @@ public static class SemanticFactory
     /// <summary>
     /// Creates a lambda function.
     /// </summary>
+    public static LambdaExpression Lambda(ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
+        new LambdaExpression("", parameters, returnType, body, location, null, null, null, null);
+
+    /// <summary>
+    /// Creates a lambda function.
+    /// </summary>
     public static LambdaExpression Lambda(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
-        new LambdaExpression("", parameters, body, location, null, null, null, null);
+        Lambda(parameters, null!, body, location);
 
     /// <summary>
     /// Creates a lambda function.
     /// </summary>
-    public static LambdaExpression Lambda(IEnumerable<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
-        Lambda(parameters.ToImmutableList(), body, location);
-
-    /// <summary>
-    /// Creates a lambda function.
-    /// </summary>
-    public static LambdaExpression Lambda(IEnumerable<string> parameterNames, Expression body, ISourceLocation? location = null) =>
-        Lambda(parameterNames.Select(n => Parameter(n)), body, location);
+    public static LambdaExpression Lambda(ImmutableList<string> parameterNames, Expression body, ISourceLocation? location = null) =>
+        Lambda(parameterNames.Select(n => Parameter(n)).ToImmutableList(), body, location);
 
     /// <summary>
     /// Creates a lambda function.

@@ -60,7 +60,7 @@ public abstract class TypeDeclaration : MemberDeclaration
         declarations ??= ImmutableList<Declaration>.Empty;
 
         // include a default constructor if no instance constructor is specified
-        if (declarations.Any(d => d is ConstructorDeclaration cd && cd.Modifiers.Contains(SymbolModifier.Static)))
+        if (declarations.Any(d => d is ConstructorDeclaration cd && !cd.Modifiers.Contains(SymbolModifier.Static)))
             return declarations;
 
         return declarations.Add(SemanticFactory.Constructor(location));

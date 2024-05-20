@@ -45,6 +45,7 @@ public class MethodDeclaration : MemberDeclaration
     }
 
     public override MethodDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new MethodDeclaration(
             name,
             this.Access,
@@ -60,6 +61,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public override MethodDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new MethodDeclaration(
             this.Name,
             this.Access,
@@ -75,6 +77,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public MethodDeclaration WithSymbol(MethodSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new MethodDeclaration(
             this.Name,
             this.Access,
@@ -105,6 +108,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public override MethodDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new MethodDeclaration(
             this.Name,
             this.Access,
@@ -120,6 +124,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public override MethodDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new MethodDeclaration(
             this.Name,
             access,
@@ -135,6 +140,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public override MethodDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new MethodDeclaration(
             this.Name,
             this.Access,
@@ -150,6 +156,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public MethodDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
+        typeParameters == this.TypeParameters ? this :
         new MethodDeclaration(
             this.Name,
             this.Access,
@@ -165,6 +172,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public MethodDeclaration WithParameters(ImmutableList<ParameterDeclaration> parameters) =>
+        parameters == this.Parameters ? this :
         new MethodDeclaration(
             this.Name,
             this.Access,
@@ -180,6 +188,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public MethodDeclaration WithReturnType(Expression returnType) =>
+        returnType == this.ReturnType ? this :
         new MethodDeclaration(
             this.Name,
             this.Access,
@@ -195,6 +204,7 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public MethodDeclaration WithBody(Expression body) =>
+        body == this.Body ? this :
         new MethodDeclaration(
             this.Name,
             this.Access,
@@ -228,5 +238,18 @@ public class MethodDeclaration : MemberDeclaration
             1 => this.ReturnType,
             _ => null
         };
+    }
+
+    public override MethodDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var typeParams = rewriter.Rewrite(this.TypeParameters);
+        var parameters = rewriter.Rewrite(this.Parameters);
+        var returnType = rewriter.Rewrite(this.ReturnType);
+        var body = rewriter.Rewrite(this.Body);
+        return this
+            .WithTypeParameters(typeParams)
+            .WithParameters(parameters)
+            .WithReturnType(returnType!)
+            .WithBody(body!);
     }
 }

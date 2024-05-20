@@ -5,8 +5,11 @@ using Symbols;
 /// References a named symbol or symbols in the current scope,
 /// based on the lookup rules of the binder.
 /// </summary>
+[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public sealed class NameExpression : Expression
 {
+    private string DebugText => $"{GetType().Name}: {ReferencedSymbol?.FullName ?? "???"} : {ResultType.FullName ?? "???"}";
+
     public string Name { get; }
     public override Symbol? ReferencedSymbol { get; }
 
@@ -27,6 +30,57 @@ public sealed class NameExpression : Expression
         this.ReferencedSymbol = referencedSymbol;
     }
 
+    public override NameExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new NameExpression(
+            this.Name,
+            location,
+            this.ReferencedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override NameExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new NameExpression(
+            this.Name,
+            this.Location,
+            this.ReferencedSymbol,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override NameExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new NameExpression(
+            this.Name,
+            this.Location,
+            this.ReferencedSymbol,
+            resultType,
+            this.Diagnostics
+            );
+
+    public NameExpression WithName(string name) =>
+        name == this.Name ? this :
+        new NameExpression(
+            name,
+            this.Location,
+            this.ReferencedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public NameExpression WithReferencedSymbol(Symbol? referencedSymbol) =>
+        referencedSymbol == this.ReferencedSymbol ? this :
+        new NameExpression(
+            this.Name,
+            this.Location,
+            referencedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
     public override int ChildCount => 0;
     public override SemanticElement? GetChild(int index) => null;
+    public override NameExpression RewriteChildren(SemanticRewriter rewriter) => this;
 }

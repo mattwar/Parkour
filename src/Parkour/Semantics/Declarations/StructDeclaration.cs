@@ -31,6 +31,7 @@ public sealed class StructDeclaration : TypeDeclaration
     }
 
     public override StructDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new StructDeclaration(
             name,
             this.Access,
@@ -44,6 +45,7 @@ public sealed class StructDeclaration : TypeDeclaration
             );
 
     public override StructDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new StructDeclaration(
             this.Name,
             this.Access,
@@ -57,6 +59,7 @@ public sealed class StructDeclaration : TypeDeclaration
             );
 
     public StructDeclaration WithSymbol(StructSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new StructDeclaration(
             this.Name,
             this.Access,
@@ -70,6 +73,7 @@ public sealed class StructDeclaration : TypeDeclaration
             );
 
     public override StructDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new StructDeclaration(
             this.Name,
             this.Access,
@@ -83,6 +87,7 @@ public sealed class StructDeclaration : TypeDeclaration
             );
 
     public override StructDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new StructDeclaration(
             this.Name,
             access,
@@ -96,6 +101,7 @@ public sealed class StructDeclaration : TypeDeclaration
             );
 
     public override StructDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new StructDeclaration(
             this.Name,
             this.Access,
@@ -109,6 +115,7 @@ public sealed class StructDeclaration : TypeDeclaration
             );
 
     public override StructDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
+        typeParameters == this.TypeParameters ? this :
         new StructDeclaration(
             this.Name,
             this.Access,
@@ -122,6 +129,7 @@ public sealed class StructDeclaration : TypeDeclaration
             );
 
     public override StructDeclaration WithBaseTypes(ImmutableList<Expression> baseTypes) =>
+        baseTypes == this.BaseTypes ? this :
         new StructDeclaration(
             this.Name,
             this.Access,
@@ -135,6 +143,7 @@ public sealed class StructDeclaration : TypeDeclaration
             );
 
     public override StructDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
+        declarations == this.Declarations ? this :
         new StructDeclaration(
             this.Name,
             this.Access,
@@ -146,4 +155,15 @@ public sealed class StructDeclaration : TypeDeclaration
             this.Symbol,
             this.Diagnostics
             );
+
+    public override StructDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var typeParams = rewriter.Rewrite(this.TypeParameters);
+        var baseTypes = rewriter.Rewrite(this.BaseTypes);
+        var declarations = rewriter.Rewrite(this.Declarations);
+        return this
+            .WithTypeParameters(typeParams)
+            .WithBaseTypes(baseTypes)
+            .WithDeclarations(declarations);
+    }
 }

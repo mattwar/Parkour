@@ -45,7 +45,7 @@ public class StandardSemanticBinder : SemanticBinder
         Expression expression,
         SymbolTable externalSymbols)
     {
-        var scope = CreateDefaultBindingScope().AddContainer(externalSymbols.GlobalNamespace);
+        var scope = GetDefaultBindingScope().AddContainer(externalSymbols.GlobalNamespace);
         return BindExpression(expression, externalSymbols, scope);
     }
 
@@ -69,7 +69,7 @@ public class StandardSemanticBinder : SemanticBinder
     /// <summary>
     /// Gets an empty <see cref="Scope"/>.
     /// </summary>
-    protected virtual Scope CreateDefaultBindingScope() =>
+    protected virtual Scope GetDefaultBindingScope() =>
         Scope.Empty;
 
     /// <summary>
@@ -83,7 +83,8 @@ public class StandardSemanticBinder : SemanticBinder
     /// </summary>
     protected virtual SymbolContext CreateDefaultSymbolContext(SymbolTable symbols)
     {
-        return new SymbolContext(symbols, CreateDefaultBindingScope().AddContainer(symbols.GlobalNamespace));
+        return new SymbolContext(symbols, 
+            GetDefaultBindingScope().AddContainer(symbols.GlobalNamespace));
     }
 
     /// <summary>
@@ -192,7 +193,7 @@ public class StandardSemanticBinder : SemanticBinder
             .ToList();
 
         var otherMemberSymbols =
-            FlattenDeclarations(otherMembers)
+            otherMembers
             .Select(d => CreateAndMapDeclarationSymbol(context, @namespace, d))
             .OfType<Symbol>() // filter out nulls
             .ToList();
@@ -200,47 +201,6 @@ public class StandardSemanticBinder : SemanticBinder
         newMembers.AddRange(otherMemberSymbols);
 
         return newMembers.ToImmutableList();
-    }
-
-    protected IEnumerable<Declaration> FlattenDeclarations(
-        IEnumerable<Declaration> declarations)
-    {
-        var flattened = new List<Declaration>();
-        foreach (var decl in declarations)
-        {
-            FlattenDeclaration(decl, flattened);
-        }
-
-        return flattened;
-    }
-
-    protected virtual void FlattenDeclaration(
-        Declaration declaration, List<Declaration> flattened)
-    {
-        switch (declaration)
-        {
-#if false
-            case PropertyDeclaration pd:
-                if (pd.BackingField != null)
-                    flattened.Add(pd.BackingField);
-                if (pd.GetMethod != null)
-                    flattened.Add(pd.GetMethod);
-                if (pd.SetMethod != null)
-                    flattened.Add(pd.SetMethod);
-                flattened.Add(pd);
-                break;
-            case IndexerDeclaration id:
-                if (id.GetMethod != null)
-                    flattened.Add(id.GetMethod);
-                if (id.SetMethod != null)
-                    flattened.Add(id.SetMethod);
-                flattened.Add(id);
-                break;
-#endif
-            default:
-                flattened.Add(declaration);
-                break;
-        }
     }
 
     protected Symbol? CreateAndMapDeclarationSymbol(
@@ -318,7 +278,7 @@ public class StandardSemanticBinder : SemanticBinder
             me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
             () => ImmutableList<TypeSymbol>.Empty,
             () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
-            me => FlattenDeclarations(declaration.Declarations).Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
+            me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -348,12 +308,18 @@ public class StandardSemanticBinder : SemanticBinder
         Symbol? declaringSymbol,
         FieldDeclaration declaration)
     {
+        var constValue = declaration.Modifiers.Contains(SymbolModifier.Constant)
+            && declaration.Initializer is ConstantExpression constExpr
+            ? constExpr.Value
+            : null;
+
         return new FieldSymbol(
             declaration.Name,
             declaringSymbol as TypeSymbol,
             declaration.Access,
             declaration.Modifiers,
-            () => GetType(context, declaration.FieldType) ?? SpecialSymbols.Unknown
+            () => GetType(context, declaration.FieldType) ?? SpecialSymbols.Unknown,
+            constValue
             );
     }
 
@@ -390,7 +356,7 @@ public class StandardSemanticBinder : SemanticBinder
             me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
             () => ImmutableList<TypeSymbol>.Empty,
             () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
-            me => FlattenDeclarations(declaration.Declarations).Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
+            me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -471,7 +437,7 @@ public class StandardSemanticBinder : SemanticBinder
             me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
             () => ImmutableList<TypeSymbol>.Empty,
             () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
-            me => FlattenDeclarations(declaration.Declarations).Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
+            me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -1005,7 +971,9 @@ public class StandardSemanticBinder : SemanticBinder
     protected virtual Expression BindExpression(ExpressionContext context, Expression expression)
     {
         if (!(context.Rebind || expression.IsUnbound))
-            return expression;
+        {
+            //return expression;
+        }
 
         switch (expression)
         {
@@ -1264,7 +1232,7 @@ public class StandardSemanticBinder : SemanticBinder
         try
         {
             var target = BindExpression(context.WithTargetType(null), assign.Target);
-            var assignType = GetReferenceResultType(context, target.ReferencedSymbol) ?? context.Symbols.Object;
+            var assignType = target.ResultType ?? context.Symbols.Object;
             var source = BindExpression(context.WithTargetType(assignType), assign.Source);
             source = ConvertTo(context, source, assignType);
 
@@ -1278,12 +1246,13 @@ public class StandardSemanticBinder : SemanticBinder
                 && assign.ResultType == target.ResultType
                 && assign.Diagnostics.Count == 0
                 && diagnostics.Count == 0)
-                return target;
+                return assign;
 
             return new AssignExpression(
                 target,
                 source,
                 assign.Location,
+                assignType,
                 diagnostics.ToImmutableList()
                 );
         }
@@ -2457,44 +2426,49 @@ public class StandardSemanticBinder : SemanticBinder
         var types = _typeListPool.AllocateFromPool();
         try
         {
-            DelegateSymbol? lambdaSymbol = lambda.FunctionSymbol;
+            DelegateSymbol? functionSymbol = lambda.FunctionSymbol;
             LabelSymbol? returnLabel = lambda.ReturnLabel
                 ?? new LabelSymbol(LabelSymbol.ReturnLabelName, context.Symbols.Object);
             ImmutableList<ParameterDeclaration> parameters = lambda.Parameters;
             Expression body = lambda.Body;
-            TypeSymbol? returnType = null;
+            Expression? returnType = lambda.ReturnType;
+            TypeSymbol? returnTypeSymbol = null;
 
             BindLambdaSymbol(context);
 
-            if (returnLabel.Type != returnType)
+            if (returnLabel.Type != returnTypeSymbol)
             {
                 context = context.WithRebind(true);
-                returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, returnType!);
+                returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, returnTypeSymbol!);
                 BindLambdaSymbol(context);
             }
 
+            var resultType = GetReferenceResultType(context, functionSymbol);
+
             if (parameters == lambda.Parameters
                 && body == lambda.Body
-                && lambda.FunctionSymbol != null
-                && lambda.FunctionSymbol.ReturnType == body.ResultType
-                && lambda.ReturnType == returnType
+                && returnType == lambda.ReturnType
+                && functionSymbol != null
+                && functionSymbol == lambda.FunctionSymbol
+                && resultType == lambda.ResultType
                 && diagnostics.Count == 0)
                 return lambda;
 
             return new LambdaExpression(
                 lambda.Name,
                 parameters ?? ImmutableList<ParameterDeclaration>.Empty,
+                returnType,
                 body,
                 lambda.Location,
-                returnType,
-                lambdaSymbol,
+                functionSymbol,
                 returnLabel,
+                resultType,
                 diagnostics.ToImmutableList());
 
             void BindLambdaSymbol(ExpressionContext context)
             {
                 // bind and evalute new function symbol at the same time
-                lambdaSymbol = new DelegateSymbol(
+                functionSymbol = new DelegateSymbol(
                     lambda.Name,
                     null,
                     SymbolAccess.Public,
@@ -2505,11 +2479,11 @@ public class StandardSemanticBinder : SemanticBinder
                         BindBodyAndReturnType(pms, context);
                         return pms;
                     },
-                    () => returnType!);
+                    () => returnTypeSymbol!);
                 // force eval of deferred parameters and return type
                 // for side-effect assignment to locals  (Erik Meijer said it was okay)
-                var _ = lambdaSymbol.Parameters;
-                returnType = lambdaSymbol.ReturnType;
+                var _ = functionSymbol.Parameters;
+                returnTypeSymbol = functionSymbol.ReturnType;
             }
 
             ImmutableList<ParameterSymbol> CreateParameterSymbols(
@@ -2544,8 +2518,12 @@ public class StandardSemanticBinder : SemanticBinder
                     context.Scope
                         .AddSymbols(parameters)
                         .AddSymbol(returnLabel));
-                body = BindExpression(bodyContext, lambda.Body);
-                returnType = GetLambdaReturnType(context, body, returnLabel, diagnostics);
+                returnType = returnType != null ? BindExpression(bodyContext, returnType) : null;
+                returnTypeSymbol = returnType != null ? returnType?.ReferencedSymbol as TypeSymbol : returnTypeSymbol;
+                if (returnTypeSymbol != null)
+                    bodyContext = bodyContext.WithTargetType(returnTypeSymbol);
+                body = BindExpression(bodyContext, body);
+                returnTypeSymbol ??= GetLambdaReturnType(context, body, returnLabel, diagnostics);
             }
         }
         finally
@@ -3266,7 +3244,6 @@ public class StandardSemanticBinder : SemanticBinder
     }
     #endregion
 
-
     #endregion
 
     #region Misc
@@ -3518,7 +3495,7 @@ public class StandardSemanticBinder : SemanticBinder
         /// <summary>
         /// Creates a new instance of a scope.
         /// </summary>
-        public Scope(
+        private Scope(
             ImmutableList<Symbol> symbols, 
             ImmutableList<ContainerSymbol> containers,
             Scope? outerScope)
@@ -3538,6 +3515,12 @@ public class StandardSemanticBinder : SemanticBinder
                 null);
 
         /// <summary>
+        /// Creates a new inner scope.
+        /// </summary>
+        public Scope CreateInnerScope() =>
+            new Scope(ImmutableList<Symbol>.Empty, ImmutableList<ContainerSymbol>.Empty, this);
+
+        /// <summary>
         /// Returns a copy of this scope with the new symbol added.
         /// </summary>
         public Scope AddSymbol(Symbol symbol) =>
@@ -3550,13 +3533,15 @@ public class StandardSemanticBinder : SemanticBinder
             new Scope(this.Symbols.AddRange(symbols), this.Containers, this.OuterScope);
 
         /// <summary>
-        /// Returns a copy of this scope with the container added.
+        /// Returns a copy of this scope with the container added,
+        /// whose members will be in scope.
         /// </summary>
         public Scope AddContainer(ContainerSymbol container) =>
             new Scope(this.Symbols, this.Containers.Add(container), this.OuterScope);
 
         /// <summary>
-        /// Returns a copy of this scope with the containers added.
+        /// Returns a copy of this scope with the containers added,
+        /// whose members will be in scope.
         /// </summary>
         public Scope AddContainers(ImmutableList<ContainerSymbol> containers) =>
             new Scope(this.Symbols, this.Containers.AddRange(containers), this.OuterScope);

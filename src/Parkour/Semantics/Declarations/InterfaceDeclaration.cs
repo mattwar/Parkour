@@ -30,6 +30,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
     }
 
     public override InterfaceDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new InterfaceDeclaration(
             name,
             this.Access,
@@ -43,6 +44,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             );
 
     public override InterfaceDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new InterfaceDeclaration(
             this.Name,
             this.Access,
@@ -56,6 +58,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             );
 
     public InterfaceDeclaration WithSymbol(InterfaceSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new InterfaceDeclaration(
             this.Name,
             this.Access,
@@ -69,6 +72,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             );
 
     public override InterfaceDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new InterfaceDeclaration(
             this.Name,
             this.Access,
@@ -82,6 +86,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             );
 
     public override InterfaceDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new InterfaceDeclaration(
             this.Name,
             access,
@@ -95,6 +100,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             );
 
     public override InterfaceDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new InterfaceDeclaration(
             this.Name,
             this.Access,
@@ -108,6 +114,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             );
 
     public override InterfaceDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
+        typeParameters == this.TypeParameters ? this :
         new InterfaceDeclaration(
             this.Name,
             this.Access,
@@ -121,6 +128,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             );
 
     public override InterfaceDeclaration WithBaseTypes(ImmutableList<Expression> baseTypes) =>
+        baseTypes == this.BaseTypes ? this :
         new InterfaceDeclaration(
             this.Name,
             this.Access,
@@ -134,6 +142,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             );
 
     public override InterfaceDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
+        declarations == this.Declarations ? this :
         new InterfaceDeclaration(
             this.Name,
             this.Access,
@@ -145,4 +154,15 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Symbol,
             this.Diagnostics
             );
+
+    public override InterfaceDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var typeParams = rewriter.Rewrite(this.TypeParameters);
+        var baseTypes = rewriter.Rewrite(this.BaseTypes);
+        var declarations = rewriter.Rewrite(this.Declarations);
+        return this
+            .WithTypeParameters(typeParams)
+            .WithBaseTypes(baseTypes)
+            .WithDeclarations(declarations);
+    }
 }

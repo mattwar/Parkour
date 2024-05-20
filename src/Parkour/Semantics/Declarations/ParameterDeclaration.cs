@@ -1,12 +1,9 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
-using Syntax;
-using System.Xml.Linq;
 
 public sealed class ParameterDeclaration : Declaration
 {
     public override ParameterSymbol? Symbol { get; }
-
     public Expression? ParameterType { get; }
 
     public ParameterDeclaration(
@@ -27,6 +24,7 @@ public sealed class ParameterDeclaration : Declaration
     }
 
     public override ParameterDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new ParameterDeclaration(
             name,
             this.ParameterType,
@@ -36,6 +34,7 @@ public sealed class ParameterDeclaration : Declaration
             );
 
     public override ParameterDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new ParameterDeclaration(
             this.Name,
             this.ParameterType,
@@ -45,6 +44,7 @@ public sealed class ParameterDeclaration : Declaration
             );
 
     public ParameterDeclaration WithSymbol(ParameterSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new ParameterDeclaration(
             this.Name,
             this.ParameterType,
@@ -54,6 +54,7 @@ public sealed class ParameterDeclaration : Declaration
             );
 
     public override ParameterDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new ParameterDeclaration(
             this.Name,
             this.ParameterType,
@@ -63,6 +64,7 @@ public sealed class ParameterDeclaration : Declaration
             );
 
     public ParameterDeclaration WithParameterType(Expression parameterType) =>
+        parameterType == this.ParameterType ? this :
         new ParameterDeclaration(
             this.Name,
             parameterType,
@@ -71,9 +73,14 @@ public sealed class ParameterDeclaration : Declaration
             this.Diagnostics
             );
 
-
     public override int ChildCount => 1;
 
     public override SemanticElement? GetChild(int index) =>
         this.ParameterType;
+
+    public override ParameterDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var type = rewriter.Rewrite(this.ParameterType);
+        return this.WithParameterType(type!);
+    }
 }

@@ -32,6 +32,7 @@ public sealed class ClassDeclaration : TypeDeclaration
     }
 
     public override ClassDeclaration WithName(string name) =>
+        name == this.Name ? this : 
         new ClassDeclaration(
             name,
             this.Access,
@@ -45,6 +46,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             );
 
     public override ClassDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new ClassDeclaration(
             this.Name,
             this.Access,
@@ -58,6 +60,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             );
 
     public ClassDeclaration WithSymbol(ClassSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new ClassDeclaration(
             this.Name,
             this.Access,
@@ -71,6 +74,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             );
 
     public override ClassDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new ClassDeclaration(
             this.Name,
             this.Access,
@@ -84,6 +88,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             );
 
     public override ClassDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new ClassDeclaration(
             this.Name,
             access,
@@ -97,6 +102,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             );
 
     public override ClassDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new ClassDeclaration(
             this.Name,
             this.Access,
@@ -110,6 +116,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             );
 
     public override ClassDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
+        typeParameters == this.TypeParameters ? this :
         new ClassDeclaration(
             this.Name,
             this.Access,
@@ -123,6 +130,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             );
 
     public override ClassDeclaration WithBaseTypes(ImmutableList<Expression> baseTypes) =>
+        baseTypes == this.BaseTypes ? this : 
         new ClassDeclaration(
             this.Name,
             this.Access,
@@ -136,6 +144,7 @@ public sealed class ClassDeclaration : TypeDeclaration
             );
 
     public override ClassDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
+        declarations == this.Declarations ? this :
         new ClassDeclaration(
             this.Name,
             this.Access,
@@ -147,5 +156,16 @@ public sealed class ClassDeclaration : TypeDeclaration
             symbol: null,
             diagnostics: null
             );
+
+    public override ClassDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var typeParams = rewriter.Rewrite(this.TypeParameters);
+        var baseTypes = rewriter.Rewrite(this.BaseTypes);
+        var declarations = rewriter.Rewrite(this.Declarations);
+        return this
+            .WithTypeParameters(typeParams)
+            .WithBaseTypes(baseTypes)
+            .WithDeclarations(declarations);
+    }
 }
 

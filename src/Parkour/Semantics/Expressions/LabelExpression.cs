@@ -14,11 +14,6 @@ public class LabelExpression : Expression
     public Expression? ReceivingType { get; }
 
     /// <summary>
-    /// The default value the branch recieves when branched to without a value.
-    /// </summary>
-    public Expression? DefaultValue { get; }
-
-    /// <summary>
     /// The <see cref="Symbols.LabelSymbol"/> associated with this label.
     /// </summary>
     public LabelSymbol? LabelSymbol { get; }
@@ -43,6 +38,72 @@ public class LabelExpression : Expression
         this.LabelSymbol = labelSymbol;
     }
 
+    public override LabelExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new LabelExpression(
+            this.Name,
+            this.ReceivingType,
+            location,
+            this.LabelSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override LabelExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new LabelExpression(
+            this.Name,
+            this.ReceivingType,
+            this.Location,
+            this.LabelSymbol,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override LabelExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new LabelExpression(
+            this.Name,
+            this.ReceivingType,
+            this.Location,
+            this.LabelSymbol,
+            resultType,
+            this.Diagnostics
+            );
+
+    public LabelExpression WithName(string name) =>
+        name == this.Name ? this :
+        new LabelExpression(
+            name,
+            this.ReceivingType,
+            this.Location,
+            this.LabelSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public LabelExpression WithReceivingType(Expression receivingType) =>
+        receivingType == this.ReceivingType ? this :
+        new LabelExpression(
+            this.Name,
+            receivingType,
+            this.Location,
+            this.LabelSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public LabelExpression WithLabelSymbol(LabelSymbol? symbol) =>
+        symbol == this.LabelSymbol ? this :
+        new LabelExpression(
+            this.Name,
+            this.ReceivingType,
+            this.Location,
+            symbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
     public override int ChildCount => 1;
 
     public override SemanticElement? GetChild(int index) =>
@@ -51,4 +112,10 @@ public class LabelExpression : Expression
             0 => this.ReceivingType,
             _ => null
         };
+
+    public override LabelExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var recievingType = rewriter.Rewrite(this.ReceivingType);
+        return this.WithReceivingType(recievingType!);
+    }
 }

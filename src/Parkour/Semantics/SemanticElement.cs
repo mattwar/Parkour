@@ -127,5 +127,13 @@ public abstract class SemanticElement
             && (diagnostics == null || diagnostics.Count == 0)
             ? ContainsState.Unbound
             : ContainsState.None;
+
+    public abstract SemanticElement WithLocation(ISourceLocation? location);
+    public abstract SemanticElement WithDiagnostics(ImmutableList<Diagnostic> diagnostics);
+
+    /// <summary>
+    /// Invokes the rewriter on the children
+    /// </summary>
+    public abstract SemanticElement RewriteChildren(SemanticRewriter rewriter);
 }
 

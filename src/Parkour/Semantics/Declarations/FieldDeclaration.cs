@@ -33,6 +33,7 @@ public sealed class FieldDeclaration : MemberDeclaration
     }
 
     public override FieldDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new FieldDeclaration(
             name,
             this.Access,
@@ -45,6 +46,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             );
 
     public override FieldDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new FieldDeclaration(
             this.Name,
             this.Access,
@@ -57,6 +59,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             );
 
     public FieldDeclaration WithSymbol(FieldSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new FieldDeclaration(
             this.Name,
             this.Access,
@@ -69,6 +72,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             );
 
     public override FieldDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new FieldDeclaration(
             this.Name,
             this.Access,
@@ -81,6 +85,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             );
 
     public override FieldDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new FieldDeclaration(
             this.Name,
             access,
@@ -93,6 +98,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             );
 
     public override FieldDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new FieldDeclaration(
             this.Name,
             this.Access,
@@ -105,6 +111,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             );
 
     public FieldDeclaration WithFieldType(Expression fieldType) =>
+        fieldType == this.FieldType ? this :
         new FieldDeclaration(
             this.Name,
             this.Access,
@@ -117,6 +124,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             );
 
     public FieldDeclaration WithInitializer(Expression? initializer) =>
+        initializer == this.Initializer ? this :
         new FieldDeclaration(
             this.Name,
             this.Access,
@@ -137,5 +145,14 @@ public sealed class FieldDeclaration : MemberDeclaration
             1 => this.Initializer,
             _ => null
         };
+
+    public override FieldDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var type = rewriter.Rewrite(this.FieldType);
+        var initializer = rewriter.Rewrite(this.Initializer);
+        return this
+            .WithFieldType(type!)
+            .WithInitializer(initializer);
+    }
 }
 

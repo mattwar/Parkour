@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
+using System.Xml.Linq;
 
 public class NamespaceDeclaration : MemberDeclaration
 {
@@ -27,6 +28,7 @@ public class NamespaceDeclaration : MemberDeclaration
     }
 
     public override NamespaceDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new NamespaceDeclaration(
             name,
             this.Declarations,
@@ -36,6 +38,7 @@ public class NamespaceDeclaration : MemberDeclaration
             );
 
     public override NamespaceDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new NamespaceDeclaration(
             this.Name,
             this.Declarations,
@@ -45,6 +48,7 @@ public class NamespaceDeclaration : MemberDeclaration
             );
 
     public NamespaceDeclaration WithSymbol(NamespaceSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new NamespaceDeclaration(
             this.Name,
             this.Declarations,
@@ -54,6 +58,7 @@ public class NamespaceDeclaration : MemberDeclaration
             );
 
     public override NamespaceDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new NamespaceDeclaration(
             this.Name,
             this.Declarations,
@@ -68,6 +73,16 @@ public class NamespaceDeclaration : MemberDeclaration
     public override NamespaceDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
         this;
 
+    public NamespaceDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
+        declarations == this.Declarations ? this :
+        new NamespaceDeclaration(
+            this.Name,
+            declarations,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
     public bool IsGlobalNamespace => 
         this.Name == "";
 
@@ -76,4 +91,10 @@ public class NamespaceDeclaration : MemberDeclaration
 
     public override SemanticElement? GetChild(int index) =>
         this.Declarations[index];
+
+    public override NamespaceDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var declarations = rewriter.Rewrite(this.Declarations);
+        return this.WithDeclarations(declarations);
+    }
 }

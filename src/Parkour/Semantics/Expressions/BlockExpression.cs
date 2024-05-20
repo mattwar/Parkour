@@ -24,10 +24,52 @@ public sealed class BlockExpression : Expression
         this.Expressions = expressions.ToImmutableList();
     }
 
-    public override int ChildCount => 
+    public override BlockExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new BlockExpression(
+            this.Expressions,
+            location,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override BlockExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new BlockExpression(
+            this.Expressions,
+            this.Location,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override BlockExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new BlockExpression(
+            this.Expressions,
+            this.Location,
+            resultType,
+            this.Diagnostics
+            );
+
+    public BlockExpression WithExpressions(ImmutableList<Expression> expressions) =>
+        expressions == this.Expressions ? this :
+        new BlockExpression(
+            expressions,
+            this.Location,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override int ChildCount =>
         this.Expressions.Count;
 
     public override SemanticElement? GetChild(int index) =>
         this.Expressions[index];
+
+    public override BlockExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var expressions = rewriter.Rewrite(this.Expressions);
+        return this.WithExpressions(expressions);
+    }
 }
 

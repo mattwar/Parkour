@@ -32,6 +32,72 @@ public sealed class MemberExpression : Expression
         this.ReferencedSymbol = referencedSymbol;
     }
 
+    public override MemberExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new MemberExpression(
+            this.Instance,
+            this.Name,
+            location,
+            this.ReferencedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override MemberExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new MemberExpression(
+            this.Instance,
+            this.Name,
+            this.Location,
+            this.ReferencedSymbol,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override MemberExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new MemberExpression(
+            this.Instance,
+            this.Name,
+            this.Location,
+            this.ReferencedSymbol,
+            resultType,
+            this.Diagnostics
+            );
+
+    public MemberExpression WithInstance(Expression instance) =>
+        instance == this.Instance ? this :
+        new MemberExpression(
+            instance,
+            this.Name,
+            this.Location,
+            this.ReferencedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public MemberExpression WithName(string name) =>
+        name == this.Name ? this :
+        new MemberExpression(
+            this.Instance,
+            name,
+            this.Location,
+            this.ReferencedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public MemberExpression WithReferencedSymbol(Symbol? referencedSymbol) =>
+        referencedSymbol == this.ReferencedSymbol ? this :
+        new MemberExpression(
+            this.Instance,
+            this.Name,
+            this.Location,
+            referencedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
     public override int ChildCount => 1;
 
     public override SemanticElement? GetChild(int index) =>
@@ -40,5 +106,10 @@ public sealed class MemberExpression : Expression
             0 => this.Instance,
             _ => null
         };
-}
 
+    public override MemberExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var instance = rewriter.Rewrite(this.Instance);
+        return this.WithInstance(instance!);
+    }
+}

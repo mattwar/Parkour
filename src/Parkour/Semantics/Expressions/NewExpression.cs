@@ -29,7 +29,73 @@ public class NewExpression : Expression
         this.ConstructorSymbol = constructorSymbol;
     }
 
-    public override int ChildCount => 
+    public override NewExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new NewExpression(
+            this.Type,
+            this.Arguments,
+            location,
+            this.ConstructorSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override NewExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new NewExpression(
+            this.Type,
+            this.Arguments,
+            this.Location,
+            this.ConstructorSymbol,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override NewExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new NewExpression(
+            this.Type,
+            this.Arguments,
+            this.Location,
+            this.ConstructorSymbol,
+            resultType,
+            this.Diagnostics
+            );
+
+    public NewExpression WithType(Expression type) =>
+        type == this.Type ? this :
+        new NewExpression(
+            type,
+            this.Arguments,
+            this.Location,
+            this.ConstructorSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public NewExpression WithArguments(ImmutableList<Expression> arguments) =>
+        arguments == this.Arguments ? this :
+        new NewExpression(
+            this.Type,
+            arguments,
+            this.Location,
+            this.ConstructorSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public NewExpression WithConstructorSymbol(ConstructorSymbol? constructorSymbol) =>
+        constructorSymbol == this.ConstructorSymbol ? this :
+        new NewExpression(
+            this.Type,
+            this.Arguments,
+            this.Location,
+            constructorSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override int ChildCount =>
         1 + Arguments.Count;
 
     public override SemanticElement? GetChild(int index) =>
@@ -38,4 +104,13 @@ public class NewExpression : Expression
             0 => this.Type,
             _ => this.Arguments[index - 1]
         };
+
+    public override NewExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var type = rewriter.Rewrite(this.Type);
+        var arguments = rewriter.Rewrite(this.Arguments);
+        return this
+            .WithType(type!)
+            .WithArguments(arguments);
+    }
 }

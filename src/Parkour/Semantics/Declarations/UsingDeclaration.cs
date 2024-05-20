@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
+using System.Linq.Expressions;
 
 /// <summary>
 /// Puts the specified symbol and its members in scope.
@@ -28,6 +29,7 @@ public class UsingDeclaration : Declaration
     public override Symbol? Symbol => null;
 
     public override UsingDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new UsingDeclaration(
             name, 
             this.Expression, 
@@ -37,6 +39,7 @@ public class UsingDeclaration : Declaration
             );
 
     public override UsingDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new UsingDeclaration(
             this.Name,
             this.Expression, 
@@ -46,6 +49,7 @@ public class UsingDeclaration : Declaration
             );
 
     public override Declaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new UsingDeclaration(
             this.Name,
             this.Expression,
@@ -55,6 +59,7 @@ public class UsingDeclaration : Declaration
             );
 
     public UsingDeclaration WithExpression(Expression expression) =>
+        expression == this.Expression ? this : 
         new UsingDeclaration(
             this.Name,
             expression,
@@ -63,7 +68,23 @@ public class UsingDeclaration : Declaration
             this.Diagnostics
             );
 
+    public UsingDeclaration WithAliasedSymbol(AliasSymbol? aliasedSymbol) =>
+        aliasedSymbol == this.AliasedSymbol ? this :
+        new UsingDeclaration(
+            this.Name,
+            this.Expression,
+            this.Location,
+            aliasedSymbol,
+            this.Diagnostics
+            );
+
     public override int ChildCount => 1;
     public override SemanticElement? GetChild(int index) =>
         index == 0 ? this.Expression : null;
+
+    public override SemanticElement RewriteChildren(SemanticRewriter rewriter)
+    {
+        var expression = rewriter.Rewrite(this.Expression);
+        return this.WithExpression(expression!);
+    }
 }

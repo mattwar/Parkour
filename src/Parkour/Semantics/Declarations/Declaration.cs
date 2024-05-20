@@ -22,6 +22,4 @@ public abstract class Declaration : SemanticElement
     public abstract Symbol? Symbol { get; }
 
     public abstract Declaration WithName(string name);
-    public abstract Declaration WithLocation(ISourceLocation? location);
-    public abstract Declaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics);
 }

@@ -25,8 +25,64 @@ public class TypeOfExpression : Expression
         this.TypeSymbol = typeSymbol;
     }
 
+    public override TypeOfExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new TypeOfExpression(
+            this.Type,
+            location,
+            this.TypeSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override TypeOfExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new TypeOfExpression(
+            this.Type,
+            this.Location,
+            this.TypeSymbol,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override TypeOfExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new TypeOfExpression(
+            this.Type,
+            this.Location,
+            this.TypeSymbol,
+            resultType,
+            this.Diagnostics
+            );
+
+    public TypeOfExpression WithType(Expression type) =>
+        type == this.Type ? this :
+        new TypeOfExpression(
+            type,
+            this.Location,
+            this.TypeSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public TypeOfExpression WithTypeSymbol(TypeSymbol? typeSymbol) =>
+        typeSymbol == this.TypeSymbol ? this :
+        new TypeOfExpression(
+            this.Type,
+            this.Location,
+            typeSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
     public override int ChildCount => 1;
 
     public override SemanticElement? GetChild(int index) =>
         index == 0 ? this.Type : null;
+
+    public override TypeOfExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var type = rewriter.Rewrite(this.Type);
+        return this.WithType(type!);
+    }
 }

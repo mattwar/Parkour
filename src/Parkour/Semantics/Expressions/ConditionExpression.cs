@@ -33,6 +33,72 @@ public sealed class ConditionExpression : Expression
         this.WhenFalse = whenFalse;
     }
 
+    public override ConditionExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new ConditionExpression(
+            this.Test,
+            this.WhenTrue,
+            this.WhenFalse,
+            location,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override ConditionExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new ConditionExpression(
+            this.Test,
+            this.WhenTrue,
+            this.WhenFalse,
+            this.Location,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override ConditionExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new ConditionExpression(
+            this.Test,
+            this.WhenTrue,
+            this.WhenFalse,
+            this.Location,
+            resultType,
+            this.Diagnostics
+            );
+
+    public ConditionExpression WithTest(Expression test) =>
+        test == this.Test ? this :
+        new ConditionExpression(
+            test,
+            this.WhenTrue,
+            this.WhenFalse,
+            this.Location,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public ConditionExpression WithWhenTrue(Expression whenTrue) =>
+        whenTrue == this.WhenTrue ? this :
+        new ConditionExpression(
+            this.Test,
+            whenTrue,
+            this.WhenFalse,
+            this.Location,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public ConditionExpression WithWhenFalse(Expression whenFalse) =>
+        whenFalse == this.WhenFalse ? this :
+        new ConditionExpression(
+            this.Test,
+            this.WhenTrue,
+            whenFalse,
+            this.Location,
+            this.ResultType,
+            this.Diagnostics
+            );
+
     public override int ChildCount => 3;
 
     public override SemanticElement? GetChild(int index) =>
@@ -43,5 +109,16 @@ public sealed class ConditionExpression : Expression
             2 => this.WhenFalse,
             _ => null
         };
+
+    public override ConditionExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var test = rewriter.Rewrite(this.Test);
+        var whenTrue = rewriter.Rewrite(this.WhenTrue);
+        var whenFalse = rewriter.Rewrite(this.WhenFalse);
+        return this
+            .WithTest(test!)
+            .WithWhenTrue(whenTrue!)
+            .WithWhenFalse(whenFalse!);
+    }
 }
 

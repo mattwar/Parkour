@@ -61,6 +61,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
     }
 
     public override IndexerDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new IndexerDeclaration(
             name,
             this.Access,
@@ -74,6 +75,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             );
 
     public override IndexerDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new IndexerDeclaration(
             this.Name,
             this.Access,
@@ -86,7 +88,22 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
+    public IndexerDeclaration WithSymbol(IndexerSymbol? symbol) =>
+        symbol == this.Symbol ? this :
+        new IndexerDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            this.ElementType,
+            this.GetMethod,
+            this.SetMethod,
+            this.Location,
+            symbol,
+            this.Diagnostics
+            );
+
     public override IndexerDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new IndexerDeclaration(
             this.Name,
             this.Access,
@@ -100,6 +117,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             );
 
     public override IndexerDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new IndexerDeclaration(
             this.Name,
             access,
@@ -113,6 +131,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             );
 
     public override IndexerDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new IndexerDeclaration(
             this.Name,
             this.Access,
@@ -126,6 +145,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             );
 
     public IndexerDeclaration WithElementType(Expression elementType) =>
+        elementType == this.ElementType ? this :
         new IndexerDeclaration(
             this.Name,
             this.Access,
@@ -139,6 +159,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             );
 
     public IndexerDeclaration WithGetMethod(MethodDeclaration getMethod) =>
+        getMethod == this.GetMethod ? this : 
         new IndexerDeclaration(
             this.Name,
             this.Access,
@@ -152,6 +173,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             );
 
     public IndexerDeclaration WithSetMethod(MethodDeclaration? setMethod) =>
+        setMethod == this.SetMethod ? this :
         new IndexerDeclaration(
             this.Name,
             this.Access,
@@ -174,4 +196,15 @@ public sealed class IndexerDeclaration : MemberDeclaration
             2 => this.SetMethod,
             _ => null
         };
+
+    public override IndexerDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var elementType = rewriter.Rewrite(this.ElementType);
+        var getMethod = rewriter.Rewrite(this.GetMethod);
+        var setMethod = rewriter.Rewrite(this.SetMethod);
+        return this
+            .WithElementType(elementType!)
+            .WithGetMethod(getMethod!)
+            .WithSetMethod(setMethod);
+    }
 }

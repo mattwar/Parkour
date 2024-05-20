@@ -32,7 +32,73 @@ public class NewArrayInitExpression : Expression
         ElementTypeSymbol = elementTypeSymbol;
     }
 
-    public override int ChildCount => 
+    public override NewArrayInitExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new NewArrayInitExpression(
+            this.ElementType,
+            this.Expressions,
+            location,
+            this.ElementTypeSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override NewArrayInitExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new NewArrayInitExpression(
+            this.ElementType,
+            this.Expressions,
+            this.Location,
+            this.ElementTypeSymbol,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override NewArrayInitExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new NewArrayInitExpression(
+            this.ElementType,
+            this.Expressions,
+            this.Location,
+            this.ElementTypeSymbol,
+            resultType,
+            this.Diagnostics
+            );
+
+    public NewArrayInitExpression WithElementType(Expression elementType) =>
+        elementType == this.ElementType ? this :
+        new NewArrayInitExpression(
+            elementType,
+            this.Expressions,
+            this.Location,
+            this.ElementTypeSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public NewArrayInitExpression WithExpressions(ImmutableList<Expression> expressions) =>
+        expressions == this.Expressions ? this :
+        new NewArrayInitExpression(
+            this.ElementType,
+            expressions,
+            this.Location,
+            this.ElementTypeSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public NewArrayInitExpression WithElementTypeSymbol(TypeSymbol? elementTypeSymbol) =>
+        elementTypeSymbol == this.ElementTypeSymbol ? this :
+        new NewArrayInitExpression(
+            this.ElementType,
+            this.Expressions,
+            this.Location,
+            elementTypeSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override int ChildCount =>
         1 + Expressions.Count;
 
     public override SemanticElement? GetChild(int index) =>
@@ -41,4 +107,13 @@ public class NewArrayInitExpression : Expression
             0 => this.ElementType,
             _ => this.Expressions[index - 1]
         };
+
+    public override NewArrayInitExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var elementType = rewriter.Rewrite(this.ElementType);
+        var expressions = rewriter.Rewrite(this.Expressions);
+        return this
+            .WithElementType(elementType!)
+            .WithExpressions(expressions);
+    }
 }

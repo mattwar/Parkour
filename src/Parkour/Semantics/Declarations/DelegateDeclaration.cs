@@ -38,6 +38,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
     }
 
     public override DelegateDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new DelegateDeclaration(
             name,
             this.Access,
@@ -50,9 +51,10 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Location,
             this.Symbol,
             this.Diagnostics
-           );
+            );
 
     public override DelegateDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -68,6 +70,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public DelegateDeclaration WithSymbol(DelegateSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -83,6 +86,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public override DelegateDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -98,6 +102,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public override DelegateDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new DelegateDeclaration(
             this.Name,
             access,
@@ -113,6 +118,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public override DelegateDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -128,6 +134,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public override DelegateDeclaration WithTypeParameters(ImmutableList<TypeParameterDeclaration> typeParameters) =>
+        typeParameters == this.TypeParameters ? this : 
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -143,6 +150,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public override DelegateDeclaration WithBaseTypes(ImmutableList<Expression> baseTypes) =>
+        baseTypes == this.BaseTypes ? this :
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -158,6 +166,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public override DelegateDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
+        declarations == this.Declarations ? this :
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -173,6 +182,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public DelegateDeclaration WithParameters(ImmutableList<ParameterDeclaration> parameters) =>
+        parameters == this.Parameters ? this :
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -188,6 +198,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             );
 
     public DelegateDeclaration WithReturnType(Expression returnType) =>
+        returnType == this.ReturnType ? this :
         new DelegateDeclaration(
             this.Name,
             this.Access,
@@ -214,5 +225,20 @@ public sealed class DelegateDeclaration : TypeDeclaration
             return this.Parameters[index];
         index -= this.Parameters.Count;
         return index == 0 ? this.ReturnType : null;
+    }
+
+    public override DelegateDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var baseTypes = rewriter.Rewrite(this.BaseTypes);
+        var typeParameters = rewriter.Rewrite(this.TypeParameters);
+        var parameters = rewriter.Rewrite(this.Parameters);
+        var returnType = rewriter.Rewrite(this.ReturnType);
+        var declarations = rewriter.Rewrite(this.Declarations);
+        return this
+            .WithBaseTypes(baseTypes)
+            .WithTypeParameters(typeParameters)
+            .WithParameters(parameters)
+            .WithReturnType(returnType!)
+            .WithDeclarations(declarations);
     }
 }

@@ -33,6 +33,72 @@ public class ConstructExpression : AdjustedReferenceExpression
     public override Symbol? ReferencedSymbol => 
         ConstructedSymbol;
 
+    public override ConstructExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new ConstructExpression(
+            this.TypeOrMember,
+            this.TypeArguments,
+            location,
+            this.ConstructedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override ConstructExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new ConstructExpression(
+            this.TypeOrMember,
+            this.TypeArguments,
+            this.Location,
+            this.ConstructedSymbol,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override ConstructExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new ConstructExpression(
+            this.TypeOrMember,
+            this.TypeArguments,
+            this.Location,
+            this.ConstructedSymbol,
+            resultType,
+            this.Diagnostics
+            );
+
+    public ConstructExpression WithTypeOrMember(Expression typeOrMember) =>
+        typeOrMember == this.TypeOrMember ? this :
+        new ConstructExpression(
+            typeOrMember,
+            this.TypeArguments,
+            this.Location,
+            this.ConstructedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public ConstructExpression WithTypeArguments(ImmutableList<Expression> typeArguments) =>
+        typeArguments == this.TypeArguments ? this :
+        new ConstructExpression(
+            this.TypeOrMember,
+            typeArguments,
+            this.Location,
+            this.ConstructedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public ConstructExpression WithConstructedSymbol(Symbol? constructedSymbol) =>
+        constructedSymbol == this.ConstructedSymbol ? this :
+        new ConstructExpression(
+            this.TypeOrMember,
+            this.TypeArguments,
+            this.Location,
+            constructedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
     public override int ChildCount =>
         1 + this.TypeArguments.Count;
 
@@ -42,4 +108,13 @@ public class ConstructExpression : AdjustedReferenceExpression
             0 => this.TypeOrMember,
             _ => this.TypeArguments[index - 1]
         };
+
+    public override ConstructExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var typeOrMember = rewriter.Rewrite(this.TypeOrMember);
+        var typeArguments = rewriter.Rewrite(this.TypeArguments);
+        return this
+            .WithTypeOrMember(typeOrMember!)
+            .WithTypeArguments(typeArguments);
+    }
 }

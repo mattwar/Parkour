@@ -5,6 +5,7 @@ namespace Parkour.Emitting;
 using Semantics;
 using Symbols;
 using System.Net;
+using System.Reflection.Metadata;
 
 /// <summary>
 /// Builds symbol bodies by emitting IL instructions into an <see cref="ILEmitter"/>
@@ -594,63 +595,84 @@ public class StandardBodyBuilder : BodyBuilder
     /// </summary>
     protected virtual void EmitConstant(ConstantExpression constant)
     {
-        var valueType = EmitValue(constant.Value, constant.Location);
-        this.Emitter.EmitConvert(valueType, constant.ResultType, isChecked: false);
+        this.EmitValue(constant.Value, constant.ResultType, constant.Location);
     }
 
-    private TypeSymbol EmitValue(object? value, ISourceLocation? location)
+    private void EmitValue(object? value, TypeSymbol resultType, ISourceLocation? location)
     {
+        TypeSymbol? emittedType = null;
+
         switch (value)
         {
             case null:
-                this.Emitter.EmitLoadNull();
-                return this.ExternalSymbols.Object;
+                this.Emitter.EmitDefault(resultType);
+                emittedType = resultType;
+                break;
             case bool boolval:
                 this.Emitter.EmitLoadBool(boolval);
-                return this.ExternalSymbols.Boolean;
+                emittedType = this.ExternalSymbols.Boolean;
+                break;
             case byte byteval:
                 this.Emitter.EmitLoadByte(byteval);
-                return this.ExternalSymbols.Byte;
+                emittedType = this.ExternalSymbols.Byte;
+                break;
             case sbyte sbyteval:
                 this.Emitter.EmitLoadSByte(sbyteval);
-                return this.ExternalSymbols.SByte;
+                emittedType = this.ExternalSymbols.SByte;
+                break;
             case short int16val:
                 this.Emitter.EmitLoadInt16(int16val);
-                return this.ExternalSymbols.Int16;
+                emittedType = this.ExternalSymbols.Int16;
+                break;
             case ushort uint16val:
                 this.Emitter.EmitLoadUInt16(uint16val);
-                return this.ExternalSymbols.UInt16;
+                emittedType = this.ExternalSymbols.UInt16;
+                break;
             case int int32val:
                 this.Emitter.EmitLoadInt32(int32val);
-                return this.ExternalSymbols.Int32;
+                emittedType = this.ExternalSymbols.Int32;
+                break;
             case uint uint32val:
                 this.Emitter.EmitLoadUInt32(uint32val);
-                return this.ExternalSymbols.UInt32;
+                emittedType = this.ExternalSymbols.UInt32;
+                break;
             case long int64val:
                 this.Emitter.EmitLoadInt64(int64val);
-                return this.ExternalSymbols.Int64;
+                emittedType = this.ExternalSymbols.Int64;
+                break;
             case ulong uint64val:
                 this.Emitter.EmitLoadUInt64(uint64val);
-                return this.ExternalSymbols.UInt64;
+                emittedType = this.ExternalSymbols.UInt64;
+                break;
             case float singleVal:
                 this.Emitter.EmitLoadSingle(singleVal);
-                return this.ExternalSymbols.Single;
+                emittedType = this.ExternalSymbols.Single;
+                break;
             case double doubleVal:
                 this.Emitter.EmitLoadDouble(doubleVal);
-                return this.ExternalSymbols.Double;
+                emittedType = this.ExternalSymbols.Double;
+                break;
             case decimal decimalVal:
                 this.Emitter.EmitLoadDecimal(decimalVal);
-                return this.ExternalSymbols.Decimal;
+                emittedType = this.ExternalSymbols.Decimal;
+                break;
             case string stringVal:
                 this.Emitter.EmitLoadString(stringVal);
-                return this.ExternalSymbols.String;
+                emittedType = this.ExternalSymbols.String;
+                break;
             case char charVal:
                 this.Emitter.EmitLoadChar(charVal);
-                return this.ExternalSymbols.Char;
+                emittedType = this.ExternalSymbols.Char;
+                break;
             default:
                 // some other object literal?
                 this.Emitter.EmitThrowAndReport(new Diagnostic($"Cannot represent a value of type '{value.GetType().FullName}' in IL.").WithLocation(location));
-                return SpecialSymbols.DoesNotReturn;
+                break;
+        }
+
+        if (emittedType != null && emittedType != resultType)
+        {
+            this.Emitter.EmitConvert(emittedType, resultType, isChecked: false);
         }
     }
 
@@ -909,8 +931,7 @@ public class StandardBodyBuilder : BodyBuilder
             case FieldSymbol fieldSymbol:
                 if (fieldSymbol.IsConstant)
                 {
-                    var valueType = this.EmitValue(fieldSymbol.ConstantValue, location);
-                    this.Emitter.EmitConvert(valueType, fieldSymbol.Type, isChecked: false);
+                    this.EmitValue(fieldSymbol.ConstantValue, fieldSymbol.Type, location);
 
                     if (asAddress)
                     {

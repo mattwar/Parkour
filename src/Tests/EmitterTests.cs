@@ -149,6 +149,27 @@ public class EmitterTests
             Symbol("C").Member("F"),
             0
             );
+
+        // instance field with initializer
+        TestEmit(
+            Class("C", [Field("F", Int32Type, Constant(10))]),
+            New(Symbol("C")).Member("F"),
+            10
+            );
+
+        // static field with initializer
+        TestEmit(
+            Class("C", [Field("F", Int32Type, Constant(10)).WithModifiers(SymbolModifier.Static)]),
+            Symbol("C").Member("F"),
+            10
+            );
+
+        // const field with initializer
+        TestEmit(
+            Class("C", [Field("F", Int32Type, Constant(10)).WithModifiers(SymbolModifier.Static | SymbolModifier.Constant)]),
+            Symbol("C").Member("F"),
+            10
+            );
     }
 
     [TestMethod]
@@ -396,7 +417,7 @@ public class EmitterTests
         // assign sz array element
         TestEmit(
             Block(
-                Variable("a", NewArray(Int32Type, Constant(2))),
+                Variable("a", NewArray(Int32Type, Constant(10))),
                 Assign(Element(Name("a"), Constant(0)), Constant(123))
                 ),
             expectedResult: 123);
@@ -404,7 +425,7 @@ public class EmitterTests
         // access indexer element
         TestEmit(
             Block(
-                Variable("list", New(ListInt32Type,[NewArray(Int32Type, [Constant(7), Constant(11)])])),
+                Variable("list", New(ListInt32Type, [NewArray(Int32Type, [Constant(7), Constant(11)])])),
                 Element(Name("list"), Constant(0))
                 ),
             expectedResult: 7);

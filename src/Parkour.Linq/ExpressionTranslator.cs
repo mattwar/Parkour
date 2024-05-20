@@ -435,8 +435,9 @@ public class ExpressionTranslator
 
         L.Expression lambdaBody;
 
-        if (lambda.ReturnType == _runtimeSymbols.Void
-            || lambda.ReturnType == null)
+        if (lambda.FunctionSymbol == null
+            || lambda.FunctionSymbol.ReturnType == null
+            || lambda.FunctionSymbol.ReturnType == _runtimeSymbols.Void)
         {
             var returnTarget = L.Expression.Label(lambda.ReturnLabel!.Name);
             SetCurrentBranchTarget(lambda.ReturnLabel!, returnTarget);
@@ -445,7 +446,8 @@ public class ExpressionTranslator
         }
         else
         {
-            var returnType = TranslateType(lambda.ReturnType);
+            var returnType = TranslateType(lambda.FunctionSymbol.ReturnType);
+
             var returnTarget = L.Expression.Label(returnType, lambda.ReturnLabel!.Name);
             SetCurrentBranchTarget(lambda.ReturnLabel, returnTarget);
 

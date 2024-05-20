@@ -24,7 +24,7 @@ public class ConstructorDeclaration : MemberDeclaration
             CombineState(parameters) 
             | State(body)
             | NotNullState(symbol),
-            modifiers.Contains(SymbolModifier.Static) ? ".ctor" : ".cctor",
+            modifiers.Contains(SymbolModifier.Static) ? ".cctor" : ".ctor",
             access,
             modifiers,
             location,
@@ -40,6 +40,7 @@ public class ConstructorDeclaration : MemberDeclaration
         this;
 
     public override ConstructorDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
@@ -52,6 +53,7 @@ public class ConstructorDeclaration : MemberDeclaration
             );
 
     public ConstructorDeclaration WithSymbol(ConstructorSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
@@ -64,6 +66,7 @@ public class ConstructorDeclaration : MemberDeclaration
             );
 
     public ConstructorDeclaration WithReturnLabel(LabelSymbol? returnLabel)=>
+        returnLabel == this.ReturnLabel ? this :
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
@@ -76,6 +79,7 @@ public class ConstructorDeclaration : MemberDeclaration
             );
 
     public override ConstructorDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
@@ -88,6 +92,7 @@ public class ConstructorDeclaration : MemberDeclaration
             );
 
     public override ConstructorDeclaration WithAccess(SymbolAccess access) =>
+        access == this.Access ? this :
         new ConstructorDeclaration(
             access,
             this.Modifiers,
@@ -100,6 +105,7 @@ public class ConstructorDeclaration : MemberDeclaration
             );
 
     public override ConstructorDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
         new ConstructorDeclaration(
             this.Access,
             modifiers,
@@ -112,6 +118,7 @@ public class ConstructorDeclaration : MemberDeclaration
             );
 
     public ConstructorDeclaration WithParameters(ImmutableList<ParameterDeclaration> parameters) =>
+        parameters == this.Parameters ? this :
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
@@ -124,6 +131,7 @@ public class ConstructorDeclaration : MemberDeclaration
             );
 
     public ConstructorDeclaration WithBody(Expression body) =>
+        body == this.Body ? this :
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
@@ -142,4 +150,13 @@ public class ConstructorDeclaration : MemberDeclaration
         index < this.Parameters.Count
             ? this.Parameters[index]
             : this.Body;
+
+    public override ConstructorDeclaration RewriteChildren(SemanticRewriter rewriter)
+    {
+        var parameters = rewriter.Rewrite(this.Parameters);
+        var body = rewriter.Rewrite(this.Body);
+        return this
+            .WithParameters(parameters)
+            .WithBody(body!);
+    }
 }

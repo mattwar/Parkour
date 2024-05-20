@@ -21,6 +21,7 @@ public class TypeParameterDeclaration : Declaration
     }
 
     public override TypeParameterDeclaration WithName(string name) =>
+        name == this.Name ? this :
         new TypeParameterDeclaration(
             name, 
             this.Location, 
@@ -29,6 +30,7 @@ public class TypeParameterDeclaration : Declaration
             );
 
     public override TypeParameterDeclaration WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
         new TypeParameterDeclaration(
             this.Name, 
             location, 
@@ -37,6 +39,7 @@ public class TypeParameterDeclaration : Declaration
             );
 
     public TypeParameterDeclaration WithSymbol(TypeParameterSymbol? symbol) =>
+        symbol == this.Symbol ? this :
         new TypeParameterDeclaration(
             this.Name,
             this.Location,
@@ -45,6 +48,7 @@ public class TypeParameterDeclaration : Declaration
             );
 
     public override TypeParameterDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
         new TypeParameterDeclaration(
             this.Name,
             this.Location,
@@ -54,4 +58,5 @@ public class TypeParameterDeclaration : Declaration
 
     public override int ChildCount => 0;
     public override SemanticElement? GetChild(int index) => null;
+    public override SemanticElement RewriteChildren(SemanticRewriter rewriter) => this;
 }

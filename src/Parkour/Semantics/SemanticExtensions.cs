@@ -199,7 +199,7 @@ public static class SemanticExtensions
     /// </summary>
     public static ImmutableList<TSemantic> Rewrite<TSemantic>(
         this ImmutableList<TSemantic> list, 
-        Func<TSemantic, TSemantic> rewriter)
+        Func<TSemantic, TSemantic?> rewriter)
         where TSemantic : SemanticElement
     {
         return Rewrite<TSemantic, object?>(list, null, (e, a) => (rewriter(e), a)).list;
@@ -212,29 +212,33 @@ public static class SemanticExtensions
     public static (ImmutableList<TSemantic> list, TArg final) Rewrite<TSemantic, TArg>(
         this ImmutableList<TSemantic> list, 
         TArg arg, 
-        Func<TSemantic, TArg, (TSemantic expr, TArg arg)> rewriter)
+        Func<TSemantic, TArg, (TSemantic? expr, TArg arg)> rewriter)
         where TSemantic : SemanticElement
     {
-        TSemantic[] newList = null!;
+        List<TSemantic> newList = null!;
 
         for (int i = 0; i < list.Count; i++)
         {
             var expr = list[i];
             var result = rewriter(expr, arg);
             (var newExpr, arg) = result;
+
             if (newExpr != expr)
             {
-                if (newList == null)
+                if (newExpr != null)
                 {
-                    newList = new TSemantic[list.Count];
-                    if (i > 0)
-                        list.CopyTo(0, newList.AsSpan().Slice(0, i + 1));
+                    if (newList == null)
+                    {
+                        newList = new List<TSemantic>(list.Count);
+                        if (i > 0)
+                            newList.AddRange(list.Take(i));
+                    }
+                    newList.Add(newExpr);
                 }
-                newList[i] = newExpr;
             }
             else if (newList != null)
             {
-                newList[i] = expr;
+                newList.Add(expr);
             }
         }
 

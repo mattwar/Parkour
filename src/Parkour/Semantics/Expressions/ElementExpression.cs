@@ -30,6 +30,72 @@ public sealed class ElementExpression : Expression
         this.IndexerSymbol = indexerSymbol;
     }
 
+    public override ElementExpression WithLocation(ISourceLocation? location) =>
+        location == this.Location ? this :
+        new ElementExpression(
+            this.Expression,
+            this.Arguments,
+            location,
+            this.IndexerSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public override ElementExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new ElementExpression(
+            this.Expression,
+            this.Arguments,
+            this.Location,
+            this.IndexerSymbol,
+            this.ResultType,
+            diagnostics
+            );
+
+    public override ElementExpression WithResultType(TypeSymbol? resultType) =>
+        resultType == this.ResultType ? this :
+        new ElementExpression(
+            this.Expression,
+            this.Arguments,
+            this.Location,
+            this.IndexerSymbol,
+            resultType,
+            this.Diagnostics
+            );
+
+    public ElementExpression WithExpression(Expression expression) =>
+        expression == this.Expression ? this :
+        new ElementExpression(
+            expression,
+            this.Arguments,
+            this.Location,
+            this.IndexerSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public ElementExpression WithArguments(ImmutableList<Expression> arguments) =>
+        arguments == this.Arguments ? this :
+        new ElementExpression(
+            this.Expression,
+            arguments,
+            this.Location,
+            this.IndexerSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public ElementExpression WithIndexerSymbol(IndexerSymbol? symbol) =>
+        symbol == this.IndexerSymbol ? this :
+        new ElementExpression(
+            this.Expression,
+            this.Arguments,
+            this.Location,
+            symbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
     public override int ChildCount => 1 + this.Arguments.Count;
 
     public override SemanticElement? GetChild(int index) =>
@@ -38,5 +104,13 @@ public sealed class ElementExpression : Expression
             0 => this.Expression,
             _ => this.Arguments[index - 1]
         };
-}
 
+    public override ElementExpression RewriteChildren(SemanticRewriter rewriter)
+    {
+        var expression = rewriter.Rewrite(this.Expression);
+        var arguments = rewriter.Rewrite(this.Arguments);
+        return this
+            .WithExpression(expression!)
+            .WithArguments(arguments);
+    }
+}
