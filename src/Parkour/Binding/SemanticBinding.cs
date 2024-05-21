@@ -4,14 +4,14 @@ using Semantics;
 using Symbols;
 
 /// <summary>
-/// The result of binding a set of declarations
+/// The result of binding a set of declarations and an optional expression.
 /// </summary>
-public abstract class DeclarationBinding
+public abstract class SemanticBinding
 {
     /// <summary>
-    /// The declarations after being bound.
+    /// The elements after being bound.
     /// </summary>
-    public abstract ImmutableList<Declaration> Declarations { get; }
+    public abstract ImmutableList<SemanticElement> Elements { get; }
 
     /// <summary>
     /// The combined external and declared symbol table.

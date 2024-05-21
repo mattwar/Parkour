@@ -1,4 +1,6 @@
 ﻿namespace Parkour.Semantics;
+
+using Lowering;
 using Symbols;
 
 public abstract class SemanticElement
@@ -135,5 +137,10 @@ public abstract class SemanticElement
     /// Invokes the rewriter on the children
     /// </summary>
     public abstract SemanticElement RewriteChildren(SemanticRewriter rewriter);
-}
 
+    /// <summary>
+    /// Creates a lowerer for this kind of semantic element.
+    /// Elements that are not understood by the emitter must be lowered into elements that are understood.
+    /// </summary>
+    public virtual SemanticLowerer? CreateLowerer() => null;
+}

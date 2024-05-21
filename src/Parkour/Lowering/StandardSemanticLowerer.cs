@@ -1,8 +1,8 @@
-﻿using Parkour.Binding;
-using Parkour.Symbols;
-using Parkour.Semantics;
+﻿namespace Parkour.Lowering;
 
-namespace Parkour.Lowering;
+using Binding;
+using Symbols;
+using Semantics;
 
 public class StandardSemanticLowerer : SemanticLowerer
 {
@@ -14,154 +14,77 @@ public class StandardSemanticLowerer : SemanticLowerer
         this.Binder = binder ?? new StandardSemanticBinder();
     }
 
-    public override DeclarationLowering LowerDeclarations(
-        ImmutableList<Declaration> declarations,
-        SymbolTable externalSymbols)
+    public override SemanticLowering Lower(
+        ImmutableList<SemanticElement> elements,
+        SymbolTable symbols)
     {
-        var context = new LoweringContext(externalSymbols);
-        var lowered = this.Lower(context, ImmutableStack<Declaration>.Empty, declarations);
-        var additional = context.GetAdditionalDeclarations();
-        if (lowered != declarations || additional.Count > 0)
+        var lowerers = new List<SemanticLowerer>();
+        this.GetElementBasedLowerers(elements, lowerers);
+        this.GetStandardLowerers(lowerers);
+
+        var diagnostics = new List<Diagnostic>();
+        var newElements = elements;
+
+        foreach (var lowerer in lowerers)
         {
-            var newdecls = lowered.AddRange(additional);
-            var bound = this.Binder.BindDeclarations(newdecls, externalSymbols);
-            return new DeclLowering(
-                bound.Declarations, 
-                () => bound.Diagnostics
-                );
+            var lowering = lowerer.Lower(newElements, symbols);
+            newElements = lowering.Elements;
+            diagnostics.AddRange(lowering.Diagnostics);
+        }
+
+        if (newElements != elements)
+        {
+            var bound = this.Binder.Bind(newElements, symbols);
+            return new SemanticLowering(bound.Elements, bound.Diagnostics);
         }
         else
         {
-            return new DeclLowering(
-                declarations, 
-                () => ImmutableList<Diagnostic>.Empty
-                );
+            return new SemanticLowering(elements, ImmutableList<Diagnostic>.Empty);
         }
     }
 
-    public override ExpressionLowering LowerExpression(
-        Expression expression,
-        SymbolTable externalSymbols)
+    /// <summary>
+    /// Gets all the standard lowerers that are always applied.
+    /// </summary>
+    protected virtual void GetStandardLowerers(
+        List<SemanticLowerer> lowerers)
     {
-        var context = new LoweringContext(externalSymbols);
-        var stack = new Stack<Declaration>();
-        var lowered = this.Lower(context, ImmutableStack<Declaration>.Empty, expression);
-
-        if (lowered != expression)
-        {
-            var list = new List<Diagnostic>();
-            expression.GetContainedDiagnostics(list);
-            return new ExpressionLowering(
-                expression,
-                list.ToImmutableList()
-                );
-        }
-        else
-        {
-            return new ExpressionLowering(
-                expression, 
-                ImmutableList<Diagnostic>.Empty
-                );
-        }
+        lowerers.Add(FieldInitializerLowerer.Instance);
     }
 
-    private class DeclLowering : DeclarationLowering
+    /// <summary>
+    /// Gets all the lowerers needed as determined by the 
+    /// elements involved.
+    /// </summary>
+    private void GetElementBasedLowerers(
+        ImmutableList<SemanticElement> elements,
+        List<SemanticLowerer> lowerers)
     {
-        public override ImmutableList<Declaration> Declarations { get; }
-
-        private Func<ImmutableList<Diagnostic>> _fnDiagnostics { get; }
-        private ImmutableList<Diagnostic>? _diagnostics;
-
-        public override ImmutableList<Diagnostic> Diagnostics
+        var map = new Dictionary<Type, SemanticLowerer>();
+        
+        foreach (var elem in elements)
         {
-            get
+            Gather(elem);
+        }
+
+        void Gather(SemanticElement element)
+        {
+            var elementType = element.GetType();
+            if (!map.ContainsKey(elementType))
             {
-                if (_diagnostics == null)
+                var lowerer = element.CreateLowerer();
+                if (lowerer != null)
                 {
-                    var tmp = _fnDiagnostics();
-                    Interlocked.CompareExchange(ref _diagnostics, tmp, null);
+                    map.Add(elementType, lowerer);
                 }
-
-                return _diagnostics;
             }
-        }
 
-        public DeclLowering(
-            ImmutableList<Declaration> declarations,
-            Func<ImmutableList<Diagnostic>> fnDiagnostics)
-        {
-            this.Declarations = declarations;
-            _fnDiagnostics = fnDiagnostics;
-        }
-    }
-
-    protected virtual ImmutableList<Declaration> Lower(
-        LoweringContext context,
-        ImmutableStack<Declaration> ancestors,
-        ImmutableList<Declaration> declarations)
-    {
-        return declarations.Rewrite(d =>
-            (Declaration)Lower(context, ancestors, d)
-            );
-    }
-
-    protected virtual SemanticElement Lower(
-        LoweringContext context,
-        ImmutableStack<Declaration> ancestors,
-        SemanticElement element)
-    {
-        var lowered = FieldInitializerLowerer.LowerAll(element);
-        return lowered;
-    }
-
-    protected class LoweringContext
-    {
-        public SymbolTable Symbols { get; }
-
-        public LoweringContext(
-            SymbolTable symbols)
-        {
-            this.Symbols = symbols;
-        }
-
-        private readonly List<Declaration> _additionalDeclarations =
-            new List<Declaration>();
-
-        private readonly Dictionary<Declaration, List<Declaration>> _declToAddMembersMap =
-            new Dictionary<Declaration, List<Declaration>>();
-
-        /// <summary>
-        /// Adds a new declaration
-        /// </summary>
-        public void AddDeclaration(Declaration declaration)
-        {
-            _additionalDeclarations.Add(declaration);
-        }
-
-        public ImmutableList<Declaration> GetAdditionalDeclarations() =>
-            _additionalDeclarations.ToImmutableList();
-
-        /// <summary>
-        /// Adds a new member declaration to the parent declaration.
-        /// </summary>
-        public void AddMembers(Declaration declaration, IEnumerable<Declaration> members)
-        {
-            if (!_declToAddMembersMap.TryGetValue(declaration, out var additionalMembers))
+            for (int i = 0, n = element.ChildCount; i < n; i++)
             {
-                additionalMembers = new List<Declaration>();
-                _declToAddMembersMap.Add(declaration, additionalMembers);
+                var child = element.GetChild(i);
+                if (child != null)
+                    Gather(child);
             }
-
-            additionalMembers.AddRange(members);
-        }
-
-        /// <summary>
-        /// Gets the additional member declarations for the parent declaration.
-        /// </summary>
-        public ImmutableList<Declaration> GetAdditionalMembers(Declaration declaration)
-        {
-            _declToAddMembersMap.TryGetValue(declaration, out var additionalMembers);
-            return additionalMembers?.ToImmutableList() ?? ImmutableList<Declaration>.Empty;
         }
     }
 }

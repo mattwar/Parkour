@@ -62,6 +62,33 @@ public static class RewriterExtensions
         =>
         RewriteAll<TElement>(root, (current, original) => fnRewrite(current));
 
+
+    /// <summary>
+    /// Rewrite all the elements of the specified type, with the function.
+    /// </summary>
+    public static ImmutableList<TRoot> RewriteAll<TRoot, TElement>(
+        this ImmutableList<TRoot> roots,
+        Func<TElement, TElement, SemanticElement> fnRewrite
+        )
+        where TRoot : SemanticElement
+        where TElement : SemanticElement
+    {
+        return new TypedRewriter<TElement>(fnRewrite).Rewrite(roots);
+    }
+
+    /// <summary>
+    /// Rewrite all the elements of the specified type, with the function.
+    /// </summary>
+    public static ImmutableList<TRoot> RewriteAll<TRoot, TElement>(
+        this ImmutableList<TRoot> roots,
+        Func<TElement, SemanticElement> fnRewrite
+        )
+        where TRoot : SemanticElement
+        where TElement : SemanticElement
+        =>
+        RewriteAll<TRoot, TElement>(roots, (current, original) => fnRewrite(current));
+
+
     private class TypedRewriter<TElement> : SemanticRewriter
         where TElement : SemanticElement
     {

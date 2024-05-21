@@ -813,7 +813,11 @@ public class ReflectionEmitter : StandardDeclarationEmitter
                     _ilgen.Emit(OpCodes.Ldelem_R8);
                     break;
                 default:
-                    if (type == typeof(nint))
+                    if (!type.IsValueType)
+                    {
+                        _ilgen.Emit(OpCodes.Ldelem_Ref);
+                    }
+                    else if (type == typeof(nint))
                     {
                         _ilgen.Emit(OpCodes.Ldelem_I);
                     }
@@ -823,8 +827,6 @@ public class ReflectionEmitter : StandardDeclarationEmitter
                     }
                     break;
             }
-
-            // OpCodes.Ldelem_Ref  == typeof(object)?
         }
 
         public override void EmitLoadArrayElementAddress(TypeSymbol elementTypeSymbol)
@@ -840,15 +842,19 @@ public class ReflectionEmitter : StandardDeclarationEmitter
             switch (typeCode)
             {
                 case TypeCode.SByte:
+                case TypeCode.Byte:
                     _ilgen.Emit(OpCodes.Stelem_I1);
                     break;
                 case TypeCode.Int16:
+                case TypeCode.UInt16:
                     _ilgen.Emit(OpCodes.Stelem_I2);
                     break;
                 case TypeCode.Int32:
+                case TypeCode.UInt32:
                     _ilgen.Emit(OpCodes.Stelem_I4);
                     break;
                 case TypeCode.Int64:
+                case TypeCode.UInt64:
                     _ilgen.Emit(OpCodes.Stelem_I8);
                     break;
                 case TypeCode.Single:
@@ -858,7 +864,11 @@ public class ReflectionEmitter : StandardDeclarationEmitter
                     _ilgen.Emit(OpCodes.Stelem_R8);
                     break;
                 default:
-                    if (type == typeof(nint))
+                    if (!type.IsValueType)
+                    {
+                        _ilgen.Emit(OpCodes.Stelem_Ref);
+                    }
+                    else if (type == typeof(nint))
                     {
                         _ilgen.Emit(OpCodes.Stelem_I);
                     }
@@ -868,8 +878,6 @@ public class ReflectionEmitter : StandardDeclarationEmitter
                     }
                     break;
             }
-
-            // OpCodes.Stelem_Ref
         }
 
         public override void EmitLoadField(FieldSymbol field)

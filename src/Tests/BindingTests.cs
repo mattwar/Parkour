@@ -11,11 +11,8 @@ using static TestHelpers;
 [TestClass]
 public class BindingTests
 {
-    private readonly ReflectionSymbols _reflectionSymbols;
-
     public BindingTests()
     {
-        _reflectionSymbols = ReflectionSymbols.CurrentMscorlib;
     }
 
     [TestMethod]
@@ -24,41 +21,45 @@ public class BindingTests
         // bind it and find it
         TestBind(
             [Class("C", [])],
-            ["C"]);
+            expectedSymbols: ["C"]);
 
         // bint in namespace
         TestBind(
             [Namespace("N", [Class("C", [])])],
-            ["N", "N.C"]);
+            expectedSymbols: ["N", "N.C"]);
     }
 
     [TestMethod]
     public void TestDeclaration_Class_Constructor()
     {
         // bind it and default construct it.
-        TestBindX(
-            [Class("C", [])],
-            ["C", "C.[.ctor]"],
-            New(Name("C")),
+        TestBind(
+            [
+                Class("C", []),
+                New(Name("C"))
+            ],
+            expectedSymbols: ["C", "C.[.ctor]"],
             expectedResultType: "C");
 
         // bind it with explicit constructor
-        TestBindX(
-            [Class("C", [Constructor()])],
-            ["C", "C.[.ctor]"],
-            New(Name("C")),
+        TestBind(
+            [
+                Class("C", [Constructor()]),
+                New(Name("C")),
+            ],
+            expectedSymbols: ["C", "C.[.ctor]"],
             expectedResultType: "C");
 
         // constructor has parameter
-        TestBindX([
+        TestBind([
             Class("C", [
                 Constructor(
                     [Parameter("x", Int32Type)], 
                     Block())
-                ])
+                ]),
+            New(Name("C"), [Constant(1)])
             ],
-            ["C", "C.[.ctor]"],
-            New(Name("C"), [Constant(1)]),
+            expectedSymbols: ["C", "C.[.ctor]"],           
             expectedResultType: "C");
     }
 
@@ -66,17 +67,30 @@ public class BindingTests
     public void TestDeclaration_Class_Field()
     {
         // instance field
-        TestBindX(
-            [Class("C", [Field("F", Int32Type)])],
-            ["C.F"],
-            New(Name("C")).Member("F"),
+        TestBind(
+            [
+                Class("C", [Field("F", Int32Type)]),
+                New(Name("C")).Member("F"),
+            ],
+            expectedSymbols: ["C.F"],
             expectedResultType: "System.Int32");
 
         // static field
-        TestBindX(
-            [Class("C", [Field("F", Int32Type).WithModifiers(SymbolModifier.Static)])],
-            ["C.F"],
-            Name("C").Member("F"),
+        TestBind(
+            [
+                Class("C", [Field("F", Int32Type).WithModifiers(SymbolModifier.Static)]),
+                Name("C").Member("F"),
+            ],
+            expectedSymbols: ["C.F"],
+            expectedResultType: "System.Int32");
+
+        // instance field with initializer
+        TestBind(
+            [
+                Class("C", [Field("F", Int32Type, Constant(10))]),
+                New(Name("C")).Member("F"),
+            ],
+            expectedSymbols: ["C.F"],
             expectedResultType: "System.Int32");
     }
 
@@ -84,59 +98,63 @@ public class BindingTests
     public void TestDeclaration_Class_Method()
     {
         // instance void method
-        TestBindX(
-            [Class("C",
-                [Method("M", [], VoidType, Block())])],
-            ["C.M"],
-            New(Name("C")).Member("M").Call(),
+        TestBind(
+            [
+                Class("C",
+                    [Method("M", [], VoidType, Block())]),
+                New(Name("C")).Member("M").Call()
+            ],
+            expectedSymbols: ["C.M"],
             expectedResultType: "System.Void"
             );
 
         // instance int returning method
-        TestBindX(
-            [Class("C",
-                [Method("M", [], Int32Type, Constant(1))])],
-            ["C.M"],
-            New(Name("C")).Member("M").Call(),
+        TestBind(
+            [
+                Class("C", [Method("M", [], Int32Type, Constant(1))]),                        
+                New(Name("C")).Member("M").Call()
+            ],
+            expectedSymbols: ["C.M"],
             expectedResultType: "System.Int32"
             );
 
         // instance int returning method with parameters
-        TestBindX(
-            [Class("C",
-                [Method("M", [Parameter("p", Int32Type)], Int32Type, Constant(1))])],
-            ["C.M"],
-            New(Name("C")).Member("M").Call([Constant(1)]),
+        TestBind(
+            [
+                Class("C", [Method("M", [Parameter("p", Int32Type)], Int32Type, Constant(1))]),
+                New(Name("C")).Member("M").Call([Constant(1)])
+            ],
+            expectedSymbols: ["C.M"],
             expectedResultType: "System.Int32"
             );
 
         // static void method
-        TestBindX(
-            [Class("C",
-                [Method("M", [], VoidType, Block()).WithModifiers(SymbolModifier.Static)]
-                )],
-            ["C.M"],
-            Name("C").Member("M").Call(),
+        TestBind(
+            [
+                Class("C", [Method("M", [], VoidType, Block()).WithModifiers(SymbolModifier.Static)]),
+                Name("C").Member("M").Call()
+            ],
+            expectedSymbols: ["C.M"],
             expectedResultType: "System.Void"
             );
 
         // static int returning method
-        TestBindX(
-            [Class("C",
-                [Method("M", [], Int32Type, Constant(1)).WithModifiers(SymbolModifier.Static)]
-                )],
-            ["C.M"],
-            Name("C").Member("M").Call(),
+        TestBind(
+            [
+                Class("C", [Method("M", [], Int32Type, Constant(1)).WithModifiers(SymbolModifier.Static)]),
+                Name("C").Member("M").Call()
+            ],
+            expectedSymbols: ["C.M"],
             expectedResultType: "System.Int32"
             );
 
         // static int returning method with parameter
-        TestBindX(
-            [Class("C",
-                [Method("M", [Parameter("p", Int32Type)], Int32Type, Constant(1)).WithModifiers(SymbolModifier.Static)]
-                )],
-            ["C.M"],
-            Name("C").Member("M").Call(Constant(1)),
+        TestBind(
+            [
+                Class("C", [Method("M", [Parameter("p", Int32Type)], Int32Type, Constant(1)).WithModifiers(SymbolModifier.Static)]),
+                Name("C").Member("M").Call(Constant(1))
+            ],
+            expectedSymbols: ["C.M"],
             expectedResultType: "System.Int32"
             );
     }
@@ -145,21 +163,21 @@ public class BindingTests
     public void TestDeclaration_Class_Property()
     {
         // instance property
-        TestBindX(
-            [Class("C", [
-                Property("P", Int32Type)])
-                ],
-            ["C.P"],
-            New(Name("C")).Member("P"),
+        TestBind(
+            [
+                Class("C", [Property("P", Int32Type)]),
+                New(Name("C")).Member("P")
+            ],
+            expectedSymbols: ["C.P"],
             expectedResultType: "System.Int32");
 
         // static property
-        TestBindX(
-            [Class("C", [
-                Property("P", SymbolAccess.Public, SymbolModifier.Static, Int32Type)])
-                ],
-            ["C.P"],
-            Name("C").Member("P"),
+        TestBind(
+            [
+                Class("C", [Property("P", SymbolAccess.Public, SymbolModifier.Static, Int32Type)]),
+                Name("C").Member("P")
+            ],
+            expectedSymbols: ["C.P"],
             expectedResultType: "System.Int32");
     }
 
@@ -167,45 +185,42 @@ public class BindingTests
     public void TestDeclaration_Class_Indexer()
     {
         TestBind(
-            [Class("C",
-                [
+            [
+                Class("C", [
                     Indexer(
                         Symbol("System.Int32"),
                         [Parameter("index", Symbol("System.Int32"))],
                         Name("index"),
                         null)
-                ]
-                )],
-            ["C", "C.Item"]);
+                    ])
+            ],
+            expectedSymbols: ["C", "C.Item"]);
     }
-
 
     [TestMethod]
     public void TestDeclaration_Class_ReferenceToSelf()
     {
-        //// base types (illegal, but should find reference)
-        //TestBind(
-        //    [Class("C", [Name("C")], [])],
-        //    ["C"]);
+        // base types (illegal, but should bind)
+        TestBind(
+            [Class("C", [Name("C")], [])],
+            expectedSymbols: ["C"]
+            );
 
         // field that refers to self
         TestBind(
-            Class("C", [Field("F", Name("C"))]),
-            ["C.F"]);
-
-        TestBind(
-            Namespace("N",
-                [Class("C", [Field("F", Name("C"))])]),
-            ["N.C.F"]);
+            [Class("C", [Field("F", Name("C"))])],
+            expectedSymbols: ["C.F"]
+            );
     }
-
 
     [TestMethod]
     public void TestDeclaration_Class_TypeParameters()
     {
         TestBind(
-            [Class("C", []).WithTypeParameters([TypeParameter("T")])],
-            New(Name("C").Construct([Int32Type])),
+            [
+                Class("C", []).WithTypeParameters([TypeParameter("T")]),
+                New(Name("C").Construct([Int32Type])),
+            ],
             expectedResultType: "C[System.Int32]"
             );
     }
@@ -214,10 +229,12 @@ public class BindingTests
     public void TestDeclaration_Struct()
     {
         // instance constructor
-        TestBindX(
-            [Struct("S", [])],
-            ["S", "S.[.ctor]"],
-            New(Name("S")),
+        TestBind(
+            [
+                Struct("S", []),
+                New(Name("S")),
+            ],
+            expectedSymbols: ["S", "S.[.ctor]"],
             expectedResultType: "S");
     }
 
@@ -226,30 +243,31 @@ public class BindingTests
     {
         TestBind(
             [Interface("I", [])],
-            ["I"]);
+            expectedSymbols: ["I"]
+            );
     }
 
     [TestMethod]
     public void TestDeclaration_Using()
     {
-        TestBind([
-            Using(Symbol("System")),
-
-            Class("C", [
-                Property("P", Name("Int32"))
-                ])
+        TestBind(
+            [
+                Using(Symbol("System")),
+                Class("C", [
+                    Property("P", Name("Int32"))
+                    ])
             ],
-            ["C.P"]
+            expectedSymbols: ["C.P"]
             );
 
-        TestBind([
-            Using("X", Symbol("System")),
-
-            Class("C", [
-                Property("P", Name("X").Member("Int32"))
-                ])
+        TestBind(
+            [
+                Using("X", Symbol("System")),
+                Class("C", [
+                    Property("P", Name("X").Member("Int32"))
+                    ])
             ],
-            ["C.P"]
+            expectedSymbols: ["C.P"]
             );
     }
 
@@ -259,7 +277,7 @@ public class BindingTests
     public void TestExpression_Array()
     {
         TestBind(
-            Int32Type.Array(),
+            [Int32Type.Array()],
             expectedReferencedSymbol: "System.Int32[]");
     }
 
@@ -267,7 +285,7 @@ public class BindingTests
     public void TestExpression_Arity()
     {
         TestBind(
-            SystemCollectionsGenericNamespace.Member("List").WithArity(1),
+            [SystemCollectionsGenericNamespace.Member("List").WithArity(1)],
             expectedReferencedSymbol: "System.Collections.Generic.List`1");
     }
 
@@ -275,9 +293,11 @@ public class BindingTests
     public void TestExpression_Assign()
     {
         TestBind(
-            Block(
-                Variable(Int32Type, "x"),
-                Assign(Name("x"), Constant(1))),
+            [
+                Block(
+                    Variable(Int32Type, "x"),
+                    Assign(Name("x"), Constant(1)))
+            ],
             expectedResultType: Int32Type.FullName
             );
     }
@@ -288,14 +308,14 @@ public class BindingTests
         // block can contain just one expression
         TestBind(
             Block(Constant(1)),
-            Int32Type.FullName);
+            expectedResultType: Int32Type.FullName);
 
         // last expression determines block type
         TestBind(
             Block(
                 Constant("zero"),
                 Constant(1)),
-            Int32Type.FullName);
+            expectedResultType: Int32Type.FullName);
 
 
         // declare in block
@@ -303,7 +323,7 @@ public class BindingTests
             Block(
                 Variable("x", Constant(1)),
                 Name("x")),
-            Int32Type.FullName);
+            expectedResultType: Int32Type.FullName);
     }
 
     [TestMethod]
@@ -443,8 +463,8 @@ public class BindingTests
     public void TestExpression_Constant()
     {
         TestBind(
-            Constant(1), 
-            Int32Type.FullName);
+            Constant(1),
+            expectedResultType: Int32Type.FullName);
     }
 
     [TestMethod]
@@ -509,7 +529,7 @@ public class BindingTests
     {
         TestBind(
             IsType(Name("System").Member("Int32"), Symbol("System.Int32")),
-            "System.Boolean"
+            expectedResultType: BooleanType.FullName
             );
     }
 
@@ -941,9 +961,9 @@ public class BindingTests
             Class("C", [
                 Method("M",[], Name("C"), This())
                 ]),
-            (Declaration decl) =>
+            fnValidate: elements =>
             {
-                var te = decl.FirstDescendantOrSelf<ThisExpression>();
+                var te = elements[0].FirstDescendantOrSelf<ThisExpression>();
                 Assert.IsNotNull(te);
                 Assert.IsNotNull(te.ResultType);
                 Assert.AreEqual("C", te.ResultType.FullName);
@@ -955,14 +975,13 @@ public class BindingTests
     {
         TestBind(
             TypeOf(Symbol("System.Int32")),
-            "System.Type"
+            expectedResultType: "System.Type"
             );
     }
 
     [TestMethod]
     public void TestExpression_Variable()
     {
-#if false
         // declaration with initializer
         TestBind(
             Variable("x", Constant(1)),
@@ -972,13 +991,11 @@ public class BindingTests
         TestBind(
             Variable(Int32Type, "x"),
             expectedResultType: Int32Type.FullName);
-#endif
 
         // declare with type and initializer
         TestBind(
             Variable(Int32Type, "x", Constant(1)),
             expectedResultType: Int32Type.FullName);
-#if false
 
         // declare with type and initializer with convertable types
         TestBind(
@@ -996,130 +1013,69 @@ public class BindingTests
             new VariableExpression("x", null, null, null, null, null, null),
             expectedResultType: ObjectType.FullName,
             containsDiagnostics: true);
-#endif
     }
 
     #endregion
 
     private void TestBind(
-        Declaration declaration, 
-        string[]? expectedSymbols = null)
-    {
-        TestBind([declaration], expectedSymbols);
-    }
-
-    private void TestBind(
-        Declaration declaration,
-        Action<Declaration> fnValidateDecl)
-    {
-        TestBindX(
-            declarations: [declaration], 
-            fnValidateDecls: decls => fnValidateDecl(decls[0]));
-    }
-
-    private void TestBind(
-        Declaration[] declarations, 
-        string[]? expectedSymbols = null)
-    {
-        TestBindX(declarations, expectedSymbols, null, null, null);
-    }
-
-    private void TestBind(
-        Declaration[] declarations,
-        Action<ImmutableList<Declaration>> fnValidateDecls)
-    {
-        TestBindX(declarations, fnValidateDecls: fnValidateDecls);
-    }
-
-    private void TestBind(
-        Expression expression, 
-        string? expectedResultType = null, 
-        string? expectedReferencedSymbol = null,
-        bool containsDiagnostics = false)
-    {
-        TestBindX(null, null, expression, expectedResultType, expectedReferencedSymbol, containsDiagnostics);
-    }
-
-    private void TestBind(
-        Expression expression,
-        Action<Expression> fnValidateExpr)
-    {
-        TestBindX(expression: expression, fnValidateExpr: fnValidateExpr);
-    }
-
-    private void TestBind(
-        Declaration[] declarations,
-        Expression expression,
+        SemanticElement element,
+        string[]? expectedSymbols = null,
         string? expectedResultType = null,
         string? expectedReferencedSymbol = null,
-        bool containsDiagnostics = false)
+        bool containsDiagnostics = false,
+        Action<ImmutableList<SemanticElement>>? fnValidate = null
+        )
     {
-        TestBindX(declarations, null, expression, expectedResultType, expectedReferencedSymbol, containsDiagnostics);
+        TestBind(
+            [element],
+            expectedSymbols,
+            expectedResultType,
+            expectedReferencedSymbol,
+            containsDiagnostics,
+            fnValidate
+            );
     }
 
-    private void TestBindX(
-        Declaration[]? declarations = null,
+    private void TestBind(
+        ImmutableList<SemanticElement> elements,
         string[]? expectedSymbols = null,
-        Expression? expression = null,
         string? expectedResultType = null, 
         string? expectedReferencedSymbol = null,
         bool containsDiagnostics = false,
-        Action<ImmutableList<Declaration>>? fnValidateDecls = null,
-        Action<Expression>? fnValidateExpr = null)
+        Action<ImmutableList<SemanticElement>>? fnValidate = null
+        )
     {
         var binder = new StandardSemanticBinder();
+        var binding = binder.Bind(elements, ReflectionSymbols.CurrentMscorlib);
 
-        SymbolTable bindSymbols = _reflectionSymbols;
-
-        DeclarationBinding? declBinding = null;
-        if (declarations != null)
+        if (binding.Diagnostics.Count > 0 && !containsDiagnostics)
         {
-            declBinding = binder.BindDeclarations(declarations.ToImmutableList(), _reflectionSymbols);
-
-            if (declBinding.Diagnostics.Count > 0 && !containsDiagnostics)
-            {
-                Assert.Fail($"Unexpected declaration diagnostics:\n{declBinding.Diagnostics[0]}");
-            }
-
-            if (expectedSymbols != null)
-            {
-                foreach (var path in expectedSymbols)
-                {
-                    var symbol = declBinding.Symbols.GetSymbol(path);
-                    Assert.IsNotNull(symbol, $"symbol '{path}' not found");
-                }
-            }
-
-            bindSymbols = declBinding.Symbols;
+            Assert.Fail($"Unexpected declaration diagnostics:\n{binding.Diagnostics[0]}");
+        }
+        else if (containsDiagnostics && binding.Diagnostics.Count == 0)
+        {
+            Assert.Fail($"Unexpected missing diagnostics");
         }
 
-        ExpressionBinding? exprBinding = null;
-        if (expression != null)
+        if (expectedSymbols != null)
         {
-            exprBinding = binder.BindExpression(expression, bindSymbols);
-
-            if (exprBinding.Diagnostics.Count > 0 && !containsDiagnostics)
+            foreach (var path in expectedSymbols)
             {
-                Assert.Fail($"Unexpected expression diagnostics:\n{exprBinding.Diagnostics[0]}");
+                var symbol = binding.Symbols.GetSymbol(path);
+                Assert.IsNotNull(symbol, $"symbol '{path}' not found");
             }
+        }
 
+        if (binding.Elements.OfType<Expression>().LastOrDefault() is Expression expr)
+        {
             if (expectedResultType != null)
-            {
-                Assert.IsNotNull(exprBinding.Expression.ResultType);
-                Assert.AreEqual(expectedResultType, exprBinding.Expression.ResultType.FullName);
-            }
+                Assert.AreEqual(expectedResultType, expr.ResultType?.FullName, "result type");
 
             if (expectedReferencedSymbol != null)
-            {
-                Assert.IsNotNull(exprBinding.Expression.ReferencedSymbol);
-                Assert.AreEqual(expectedReferencedSymbol, exprBinding.Expression.ReferencedSymbol.FullName);
-            }
+                Assert.AreEqual(expectedReferencedSymbol, expr.ReferencedSymbol?.FullName, "referenced symbol");
         }
 
-        if (declBinding != null && fnValidateDecls != null)
-            fnValidateDecls(declBinding.Declarations);
-
-        if (exprBinding != null && fnValidateExpr != null)
-            fnValidateExpr(exprBinding.Expression);
+        if (fnValidate != null)
+            fnValidate(binding.Elements);
     }
 }

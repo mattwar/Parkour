@@ -12,14 +12,7 @@ public abstract class SemanticLowerer
     /// <summary>
     /// Converts high-level declarations into low-level declarations.
     /// </summary>
-    public abstract DeclarationLowering LowerDeclarations(
-        ImmutableList<Declaration> declarations,
-        SymbolTable externalSymbols);
-
-    /// <summary>
-    /// Converts high-level expressions into low-level expressions.
-    /// </summary>
-    public abstract ExpressionLowering LowerExpression(
-        Expression expression,
-        SymbolTable externalSymbols);
+    public abstract SemanticLowering Lower(
+        ImmutableList<SemanticElement> elements,
+        SymbolTable symbols);
 }

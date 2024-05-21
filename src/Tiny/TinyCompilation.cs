@@ -35,8 +35,8 @@ public class TinyCompilation : SemanticCompilation
         if (this.GetSyntaxTree(this.Documents[0]) is SyntaxTree tree)
         {
             var unbound = new TinyTranslator().Translate(tree.Root);
-            var binding = new StandardSemanticBinder().BindExpression(unbound, _imports);
-            return new BindingInfo(_imports, [binding.Expression]);
+            var binding = new StandardSemanticBinder().Bind([unbound], _imports);
+            return new BindingInfo(_imports, binding.Elements);
        }
 
         return new BindingInfo(_imports, ImmutableList<SemanticElement>.Empty);

@@ -252,14 +252,20 @@ public class StandardBodyBuilder : BodyBuilder
                 EmitExpressionAsType(assign.Source, variableSymbol.Type);
                 this.Emitter.EmitStoreVariable(variableSymbol);
                 if (assign.ResultType != this.ExternalSymbols.Void)
+                {
                     this.Emitter.EmitLoadVariable(variableSymbol);
+                    this.Emitter.EmitConvert(variableSymbol.Type, assign.ResultType, true);
+                }
                 break;
 
             case ParameterSymbol parameterSymbol:
                 EmitExpressionAsType(assign.Source, parameterSymbol.Type);
                 this.Emitter.EmitStoreParameter(parameterSymbol);
                 if (assign.ResultType != this.ExternalSymbols.Void)
+                {
                     this.Emitter.EmitLoadParameter(parameterSymbol);
+                    this.Emitter.EmitConvert(parameterSymbol.Type, assign.ResultType, true);
+                }
                 break;
 
             case FieldSymbol fieldSymbol:
@@ -334,6 +340,11 @@ public class StandardBodyBuilder : BodyBuilder
 
                             this.Emitter.EmitStoreArrayElement(array.ElementType);
                         }
+                        else
+                        {
+                            // store into array via Array methods
+                            throw new NotImplementedException();
+                        }
                     }
                     else if (ee.IndexerSymbol != null
                         && ee.IndexerSymbol.SetMethod != null)
@@ -351,6 +362,7 @@ public class StandardBodyBuilder : BodyBuilder
                             : null;
 
                         this.Emitter.EmitCall(ee.IndexerSymbol.SetMethod);
+                        this.Emitter.EmitConvert(ee.IndexerSymbol.SetMethod.ReturnType, this.ExternalSymbols.Void, true);
                     }
                 }
                 break;
@@ -359,6 +371,7 @@ public class StandardBodyBuilder : BodyBuilder
         if (temp != null)
         {
             RestoreFromTemporaryVariable(temp);
+            this.Emitter.EmitConvert(temp.Type, assign.ResultType, true);
         }
     }
 

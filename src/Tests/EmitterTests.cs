@@ -852,14 +852,18 @@ public class EmitterTests
         var binder = new StandardSemanticBinder();
         var imports = ReflectionSymbols.CurrentMscorlib;
 
+        var elements = ImmutableList<SemanticElement>.Empty.AddRange(declarations);
+
         if (test != null)
-            declarations.Add(
-                Class("Test",[
+        {
+            elements = elements.Add(
+                Class("Test", [
                      Constructor(),
                      Method("Run", SymbolAccess.Public, SymbolModifier.Static, [], Symbol("System.Object"), test)
                      ]));
+        }
 
-        var binding = binder.BindDeclarations(declarations.ToImmutableList(), imports);
+        var binding = binder.Bind(elements, imports);
         if (binding.Diagnostics.Count > 0)
         {
             var dxs = string.Join("\n", binding.Diagnostics.Select(d => d.ToString()));
@@ -867,10 +871,11 @@ public class EmitterTests
         }
 
         var lowerer = new StandardSemanticLowerer();
-        var lowering = lowerer.LowerDeclarations(binding.Declarations, imports);
+        var lowering = lowerer.Lower(binding.Elements, imports);
 
         var emitter = new ReflectionEmitter(imports, "test_assembly");
-        var result = emitter.Emit(lowering.Declarations);
+        var loweredDeclarations = lowering.Elements.OfType<Declaration>().ToImmutableList();
+        var result = emitter.Emit(loweredDeclarations);
 
         if (result.Diagnostics.Count > 0)
         {
@@ -878,7 +883,7 @@ public class EmitterTests
         }
 
         // verify all delared symbols are represented in the assembly
-        VerifyDeclarations(emitter.Assembly, lowering.Declarations);
+        VerifyDeclarations(emitter.Assembly, loweredDeclarations);
 
 #if false
         var generator = new Lokad.ILPack.AssemblyGenerator();
@@ -898,11 +903,6 @@ public class EmitterTests
                 fnCheckResult(testResult);
             }
         }
-    }
-
-    private static bool TestIsInt32(object value)
-    {
-        return value is int;
     }
 
     private void VerifyDeclarations(Assembly assembly, ImmutableList<Declaration> declarations)

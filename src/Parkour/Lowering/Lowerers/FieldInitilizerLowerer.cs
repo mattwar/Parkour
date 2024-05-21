@@ -1,22 +1,27 @@
 ﻿namespace Parkour.Lowering;
+
 using Semantics;
 using Symbols;
 using static Semantics.SemanticFactory;
 
-public class FieldInitializerLowerer
+public class FieldInitializerLowerer : SemanticLowerer
 {
-    /// <summary>
-    /// Lowers all the field initializers in all the type declarations
-    /// to assignments in constructors.
-    /// </summary>
-    public static SemanticElement LowerAll(SemanticElement root) =>
-        root.RewriteAll<TypeDeclaration>(Lower);
+    public static readonly FieldInitializerLowerer Instance =
+        new FieldInitializerLowerer();
+
+    public override SemanticLowering Lower(
+        ImmutableList<SemanticElement> elements, 
+        SymbolTable symbols)
+    {
+        var newElements = elements.RewriteAll<SemanticElement, TypeDeclaration>(Lower);
+        return new SemanticLowering(newElements);
+    }
 
     /// <summary>
     /// Lowers the field initializers in this type declaration
     /// to assignments inside constructors.
     /// </summary>
-    public static TypeDeclaration Lower(TypeDeclaration td)
+    public TypeDeclaration Lower(TypeDeclaration td)
     {
         // all fields with initializers that are not consts
         var fields = td.Declarations
