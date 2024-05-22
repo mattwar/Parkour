@@ -3,11 +3,14 @@ using Symbols;
 
 public sealed class ParameterDeclaration : Declaration
 {
-    public override ParameterSymbol? Symbol { get; }
+    public BitSet<SymbolModifier> Modifiers { get; }
     public Expression? ParameterType { get; }
+
+    public override ParameterSymbol? Symbol { get; }
 
     public ParameterDeclaration(
         string name, 
+        BitSet<SymbolModifier> modifiers,
         Expression? parameterType,
         ISourceLocation? location,
         ParameterSymbol? symbol,
@@ -27,6 +30,7 @@ public sealed class ParameterDeclaration : Declaration
         name == this.Name ? this :
         new ParameterDeclaration(
             name,
+            this.Modifiers,
             this.ParameterType,
             this.Location,
             this.Symbol,
@@ -37,8 +41,42 @@ public sealed class ParameterDeclaration : Declaration
         location == this.Location ? this :
         new ParameterDeclaration(
             this.Name,
+            this.Modifiers,
             this.ParameterType,
             location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public override ParameterDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+        diagnostics == this.Diagnostics ? this :
+        new ParameterDeclaration(
+            this.Name,
+            this.Modifiers,
+            this.ParameterType,
+            this.Location,
+            this.Symbol,
+            diagnostics
+            );
+
+    public ParameterDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
+        new ParameterDeclaration(
+            this.Name,
+            modifiers,
+            this.ParameterType,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public ParameterDeclaration WithParameterType(Expression parameterType) =>
+        parameterType == this.ParameterType ? this :
+        new ParameterDeclaration(
+            this.Name,
+            this.Modifiers,
+            parameterType,
+            this.Location,
             this.Symbol,
             this.Diagnostics
             );
@@ -47,29 +85,10 @@ public sealed class ParameterDeclaration : Declaration
         symbol == this.Symbol ? this :
         new ParameterDeclaration(
             this.Name,
+            this.Modifiers,
             this.ParameterType,
             this.Location,
             symbol,
-            this.Diagnostics
-            );
-
-    public override ParameterDeclaration WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
-        diagnostics == this.Diagnostics ? this :
-        new ParameterDeclaration(
-            this.Name,
-            this.ParameterType,
-            this.Location,
-            this.Symbol,
-            diagnostics
-            );
-
-    public ParameterDeclaration WithParameterType(Expression parameterType) =>
-        parameterType == this.ParameterType ? this :
-        new ParameterDeclaration(
-            this.Name,
-            parameterType,
-            this.Location,
-            this.Symbol,
             this.Diagnostics
             );
 

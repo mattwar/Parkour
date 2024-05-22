@@ -23,16 +23,20 @@ public class StandardBinder : SemanticBinder
     /// <summary>
     /// Binds declarations and expressions.
     /// </summary>
-    public override SemanticBinding Bind(
+    /// <param name="elements">The elements to be bound.</param>
+    /// <param name="imports">The imported symbols.</param>
+    public override SemanticBinding Bind(        
         ImmutableList<SemanticElement> elements,
-        SymbolTable externalSymbols)
+        SymbolTable imports)
     {
-        var result = CreateSymbols(elements.OfType<Declaration>(), externalSymbols);
+        var result = CreateSymbols(elements.OfType<Declaration>(), imports);
         var boundElements = BindList(result.Context.BindingContext, elements);
 
-        return new StandardBinding(
+        return new SemanticBinding(
             boundElements,
-            result.CombinedSymbols);
+            imports,
+            result.CombinedSymbols
+            );
     }
 
     /// <summary>
@@ -40,15 +44,17 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     public virtual SemanticBinding BindExpression(
         Expression expression,
-        SymbolTable externalSymbols,
+        SymbolTable imports,
         Scope scope)
     {
         var context = new BindingContext(
-            CreateInitialSymbolContext(externalSymbols), null, scope, null);
+            CreateInitialSymbolContext(imports), null, scope, null);
         var boundExpression = BindExpression(context, expression);
-        return new StandardBinding(
-            ImmutableList<SemanticElement>.Empty.Add(expression),
-            externalSymbols);
+        return new SemanticBinding(
+            [boundExpression],
+            imports,
+            imports
+            );
     }
 
     #region Symbol Creation
@@ -797,6 +803,7 @@ public class StandardBinder : SemanticBinder
 
         return new ParameterDeclaration(
             pd.Name,
+            pd.Modifiers,
             parameterType,
             pd.Location,
             parameterSymbol,
@@ -2471,7 +2478,7 @@ public class StandardBinder : SemanticBinder
                     var type = p.ParameterType != null ? BindTypeExpression(context, p.ParameterType, diagnostics) : null;
                     var ptype = type?.ReferencedSymbol as TypeSymbol ?? context.Symbols.Object;
                     var psymbol = new ParameterSymbol(p.Name, declaringSymbol, ptype);
-                    var pdecl = new ParameterDeclaration(p.Name, type, p.Location, psymbol, null);
+                    var pdecl = new ParameterDeclaration(p.Name, p.Modifiers, type, p.Location, psymbol, null);
                     symbols.Add(psymbol);
                     declarations.Add(pdecl);
                 }
@@ -3711,46 +3718,6 @@ public class StandardBinder : SemanticBinder
         }
     };
 #endregion
-
-    #region StandardBinding
-    private class StandardBinding : SemanticBinding
-    {
-        public override ImmutableList<SemanticElement> Elements { get; }
-        public override SymbolTable Symbols { get; }
-
-        public StandardBinding(
-            ImmutableList<SemanticElement> elements,
-            SymbolTable symbols)
-        {
-
-            this.Elements = elements;
-            this.Symbols = symbols;
-        }
-
-        private ImmutableList<Diagnostic>? _diagnostics;
-
-        public override ImmutableList<Diagnostic> Diagnostics
-        {
-            get
-            {
-                if (_diagnostics == null)
-                {
-                    var dxs = new List<Diagnostic>();
-
-                    foreach (var bd in this.Elements)
-                    {
-                        bd.GetContainedDiagnostics(dxs);
-                    }
-
-                    Interlocked.CompareExchange(ref _diagnostics, dxs.ToImmutableList(), null);
-                }
-
-                return _diagnostics;
-            }
-        }
-    }
-
-    #endregion
 
     #region pools
     private readonly ObjectPool<List<Symbol>> _symbolListPool =

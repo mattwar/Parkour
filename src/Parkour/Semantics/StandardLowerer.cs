@@ -2,6 +2,9 @@
 
 using Symbols;
 
+/// <summary>
+/// Applies all standard lowerers and all element specific lowerers
+/// </summary>
 public class StandardLowerer : SemanticLowerer
 {
     protected SemanticBinder Binder { get; }
@@ -13,41 +16,39 @@ public class StandardLowerer : SemanticLowerer
     }
 
     public override SemanticLowering Lower(
-        ImmutableList<SemanticElement> elements,
-        SymbolTable symbols)
+        SemanticBinding binding)
     {
-        var lowerers = new List<SemanticLowerer>();
-        this.GetElementBasedLowerers(elements, lowerers);
-        this.GetStandardLowerers(lowerers);
+        var lowerers = new List<PartialLowerer>();
+        this.GetElementBasedLowerers(binding.Elements, lowerers);
+        lowerers.AddRange(this.GetStandardLowerers());
 
-        var diagnostics = new List<Diagnostic>();
-        var newElements = elements;
+        var newElements = binding.Elements;
 
         foreach (var lowerer in lowerers)
         {
-            var lowering = lowerer.Lower(newElements, symbols);
-            newElements = lowering.Elements;
-            diagnostics.AddRange(lowering.Diagnostics);
+            newElements = lowerer.Lower(newElements, binding.ImportedSymbols);
         }
 
-        if (newElements != elements)
+        if (newElements != binding.Elements)
         {
-            var bound = this.Binder.Bind(newElements, symbols);
-            return new SemanticLowering(bound.Elements, bound.Diagnostics);
+            var newBinding = this.Binder.Bind(newElements, binding.ImportedSymbols);
+            return new SemanticLowering(newBinding.Elements, binding.ImportedSymbols, newBinding.CombinedSymbols);
         }
         else
         {
-            return new SemanticLowering(elements, ImmutableList<Diagnostic>.Empty);
+            return new SemanticLowering(binding.Elements, binding.ImportedSymbols, binding.CombinedSymbols);
         }
     }
 
     /// <summary>
     /// Gets all the standard lowerers that are always applied.
     /// </summary>
-    protected virtual void GetStandardLowerers(
-        List<SemanticLowerer> lowerers)
+    protected virtual ImmutableList<PartialLowerer> GetStandardLowerers()
     {
-        lowerers.Add(FieldInitializerLowerer.Instance);
+        return [
+            FieldInitializerLowerer.Instance,
+            TopLevelExpressionLowerer.Instance,
+            ];
     }
 
     /// <summary>
@@ -56,9 +57,9 @@ public class StandardLowerer : SemanticLowerer
     /// </summary>
     private void GetElementBasedLowerers(
         ImmutableList<SemanticElement> elements,
-        List<SemanticLowerer> lowerers)
+        List<PartialLowerer> lowerers)
     {
-        var map = new Dictionary<Type, SemanticLowerer>();
+        var map = new Dictionary<Type, PartialLowerer>();
         
         foreach (var elem in elements)
         {
@@ -70,10 +71,9 @@ public class StandardLowerer : SemanticLowerer
             var elementType = element.GetType();
             if (!map.ContainsKey(elementType))
             {
-                var lowerer = element.CreateLowerer();
-                if (lowerer != null)
+                if (element.Lowerer != null)
                 {
-                    map.Add(elementType, lowerer);
+                    map.Add(elementType, element.Lowerer);
                 }
             }
 

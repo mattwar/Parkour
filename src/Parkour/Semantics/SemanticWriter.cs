@@ -1,12 +1,17 @@
 ﻿namespace Parkour.Semantics;
 using Symbols;
 
+/// <summary>
+/// Writes elements into a generalized text form. 
+/// Used for debugging.
+/// </summary>
 public class SemanticWriter
 {
     private TextWriter _writer;
     private readonly string _indentation;
     private string _currentIndentation;
     private bool _needsIndentation;
+    private bool _needsSeparation;
 
     public SemanticWriter(TextWriter writer, string? indentation = null)
     {
@@ -14,6 +19,7 @@ public class SemanticWriter
         _indentation = indentation ?? "  ";
         _currentIndentation = "";
         _needsIndentation = false;
+        _needsSeparation = false;
     }
 
     public SemanticWriter(string? indentation = null)
@@ -32,6 +38,7 @@ public class SemanticWriter
         Write(text);
         _writer.WriteLine();
         _needsIndentation = true;
+        _needsSeparation = false;
     }
 
     private void Write(string text)
@@ -60,7 +67,26 @@ public class SemanticWriter
             _writer.Write(text);
         }
 
-        _needsIndentation = text.Length > 0 && (text[^1] == '\r' || text[^1] == '\n');
+        _needsIndentation = text.Length > 0 && IsEndOfLine(text[^1]);
+        _needsSeparation = text.Length > 0 && !_needsIndentation && !IsSeparation(text[^1]);
+    }
+
+    private static bool IsEndOfLine(char ch) =>
+        ch == '\r' || ch == '\n';
+
+    private static bool IsSeparation(char ch) =>
+        char.IsWhiteSpace(ch)
+        || IsEndOfLine(ch);
+
+    private void WriteSeparated(string text)
+    {
+        if (_needsSeparation)
+        {
+            Write(" ");
+            _needsSeparation = false;
+        }
+
+        Write(text);
     }
 
     private void WriteIndented(Action action)
@@ -97,6 +123,59 @@ public class SemanticWriter
         WriteLine();
     }
 
+    private void WriteSeparated(SemanticElement semantic)
+    {
+        Write("");
+        Write(semantic);
+    }
+
+    private void WriteCommaList<TElement>(ImmutableList<TElement> elements)
+        where TElement : SemanticElement
+    {
+        for (int i = 0; i < elements.Count; i++)
+        {
+            if (i > 0)
+                Write(", ");
+            Write(elements[i]);
+        }
+    }
+
+    private void WriteSemicolonLineSeparated<TElement>(ImmutableList<TElement> elements)
+        where TElement : SemanticElement
+    {
+        for (int i = 0; i < elements.Count; i++)
+        {
+            Write(elements[i]);
+            if (i < elements.Count - 1)
+                WriteLine(";");
+        }
+    }
+
+    private void WriteLineSeparated<TElement>(ImmutableList<TElement> elements)
+        where TElement : SemanticElement
+    {
+        foreach (var element in elements)
+        {
+            WriteLine(element);
+        }
+    }
+
+    private void WriteType(TypeSymbol? typeSymbol, Expression? typeExpression)
+    {
+        if (typeSymbol != null)
+        {
+            Write(typeSymbol.FullName);
+        }
+        else if (typeExpression != null)
+        {
+            Write(typeExpression);
+        }
+        else
+        {
+            Write("<unknown>");
+        }
+    }
+
     private void Write(SemanticElement semantic)
     {
         switch (semantic)
@@ -115,12 +194,7 @@ public class SemanticWriter
                 WriteLine("{");
                 WriteIndented(() =>
                 {
-                    for (int i = 0; i < block.Expressions.Count; i++)
-                    {
-                        Write(block.Expressions[i]);
-                        if (i < block.Expressions.Count - 1)
-                            WriteLine(";");
-                    }
+                    WriteSemicolonLineSeparated(block.Expressions);
                 });
                 WriteLine();
                 WriteLine("}");
@@ -129,38 +203,32 @@ public class SemanticWriter
             case BranchExpression branch:
                 if (branch.IsBreak)
                 {
-                    Write("break");
+                    WriteSeparated("break");
                 }
                 else if (branch.IsContinue)
                 {
-                    Write("continue");
+                    WriteSeparated("continue");
                 }
                 else if (branch.IsReturn)
                 {
-                    Write("return");
+                    WriteSeparated("return");
                 }
                 else
                 {
-                    Write("goto ");
-                    Write(branch.LabelName);
+                    WriteSeparated("goto");
+                    WriteSeparated(branch.LabelName);
                 }
 
                 if (branch.Expression != null)
                 {
-                    Write(" ");
-                    Write(branch.Expression);
+                    WriteSeparated(branch.Expression);
                 }
                 break;
 
             case CallExpression call:
-                Write(call.Expression);
+                WriteSeparated(call.Expression);
                 Write("(");
-                for (int i = 0; i < call.Arguments.Count; i++)
-                {
-                    if (i > 0)
-                        Write(", ");
-                    Write(call.Arguments[i]);
-                }
+                WriteCommaList(call.Arguments);
                 Write(")");
                 break;
 
@@ -175,7 +243,7 @@ public class SemanticWriter
                 break;
 
             case ConstantExpression constant:
-                Write(constant.Value switch
+                WriteSeparated(constant.Value switch
                 {
                     string str => $"\"{str}\"",
                     object obj => obj.ToString() ?? "",
@@ -184,48 +252,30 @@ public class SemanticWriter
                 break;
 
             case ConstructExpression construct:
-                Write(construct.TypeOrMember);
+                WriteSeparated(construct.TypeOrMember);
                 Write("<");
-                for (int i = 0; i < construct.TypeArguments.Count; i++)
-                {
-                    if (i > 0)
-                        Write(", ");
-                    Write(construct.TypeArguments[i]);
-                }
+                WriteCommaList(construct.TypeArguments);
                 Write(">");
                 break;
 
             case ConvertExpression convert:
-                Write("Convert(");
+                WriteSeparated("Convert(");
                 Write(convert.Expression);
-                if (convert.ConvertedType != null)
-                {
-                    Write(", ");
-                    Write(convert.ConvertedType);
-                }
-                else if (convert.ResultType != null)
-                {
-                    Write(", ");
-                    Write(convert.ResultType.FullName);
-                }
+                Write(", ");
+                WriteType(convert.ResultType, convert.ConvertedType);
                 Write(")");
                 break;
 
             case LabelExpression label:
-                Write(label.Name);
+                WriteSeparated(label.Name);
                 Write(":");
                 break;
 
             case LambdaExpression lambda:
                 if (lambda.Body is BlockExpression)
-                    Write("function ");
+                    WriteSeparated("function ");
                 Write("(");
-                for (int i = 0; i < lambda.Parameters.Count; i++)
-                {
-                    if (i > 0)
-                        Write(", ");
-                    Write(lambda.Parameters[i].Name);
-                }
+                WriteCommaList(lambda.Parameters);
                 Write(")");
                 if (lambda.Body is not BlockExpression)
                     Write(" => ");
@@ -233,44 +283,44 @@ public class SemanticWriter
                 break;
 
             case LoopExpression loop:
-                Write("loop");
+                WriteSeparated("loop");
                 WriteLine();
                 WriteBlockOrIndented(loop.Body);
                 break;
 
             case MemberExpression member:
-                Write(member.Instance);
+                WriteSeparated(member.Instance);
                 Write(".");
                 Write(member.Name);
                 break;
 
             case NameExpression nameRef:
-                Write(nameRef.Name);
+                WriteSeparated(nameRef.Name);
                 break;
 
             case SymbolExpression symbolRef:
-                Write(symbolRef.FullName);
+                WriteSeparated(symbolRef.FullName);
                 break;
 
             case VariableExpression declaration:
-                Write("var ");
-                Write(declaration.Name);
+                WriteSeparated("var");
+                WriteSeparated(declaration.Name);
                 if (declaration.VariableType != null)
                 {
-                    Write(": ");
-                    Write(declaration.VariableType);
+                    Write(":");
+                    WriteSeparated(declaration.VariableType);
                 }
                 if (declaration.Initializer != null)
                 {
-                    Write(" = ");
-                    Write(declaration.Initializer);
+                    WriteSeparated("=");
+                    WriteSeparated(declaration.Initializer);
                 }
                 break;
 
-
             case NamespaceDeclaration nd:
-                Write("namespace ");
-                WriteLine(nd.Name);
+                WriteSeparated("namespace");
+                WriteSeparated(nd.Name);
+                WriteLine();
                 WriteIndented(() =>
                 {
                     foreach (var decl in nd.Declarations)
@@ -281,76 +331,97 @@ public class SemanticWriter
                 break;
 
             case ClassDeclaration cd:
-                WriteAccessAndModifiers(cd.Access, cd.Modifiers);
-                Write("class ");
-                WriteLine(cd.Name);
-                WriteIndented(() =>
-                {
-                    foreach (var decl in cd.Declarations)
-                    {
-                        WriteLine(decl);
-                    }
-                });
+                WriteTypeDeclaration(cd, "class");
                 break;
 
             case ConstructorDeclaration cd:
                 WriteAccessAndModifiers(cd.Access, cd.Modifiers);
-                Write("constructor ");
-                Write("(");
-                for (int i = 0; i < cd.Parameters.Count; i++)
-                {
-                    if (i > 0)
-                        Write(", ");
-                    Write(cd.Parameters[i]);
-                }
+                WriteSeparated("constructor");
+                WriteSeparated("(");
+                WriteCommaList(cd.Parameters);
                 WriteLine(")");
+                WriteLine("{");
                 WriteIndented(cd.Body);
+                WriteLine("}");
+                break;
+
+            case DelegateDeclaration dd:
+                WriteAccessAndModifiers(dd.Access, dd.Modifiers);
+                WriteSeparated("delegate");
+                WriteSeparated(dd.Name);
+                WriteSeparated("(");
+                WriteCommaList(dd.Parameters);
+                Write("):");
+                WriteType(dd.Symbol?.ReturnType, dd.ReturnType);
+                break;
+
+            case FieldDeclaration fd:
+                WriteAccessAndModifiers(fd.Access, fd.Modifiers);
+                WriteSeparated("field");
+                WriteSeparated(fd.Name);
+                WriteSeparated(":");
+                WriteType(fd.Symbol?.Type, fd.FieldType);
+                if (fd.Initializer != null)
+                {
+                    WriteSeparated("=");
+                    WriteSeparated(fd.Initializer);
+                }
+                break;
+
+            case IndexerDeclaration id:
+                WriteAccessAndModifiers(id.Access, id.Modifiers);
+                WriteSeparated("indexer");
+                WriteSeparated(id.Name);
+                Write(":");
+                WriteType(id.Symbol?.ElementType, id.ElementType);
+                WriteLine();
+                WriteIndented(() =>
+                {
+                    WriteSeparated("get");
+                    WriteSeparated(id.GetMethod);
+                    if (id.SetMethod != null)
+                    {
+                        WriteSeparated("set");
+                        WriteSeparated(id.SetMethod);
+                    }
+                });
+                break;
+
+            case InterfaceDeclaration td:
+                WriteTypeDeclaration(td, "interface");
                 break;
 
             case MethodDeclaration md:
                 WriteAccessAndModifiers(md.Access, md.Modifiers);
-                Write("method ");
-                Write(md.Name);
+                WriteSeparated("method");
+                WriteSeparated(md.Name);
                 Write("(");
-                for (int i = 0; i < md.Parameters.Count; i++)
-                {
-                    if (i > 0)
-                        Write(", ");
-                    Write(md.Parameters[i]);
-                }
-                Write("): ");
-                Write(md.ReturnType);
+                WriteCommaList(md.Parameters);
+                Write("):");
+                WriteType(md.Symbol?.ReturnType, md.ReturnType);
                 WriteLine();
+                WriteLine("{");
                 WriteIndented(md.Body);
+                WriteLine("}");
                 break;
 
             case ParameterDeclaration pd:
-                Write(pd.Name);
+                WriteModifiers(pd.Modifiers);
+                WriteSeparated(pd.Name);
                 if (pd.ParameterType != null)
                 {
-                    Write(": ");
-                    Write(pd.ParameterType);
-                }
-                break;
-            case FieldDeclaration fd:
-                WriteAccessAndModifiers(fd.Access, fd.Modifiers);
-                Write("field ");
-                Write(fd.Name);
-                Write(" : ");
-                Write(fd.FieldType);
-                if (fd.Initializer != null)
-                {
-                    Write(" = ");
-                    Write(fd.Initializer);
+                    WriteSeparated(":");
+                    WriteType(pd.Symbol?.Type, pd.ParameterType);
                 }
                 break;
 
             case PropertyDeclaration pd:
                 WriteAccessAndModifiers(pd.Access, pd.Modifiers);
-                Write("property ");
-                Write(pd.Name);
-                Write(" : ");
-                WriteLine(pd.PropertyType);
+                WriteSeparated("property");
+                WriteSeparated(pd.Name);
+                WriteSeparated(":");
+                WriteType(pd.Symbol?.Type, pd.PropertyType);
+                WriteLine();
                 WriteIndented(() =>
                 {
                     Write("get ");
@@ -363,47 +434,57 @@ public class SemanticWriter
                 });
                 break;
 
+            case StructDeclaration sd:
+                WriteTypeDeclaration(sd, "struct");
+                break;
+
             default:
                 throw new InvalidOperationException($"Unhandled semantic type '{semantic.GetType().Name}' in {nameof(SemanticWriter)}.Write");
         }
     }
 
+    private void WriteTypeDeclaration(TypeDeclaration td, string kind)
+    {
+        WriteAccessAndModifiers(td.Access, td.Modifiers);
+        WriteSeparated(kind);
+        WriteSeparated(td.Name);
+        if (td.BaseTypes.Count > 0)
+        {
+            WriteSeparated(":");
+            WriteCommaList(td.BaseTypes);
+            WriteLine();
+        }
+        else
+        {
+            WriteLine();
+        }
+        WriteLine("{");
+        WriteIndented(() =>
+        {
+            WriteLineSeparated(td.Declarations);
+        });
+        WriteLine("}");
+    }
+
     private void WriteAccessAndModifiers(SymbolAccess access, BitSet<SymbolModifier> modifiers)
     {
-        Write(
-            access == SymbolAccess.Public ? "public "
-            : access == SymbolAccess.Internal ? "internal "
-            : access == SymbolAccess.Protected ? "protected "
-            : access == SymbolAccess.ProtectedAndInternal ? "protectedAndInternal "
-            : access == SymbolAccess.ProtectedOrInternal ? "protectedOrInternal "
-            : ""
-            );
+        WriteAccess(access);
+        WriteModifiers(modifiers);
+    }
 
+    private void WriteAccess(SymbolAccess access)
+    {
+        WriteSeparated(access.ToString().ToLower());
+    }
+
+    private void WriteModifiers(BitSet<SymbolModifier> modifiers)
+    {
         if (modifiers != SymbolModifier.None)
         {
-            if (modifiers.Contains(SymbolModifier.Constant))
-                Write("const ");
-
-            if (modifiers.Contains(SymbolModifier.Static))
-                Write("static ");
-
-            if (modifiers.Contains(SymbolModifier.Abstract))
-                Write("abstract ");
-
-            if (modifiers.Contains(SymbolModifier.Virtual))
-                Write("virtual ");
-
-            if (modifiers.Contains(SymbolModifier.Sealed))
-                Write("sealed ");
-
-            if (modifiers.Contains(SymbolModifier.ReadOnly))
-                Write("readonly ");
-
-            if (modifiers.Contains(SymbolModifier.Special))
-                Write("special ");
-
-            if (modifiers.Contains(SymbolModifier.HideBySig))
-                Write("hidden ");
+            foreach (var mod in modifiers.Select(m => m.ToString().ToLower()).OrderBy(x => x))
+            {
+                WriteSeparated(mod);
+            }
         }
     }
 }

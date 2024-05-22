@@ -1,26 +1,17 @@
 ﻿namespace Parkour.Semantics;
 
-public class SemanticLowering
-{
-    public ImmutableList<SemanticElement> Elements { get; }
-    public ImmutableList<Diagnostic> Diagnostics { get; }
+using Symbols;
 
+public class SemanticLowering : SemanticBinding
+{
     public SemanticLowering(
         ImmutableList<SemanticElement> elements,
-        ImmutableList<Diagnostic>? diagnostics = null)
+        SymbolTable importedSymbols,
+        SymbolTable combinedSymbols)
+        : base(
+            elements,
+            importedSymbols,
+            combinedSymbols)
     {
-        this.Elements = elements;
-
-        if (diagnostics == null)
-        {
-            var dx = new List<Diagnostic>();
-            foreach (var elem in elements)
-            {
-                elem.GetContainedDiagnostics(dx);
-            }
-            diagnostics = dx.ToImmutableList();
-        }
-
-        this.Diagnostics = diagnostics;
     }
 }

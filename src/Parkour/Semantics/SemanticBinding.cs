@@ -5,20 +5,30 @@ using Symbols;
 /// <summary>
 /// The result of binding a set of declarations and an optional expression.
 /// </summary>
-public abstract class SemanticBinding
+public class SemanticBinding
 {
     /// <summary>
     /// The elements after being bound.
     /// </summary>
-    public abstract ImmutableList<SemanticElement> Elements { get; }
+    public ImmutableList<SemanticElement> Elements { get; }
 
     /// <summary>
-    /// The combined external and declared symbol table.
+    /// The imported symbols.
     /// </summary>
-    public abstract SymbolTable Symbols { get; }
+    public SymbolTable ImportedSymbols { get; }
 
     /// <summary>
-    /// All diagnostics determined during binding.
+    /// The combined imported and declared symbols.
     /// </summary>
-    public abstract ImmutableList<Diagnostic> Diagnostics { get; }
+    public SymbolTable CombinedSymbols { get; }
+
+    public SemanticBinding(
+        ImmutableList<SemanticElement> elements,
+        SymbolTable importedSymbols,
+        SymbolTable combinedSymbols)
+    {
+        this.Elements = elements;
+        this.ImportedSymbols = importedSymbols;
+        this.CombinedSymbols = combinedSymbols;
+    }
 }

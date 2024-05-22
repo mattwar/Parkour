@@ -1,9 +1,32 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 
 namespace Parkour.Semantics;
 
 public static class SemanticExtensions
-{ 
+{
+    private static ConditionalWeakTable<ImmutableList<SemanticElement>, ImmutableList<Diagnostic>> _diagnosticsMap =
+        new ConditionalWeakTable<ImmutableList<SemanticElement>, ImmutableList<Diagnostic>>();
+
+    /// <summary>
+    /// Gets the contained diagnostics for all the elements.
+    /// </summary>
+    public static ImmutableList<Diagnostic> GetContainedDiagnostics(this ImmutableList<SemanticElement> elements)
+    {
+        if (elements.Any(e => e.ContainsDiagnostics))
+        {
+            if (!_diagnosticsMap.TryGetValue(elements, out var diagnostics))
+            {
+                var tmp = elements.SelectMany(e => e.GetContainedDiagnostics()).ToImmutableList();
+                diagnostics = _diagnosticsMap.GetValue(elements, _ => tmp);
+            }
+
+            return diagnostics;
+        }
+
+        return ImmutableList<Diagnostic>.Empty;
+    }
+
     /// <summary>
     /// Returns the list of values computed from the semantic elements in the tree 
     /// starting at the specified element that match the predicate.

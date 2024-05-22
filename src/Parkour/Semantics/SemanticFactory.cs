@@ -492,8 +492,8 @@ public static class SemanticFactory
     public static ClassDeclaration Class(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Class(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
 
-    public static ClassDeclaration Class(string name, ImmutableList<Declaration> declarations) =>
-        Class(name, ImmutableList<Expression>.Empty, declarations);
+    public static ClassDeclaration Class(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Class(name, ImmutableList<Expression>.Empty, declarations, location);
 
 
     public static StructDeclaration Struct(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
@@ -511,8 +511,8 @@ public static class SemanticFactory
     public static StructDeclaration Struct(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Struct(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
 
-    public static StructDeclaration Struct(string name, ImmutableList<Declaration> declarations) =>
-        Struct(name, ImmutableList<Expression>.Empty, declarations);
+    public static StructDeclaration Struct(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Struct(name, ImmutableList<Expression>.Empty, declarations, location);
 
 
     public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
@@ -530,12 +530,13 @@ public static class SemanticFactory
     public static InterfaceDeclaration Interface(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Interface(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
 
-    public static InterfaceDeclaration Interface(string name, ImmutableList<Declaration> declarations) =>
-        Interface(name, ImmutableList<Expression>.Empty, declarations);
+    public static InterfaceDeclaration Interface(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, ImmutableList<Expression>.Empty, declarations, location);
 
 
     public static NamespaceDeclaration Namespace(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         new NamespaceDeclaration(name, declarations, location, null, null);
+
 
     public static TypeParameterDeclaration TypeParameter(string name, ISourceLocation? location = null) =>
         new TypeParameterDeclaration(name, location, null, null);
@@ -548,7 +549,7 @@ public static class SemanticFactory
 
 
     public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, ISourceLocation? location = null) =>
-        new ParameterDeclaration(name, parameterType, location, null, null);
+        new ParameterDeclaration(name, SymbolModifier.None, parameterType, location, null, null);
 
     public static MethodDeclaration Method(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
         new MethodDeclaration(name, access, modifiers, typeParameters, parameters, returnType, body, location, null, null, null);

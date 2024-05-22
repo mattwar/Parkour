@@ -20,10 +20,10 @@ public class LinqEmitter : SemanticEmitter
     }
 
     public override LinqEmitResult Emit(
-        ImmutableList<SemanticElement> elements)
+        SemanticLowering lowering)
     {
         var translator = new LinqTranslator(_symbols);
-        var exprs = elements
+        var exprs = lowering.Elements
             .OfType<Expression>()
             .Select(e => translator.Translate(e))
             .ToImmutableList();

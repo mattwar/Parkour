@@ -108,10 +108,7 @@ public abstract class SemanticCompilation : Compilation
 
             // get all semantic diagnostics
             var docDeclarations = GetRootElements(document);
-            foreach (var decl in docDeclarations)
-            {
-                decl.GetContainedDiagnostics(list);
-            }
+            list.AddRange(docDeclarations.GetContainedDiagnostics());
 
             diagnostics = ImmutableInterlocked.GetOrAdd(ref _docDiagnostics, document, list.ToImmutableList());
         }

@@ -286,8 +286,7 @@ public class LINQTranslationTests
 
         if (bound.ContainsDiagnostics)
         {
-            var diagnostics = new List<Diagnostic>();
-            bound.GetContainedDiagnostics(diagnostics);
+            var diagnostics = bound.GetContainedDiagnostics();
             var dx = diagnostics[0];
             Assert.Fail($"The expression contains diagnostics: {dx.Message}");
         }

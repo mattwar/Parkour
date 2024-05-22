@@ -83,18 +83,6 @@ public abstract class SemanticElement
     public string ToDebugText() =>
         new SemanticWriter().WriteToString(this);
 
-    /// <summary>
-    /// Get all contained diagnostics that match the filter
-    /// </summary>
-    public void GetContainedDiagnostics(Func<Diagnostic, bool>? filter, List<Diagnostic> diagnostics)
-    {
-        diagnostics.AddRange(
-            this.SelectWhere(s => s.HasDiagnostics, s => s.Diagnostics)
-            .SelectMany(dx => dx)
-            .Where(d => filter == null || filter(d))
-            );
-    }
-
     [Flags]
     internal protected enum ContainsState
     {
@@ -106,8 +94,20 @@ public abstract class SemanticElement
     /// <summary>
     /// Get all contained diagnostics.
     /// </summary>
-    public void GetContainedDiagnostics(List<Diagnostic> diagnostics) =>
-        GetContainedDiagnostics(null, diagnostics);
+    public ImmutableList<Diagnostic> GetContainedDiagnostics()
+    {
+        if (this.ContainsDiagnostics)
+        {
+            return
+                this.SelectWhere(s => s.HasDiagnostics, s => s.Diagnostics)
+                .SelectMany(dx => dx)
+                .ToImmutableList();
+        }
+        else
+        {
+            return ImmutableList<Diagnostic>.Empty;
+        }
+    }
 
     protected static ContainsState CombineState<TSemantic>(IEnumerable<TSemantic>? items)
         where TSemantic : SemanticElement =>
@@ -138,8 +138,8 @@ public abstract class SemanticElement
     public abstract SemanticElement RewriteChildren(SemanticRewriter rewriter);
 
     /// <summary>
-    /// Creates a lowerer for this kind of semantic element.
+    /// Returns a lowerer for this kind of semantic element.
     /// Elements that are not understood by the emitter must be lowered into elements that are understood.
     /// </summary>
-    public virtual SemanticLowerer? CreateLowerer() => null;
+    public virtual PartialLowerer? Lowerer => null;
 }

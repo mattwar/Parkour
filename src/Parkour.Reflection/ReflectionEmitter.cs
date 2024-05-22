@@ -59,9 +59,9 @@ public class ReflectionEmitter : StandardEmitter
     }
 
     public override EmitResult Emit(
-        ImmutableList<SemanticElement> elements)
+        SemanticLowering lowering)
     {
-        return base.Emit(elements);
+        return base.Emit(lowering);
     }
 
     protected override EmitResult FinishEmit()

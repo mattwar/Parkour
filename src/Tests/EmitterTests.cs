@@ -855,23 +855,23 @@ public class EmitterTests
         {
             elements = elements.Add(
                 Class("Test", [
-                     Constructor(),
                      Method("Run", SymbolAccess.Public, SymbolModifier.Static, [], Symbol("System.Object"), test)
                      ]));
         }
 
         var binding = binder.Bind(elements, imports);
-        if (binding.Diagnostics.Count > 0)
+        var dx = binding.Elements.GetContainedDiagnostics();
+        if (dx.Count > 0)
         {
-            var dxs = string.Join("\n", binding.Diagnostics.Select(d => d.ToString()));
+            var dxs = string.Join("\n", dx.Select(d => d.ToString()));
             Assert.Fail($"Unexpected diagnostics:\n{dxs}");
         }
 
         var lowerer = new StandardLowerer();
-        var lowering = lowerer.Lower(binding.Elements, imports);
+        var lowering = lowerer.Lower(binding);
 
         var emitter = new ReflectionEmitter(imports, "test_assembly");
-        var result = emitter.Emit(lowering.Elements);
+        var result = emitter.Emit(lowering);
 
         if (result.Diagnostics.Count > 0)
         {

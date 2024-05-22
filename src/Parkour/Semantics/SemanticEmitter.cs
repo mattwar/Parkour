@@ -3,15 +3,15 @@
 using Symbols;
 
 /// <summary>
-/// Emits semantics into a module.
+/// Emits low-level elements into a final representation.
 /// </summary>
 public abstract class SemanticEmitter
 {
     /// <summary>
-    /// Emits all semantics.
+    /// Emits all low-level elements into final representation.
     /// </summary>
     public abstract EmitResult Emit(
-        ImmutableList<SemanticElement> elements);
+        SemanticLowering lowering);
 
     public class EmitResult
     {

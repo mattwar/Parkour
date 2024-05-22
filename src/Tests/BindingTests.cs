@@ -1046,12 +1046,12 @@ public class BindingTests
     {
         var binder = new StandardBinder();
         var binding = binder.Bind(elements, ReflectionSymbols.CurrentMscorlib);
-
-        if (binding.Diagnostics.Count > 0 && !containsDiagnostics)
+        var diagnostics = binding.Elements.GetContainedDiagnostics();
+        if (diagnostics.Count > 0 && !containsDiagnostics)
         {
-            Assert.Fail($"Unexpected declaration diagnostics:\n{binding.Diagnostics[0]}");
+            Assert.Fail($"Unexpected declaration diagnostics:\n{diagnostics[0]}");
         }
-        else if (containsDiagnostics && binding.Diagnostics.Count == 0)
+        else if (containsDiagnostics && diagnostics.Count == 0)
         {
             Assert.Fail($"Unexpected missing diagnostics");
         }
@@ -1060,7 +1060,7 @@ public class BindingTests
         {
             foreach (var path in expectedSymbols)
             {
-                var symbol = binding.Symbols.GetSymbol(path);
+                var symbol = binding.CombinedSymbols.GetSymbol(path);
                 Assert.IsNotNull(symbol, $"symbol '{path}' not found");
             }
         }

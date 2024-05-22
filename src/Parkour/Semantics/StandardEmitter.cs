@@ -12,12 +12,12 @@ public abstract class StandardEmitter : SemanticEmitter
     }
 
     /// <summary>
-    /// Emits all declared types and members as a module.
+    /// Emits all lowered types and members as a module.
     /// </summary>
     public override EmitResult Emit(
-        ImmutableList<SemanticElement> elements)
+        SemanticLowering lowering)
     {
-        var declarations = elements.OfType<Declaration>().ToImmutableList();
+        var declarations = lowering.Elements.OfType<Declaration>().ToImmutableList();
 
         DeclareTypes(declarations);
         DeclareBaseTypes(declarations);

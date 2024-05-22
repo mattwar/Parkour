@@ -3,17 +3,16 @@
 using Symbols;
 using static Semantics.SemanticFactory;
 
-public class FieldInitializerLowerer : SemanticLowerer
+public class FieldInitializerLowerer : PartialLowerer
 {
     public static readonly FieldInitializerLowerer Instance =
         new FieldInitializerLowerer();
 
-    public override SemanticLowering Lower(
+    public override ImmutableList<SemanticElement> Lower(
         ImmutableList<SemanticElement> elements, 
         SymbolTable symbols)
     {
-        var newElements = elements.RewriteAll<SemanticElement, TypeDeclaration>(Lower);
-        return new SemanticLowering(newElements);
+        return elements.RewriteAll<SemanticElement, TypeDeclaration>(Lower);
     }
 
     /// <summary>
