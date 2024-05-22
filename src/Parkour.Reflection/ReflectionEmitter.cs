@@ -4,14 +4,13 @@ using System.Reflection.Emit;
 
 namespace Parkour.Reflection;
 
-using Emitting;
 using Semantics;
 using Symbols;
 
 /// <summary>
-/// A <see cref="DeclarationEmitter"/> that emits into a <see cref="ModuleBuilder"/>
+/// A <see cref="SemanticEmitter"/> that emits into a <see cref="ModuleBuilder"/>
 /// </summary>
-public class ReflectionEmitter : StandardDeclarationEmitter
+public class ReflectionEmitter : StandardEmitter
 {
     private readonly AssemblyBuilder _assemblyBuilder;
     private readonly ModuleBuilder _moduleBuilder;
@@ -57,6 +56,12 @@ public class ReflectionEmitter : StandardDeclarationEmitter
                 new AssemblyName(assemblyName),
                 AssemblyBuilderAccess.RunAndCollect))
     {
+    }
+
+    public override EmitResult Emit(
+        ImmutableList<SemanticElement> elements)
+    {
+        return base.Emit(elements);
     }
 
     protected override EmitResult FinishEmit()
@@ -573,7 +578,7 @@ public class ReflectionEmitter : StandardDeclarationEmitter
     /// <summary>
     /// Emits into <see cref="System.Reflection.Emit.ILGenerator"/>
     /// </summary>
-    private class ReflectionILEmitter : Emitting.ILEmitter
+    private class ReflectionILEmitter : Semantics.ILEmitter
     {
         private readonly ReflectionEmitter _emitter;
         private readonly ILGenerator _ilgen;

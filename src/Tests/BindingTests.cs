@@ -1,6 +1,5 @@
 ﻿using Parkour;
 using Parkour.Semantics;
-using Parkour.Binding;
 using Parkour.Reflection;
 using Parkour.Symbols;
 using static Parkour.Semantics.SemanticFactory;
@@ -1045,7 +1044,7 @@ public class BindingTests
         Action<ImmutableList<SemanticElement>>? fnValidate = null
         )
     {
-        var binder = new StandardSemanticBinder();
+        var binder = new StandardBinder();
         var binding = binder.Bind(elements, ReflectionSymbols.CurrentMscorlib);
 
         if (binding.Diagnostics.Count > 0 && !containsDiagnostics)

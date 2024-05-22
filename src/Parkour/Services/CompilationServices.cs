@@ -1,7 +1,7 @@
 ﻿
 namespace Parkour.Services;
 
-public class CompilationServices : StandardServices
+public class CompilationServices : DocumentServices
 {
     public Compilation Compilation { get; }
 
@@ -13,7 +13,10 @@ public class CompilationServices : StandardServices
         this.Compilation = compilation;
     }
 
-    public override ClassificationResult GetClassifications(int start, int length, CancellationToken cancellationToken)
+    public override ClassificationResult GetClassifications(
+        int start, int length, 
+        ServiceOptions options,
+        CancellationToken cancellationToken)
     {
         var tree = this.Compilation.GetSyntaxTree(this.Document);
         if (tree == null)
@@ -36,14 +39,18 @@ public class CompilationServices : StandardServices
         return [ClassificationKinds.Text];
     }
 
-    public override CompletionResult GetCompletions(int position, char? lastKey, CancellationToken cancellation)
+    public override CompletionResult GetCompletions(
+        int position, 
+        char? lastKey, 
+        ServiceOptions options,
+        CancellationToken cancellation)
     {
         var tree = this.Compilation.GetSyntaxTree(this.Document);
         if (tree == null)
             return CompletionResult.Empty;
 
         var completions = new List<CompletionItem>();
-        var annotations = this.Compilation.GetAnnotations<object>(this.Document, position, a => a is String || a is CompletionItem);
+        var annotations = this.Compilation.GetGrammarAnnotations<object>(this.Document, position, a => a is String || a is CompletionItem);
         completions.AddRange(annotations.OfType<string>().Select(term => new CompletionItem(term)));
         completions.AddRange(annotations.OfType<CompletionItem>());
 
@@ -55,7 +62,10 @@ public class CompilationServices : StandardServices
         return new CompletionResult(completions.ToImmutableList());
     }
 
-    public override DiagnosticResult GetDiagnostics(int start, int length, CancellationToken cancellation)
+    public override DiagnosticResult GetDiagnostics(
+        int start, int length, 
+        ServiceOptions options,
+        CancellationToken cancellation)
     {
         var compilation = this.Compilation;
         var docDiagnostics = compilation.GetDiagnostics(this.Document);
@@ -74,12 +84,15 @@ public class CompilationServices : StandardServices
         return new DiagnosticResult(diagnostics);
     }
 
-    public override HoverTextResult GetHoverText(int position, CancellationToken cancellationToken)
+    public override HoverTextResult GetHoverText(
+        int position, 
+        ServiceOptions options,
+        CancellationToken cancellationToken)
     {
         var compilation = this.Compilation;
 
         var info = compilation.GetSemanticInfo(this.Document, position);
-        var diagnostics = GetDiagnostics(position, 0, cancellationToken);
+        var diagnostics = GetDiagnostics(position, 0, options, cancellationToken);
 
         var sections = new List<HoverTextSection>();
         if (info.ReferencedSymbol != null

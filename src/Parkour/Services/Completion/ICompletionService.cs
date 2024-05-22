@@ -6,5 +6,9 @@ public interface ICompletionService : IDocumentService
     /// Gets the list of completion items available at the text position, 
     /// given the last key pressed.
     /// </summary>
-    CompletionResult GetCompletions(int position, char? lastKey, CancellationToken cancellationToken);
+    CompletionResult GetCompletions(
+        int position, 
+        char? lastKey, 
+        ServiceOptions options,
+        CancellationToken cancellationToken);
 }

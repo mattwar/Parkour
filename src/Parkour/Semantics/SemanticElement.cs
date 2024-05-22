@@ -1,6 +1,5 @@
 ﻿namespace Parkour.Semantics;
 
-using Lowering;
 using Symbols;
 
 public abstract class SemanticElement

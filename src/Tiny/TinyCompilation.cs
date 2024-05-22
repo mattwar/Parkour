@@ -1,8 +1,6 @@
 ﻿using System.Collections.Immutable;
 using Parkour;
-using Parkour.Compilations;
-using Parkour.Binding;
-using Parkour.Parsing;
+using Parkour.Parsers;
 using Parkour.Semantics;
 using Parkour.Syntax;
 using Parkour.Symbols;
@@ -25,7 +23,7 @@ public class TinyCompilation : SemanticCompilation
         var tokens = lexer.Parse(document.Text);
         var tp = new TinyParser();
         var result = tp.Parser.Parse(tokens.AsSpan());
-        var context = new LexicalParsingContext(tp.Parser, tokens);
+        var context = new LexicalParserAnnotations(tp.Parser, tokens);
         var tree = new SyntaxTree(document, result.Output);
         return new ParsingInfo(tree, context);
     }
@@ -35,7 +33,7 @@ public class TinyCompilation : SemanticCompilation
         if (this.GetSyntaxTree(this.Documents[0]) is SyntaxTree tree)
         {
             var unbound = new TinyTranslator().Translate(tree.Root);
-            var binding = new StandardSemanticBinder().Bind([unbound], _imports);
+            var binding = new StandardBinder().Bind([unbound], _imports);
             return new BindingInfo(_imports, binding.Elements);
        }
 

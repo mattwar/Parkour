@@ -6,12 +6,12 @@ public interface ICodeActionService : IDocumentService
     /// Gets the list of <see cref="ICodeAction"/> that can be applied at this position.
     /// These are used to form a menu for the user to choose.
     /// </summary>
-    CodeActionResult GetActions(int position, CancellationToken cancellationToken);
+    CodeActionResult GetActions(int position, ServiceOptions options, CancellationToken cancellationToken);
 
     /// <summary>
     /// Get the list of operations to be applied in the text editor to perform the code action.
     /// </summary>
-    CodeOperationResult GetOperations(ICodeAction action, CancellationToken cancellationToken);
+    CodeOperationResult GetOperations(ICodeAction action, ServiceOptions options, CancellationToken cancellationToken);
 }
 
 public record CodeActionResult(ImmutableList<ICodeAction> Actions)

@@ -1,5 +1,5 @@
 ﻿using Parkour;
-using Parkour.Parsing;
+using Parkour.Parsers;
 using Parkour.Syntax;
 
 namespace Tiny

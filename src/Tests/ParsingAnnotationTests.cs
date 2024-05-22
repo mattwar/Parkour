@@ -56,7 +56,7 @@ public class ParsingAnnotationTests
         var doc = new SourceDocument("test", textWithoutMarker);
         var compilation = new TinyCompilation(doc, ReflectionSymbols.CurrentMscorlib);
 
-        var actualTerms = compilation.GetAnnotations<string>(doc, markerPosition);
+        var actualTerms = compilation.GetGrammarAnnotations<string>(doc, markerPosition);
 
         var expectedList = string.Join(", ", expectedTerms);
         var actualList = string.Join(", ", actualTerms);

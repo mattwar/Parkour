@@ -1,7 +1,4 @@
 ﻿using System.Reflection;
-using Parkour.Binding;
-using Parkour.Emitting;
-using Parkour.Lowering;
 using Parkour.Reflection;
 using Parkour.Semantics;
 using Parkour.Symbols;
@@ -849,7 +846,7 @@ public class EmitterTests
 
     private void TestEmit(List<Declaration> declarations, Expression? test, Action<object?>? fnCheckResult)
     {
-        var binder = new StandardSemanticBinder();
+        var binder = new StandardBinder();
         var imports = ReflectionSymbols.CurrentMscorlib;
 
         var elements = ImmutableList<SemanticElement>.Empty.AddRange(declarations);
@@ -870,12 +867,11 @@ public class EmitterTests
             Assert.Fail($"Unexpected diagnostics:\n{dxs}");
         }
 
-        var lowerer = new StandardSemanticLowerer();
+        var lowerer = new StandardLowerer();
         var lowering = lowerer.Lower(binding.Elements, imports);
 
         var emitter = new ReflectionEmitter(imports, "test_assembly");
-        var loweredDeclarations = lowering.Elements.OfType<Declaration>().ToImmutableList();
-        var result = emitter.Emit(loweredDeclarations);
+        var result = emitter.Emit(lowering.Elements);
 
         if (result.Diagnostics.Count > 0)
         {
@@ -883,7 +879,7 @@ public class EmitterTests
         }
 
         // verify all delared symbols are represented in the assembly
-        VerifyDeclarations(emitter.Assembly, loweredDeclarations);
+        VerifyDeclarations(emitter.Assembly, lowering.Elements.OfType<Declaration>());
 
 #if false
         var generator = new Lokad.ILPack.AssemblyGenerator();
@@ -905,7 +901,9 @@ public class EmitterTests
         }
     }
 
-    private void VerifyDeclarations(Assembly assembly, ImmutableList<Declaration> declarations)
+    private void VerifyDeclarations(
+        Assembly assembly, 
+        IEnumerable<Declaration> declarations)
     {
         foreach (var decl in declarations)
         {

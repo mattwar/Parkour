@@ -2,5 +2,9 @@
 
 public interface IFormattingService
 {
-    FormattingResult Format(int start, int length, CancellationToken cancellationToken);
+    FormattingResult Format(
+        int start, 
+        int length,
+        ServiceOptions options,
+        CancellationToken cancellationToken);
 }

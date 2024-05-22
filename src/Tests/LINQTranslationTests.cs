@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Reflection;
 using Parkour;
-using Parkour.Binding;
 using Parkour.Linq;
 using Parkour.Reflection;
 using Parkour.Semantics;
@@ -281,7 +280,7 @@ public class LINQTranslationTests
 
         args ??= System.Array.Empty<object>();
 
-        var binder = new StandardSemanticBinder();
+        var binder = new StandardBinder();
         var binding = binder.Bind([expression], _symbols);
         var bound = (LambdaExpression)binding.Elements[0];
 
@@ -296,7 +295,7 @@ public class LINQTranslationTests
         Assert.IsFalse(bound.ContainsDiagnostics, "expression contains diagnostics");
         Assert.IsFalse(bound.IsUnbound, "expression still contains unbound elements after binding.");
 
-        var translated = new ExpressionTranslator(_symbols).TranslateToLambda(bound);
+        var translated = new LinqTranslator(_symbols).TranslateToLambda(bound);
 
         var compiled = translated.Compile();
 

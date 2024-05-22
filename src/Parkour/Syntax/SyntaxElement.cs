@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using Parkour.Binding;
 
 namespace Parkour.Syntax;
 

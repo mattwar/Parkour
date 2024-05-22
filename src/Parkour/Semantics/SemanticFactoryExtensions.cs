@@ -148,5 +148,4 @@ public static class SemanticFactoryExtensions
         SemanticFactory.Member(expression, name, location);
 
     #endregion
-
 }

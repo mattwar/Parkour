@@ -1,5 +1,5 @@
 ﻿using Parkour;
-using Parkour.Parsing;
+using Parkour.Parsers;
 using Parkour.Reflection;
 using Parkour.Services;
 using Parkour.Syntax;
@@ -94,7 +94,7 @@ public class TinyTests
         var compilation = new TinyCompilation(document, ReflectionSymbols.CurrentMscorlib);
         var services = new TinyServices(compilation, document);
 
-        var classifications = services.GetClassifications(0, text.Length, default).Classifications;
+        var classifications = services.GetClassifications(0, text.Length, ServiceOptions.Default, default).Classifications;
         Assert.AreEqual(expectedClassifications.Length, classifications.Count, "classification count");
 
         if (expectedClassifications.Zip(classifications).Any(x => x.First != x.Second.Classification))
@@ -118,7 +118,7 @@ public class TinyTests
         var compilation = new TinyCompilation(document, ReflectionSymbols.CurrentMscorlib);
         var services = new TinyServices(compilation, document);
 
-        var hoverText = services.GetHoverText(position, default);
+        var hoverText = services.GetHoverText(position, ServiceOptions.Default, default);
 
         Assert.AreEqual(sections.Length, hoverText.Sections.Count, "sections");
         for (int i = 0; i < sections.Length; i++) 
