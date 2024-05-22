@@ -6,7 +6,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
 {
     public override IndexerSymbol? Symbol { get; }
 
-    public Expression ElementType { get; }
+    public Expression? ElementType { get; }
     public MethodDeclaration GetMethod { get; }
     public MethodDeclaration? SetMethod { get; }
 
@@ -14,7 +14,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
-        Expression elementType,
+        Expression? elementType,
         MethodDeclaration getMethod,
         MethodDeclaration? setMethod,
         ISourceLocation? location,
@@ -31,7 +31,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
         location,
         diagnostics)
     {
-        this.ElementType = elementType ?? getMethod.ReturnType;
+        this.ElementType = elementType;
         this.GetMethod = getMethod;
         this.SetMethod = setMethod;
         this.Symbol = symbol;
@@ -40,7 +40,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
     public IndexerDeclaration(
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
-        Expression elementType,
+        Expression? elementType,
         MethodDeclaration getMethod,
         MethodDeclaration? setMethod,
         ISourceLocation? location,
@@ -123,8 +123,8 @@ public sealed class IndexerDeclaration : MemberDeclaration
             access,
             this.Modifiers,
             this.ElementType,
-            this.GetMethod,
-            this.SetMethod,
+            this.GetMethod.WithAccess(access),
+            this.SetMethod != null ? this.SetMethod.WithAccess(access) : null,
             this.Location,
             this.Symbol,
             this.Diagnostics
@@ -137,14 +137,14 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Access,
             modifiers,
             this.ElementType,
-            this.GetMethod,
-            this.SetMethod,
+            this.GetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special),
+            this.SetMethod != null ? this.SetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special) : null,
             this.Location,
             this.Symbol,
             this.Diagnostics
             );
 
-    public IndexerDeclaration WithElementType(Expression elementType) =>
+    public IndexerDeclaration WithElementType(Expression? elementType) =>
         elementType == this.ElementType ? this :
         new IndexerDeclaration(
             this.Name,

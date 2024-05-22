@@ -6,7 +6,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
 {
     public override PropertySymbol? Symbol { get; }
 
-    public Expression PropertyType { get; }
+    public Expression? PropertyType { get; }
     public MethodDeclaration GetMethod { get; }
     public MethodDeclaration? SetMethod { get; }
     public FieldDeclaration? BackingField { get; }
@@ -15,7 +15,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
-        Expression propertyType,
+        Expression? propertyType,
         FieldDeclaration? backingField,
         MethodDeclaration getMethod,
         MethodDeclaration? setMethod,
@@ -34,7 +34,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
         location,
         diagnostics)
     {
-        this.PropertyType = propertyType ?? getMethod.ReturnType;
+        this.PropertyType = propertyType;
         this.BackingField = backingField;
         this.GetMethod = getMethod;
         this.SetMethod = setMethod;
@@ -109,8 +109,8 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Modifiers,
             this.PropertyType,
             this.BackingField,
-            this.GetMethod,
-            this.SetMethod,
+            this.GetMethod.WithAccess(access),
+            this.SetMethod != null ? this.SetMethod.WithAccess(access) : null,
             this.Location,
             this.Symbol,
             this.Diagnostics
@@ -123,15 +123,15 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Access,
             modifiers,
             this.PropertyType,
-            this.BackingField,
-            this.GetMethod,
-            this.SetMethod,
+            this.BackingField != null ? this.BackingField.WithModifiers(modifiers) : null,
+            this.GetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special),
+            this.SetMethod != null ? this.SetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special) : null,
             this.Location,
             this.Symbol,
             this.Diagnostics
             );
 
-    public PropertyDeclaration WithPropertyType(Expression propertyType) =>
+    public PropertyDeclaration WithPropertyType(Expression? propertyType) =>
         propertyType == this.PropertyType ? this :
         new PropertyDeclaration(
             this.Name,

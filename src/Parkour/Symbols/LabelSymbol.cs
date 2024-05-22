@@ -2,6 +2,9 @@
 
 public sealed class LabelSymbol : Symbol
 {
+    /// <summary>
+    /// The type of the label, normally void unless the label receives a value.
+    /// </summary>
     public TypeSymbol Type { get; }
 
     public LabelSymbol(string name, TypeSymbol type)

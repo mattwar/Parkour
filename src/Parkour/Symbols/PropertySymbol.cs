@@ -2,77 +2,29 @@
 
 public sealed class PropertySymbol : MemberSymbol
 {
-    private Func<TypeSymbol>? _fnType;
-    private TypeSymbol? _type;
+    /// <summary>
+    /// The type of the property.
+    /// </summary>
+    public TypeSymbol Type => _lazyType.Value;
+    private readonly Lazy<TypeSymbol> _lazyType;
 
-    public TypeSymbol Type 
-    { 
-        get
-        {
-            if (_type == null && _fnType is { } fn)
-            {
-                _fnType = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _type, tmp, null);
-            }
+    /// <summary>
+    /// The symbol of the optional backing field.
+    /// </summary>
+    public FieldSymbol? BackingField => _lazyBackingField?.Value;
+    private readonly Lazy<FieldSymbol>? _lazyBackingField;
 
-            return _type!;
-        }
-    }
+    /// <summary>
+    /// The method symbol of the get accessor.
+    /// </summary>
+    public MethodSymbol? GetMethod => _lazyGetMethod?.Value;
+    private readonly Lazy<MethodSymbol>? _lazyGetMethod;
 
-    private Func<PropertySymbol, FieldSymbol>? _fnBackingField;
-    private FieldSymbol? _backingField;
-
-    public FieldSymbol? BackingField
-    {
-        get
-        {
-            if (_backingField == null && _fnBackingField is { } fn)
-            {
-                _fnBackingField = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _backingField, tmp, null);
-            }
-
-            return _backingField;
-        }
-    }
-
-    private Func<PropertySymbol, MethodSymbol>? _fnGetMethod;
-    private MethodSymbol? _getMethod;
-
-    public MethodSymbol? GetMethod
-    {
-        get
-        {
-            if (_getMethod == null && _fnGetMethod is { } fn)
-            {
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _getMethod, tmp, null);
-                _fnGetMethod = null;
-            }
-
-            return _getMethod;
-        }
-    }
-
-    private Func<PropertySymbol, MethodSymbol>? _fnSetMethod;
-    private MethodSymbol? _setMethod;
-
-    public MethodSymbol? SetMethod
-    {
-        get
-        {
-            if (_setMethod == null && _fnSetMethod is { } fn)
-            {
-                _fnSetMethod = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _setMethod, tmp, null);
-            }
-
-            return _setMethod;
-        }
-    }
+    /// <summary>
+    /// The method symbol of the set accessor.
+    /// </summary>
+    public MethodSymbol? SetMethod => _lazySetMethod?.Value;
+    private readonly Lazy<MethodSymbol>? _lazySetMethod;
 
     public PropertySymbol(
         string name,
@@ -85,31 +37,16 @@ public sealed class PropertySymbol : MemberSymbol
         Func<PropertySymbol, MethodSymbol>? fnSetMethod)
         : base(name, declaringSymbol, access, modifiers)
     {
-        _fnBackingField = fnBackingField;
-        _fnType = fnType;
-        _fnGetMethod = fnGetMethod;
-        _fnSetMethod = fnSetMethod;
-    }
-
-    public PropertySymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
-        TypeSymbol type,
-        FieldSymbol? backingField,
-        MethodSymbol? getMethod,
-        MethodSymbol? setMethod)
-        : this(
-            name,
-            declaringSymbol,
-            access,
-            modifiers,
-            () => type,
-            backingField != null ? me => backingField : null,
-            getMethod != null ? me => getMethod : null,
-            setMethod != null ? me => setMethod : null)
-    {
+        _lazyType = new Lazy<TypeSymbol>(fnType, SpecialSymbols.CyclicDefinition);
+        _lazyBackingField = fnBackingField != null
+            ? new Lazy<FieldSymbol>(() => fnBackingField(this))
+            : null;
+        _lazyGetMethod = fnGetMethod != null
+            ? new Lazy<MethodSymbol>(() => fnGetMethod(this))
+            : null;
+        _lazySetMethod = fnSetMethod != null
+            ? new Lazy<MethodSymbol>(() => fnSetMethod(this))
+            : null;
     }
 
     public override int DeclaredSymbolCount => 3;

@@ -9,7 +9,7 @@ public class MethodDeclaration : MemberDeclaration
     public ImmutableList<TypeParameterDeclaration> TypeParameters { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression Body { get; }
-    public Expression ReturnType { get; }
+    public Expression? ReturnType { get; }
     public LabelSymbol? ReturnLabel { get; }
 
     public MethodDeclaration(
@@ -18,7 +18,7 @@ public class MethodDeclaration : MemberDeclaration
         BitSet<SymbolModifier> modifiers, 
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<ParameterDeclaration> parameters,
-        Expression returnType,
+        Expression? returnType,
         Expression body, 
         ISourceLocation? location,
         MethodSymbol? symbol,
@@ -187,7 +187,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public MethodDeclaration WithReturnType(Expression returnType) =>
+    public MethodDeclaration WithReturnType(Expression? returnType) =>
         returnType == this.ReturnType ? this :
         new MethodDeclaration(
             this.Name,

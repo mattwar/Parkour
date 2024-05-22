@@ -3,14 +3,33 @@ namespace Parkour.Symbols;
 
 public abstract class TypeSymbol : ContainerSymbol
 {
-    private Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
-    private ImmutableList<TypeParameterSymbol>? _typeParameters;
-    private Func<ImmutableList<TypeSymbol>>? _fnTypeArguments;
-    private ImmutableList<TypeSymbol>? _typeArguments;
-    private Func<ImmutableList<TypeSymbol>>? _fnBaseTypes;
-    private ImmutableList<TypeSymbol>? _baseTypes;
-    private Func<TypeSymbol, ImmutableList<Symbol>>? _fnMembers;
-    private ImmutableList<Symbol>? _members;
+    /// <summary>
+    /// The type parameters for this generic type definition.
+    /// </summary>
+    public ImmutableList<TypeParameterSymbol> TypeParameters =>
+        _lazyTypeParameters?.Value ?? ImmutableList<TypeParameterSymbol>.Empty;
+    private readonly Lazy<ImmutableList<TypeParameterSymbol>>? _lazyTypeParameters;
+
+    /// <summary>
+    /// The type arguments for this constructed generic type.
+    /// </summary>
+    public ImmutableList<TypeSymbol> TypeArguments =>
+        _lazyTypeArguments?.Value ?? ImmutableList<TypeSymbol>.Empty;
+    private readonly Lazy<ImmutableList<TypeSymbol>>? _lazyTypeArguments;
+
+    /// <summary>
+    /// The base type and interfaces of this type.
+    /// </summary>
+    public ImmutableList<TypeSymbol> BaseTypes =>
+        _lazyBaseTypes?.Value ?? ImmutableList<TypeSymbol>.Empty;
+    private readonly Lazy<ImmutableList<TypeSymbol>>? _lazyBaseTypes;
+
+    /// <summary>
+    /// The members of this type.
+    /// </summary>
+    public override ImmutableList<Symbol> Members =>
+        _lazyMembers?.Value ?? ImmutableList<Symbol>.Empty;
+    private readonly Lazy<ImmutableList<Symbol>>? _lazyMembers;
 
     protected TypeSymbol(
         string name,
@@ -24,11 +43,19 @@ public abstract class TypeSymbol : ContainerSymbol
         TypeSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
-        _fnTypeParameters = fnTypeParameters;
-        _fnTypeArguments = fnTypeArguments;
-        _fnBaseTypes = fnBaseTypes;
-        _fnMembers = fnMembers;
-        ConstructedFrom = constructedFrom;
+        _lazyTypeParameters = fnTypeParameters != null
+            ? new Lazy<ImmutableList<TypeParameterSymbol>>(() => fnTypeParameters(this))
+            : null;
+        _lazyTypeArguments = fnTypeArguments != null
+            ? new Lazy<ImmutableList<TypeSymbol>>(fnTypeArguments)
+            : null;
+        _lazyBaseTypes = fnBaseTypes != null
+            ? new Lazy<ImmutableList<TypeSymbol>>(fnBaseTypes)
+            : null;
+        _lazyMembers = fnMembers != null
+            ? new Lazy<ImmutableList<Symbol>>(() => fnMembers(this))
+            : null;
+        this.ConstructedFrom = constructedFrom;
     }
 
     protected TypeSymbol(
@@ -56,42 +83,6 @@ public abstract class TypeSymbol : ContainerSymbol
             SymbolAccess.Public,
             SymbolModifier.None)
     {
-    }
-
-    /// <summary>
-    /// The type parameters for this generic type definition.
-    /// </summary>
-    public ImmutableList<TypeParameterSymbol> TypeParameters
-    {
-        get
-        {
-            if (_typeParameters == null && _fnTypeParameters is { } fn)
-            {
-                _fnTypeParameters = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _typeParameters, tmp, null);
-            }
-
-            return _typeParameters ?? ImmutableList<TypeParameterSymbol>.Empty;
-        }
-    }
-
-    /// <summary>
-    /// The type arguments for this constructed generic type.
-    /// </summary>
-    public ImmutableList<TypeSymbol> TypeArguments
-    {
-        get
-        {
-            if (_typeArguments == null && _fnTypeArguments is { } fn)
-            {
-                _fnTypeArguments = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _typeArguments, tmp, null);
-            }
-
-            return _typeArguments ?? ImmutableList<TypeSymbol>.Empty;
-        }
     }
 
     /// <summary>
@@ -143,42 +134,6 @@ public abstract class TypeSymbol : ContainerSymbol
     /// </summary>
     public override bool IsConstructable =>
         this.IsGeneric;
-
-    /// <summary>
-    /// The base type and interfaces of this type.
-    /// </summary>
-    public ImmutableList<TypeSymbol> BaseTypes
-    {
-        get
-        {
-            if (_baseTypes == null && _fnBaseTypes is { } fn)
-            {
-                _fnBaseTypes = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _baseTypes, tmp, null);
-            }
-
-            return _baseTypes ?? ImmutableList<TypeSymbol>.Empty;
-        }
-    }
-
-    /// <summary>
-    /// The members of this type.
-    /// </summary>
-    public override ImmutableList<Symbol> Members
-    {
-        get
-        {
-            if (_members == null && _fnMembers is { } fn)
-            {
-                _fnMembers = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _members, tmp, null);
-            }
-
-            return _members ?? ImmutableList<Symbol>.Empty;
-        }
-    }
 
     public override int Arity =>
         IsConstructed

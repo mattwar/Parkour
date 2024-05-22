@@ -213,7 +213,7 @@ public class EmitterTests
 
         // static auto property
         TestEmit(
-            Class("C", [Property("P", SymbolAccess.Public, SymbolModifier.Static, Int32Type)]),
+            Class("C", [Property("P", Int32Type).WithModifiers(SymbolModifier.Static)]),
             Symbol("C").Member("P"),
             expectedResult: 0
             );
@@ -234,7 +234,8 @@ public class EmitterTests
         // static indexer
         TestEmit(
             Class("C", [
-                Indexer(SymbolAccess.Public, SymbolModifier.Static, Int32Type, [Parameter("index", Int32Type)], Name("index"), null),
+                Indexer(Int32Type, [Parameter("index", Int32Type)], Name("index"), null)
+                    .WithModifiers(SymbolModifier.Static),
                 ]),
             Symbol("C").Element(Constant(123)),
             expectedResult: 123
@@ -342,22 +343,22 @@ public class EmitterTests
         TestEmit(
             Condition(Constant(true), Constant(1), Constant(2)),
             expectedResult: 1);
-        
+
         TestEmit(
             Condition(Constant(false), Constant(1), Constant(2)),
             expectedResult: 2);
-        
+
         TestEmit(
             Condition(Constant(false), Constant(1), Default(Int32Type)),
             expectedResult: 0);
-        
+
         TestEmit(
             Condition(Constant(true), Constant(5)),
             expectedResult: 5);
 
         TestEmit(
             Condition(Constant(false), Constant(5)),
-            expectedResult: 0);
+            expectedResult: null); // due to test method definition common type is object
     }
 
     [TestMethod]

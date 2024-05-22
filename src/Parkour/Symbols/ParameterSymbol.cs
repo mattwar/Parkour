@@ -4,23 +4,11 @@ public sealed class ParameterSymbol : Symbol
 {
     public Symbol? DeclaringSymbol { get; }
 
-    private Func<TypeSymbol>? _fnType;
-    private TypeSymbol? _type;
-
-    public TypeSymbol Type
-    {
-        get
-        {
-            if (_type == null && _fnType is { } fn)
-            {
-                _fnType = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _type, tmp, null);
-            }
-
-            return _type ?? SpecialSymbols.Unknown;
-        }
-    }
+    /// <summary>
+    /// The type of the parameter.
+    /// </summary>
+    public TypeSymbol Type => _lazyType.Value;
+    private readonly Lazy<TypeSymbol> _lazyType;
 
     public ParameterSymbol(
         string name, 
@@ -29,7 +17,7 @@ public sealed class ParameterSymbol : Symbol
         : base(name)
     {
         DeclaringSymbol = declaringSymbol;
-        _fnType = fnType;
+        _lazyType = new Lazy<TypeSymbol>(fnType, SpecialSymbols.CyclicDefinition);
     }
 
     public ParameterSymbol(

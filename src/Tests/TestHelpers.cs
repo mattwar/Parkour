@@ -8,15 +8,6 @@ namespace Tests;
 
 public static class TestHelpers
 {
-    public static SymbolExpression VoidType = Symbol("System.Void");
-    public static SymbolExpression BooleanType = Symbol("System.Boolean");
-    public static SymbolExpression Int16Type = Symbol("System.Int16");
-    public static SymbolExpression Int32Type = Symbol("System.Int32");
-    public static SymbolExpression Int64Type = Symbol("System.Int64");
-    public static SymbolExpression SingleType = Symbol("System.Single");
-    public static SymbolExpression DoubleType = Symbol("System.Double");
-    public static SymbolExpression StringType = Symbol("System.String");
-    public static SymbolExpression ObjectType = Symbol("System.Object");
     public static Expression Int32ArrayType = Int32Type.Array();
     public static Expression StringArrayType = StringType.Array();
     public static SymbolExpression ListTType = Symbol("System.Collections.Generic.List`1");

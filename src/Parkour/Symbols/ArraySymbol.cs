@@ -5,26 +5,17 @@ public sealed class ArraySymbol : TypeSymbol
 {
     private string DebugText => $"{GetType().Name}: {ElementType.FullName}[]";
 
-    private Func<TypeSymbol>? _fnElementType;
-    private TypeSymbol? _elementType;
-    private readonly int _dimensions;
+    /// <summary>
+    /// The element type of the array.
+    /// </summary>
+    public TypeSymbol ElementType => _lazyElementType.Value;
+    private readonly Lazy<TypeSymbol> _lazyElementType;
 
-    public TypeSymbol ElementType
-    {
-        get
-        {
-            if (_elementType == null && _fnElementType is { } fn)
-            {
-                _fnElementType = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _elementType, tmp, null);
-            }
-
-            return _elementType!;
-        }
-    }
-
+    /// <summary>
+    /// The dimensions (rank) of the array.
+    /// </summary>
     public int Dimensions => IsSZArray ? 1 : _dimensions;
+    private readonly int _dimensions;
 
     /// <summary>
     /// True if the array is single dimension with lower bound of zero.
@@ -52,7 +43,7 @@ public sealed class ArraySymbol : TypeSymbol
             fnMembers, 
             constructedFrom)
     {
-        _fnElementType = fnElementType;
+        _lazyElementType = new Lazy<TypeSymbol>(fnElementType, SpecialSymbols.CyclicDefinition);
         _dimensions = isSZArray ? 0 : dimensions;
     }
 

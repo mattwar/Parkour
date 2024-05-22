@@ -2,26 +2,14 @@
 
 public sealed class FieldSymbol : MemberSymbol
 {
-    private Func<TypeSymbol>? _fnType;
-    private TypeSymbol? _type;
-
-    public TypeSymbol Type
-    {
-        get
-        {
-            if (_type == null && _fnType is { } fn)
-            {
-                _fnType = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _type, tmp, null);
-            }
-
-            return _type ?? SpecialSymbols.Unknown;
-        }
-    }
+    /// <summary>
+    /// The field's type.
+    /// </summary>
+    public TypeSymbol Type => _lazyType.Value;
+    private readonly Lazy<TypeSymbol> _lazyType;
 
     /// <summary>
-    /// The value of the constant field.
+    /// The constant value of the field (constant fields only).
     /// </summary>
     public object? ConstantValue { get; }
 
@@ -34,7 +22,7 @@ public sealed class FieldSymbol : MemberSymbol
         object? constantValue = null)
         : base(name, declaringSymbol, access, modifiers)
     {
-        _fnType = fnType;
+        _lazyType = new Lazy<TypeSymbol>(fnType, SpecialSymbols.CyclicDefinition);
         this.ConstantValue = constantValue;
     }
 

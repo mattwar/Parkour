@@ -8,7 +8,7 @@ using Symbols;
 [System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public sealed class NameExpression : Expression
 {
-    private string DebugText => $"{GetType().Name}: {ReferencedSymbol?.FullName ?? "???"} : {ResultType.FullName ?? "???"}";
+    private string DebugText => $"{GetType().Name}: {this.Name}: {ReferencedSymbol?.FullName ?? "???"}";
 
     public string Name { get; }
     public override Symbol? ReferencedSymbol { get; }

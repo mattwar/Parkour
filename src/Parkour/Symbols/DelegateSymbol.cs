@@ -2,41 +2,18 @@
 
 public class DelegateSymbol : TypeSymbol
 {
-    private Func<DelegateSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
-    private ImmutableList<ParameterSymbol>? _parameters;
+    /// <summary>
+    /// The delegate parameters.
+    /// </summary>
+    public ImmutableList<ParameterSymbol> Parameters => 
+        _lazyParameters?.Value ?? ImmutableList<ParameterSymbol>.Empty;
+    private readonly Lazy<ImmutableList<ParameterSymbol>>? _lazyParameters;
 
-    public ImmutableList<ParameterSymbol> Parameters
-    {
-        get
-        {
-            if (_parameters == null && _fnParameters is { } fn)
-            {
-                _fnParameters = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _parameters, tmp, null);
-            }
-
-            return _parameters ?? ImmutableList<ParameterSymbol>.Empty;
-        }
-    }
-
-    private Func<TypeSymbol>? _fnReturnType;
-    private TypeSymbol? _returnType;
-
-    public TypeSymbol ReturnType
-    {
-        get
-        {
-            if (_returnType == null && _fnReturnType is { } fn)
-            {
-                _fnReturnType = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _returnType, tmp, null);
-            }
-
-            return _returnType ?? SpecialSymbols.Unknown;
-        }
-    }
+    /// <summary>
+    /// The delegate's return type.
+    /// </summary>
+    public TypeSymbol ReturnType => _lazyReturnType.Value;
+    private readonly Lazy<TypeSymbol> _lazyReturnType;
 
     private DelegateSymbol(
         string name,
@@ -44,7 +21,7 @@ public class DelegateSymbol : TypeSymbol
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
         Func<DelegateSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
-        Func<TypeSymbol>? fnReturnType,
+        Func<TypeSymbol> fnReturnType,
         Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
@@ -52,17 +29,10 @@ public class DelegateSymbol : TypeSymbol
         TypeSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers, fnTypeParameters, fnTypeArguments, fnBaseTypes, fnMembers, constructedFrom)
     {
-        _fnParameters = fnParameters;
-        _fnReturnType = fnReturnType;
-    }
-
-    private DelegateSymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers)
-        : this(name, declaringSymbol, access, modifiers, null, null, null, null, null, null, null)
-    {
+        _lazyParameters = fnParameters != null
+            ? new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this))
+            : null;
+        _lazyReturnType = new Lazy<TypeSymbol>(fnReturnType, SpecialSymbols.CyclicDefinition);
     }
 
     public DelegateSymbol(

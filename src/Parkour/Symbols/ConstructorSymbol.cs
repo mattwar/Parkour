@@ -2,24 +2,15 @@
 
 public class ConstructorSymbol : MemberSymbol
 {
-    private Func<ConstructorSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
-    private ImmutableList<ParameterSymbol>? _parameters;
+    /// <summary>
+    /// The constructor parameters.
+    /// </summary>
+    public ImmutableList<ParameterSymbol> Parameters => _lazyParameters.Value;
+    private readonly Lazy<ImmutableList<ParameterSymbol>> _lazyParameters;
 
-    public ImmutableList<ParameterSymbol> Parameters
-    {
-        get
-        {
-            if (_parameters == null && _fnParameters is { } fn)
-            {
-                _fnParameters = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _parameters, tmp, null);
-            }
-
-            return _parameters ?? ImmutableList<ParameterSymbol>.Empty;
-        }
-    }
-
+    /// <summary>
+    /// The type that the constructor constructs.
+    /// </summary>
     public TypeSymbol ConstructedType => (TypeSymbol)this.DeclaringSymbol!;
 
     public ConstructorSymbol(
@@ -33,21 +24,7 @@ public class ConstructorSymbol : MemberSymbol
             access, 
             modifiers)
     {
-        _fnParameters = fnParameters;
-    }
-
-    public ConstructorSymbol(
-        TypeSymbol declaringType,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
-        ImmutableList<ParameterSymbol> parameters,
-        TypeSymbol returnType)
-        : this(
-              declaringType,
-              access,
-              modifiers,
-              me => parameters)
-    {
+        _lazyParameters = new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this));
     }
 
     public override int DeclaredSymbolCount =>

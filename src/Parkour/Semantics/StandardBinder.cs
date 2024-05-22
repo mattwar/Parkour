@@ -270,7 +270,7 @@ public class StandardBinder : SemanticBinder
             declaration.Modifiers,
             me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
             () => ImmutableList<TypeSymbol>.Empty,
-            () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
+            () => declaration.BaseTypes.Select(bt => GetReferencedType(typeContext.BindingContext, bt)).ToImmutableList()!,
             me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
             constructedFrom: null);
 
@@ -311,7 +311,12 @@ public class StandardBinder : SemanticBinder
             declaringSymbol as TypeSymbol,
             declaration.Access,
             declaration.Modifiers,
-            () => GetType(context, declaration.FieldType) ?? SpecialSymbols.Unknown,
+            () => 
+            {
+                return declaration.FieldType != null ? GetReferencedType(context.BindingContext, declaration.FieldType)
+                : declaration.Initializer != null ? GetResultType(context.BindingContext, declaration.Initializer)
+                : context.Symbols.Object;
+            },
             constValue
             );
     }
@@ -326,7 +331,9 @@ public class StandardBinder : SemanticBinder
             declaringSymbol as TypeSymbol,
             declaration.Access,
             declaration.Modifiers,
-            () => GetType(context, declaration.ElementType) ?? SpecialSymbols.Unknown,
+            () => declaration.ElementType != null ? GetReferencedType(context.BindingContext, declaration.ElementType)
+                : declaration.GetMethod.ReturnType != null ? GetReferencedType(context.BindingContext, declaration.GetMethod.ReturnType)
+                : GetResultType(context.BindingContext, declaration.GetMethod.Body),
             me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.GetMethod)!,
             declaration.SetMethod != null
                 ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
@@ -348,7 +355,7 @@ public class StandardBinder : SemanticBinder
             declaration.Modifiers,
             me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
             () => ImmutableList<TypeSymbol>.Empty,
-            () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
+            () => declaration.BaseTypes.Select(bt => GetReferencedType(typeContext.BindingContext, bt)).ToImmutableList()!,
             me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
             constructedFrom: null);
 
@@ -375,7 +382,12 @@ public class StandardBinder : SemanticBinder
             me => ImmutableList<TypeParameterSymbol>.Empty,
             () => ImmutableList<TypeSymbol>.Empty,
             me => declaration.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!).ToImmutableList()!,
-            () => GetType(context, declaration.ReturnType) ?? SpecialSymbols.Unknown,
+            () =>
+            {
+                return declaration.ReturnType != null 
+                    ? GetReferencedType(context.BindingContext, declaration.ReturnType)
+                    : GetResultType(context.BindingContext, declaration.Body);
+            },
             constructedFrom: null
             );
     }
@@ -389,7 +401,7 @@ public class StandardBinder : SemanticBinder
             declaration.Name,
             declaringSymbol,
             () => declaration.ParameterType != null
-                ? GetType(context, declaration.ParameterType) ?? SpecialSymbols.Unknown
+                ? GetReferencedType(context.BindingContext, declaration.ParameterType)
                 : context.Symbols.Object
             );
     }
@@ -404,7 +416,12 @@ public class StandardBinder : SemanticBinder
             declaringSymbol as TypeSymbol,
             declaration.Access,
             declaration.Modifiers,
-            () => GetType(context, declaration.PropertyType) ?? SpecialSymbols.Unknown,
+            () =>
+            {
+                return declaration.PropertyType != null ? GetReferencedType(context.BindingContext, declaration.PropertyType)
+                    : declaration.GetMethod.ReturnType != null ? GetReferencedType(context.BindingContext, declaration.GetMethod.ReturnType)
+                    : GetResultType(context.BindingContext, declaration.GetMethod.Body);
+            },
             declaration.BackingField != null
                 ? me => (FieldSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.BackingField)!
                 : null,
@@ -429,7 +446,7 @@ public class StandardBinder : SemanticBinder
             declaration.Modifiers,
             me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
             () => ImmutableList<TypeSymbol>.Empty,
-            () => declaration.BaseTypes.Select(bt => GetType(typeContext, bt) ?? SpecialSymbols.Unknown).ToImmutableList()!,
+            () => declaration.BaseTypes.Select(bt => GetReferencedType(typeContext.BindingContext, bt)).ToImmutableList()!,
             me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
             constructedFrom: null);
 
@@ -611,10 +628,14 @@ public class StandardBinder : SemanticBinder
         FieldDeclaration fd,
         FieldSymbol? fieldSymbol)
     {
-        var fieldType = BindExpression(context, fd.FieldType);
-        var initializer = fd.Initializer != null
-            ? BindExpression(context, fd.Initializer)
+        var fieldType = fd.FieldType != null 
+            ? BindExpression(context, fd.FieldType) 
             : null;
+
+        var initializer = fd.Initializer != null
+            ? BindExpression(context.WithTargetType(fieldType?.ReferencedSymbol as TypeSymbol), fd.Initializer)
+            : null;
+
         return new FieldDeclaration(
             fd.Name,
             fd.Access,
@@ -637,7 +658,9 @@ public class StandardBinder : SemanticBinder
         IndexerDeclaration id,
         IndexerSymbol? indexerSymbol)
     {
-        var elementType = BindExpression(context, id.ElementType);
+        var elementType = id.ElementType != null 
+            ? BindExpression(context, id.ElementType) 
+            : null;
 
         var methodContext = context;
 
@@ -712,10 +735,14 @@ public class StandardBinder : SemanticBinder
     {
         var typeParameters = BindList(context, md.TypeParameters);
         var parameters = BindList(context, md.Parameters);
-        var returnType = BindExpression(context, md.ReturnType);
+        var returnType = md.ReturnType != null
+            ? BindExpression(context, md.ReturnType)
+            : null;
         var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, methodSymbol?.ReturnType ?? context.Symbols.Void);
 
-        var bodyContext = context.WithScope(context.Scope.AddSymbol(returnLabel));
+        var bodyContext = context
+            .WithScope(context.Scope.AddSymbol(returnLabel))
+            .WithTargetType(returnType?.ReferencedSymbol as TypeSymbol);
 
         // add parameters to scope for body
         if (methodSymbol != null
@@ -821,7 +848,9 @@ public class StandardBinder : SemanticBinder
         PropertyDeclaration pd,
         PropertySymbol? propertySymbol)
     {
-        var propertyType = BindExpression(context, pd.PropertyType);
+        var propertyType = pd.PropertyType != null
+            ? BindExpression(context, pd.PropertyType)
+            : null;
 
         var backingField = pd.BackingField != null
             ? (FieldDeclaration)BindDeclaration(context, pd.BackingField)
@@ -1092,21 +1121,35 @@ public class StandardBinder : SemanticBinder
         return expressions.Rewrite(e => (TExpression)BindTypeExpression(context, e, diagnostics));
     }
 
+    private readonly Dictionary<Expression, TypeSymbol> _cachedResultType =
+        new Dictionary<Expression, TypeSymbol>();
+
+    private readonly Dictionary<Expression, Symbol?> _cachedReferencedSymbol =
+        new Dictionary<Expression, Symbol?>();
+
     /// <summary>
-    /// Gets the bound type of a type expression
+    /// Gets the reference symbol of an expression.
     /// </summary>
-    protected virtual TypeSymbol? GetType(BindingContext context, Expression typeExpression)
+    protected virtual Symbol? GetReferencedSymbol(BindingContext context, Expression expression)
     {
-        if (typeExpression.IsUnbound)
-            typeExpression = BindExpression(context, typeExpression);
-        return typeExpression.ReferencedSymbol as TypeSymbol;
+        var bound = BindExpression(context, expression);
+        return bound.ReferencedSymbol;
     }
 
     /// <summary>
-    /// Gets the bound type of a type expression
+    /// Gets the referenced type of an expression
     /// </summary>
-    protected TypeSymbol? GetType(SymbolContext context, Expression typeExpression) =>
-        GetType(context.BindingContext, typeExpression);
+    protected virtual TypeSymbol GetReferencedType(BindingContext context, Expression typeExpression) =>
+        GetReferencedSymbol(context, typeExpression) as TypeSymbol ?? SpecialSymbols.Unknown;
+
+    /// <summary>
+    /// Gets the result type of an expression
+    /// </summary>
+    protected virtual TypeSymbol GetResultType(BindingContext context, Expression expression)
+    {
+        var bound = BindExpression(context, expression);
+        return bound.ResultType;
+    }
 
     #region Array Expression
     /// <summary>
@@ -1315,7 +1358,7 @@ public class StandardBinder : SemanticBinder
                 if (expr is LabelExpression label)
                 {
                     var type = label.ReceivingType != null 
-                        ? GetType(labelContext, label.ReceivingType)
+                        ? GetReferencedType(labelContext, label.ReceivingType)
                         : context.Symbols.Void;
                     var labelSymbol = label.LabelSymbol ?? new LabelSymbol(label.Name, type!);
                     labelSymbols.Add(labelSymbol);
@@ -1735,7 +1778,7 @@ public class StandardBinder : SemanticBinder
             if (expression.ReferencedSymbol is Symbol symbol)
             {
                 var typeArgs = typeArguments
-                    .Select(ta => GetType(context, ta))
+                    .Select(ta => GetReferencedType(context, ta))
                     .OfType<TypeSymbol>()
                     .ToImmutableList();
 

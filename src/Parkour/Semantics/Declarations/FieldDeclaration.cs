@@ -6,14 +6,14 @@ public sealed class FieldDeclaration : MemberDeclaration
 {
     public override FieldSymbol? Symbol { get; }
 
-    public Expression FieldType { get; }
+    public Expression? FieldType { get; }
     public Expression? Initializer { get; }
 
     public FieldDeclaration(
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
-        Expression fieldType,
+        Expression? fieldType,
         Expression? initializer,
         ISourceLocation? location,
         FieldSymbol? symbol,
@@ -110,7 +110,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public FieldDeclaration WithFieldType(Expression fieldType) =>
+    public FieldDeclaration WithFieldType(Expression? fieldType) =>
         fieldType == this.FieldType ? this :
         new FieldDeclaration(
             this.Name,

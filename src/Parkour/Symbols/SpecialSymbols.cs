@@ -3,6 +3,11 @@
 public static class SpecialSymbols
 {
     /// <summary>
+    /// The inferred type for symbols with cyclic defintions.
+    /// </summary>
+    public static readonly TypeSymbol CyclicDefinition = new ClassSymbol(nameof(CyclicDefinition));
+
+    /// <summary>
     /// The result type of an expression with control flow that does not actually return,
     /// (like branch or throw), but otherwise the same as Void.
     /// </summary>

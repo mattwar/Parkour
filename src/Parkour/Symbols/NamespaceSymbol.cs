@@ -2,23 +2,11 @@
 
 public class NamespaceSymbol : ContainerSymbol
 {
-    private Func<NamespaceSymbol, ImmutableList<Symbol>>? _fnMembers;
-    private ImmutableList<Symbol>? _members;
-
-    public override ImmutableList<Symbol> Members
-    {
-        get
-        {
-            if (_members == null && _fnMembers is { } fn)
-            {
-                _fnMembers = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _members, tmp, null);
-            }
-
-            return _members ?? ImmutableList<Symbol>.Empty;
-        }
-    }
+    /// <summary>
+    /// The members of the namespace.
+    /// </summary>
+    public override ImmutableList<Symbol> Members => _lazyMembers.Value;
+    private readonly Lazy<ImmutableList<Symbol>> _lazyMembers;
 
     public NamespaceSymbol(
         string name, 
@@ -26,18 +14,9 @@ public class NamespaceSymbol : ContainerSymbol
         Func<NamespaceSymbol, ImmutableList<Symbol>> fnMembers)
         : base(name, declaringSymbol, SymbolAccess.Public, SymbolModifier.None)
     {
-        _fnMembers = fnMembers;
+        _lazyMembers = new Lazy<ImmutableList<Symbol>>(() => fnMembers(this));
     }
 
     public override int DeclaredSymbolCount => this.Members.Count;
     public override Symbol? GetDeclaredSymbol(int index) => this.Members[index];
-}
-
-public class GlobalNamespaceSymbol : NamespaceSymbol
-{
-    public GlobalNamespaceSymbol(
-        Func<GlobalNamespaceSymbol, ImmutableList<Symbol>> fnMembers)
-        : base("", null, ns => fnMembers((GlobalNamespaceSymbol)ns))
-    {
-    }
 }

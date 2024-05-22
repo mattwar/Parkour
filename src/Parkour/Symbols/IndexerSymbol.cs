@@ -2,59 +2,23 @@
 
 public sealed class IndexerSymbol : MemberSymbol
 {
-    private Func<TypeSymbol>? _fnElementType;
-    private TypeSymbol? _elementType;
+    /// <summary>
+    /// The type of the indexer's elements.
+    /// </summary>
+    public TypeSymbol ElementType => _lazyElementType.Value;
+    private readonly Lazy<TypeSymbol> _lazyElementType;
 
-    public TypeSymbol ElementType
-    {
-        get
-        {
-            if (_elementType == null && _fnElementType is { } fn)
-            {
-                _fnElementType = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _elementType, tmp, null);
-            }
+    /// <summary>
+    /// The method for the get accessor (if any).
+    /// </summary>
+    public MethodSymbol? GetMethod => _lazyGetMethod?.Value;
+    private readonly Lazy<MethodSymbol>? _lazyGetMethod;
 
-            return _elementType!;
-        }
-    }
-
-    private Func<IndexerSymbol, MethodSymbol>? _fnGetMethod;
-    private MethodSymbol? _getMethod;
-
-    public MethodSymbol? GetMethod
-    {
-        get
-        {
-            if (_getMethod == null && _fnGetMethod is { } fn)
-            {
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _getMethod, tmp, null);
-                _fnGetMethod = null;
-            }
-
-            return _getMethod;
-        }
-    }
-
-    private Func<IndexerSymbol, MethodSymbol>? _fnSetMethod;
-    private MethodSymbol? _setMethod;
-
-    public MethodSymbol? SetMethod
-    {
-        get
-        {
-            if (_setMethod == null && _fnSetMethod is { } fn)
-            {
-                _fnSetMethod = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _setMethod, tmp, null);
-            }
-
-            return _setMethod;
-        }
-    }
+    /// <summary>
+    /// The method for the set accessor (if any.)
+    /// </summary>
+    public MethodSymbol? SetMethod => _lazySetMethod?.Value;
+    private readonly Lazy<MethodSymbol>? _lazySetMethod;
 
     public IndexerSymbol(
         string name,
@@ -66,28 +30,13 @@ public sealed class IndexerSymbol : MemberSymbol
         Func<IndexerSymbol, MethodSymbol>? fnSetMethod)
         : base(name, declaringSymbol, access, modifiers)
     {
-        _fnElementType = fnElementType;
-        _fnGetMethod = fnGetMethod;
-        _fnSetMethod = fnSetMethod;
-    }
-
-    public IndexerSymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
-        TypeSymbol elementType,
-        MethodSymbol? getMethod,
-        MethodSymbol? setMethod)
-        : this(
-            name,
-            declaringSymbol,
-            access,
-            modifiers,
-            () => elementType,
-            getMethod != null ? me => getMethod : null,
-            setMethod != null ? me => setMethod : null)
-    {
+        _lazyElementType = new Lazy<TypeSymbol>(fnElementType, SpecialSymbols.CyclicDefinition);
+        _lazyGetMethod = fnGetMethod != null
+            ? new Lazy<MethodSymbol>(() => fnGetMethod(this))
+            : null;
+        _lazySetMethod = fnSetMethod != null
+            ? new Lazy<MethodSymbol>(() => fnSetMethod(this))
+            : null;
     }
 
     public override int DeclaredSymbolCount => 2;

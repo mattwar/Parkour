@@ -2,14 +2,29 @@
 
 public class MethodSymbol : MemberSymbol
 {
-    private Func<MethodSymbol, ImmutableList<TypeParameterSymbol>>? _fnTypeParameters;
-    private ImmutableList<TypeParameterSymbol>? _typeParameters;
-    private Func<ImmutableList<TypeSymbol>>? _fnTypeArguments;
-    private ImmutableList<TypeSymbol>? _typeArguments;
-    private Func<MethodSymbol, ImmutableList<ParameterSymbol>>? _fnParameters;
-    private ImmutableList<ParameterSymbol>? _parameters;
-    private Func<TypeSymbol>? _fnReturnType;
-    private TypeSymbol? _returnType;
+    /// <summary>
+    /// <see cref="TypeParameters"/> for generic method definitions.
+    /// </summary>
+    public ImmutableList<TypeParameterSymbol> TypeParameters => _lazyTypeParameters.Value;
+    private readonly Lazy<ImmutableList<TypeParameterSymbol>> _lazyTypeParameters;
+
+    /// <summary>
+    /// Type arguments for constructed generic methods
+    /// </summary>
+    public ImmutableList<TypeSymbol> TypeArguments => _lazyTypeArguments.Value;
+    private readonly Lazy<ImmutableList<TypeSymbol>> _lazyTypeArguments;
+
+    /// <summary>
+    /// The parameters of this method.
+    /// </summary>
+    public ImmutableList<ParameterSymbol> Parameters => _lazyParameters.Value;
+    private readonly Lazy<ImmutableList<ParameterSymbol>> _lazyParameters;
+
+    /// <summary>
+    /// The return type of this method.
+    /// </summary>
+    public TypeSymbol ReturnType => _lazyReturnType.Value;
+    private readonly Lazy<TypeSymbol> _lazyReturnType;
 
     public MethodSymbol(
         string name,
@@ -23,70 +38,11 @@ public class MethodSymbol : MemberSymbol
         MethodSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
-        _fnTypeParameters = fnTypeParameters;
-        _fnTypeArguments = fnTypeArguments;
-        _fnParameters = fnParameters;
-        _fnReturnType = fnReturnType;
+        _lazyTypeParameters = new Lazy<ImmutableList<TypeParameterSymbol>>(() => fnTypeParameters(this));
+        _lazyTypeArguments = new Lazy<ImmutableList<TypeSymbol>>(fnTypeArguments);
+        _lazyParameters = new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this));
+        _lazyReturnType = new Lazy<TypeSymbol>(fnReturnType, SpecialSymbols.CyclicDefinition);
         ConstructedFrom = constructedFrom;
-    }
-
-    public MethodSymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
-        ImmutableList<TypeParameterSymbol> typeParameters,
-        ImmutableList<TypeSymbol> typeArguments,
-        ImmutableList<ParameterSymbol> parameters,
-        TypeSymbol returnType,
-        MethodSymbol? constructedFrom)
-        : this(
-              name,
-              declaringSymbol,
-              access,
-              modifiers,
-              me => typeParameters,
-              () => typeArguments,
-              me => parameters,
-              () => returnType,
-              constructedFrom)
-    {
-    }
-
-    /// <summary>
-    /// <see cref="TypeParameters"/> for generic method definitions.
-    /// </summary>
-    public ImmutableList<TypeParameterSymbol> TypeParameters
-    {
-        get
-        {
-            if (_typeParameters == null && _fnTypeParameters is { } fn)
-            {
-                _fnTypeParameters = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _typeParameters, tmp, null);
-            }
-
-            return _typeParameters ?? ImmutableList<TypeParameterSymbol>.Empty;
-        }
-    }
-
-    /// <summary>
-    /// Type arguments for constructed generic methods
-    /// </summary>
-    public ImmutableList<TypeSymbol> TypeArguments
-    {
-        get
-        {
-            if (_typeArguments == null && _fnTypeArguments is { } fn)
-            {
-                _fnTypeArguments = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _typeArguments, tmp, null);
-            }
-
-            return _typeArguments ?? ImmutableList<TypeSymbol>.Empty;
-        }
     }
 
     /// <summary>
@@ -113,41 +69,6 @@ public class MethodSymbol : MemberSymbol
     /// </summary>
     public MethodSymbol? ConstructedFrom { get; }
 
-    /// <summary>
-    /// The parameters of this method.
-    /// </summary>
-    public ImmutableList<ParameterSymbol> Parameters
-    {
-        get
-        {
-            if (_parameters == null && _fnParameters is { } fn)
-            {
-                _fnParameters = null;
-                var tmp = fn(this);
-                Interlocked.CompareExchange(ref _parameters, tmp, null);
-            }
-
-            return _parameters!;
-        }
-    }
-
-    /// <summary>
-    /// The return type of this method.
-    /// </summary>
-    public TypeSymbol ReturnType
-    {
-        get
-        {
-            if (_returnType == null && _fnReturnType is { } fn)
-            {
-                _fnReturnType = null;
-                var tmp = fn();
-                Interlocked.CompareExchange(ref _returnType, tmp, null);
-            }
-
-            return _returnType!;
-        }
-    }
 
     public override bool IsConstructable =>
         this.IsGeneric;

@@ -2,6 +2,9 @@
 
 public class OperatorSymbol : DelegateSymbol
 {
+    /// <summary>
+    /// The kind of the operator.
+    /// </summary>
     public string Kind => this.Name;
 
     /// <summary>
