@@ -15,13 +15,12 @@ public static class SemanticFactoryExtensions
                 ? property.GetMethod.WithBody(body)
                 : SemanticFactory.Method(
                     "get_" + property.Name, 
-                    property.Access, 
-                    property.Modifiers, 
                     parameters: [],
                     property.PropertyType, 
                     body, 
-                    body.Location
-                )
+                    body.Location)
+                    .WithAccess(property.Access)
+                    .WithModifiers(property.Modifiers)
             );
 
     public static PropertyDeclaration WithGetAccess(
@@ -33,21 +32,20 @@ public static class SemanticFactoryExtensions
             );
 
     public static PropertyDeclaration WithSetBody(
-        this PropertyDeclaration property, 
-        Expression body) 
+        this PropertyDeclaration property,
+        Expression body)
         =>
         property.WithSetMethod(
             property.SetMethod != null
                 ? property.SetMethod.WithBody(body)
                 : SemanticFactory.Method(
-                    "set_" + property.Name, 
-                    property.Access, 
-                    property.Modifiers, 
-                    [SemanticFactory.Parameter("value", property.PropertyType, body.Location)], 
-                    SemanticFactory.Symbol("System.Void"), 
-                    body, 
-                    body.Location
-                    )
+                    "set_" + property.Name,
+                    [SemanticFactory.Parameter("value", property.PropertyType, body.Location)],
+                    SemanticFactory.VoidType,
+                    body,
+                    body.Location)
+                    .WithAccess(property.Access)
+                    .WithModifiers(property.Modifiers)
             );
 
     public static PropertyDeclaration WithSetAccess(

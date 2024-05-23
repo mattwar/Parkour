@@ -9,7 +9,7 @@ public sealed class FieldDeclaration : MemberDeclaration
     public Expression? FieldType { get; }
     public Expression? Initializer { get; }
 
-    public FieldDeclaration(
+    private FieldDeclaration(
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
@@ -30,6 +30,23 @@ public sealed class FieldDeclaration : MemberDeclaration
         this.FieldType = fieldType;
         this.Initializer = initializer;
         this.Symbol = symbol;
+    }
+
+    public FieldDeclaration(
+        string name,
+        Expression? fieldType,
+        Expression? initializer,
+        ISourceLocation? location)
+        : this(
+              name, 
+              SymbolAccess.Public, 
+              SymbolModifier.None, 
+              fieldType, 
+              initializer, 
+              location, 
+              null, 
+              null)
+    {
     }
 
     public override FieldDeclaration WithName(string name) =>

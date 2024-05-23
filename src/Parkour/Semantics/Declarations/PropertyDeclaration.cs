@@ -11,7 +11,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
     public MethodDeclaration? SetMethod { get; }
     public FieldDeclaration? BackingField { get; }
 
-    public PropertyDeclaration(
+    private PropertyDeclaration(
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
@@ -40,6 +40,27 @@ public sealed class PropertyDeclaration : MemberDeclaration
         this.SetMethod = setMethod;
         this.Symbol = symbol;
     }
+
+    public PropertyDeclaration(
+        string name,
+        Expression? propertyType,
+        MethodDeclaration getMethod,
+        MethodDeclaration? setMethod,
+        ISourceLocation? location)
+        : this(
+              name, 
+              SymbolAccess.Public, 
+              SymbolModifier.None, 
+              propertyType, 
+              null, 
+              getMethod, 
+              setMethod, 
+              location, 
+              null, 
+              null)
+    {
+    }
+
 
     public override PropertyDeclaration WithName(string name) =>
         name == this.Name ? this :

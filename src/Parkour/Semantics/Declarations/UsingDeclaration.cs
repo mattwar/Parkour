@@ -8,9 +8,9 @@ using System.Linq.Expressions;
 public class UsingDeclaration : Declaration
 {
     public Expression Expression { get; }
-    public AliasSymbol? AliasedSymbol { get; }
+    public AliasSymbol? AliasSymbol { get; }
 
-    public UsingDeclaration(
+    private UsingDeclaration(
         string name,
         Expression expression,
         ISourceLocation? location,
@@ -23,7 +23,15 @@ public class UsingDeclaration : Declaration
             diagnostics)
     {
         this.Expression = expression;
-        this.AliasedSymbol = aliasSymbol;
+        this.AliasSymbol = aliasSymbol;
+    }
+
+    public UsingDeclaration(
+        string name,
+        Expression expression,
+        ISourceLocation? location)
+        : this(name, expression, location, null, null)
+    {
     }
 
     public override Symbol? Symbol => null;
@@ -34,7 +42,7 @@ public class UsingDeclaration : Declaration
             name, 
             this.Expression, 
             this.Location,
-            this.AliasedSymbol,
+            this.AliasSymbol,
             this.Diagnostics
             );
 
@@ -44,7 +52,7 @@ public class UsingDeclaration : Declaration
             this.Name,
             this.Expression, 
             location, 
-            this.AliasedSymbol,
+            this.AliasSymbol,
             this.Diagnostics
             );
 
@@ -54,7 +62,7 @@ public class UsingDeclaration : Declaration
             this.Name,
             this.Expression,
             this.Location,
-            this.AliasedSymbol,
+            this.AliasSymbol,
             diagnostics
             );
 
@@ -64,12 +72,12 @@ public class UsingDeclaration : Declaration
             this.Name,
             expression,
             this.Location,
-            this.AliasedSymbol,
+            this.AliasSymbol,
             this.Diagnostics
             );
 
-    public UsingDeclaration WithAliasedSymbol(AliasSymbol? aliasedSymbol) =>
-        aliasedSymbol == this.AliasedSymbol ? this :
+    public UsingDeclaration WithAliasSymbol(AliasSymbol? aliasedSymbol) =>
+        aliasedSymbol == this.AliasSymbol ? this :
         new UsingDeclaration(
             this.Name,
             this.Expression,

@@ -8,7 +8,7 @@ public sealed class ParameterDeclaration : Declaration
 
     public override ParameterSymbol? Symbol { get; }
 
-    public ParameterDeclaration(
+    private ParameterDeclaration(
         string name, 
         BitSet<SymbolModifier> modifiers,
         Expression? parameterType,
@@ -22,8 +22,23 @@ public sealed class ParameterDeclaration : Declaration
             location,
             diagnostics)
     {
+        this.Modifiers = modifiers;
         this.ParameterType = parameterType;
         this.Symbol = symbol;
+    }
+
+    public ParameterDeclaration(
+        string name,
+        Expression? parameterType,
+        ISourceLocation? location)
+        : this(
+              name, 
+              SymbolModifier.None, 
+              parameterType, 
+              location, 
+              null, 
+              null)
+    {
     }
 
     public override ParameterDeclaration WithName(string name) =>
@@ -70,7 +85,7 @@ public sealed class ParameterDeclaration : Declaration
             this.Diagnostics
             );
 
-    public ParameterDeclaration WithParameterType(Expression parameterType) =>
+    public ParameterDeclaration WithParameterType(Expression? parameterType) =>
         parameterType == this.ParameterType ? this :
         new ParameterDeclaration(
             this.Name,

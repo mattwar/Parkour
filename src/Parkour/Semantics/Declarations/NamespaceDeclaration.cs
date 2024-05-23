@@ -8,7 +8,7 @@ public class NamespaceDeclaration : MemberDeclaration
 
     public ImmutableList<Declaration> Declarations { get; }
 
-    public NamespaceDeclaration(
+    private NamespaceDeclaration(
         string name, 
         ImmutableList<Declaration> declarations,
         ISourceLocation? location,
@@ -25,6 +25,14 @@ public class NamespaceDeclaration : MemberDeclaration
     {
         this.Declarations = declarations;
         this.Symbol = symbol;    
+    }
+
+    public NamespaceDeclaration(
+        string name,
+        ImmutableList<Declaration> declarations,
+        ISourceLocation? location)
+        : this(name, declarations, location, null, null)
+    {
     }
 
     public override NamespaceDeclaration WithName(string name) =>

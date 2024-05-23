@@ -9,7 +9,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
     public ImmutableList<ParameterDeclaration> Parameters { get; }
     public Expression ReturnType { get; }
 
-    public DelegateDeclaration(
+    private DelegateDeclaration(
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
@@ -35,6 +35,27 @@ public sealed class DelegateDeclaration : TypeDeclaration
         this.Parameters = parameters;
         this.ReturnType = returnType;
         this.Symbol = symbol;
+    }
+
+    public DelegateDeclaration(
+        string name,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression returnType,
+        ISourceLocation? location)
+        : this(
+              name,
+              SymbolAccess.Public,
+              SymbolModifier.None,
+              ImmutableList<TypeParameterDeclaration>.Empty,
+              [SemanticFactory.Symbol("System.Delegate")],
+              [],
+              parameters,
+              returnType,
+              location,
+              null,
+              null
+              )
+    {
     }
 
     public override DelegateDeclaration WithName(string name) =>

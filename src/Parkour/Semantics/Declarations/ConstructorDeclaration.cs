@@ -11,7 +11,7 @@ public class ConstructorDeclaration : MemberDeclaration
     public Expression Body { get; }
     public LabelSymbol? ReturnLabel { get; }
 
-    public ConstructorDeclaration(
+    private ConstructorDeclaration(
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
         ImmutableList<ParameterDeclaration> parameters,
@@ -34,6 +34,22 @@ public class ConstructorDeclaration : MemberDeclaration
         this.Body = body;
         this.Symbol = symbol;
         this.ReturnLabel = returnLabel;
+    }
+
+    public ConstructorDeclaration(
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression body,
+        ISourceLocation? location)
+        : this(
+              SymbolAccess.Public, 
+              SymbolModifier.None, 
+              parameters, 
+              body, 
+              location, 
+              null, 
+              null, 
+              null)
+    {
     }
 
     public override ConstructorDeclaration WithName(string name) =>

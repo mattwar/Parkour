@@ -6,7 +6,7 @@ public class TypeParameterDeclaration : Declaration
 {
     public override TypeParameterSymbol? Symbol { get; }
 
-    public TypeParameterDeclaration(
+    private TypeParameterDeclaration(
         string name,
         ISourceLocation? location,
         TypeParameterSymbol? symbol,
@@ -18,6 +18,13 @@ public class TypeParameterDeclaration : Declaration
             diagnostics)
     {
         this.Symbol = symbol;
+    }
+
+    public TypeParameterDeclaration(
+        string name,
+        ISourceLocation? location)
+        : this(name, location, null, null)
+    {
     }
 
     public override TypeParameterDeclaration WithName(string name) =>

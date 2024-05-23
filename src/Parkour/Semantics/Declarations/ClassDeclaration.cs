@@ -1,13 +1,12 @@
 ﻿namespace Parkour.Semantics;
 
 using Symbols;
-using System.Xml.Linq;
 
 public sealed class ClassDeclaration : TypeDeclaration
 {
     public override ClassSymbol? Symbol { get; }
 
-    public ClassDeclaration(
+    private ClassDeclaration(
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
@@ -29,6 +28,24 @@ public sealed class ClassDeclaration : TypeDeclaration
         diagnostics)
     {
         this.Symbol = symbol;
+    }
+
+    public ClassDeclaration(
+        string name,
+        ImmutableList<Expression> baseTypes,
+        ImmutableList<Declaration>? declarations,
+        ISourceLocation? location)
+        : this(
+              name,
+              SymbolAccess.Public,
+              SymbolModifier.None,
+              ImmutableList<TypeParameterDeclaration>.Empty,
+              baseTypes,
+              declarations,
+              location,
+              null,
+              null)
+    {
     }
 
     public override ClassDeclaration WithName(string name) =>

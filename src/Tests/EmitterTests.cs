@@ -47,7 +47,7 @@ public class EmitterTests
 
         // static method
         TestEmit(
-            Class("C", [Method("M", SymbolAccess.Public, SymbolModifier.Static, [], Int32Type, Block(Constant(123)))]),
+            Class("C", [Method("M", [], Int32Type, Block(Constant(123))).WithModifiers(SymbolModifier.Static)]),
             test: Symbol("C.M").Call(),
             expectedResult: 123
             );
@@ -181,7 +181,7 @@ public class EmitterTests
 
         // static method
         TestEmit(
-            Class("C", [Method("M", SymbolAccess.Public, SymbolModifier.Static, [], Int32Type, Block(Constant(123)))]),
+            Class("C", [Method("M", [], Int32Type, Block(Constant(123))).WithModifiers(SymbolModifier.Static)]),
             test: Symbol("C.M").Call(),
             expectedResult: 123
             );
@@ -885,7 +885,7 @@ public class EmitterTests
         {
             elements = elements.Add(
                 Class("Test", [
-                     Method("Run", SymbolAccess.Public, SymbolModifier.Static, [], Symbol("System.Object"), test)
+                     Method("Run", [], ObjectType, test).WithModifiers(SymbolModifier.Static)
                      ]));
         }
 

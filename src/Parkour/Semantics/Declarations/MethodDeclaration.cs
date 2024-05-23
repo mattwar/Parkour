@@ -12,7 +12,7 @@ public class MethodDeclaration : MemberDeclaration
     public Expression? ReturnType { get; }
     public LabelSymbol? ReturnLabel { get; }
 
-    public MethodDeclaration(
+    private MethodDeclaration(
         string name, 
         SymbolAccess access, 
         BitSet<SymbolModifier> modifiers, 
@@ -42,6 +42,27 @@ public class MethodDeclaration : MemberDeclaration
         this.ReturnType = returnType;
         this.Symbol = symbol;
         this.ReturnLabel = returnLabel;
+    }
+
+    public MethodDeclaration(
+        string name,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression? returnType,
+        Expression body,
+        ISourceLocation? location)
+        : this(
+              name, 
+              SymbolAccess.Public, 
+              SymbolModifier.None, 
+              ImmutableList<TypeParameterDeclaration>.Empty,
+              parameters, 
+              returnType, 
+              body, 
+              location, 
+              null, 
+              null, 
+              null)
+    {
     }
 
     public override MethodDeclaration WithName(string name) =>

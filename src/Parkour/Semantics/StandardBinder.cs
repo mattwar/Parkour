@@ -644,23 +644,11 @@ public class StandardBinder : SemanticBinder
         var baseTypes = BindList(typeContext, decl.BaseTypes);
         var declarations = BindList(typeContext, decl.Declarations);
 
-        if (typeParameters == decl.TypeParameters
-            && baseTypes == decl.BaseTypes
-            && declarations == decl.Declarations
-            && symbol == decl.Symbol)
-            return decl;
-
-        return new ClassDeclaration(
-            decl.Name,
-            decl.Access,
-            decl.Modifiers,
-            typeParameters,
-            baseTypes,
-            declarations,
-            decl.Location,
-            symbol,
-            decl.Diagnostics
-            );
+        return decl
+            .WithTypeParameters(typeParameters)
+            .WithBaseTypes(baseTypes)
+            .WithDeclarations(declarations)
+            .WithSymbol(symbol);
     }
     #endregion
 
@@ -684,16 +672,11 @@ public class StandardBinder : SemanticBinder
 
         var body = BindExpression(bodyContext, cd.Body);
 
-        return new ConstructorDeclaration(
-            cd.Access,
-            cd.Modifiers,
-            parameters,
-            body,
-            cd.Location,
-            constructorSymbol,
-            returnLabel,
-            null
-            );
+        return cd
+            .WithParameters(parameters)
+            .WithBody(body)
+            .WithSymbol(constructorSymbol)
+            .WithReturnLabel(returnLabel);
     }
 
     #endregion
@@ -714,26 +697,14 @@ public class StandardBinder : SemanticBinder
             var baseTypes = BindTypeExpressionList(context, decl.BaseTypes, diagnostics);
             var declarations = BindList(context, decl.Declarations);
 
-            if (typeParameters == decl.TypeParameters
-                && parameters == decl.Parameters
-                && returnType == decl.ReturnType
-                && baseTypes == decl.BaseTypes
-                && declarations == decl.Declarations)
-                return decl;
-
-            return new DelegateDeclaration(
-                decl.Name,
-                decl.Access,
-                decl.Modifiers,
-                typeParameters,
-                baseTypes,
-                declarations,
-                parameters,
-                returnType,
-                decl.Location,
-                delegateSymbol,
-                diagnostics.ToImmutableList()
-                );
+            return decl
+                .WithTypeParameters(typeParameters)
+                .WithBaseTypes(baseTypes)
+                .WithDeclarations(declarations)
+                .WithParameters(parameters)
+                .WithReturnType(returnType)
+                .WithSymbol(delegateSymbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
         }
         finally
         {
@@ -759,17 +730,10 @@ public class StandardBinder : SemanticBinder
         var initializer = fd.Initializer != null
             ? BindExpression(context.WithTargetType(fieldType?.ReferencedSymbol as TypeSymbol), fd.Initializer)
             : null;
-
-        return new FieldDeclaration(
-            fd.Name,
-            fd.Access,
-            fd.Modifiers,
-            fieldType,
-            initializer,
-            fd.Location,
-            fieldSymbol,
-            fd.Diagnostics
-            );
+        return fd
+            .WithFieldType(fieldType)
+            .WithInitializer(initializer)
+            .WithSymbol(fieldSymbol);
     }
     #endregion
 
@@ -794,16 +758,11 @@ public class StandardBinder : SemanticBinder
             ? (MethodDeclaration)BindDeclaration(methodContext, id.SetMethod)
             : null;
 
-        return new IndexerDeclaration(
-            id.Access,
-            id.Modifiers,
-            elementType,
-            getMethod,
-            setMethod,
-            id.Location,
-            indexerSymbol,
-            id.Diagnostics
-            );
+        return id
+            .WithElementType(elementType)
+            .WithGetMethod(getMethod)
+            .WithSetMethod(setMethod)
+            .WithSymbol(indexerSymbol);
     }
     #endregion
 
@@ -828,23 +787,11 @@ public class StandardBinder : SemanticBinder
         var baseTypes = BindList(typeContext, decl.BaseTypes);
         var declarations = BindList(typeContext, decl.Declarations);
 
-        if (typeParameters == decl.TypeParameters
-            && baseTypes == decl.BaseTypes
-            && declarations == decl.Declarations
-            && symbol == decl.Symbol)
-            return decl;
-
-        return new InterfaceDeclaration(
-            decl.Name,
-            decl.Access,
-            decl.Modifiers,
-            typeParameters,
-            baseTypes,
-            declarations,
-            decl.Location,
-            symbol,
-            decl.Diagnostics
-            );
+        return decl
+            .WithTypeParameters(typeParameters)
+            .WithBaseTypes(baseTypes)
+            .WithDeclarations(declarations)
+            .WithSymbol(symbol);
     }
     #endregion
 
@@ -877,19 +824,13 @@ public class StandardBinder : SemanticBinder
 
         var body = BindExpression(bodyContext, md.Body);
 
-        return new MethodDeclaration(
-            md.Name,
-            md.Access,
-            md.Modifiers,
-            typeParameters,
-            parameters,
-            returnType,
-            body,
-            md.Location,
-            methodSymbol,
-            returnLabel,
-            md.Diagnostics
-            );
+        return md
+            .WithTypeParameters(typeParameters)
+            .WithParameters(parameters)
+            .WithReturnType(returnType)
+            .WithBody(body)
+            .WithSymbol(methodSymbol)
+            .WithReturnLabel(returnLabel);
     }
     #endregion
 
@@ -916,9 +857,9 @@ public class StandardBinder : SemanticBinder
             if (nd is UsingDeclaration ud
                 && ud.Expression.ReferencedSymbol != null)
             {
-                if (ud.AliasedSymbol != null)
+                if (ud.AliasSymbol != null)
                 {
-                    _context = _context.WithScope(_context.Scope.AddSymbol(ud.AliasedSymbol));
+                    _context = _context.WithScope(_context.Scope.AddSymbol(ud.AliasSymbol));
                 }
                 else if (ud.Expression.ReferencedSymbol is NamespaceSymbol ns)
                 {
@@ -929,13 +870,9 @@ public class StandardBinder : SemanticBinder
             return (nd, _context);
         });
 
-        return new NamespaceDeclaration(
-            nd.Name,
-            declarations,
-            nd.Location,
-            nsSymbol,
-            nd.Diagnostics
-            );
+        return nd
+            .WithDeclarations(declarations)
+            .WithSymbol(nsSymbol);
     }
     #endregion
 
@@ -952,14 +889,9 @@ public class StandardBinder : SemanticBinder
             ? BindExpression(context, pd.ParameterType)
             : null;
 
-        return new ParameterDeclaration(
-            pd.Name,
-            pd.Modifiers,
-            parameterType,
-            pd.Location,
-            parameterSymbol,
-            pd.Diagnostics
-            );
+        return pd
+            .WithParameterType(parameterType)
+            .WithSymbol(parameterSymbol);
     }
     #endregion
 
@@ -994,18 +926,12 @@ public class StandardBinder : SemanticBinder
             ? (MethodDeclaration)BindDeclaration(methodContext, pd.SetMethod)
             : null;
 
-        return new PropertyDeclaration(
-            pd.Name,
-            pd.Access,
-            pd.Modifiers,
-            propertyType,
-            backingField,
-            getMethod,
-            setMethod,
-            pd.Location,
-            propertySymbol,
-            pd.Diagnostics
-            );
+        return pd
+            .WithPropertyType(propertyType)
+            .WithBackingField(backingField)
+            .WithGetMethod(getMethod)
+            .WithSetMethod(setMethod)
+            .WithSymbol(propertySymbol);
     }
     #endregion
 
@@ -1036,17 +962,11 @@ public class StandardBinder : SemanticBinder
             && symbol == decl.Symbol)
             return decl;
 
-        return new StructDeclaration(
-            decl.Name,
-            decl.Access,
-            decl.Modifiers,
-            typeParameters,
-            baseTypes,
-            declarations,
-            decl.Location,
-            symbol,
-            decl.Diagnostics
-            );
+        return decl
+            .WithTypeParameters(typeParameters)
+            .WithBaseTypes(baseTypes)
+            .WithDeclarations(declarations)
+            .WithSymbol(symbol);
     }
     #endregion
 
@@ -1059,14 +979,7 @@ public class StandardBinder : SemanticBinder
         TypeParameterDeclaration typeParameter,
         TypeParameterSymbol? typeParameterSymbol)
     {
-        if (typeParameter.Symbol == typeParameterSymbol)
-            return typeParameter;
-
-        return new TypeParameterDeclaration(
-            typeParameter.Name,
-            typeParameter.Location,
-            typeParameterSymbol,
-            typeParameter.Diagnostics);
+        return typeParameter.WithSymbol(typeParameterSymbol);
     }
     #endregion
     
@@ -1084,17 +997,13 @@ public class StandardBinder : SemanticBinder
             return ud;
 
         var aliasedSymbol = expression.ReferencedSymbol as ContainerSymbol;
-
         var aliasSymbol = ud.Name.Length > 0 && aliasedSymbol != null
             ? new AliasSymbol(ud.Name, aliasedSymbol)
             : null;
 
-        return new UsingDeclaration(
-            ud.Name,
-            expression,
-            ud.Location,
-            aliasSymbol,
-            null);
+        return ud
+            .WithExpression(expression)
+            .WithAliasSymbol(aliasSymbol);
     }
     #endregion
 
@@ -2642,7 +2551,7 @@ public class StandardBinder : SemanticBinder
                     var type = p.ParameterType != null ? BindTypeExpression(context, p.ParameterType, diagnostics) : null;
                     var ptype = type?.ReferencedSymbol as TypeSymbol ?? context.Symbols.Object;
                     var psymbol = new ParameterSymbol(p.Name, declaringSymbol, ptype);
-                    var pdecl = new ParameterDeclaration(p.Name, p.Modifiers, type, p.Location, psymbol, null);
+                    var pdecl = p.WithParameterType(type).WithSymbol(psymbol);
                     symbols.Add(psymbol);
                     declarations.Add(pdecl);
                 }

@@ -5,7 +5,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
 {
     public override InterfaceSymbol? Symbol { get; }
 
-    public InterfaceDeclaration(
+    private InterfaceDeclaration(
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
@@ -27,6 +27,24 @@ public sealed class InterfaceDeclaration : TypeDeclaration
         diagnostics)
     {
         this.Symbol = symbol;
+    }
+
+    public InterfaceDeclaration(
+        string name,
+        ImmutableList<Expression> baseTypes,
+        ImmutableList<Declaration>? declarations,
+        ISourceLocation? location)
+        : this(
+              name, 
+              SymbolAccess.Public, 
+              SymbolModifier.None, 
+              ImmutableList<TypeParameterDeclaration>.Empty, 
+              baseTypes, 
+              declarations, 
+              location, 
+              null, 
+              null)
+    {
     }
 
     public override InterfaceDeclaration WithName(string name) =>

@@ -129,14 +129,20 @@ public class NewArrayExpression : Expression
             );
 
     public override int ChildCount =>
-        1 + Values.Count;
+        1 + Sizes.Count + Values.Count;
 
-    public override SemanticElement? GetChild(int index) =>
-        index switch
-        {
-            0 => this.ElementType,
-            _ => this.Values[index - 1]
-        };
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index == 0)
+            return this.ElementType;
+        index--;
+        if (index < this.Sizes.Count)
+            return this.Sizes[index];
+        index -= this.Sizes.Count;
+        if (index < this.Values.Count)
+            return this.Values[index];
+        return null;
+    }
 
     public override NewArrayExpression RewriteChildren(SemanticRewriter rewriter)
     {

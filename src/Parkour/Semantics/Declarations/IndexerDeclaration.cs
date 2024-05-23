@@ -10,7 +10,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
     public MethodDeclaration GetMethod { get; }
     public MethodDeclaration? SetMethod { get; }
 
-    public IndexerDeclaration(
+    private IndexerDeclaration(
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
@@ -38,25 +38,20 @@ public sealed class IndexerDeclaration : MemberDeclaration
     }
 
     public IndexerDeclaration(
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
         Expression? elementType,
         MethodDeclaration getMethod,
         MethodDeclaration? setMethod,
-        ISourceLocation? location,
-        IndexerSymbol? symbol,
-        ImmutableList<Diagnostic>? diagnostics)
+        ISourceLocation? location)
         : this(
               "Item",
-              access,
-              modifiers,
-              elementType,
-              getMethod,
-              setMethod,
-              location,
-              symbol,
-              diagnostics
-              )
+              SymbolAccess.Public, 
+              SymbolModifier.None, 
+              elementType, 
+              getMethod, 
+              setMethod, 
+              location, 
+              null, 
+              null)
     {
     }
 
