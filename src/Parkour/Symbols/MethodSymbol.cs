@@ -5,20 +5,23 @@ public class MethodSymbol : MemberSymbol
     /// <summary>
     /// <see cref="TypeParameters"/> for generic method definitions.
     /// </summary>
-    public ImmutableList<TypeParameterSymbol> TypeParameters => _lazyTypeParameters.Value;
-    private readonly Lazy<ImmutableList<TypeParameterSymbol>> _lazyTypeParameters;
+    public ImmutableList<TypeParameterSymbol> TypeParameters =>
+        _lazyTypeParameters?.Value ?? ImmutableList<TypeParameterSymbol>.Empty;
+    private readonly Lazy<ImmutableList<TypeParameterSymbol>>? _lazyTypeParameters;
 
     /// <summary>
     /// Type arguments for constructed generic methods
     /// </summary>
-    public ImmutableList<TypeSymbol> TypeArguments => _lazyTypeArguments.Value;
-    private readonly Lazy<ImmutableList<TypeSymbol>> _lazyTypeArguments;
+    public ImmutableList<TypeSymbol> TypeArguments => 
+        _lazyTypeArguments?.Value ?? ImmutableList<TypeSymbol>.Empty;
+    private readonly Lazy<ImmutableList<TypeSymbol>>? _lazyTypeArguments;
 
     /// <summary>
     /// The parameters of this method.
     /// </summary>
-    public ImmutableList<ParameterSymbol> Parameters => _lazyParameters.Value;
-    private readonly Lazy<ImmutableList<ParameterSymbol>> _lazyParameters;
+    public ImmutableList<ParameterSymbol> Parameters =>
+        _lazyParameters?.Value ?? ImmutableList<ParameterSymbol>.Empty;
+    private readonly Lazy<ImmutableList<ParameterSymbol>>? _lazyParameters;
 
     /// <summary>
     /// The return type of this method.
@@ -31,16 +34,22 @@ public class MethodSymbol : MemberSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
-        Func<MethodSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters,
-        Func<ImmutableList<TypeSymbol>> fnTypeArguments,
-        Func<MethodSymbol, ImmutableList<ParameterSymbol>> fnParameters,
+        Func<MethodSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
+        Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
+        Func<MethodSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
         Func<TypeSymbol> fnReturnType,
         MethodSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
-        _lazyTypeParameters = new Lazy<ImmutableList<TypeParameterSymbol>>(() => fnTypeParameters(this));
-        _lazyTypeArguments = new Lazy<ImmutableList<TypeSymbol>>(fnTypeArguments);
-        _lazyParameters = new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this));
+        _lazyTypeParameters = fnTypeParameters != null
+            ? new Lazy<ImmutableList<TypeParameterSymbol>>(() => fnTypeParameters(this))
+            : null;
+        _lazyTypeArguments = fnTypeArguments != null
+            ? new Lazy<ImmutableList<TypeSymbol>>(fnTypeArguments)
+            : null;
+        _lazyParameters = fnParameters != null
+            ? new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this))
+            : null;
         _lazyReturnType = new Lazy<TypeSymbol>(fnReturnType, SpecialSymbols.CyclicDefinition);
         ConstructedFrom = constructedFrom;
     }
@@ -109,7 +118,6 @@ public class MethodSymbol : MemberSymbol
 
         return null;
     }
-
 
     internal protected override MethodSymbol Construct(ConstructionContext context)
     {

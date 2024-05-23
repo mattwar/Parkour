@@ -131,9 +131,9 @@ public abstract class SymbolTable
     #region Constructing Arrays
 
     /// <summary>
-    /// Gets an array of the specified element type.
+    /// Gets an array of the specified element type and dimensions.
     /// </summary>
-    public abstract ArraySymbol GetArray(TypeSymbol elementType);
+    public abstract ArraySymbol GetArray(TypeSymbol elementType, int dimensions = 1);
 
     #endregion
 

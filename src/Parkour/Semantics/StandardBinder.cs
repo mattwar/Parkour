@@ -223,6 +223,9 @@ public class StandardBinder : SemanticBinder
             case ConstructorDeclaration cd:
                 return CreateConstructorSymbol(context, declaringSymbol, cd);
 
+            case DelegateDeclaration dd:
+                return CreateDelegateSymbol(context, declaringSymbol, dd);
+
             case FieldDeclaration fd:
                 return CreateFieldSymbol(context, declaringSymbol, fd);
 
@@ -268,10 +271,20 @@ public class StandardBinder : SemanticBinder
             declaringSymbol,
             declaration.Access,
             declaration.Modifiers,
-            me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
-            () => ImmutableList<TypeSymbol>.Empty,
-            () => declaration.BaseTypes.Select(bt => GetReferencedType(typeContext.BindingContext, bt)).ToImmutableList()!,
-            me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
+            fnTypeParameters: me => 
+                declaration.TypeParameters
+                    .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!)
+                    .ToImmutableList()!,
+            fnTypeArguments: null,
+            fnBaseTypes: () => 
+                declaration.BaseTypes
+                    .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
+                    .ToImmutableList()!,
+            fnMembers: me => 
+                declaration.Declarations
+                    .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
+                    .Where(s => s != null)
+                    .ToImmutableList()!,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -292,7 +305,27 @@ public class StandardBinder : SemanticBinder
             (TypeSymbol)declaringSymbol!,
             declaration.Access,
             declaration.Modifiers,
-            me => declaration.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!).ToImmutableList()!
+            fnParameters: me => 
+                declaration.Parameters
+                    .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
+                    .ToImmutableList()!
+            );
+    }
+
+    protected virtual Symbol CreateDelegateSymbol(
+        SymbolContext context,
+        Symbol? declaringSymbol,
+        DelegateDeclaration declaration)
+    {
+        return new DelegateSymbol(
+            declaration.Name,
+            declaringSymbol,
+            fnParameters: me => 
+                declaration.Parameters
+                    .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
+                    .ToImmutableList()!,
+            fnReturnType: () => 
+                GetReferencedType(context.BindingContext, declaration.ReturnType)
             );
     }
 
@@ -311,11 +344,11 @@ public class StandardBinder : SemanticBinder
             declaringSymbol as TypeSymbol,
             declaration.Access,
             declaration.Modifiers,
-            () => 
+            fnType: () => 
             {
                 return declaration.FieldType != null ? GetReferencedType(context.BindingContext, declaration.FieldType)
-                : declaration.Initializer != null ? GetResultType(context.BindingContext, declaration.Initializer)
-                : context.Symbols.Object;
+                    : declaration.Initializer != null ? GetResultType(context.BindingContext, declaration.Initializer)
+                    : context.Symbols.Object;
             },
             constValue
             );
@@ -331,14 +364,19 @@ public class StandardBinder : SemanticBinder
             declaringSymbol as TypeSymbol,
             declaration.Access,
             declaration.Modifiers,
-            () => declaration.ElementType != null ? GetReferencedType(context.BindingContext, declaration.ElementType)
-                : declaration.GetMethod.ReturnType != null ? GetReferencedType(context.BindingContext, declaration.GetMethod.ReturnType)
-                : GetResultType(context.BindingContext, declaration.GetMethod.Body),
-            me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.GetMethod)!,
-            declaration.SetMethod != null
-                ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
-                : null
-                );
+            fnElementType: () => 
+            {
+                return declaration.ElementType != null ? GetReferencedType(context.BindingContext, declaration.ElementType)
+                    : declaration.GetMethod.ReturnType != null ? GetReferencedType(context.BindingContext, declaration.GetMethod.ReturnType)
+                    : GetResultType(context.BindingContext, declaration.GetMethod.Body);
+            },
+            fnGetMethod: me => 
+                (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.GetMethod)!,
+            fnSetMethod: 
+                declaration.SetMethod != null
+                    ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
+                    : null
+            );
     }
 
     protected virtual Symbol CreateInterfaceSymbol(
@@ -353,12 +391,24 @@ public class StandardBinder : SemanticBinder
             declaringSymbol,
             declaration.Access,
             declaration.Modifiers,
-            me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
-            () => ImmutableList<TypeSymbol>.Empty,
-            () => declaration.BaseTypes.Select(bt => GetReferencedType(typeContext.BindingContext, bt)).ToImmutableList()!,
-            me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
-            constructedFrom: null);
+            fnTypeParameters: me => 
+                declaration.TypeParameters
+                    .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!)
+                    .ToImmutableList()!,
+            fnTypeArguments: null,
+            fnBaseTypes: () => 
+                declaration.BaseTypes
+                    .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
+                    .ToImmutableList()!,
+            fnMembers: me => 
+                declaration.Declarations
+                    .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
+                    .Where(s => s != null)
+                    .ToImmutableList()!,
+            constructedFrom: null
+            );
 
+        // determine context after symbol is declared
         typeContext = context.WithScope(
             context.Scope
                 .AddSymbolAndMembers(typeSymbol)
@@ -373,16 +423,28 @@ public class StandardBinder : SemanticBinder
         MethodDeclaration declaration)
     {
         var mmods = declaration.Modifiers
-            | (declaringSymbol is NamespaceSymbol ? SymbolModifier.Static : SymbolModifier.None);
+            | (declaringSymbol is NamespaceSymbol 
+                ? SymbolModifier.Static 
+                : SymbolModifier.None);
+
         return new MethodSymbol(
             declaration.Name,
             declaringSymbol,
             declaration.Access,
             mmods,
-            me => ImmutableList<TypeParameterSymbol>.Empty,
-            () => ImmutableList<TypeSymbol>.Empty,
-            me => declaration.Parameters.Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!).ToImmutableList()!,
-            () =>
+            fnTypeParameters: 
+                declaration.TypeParameters.Count > 0
+                    ? me => 
+                        declaration.TypeParameters
+                            .Select(p => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
+                            .ToImmutableList()
+                    : null,
+            fnTypeArguments: null,
+            fnParameters: me => 
+                declaration.Parameters
+                    .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
+                    .ToImmutableList()!,
+            fnReturnType: () =>
             {
                 return declaration.ReturnType != null 
                     ? GetReferencedType(context.BindingContext, declaration.ReturnType)
@@ -400,9 +462,10 @@ public class StandardBinder : SemanticBinder
         return new ParameterSymbol(
             declaration.Name,
             declaringSymbol,
-            () => declaration.ParameterType != null
-                ? GetReferencedType(context.BindingContext, declaration.ParameterType)
-                : context.Symbols.Object
+            fnType: () => 
+                declaration.ParameterType != null
+                    ? GetReferencedType(context.BindingContext, declaration.ParameterType)
+                    : context.Symbols.Object
             );
     }
 
@@ -416,19 +479,22 @@ public class StandardBinder : SemanticBinder
             declaringSymbol as TypeSymbol,
             declaration.Access,
             declaration.Modifiers,
-            () =>
+            fnType: () =>
             {
                 return declaration.PropertyType != null ? GetReferencedType(context.BindingContext, declaration.PropertyType)
                     : declaration.GetMethod.ReturnType != null ? GetReferencedType(context.BindingContext, declaration.GetMethod.ReturnType)
                     : GetResultType(context.BindingContext, declaration.GetMethod.Body);
             },
-            declaration.BackingField != null
-                ? me => (FieldSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.BackingField)!
-                : null,
-            me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.GetMethod)!,
-            declaration.SetMethod != null
-                ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
-                : null
+            fnBackingField: 
+                declaration.BackingField != null
+                    ? me => (FieldSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.BackingField)!
+                    : null,
+            fnGetMethod: me => 
+                (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.GetMethod)!,
+            fnSetMethod: 
+                declaration.SetMethod != null
+                    ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
+                    : null
         );
     }
 
@@ -444,10 +510,20 @@ public class StandardBinder : SemanticBinder
             declaringSymbol,
             declaration.Access,
             declaration.Modifiers,
-            me => declaration.TypeParameters.Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).ToImmutableList()!,
-            () => ImmutableList<TypeSymbol>.Empty,
-            () => declaration.BaseTypes.Select(bt => GetReferencedType(typeContext.BindingContext, bt)).ToImmutableList()!,
-            me => declaration.Declarations.Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d)).Where(s => s != null).ToImmutableList()!,
+            fnTypeParameters: me => 
+                declaration.TypeParameters
+                    .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).
+                    ToImmutableList()!,
+            fnTypeArguments: null,
+            fnBaseTypes: () => 
+                declaration.BaseTypes
+                    .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
+                    .ToImmutableList()!,
+            fnMembers: me => 
+                declaration.Declarations
+                    .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
+                    .Where(s => s != null)
+                    .ToImmutableList()!,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -504,20 +580,20 @@ public class StandardBinder : SemanticBinder
             case ClassDeclaration cld:
                 bound = BindClass(context, cld, symbol as ClassSymbol);
                 break;
-            case StructDeclaration std:
-                bound = BindStruct(context, std, symbol as StructSymbol);
-                break;
-            case InterfaceDeclaration ifd:
-                bound = BindInterface(context, ifd, symbol as InterfaceSymbol);
-                break;
             case ConstructorDeclaration cd:
                 bound = BindConstructor(context, cd, symbol as ConstructorSymbol);
+                break;
+            case DelegateDeclaration dd:
+                bound = BindDelegate(context, dd, symbol as DelegateSymbol);
                 break;
             case FieldDeclaration fd:
                 bound = BindField(context, fd, symbol as FieldSymbol);
                 break;
             case IndexerDeclaration id:
                 bound = BindIndexer(context, id, symbol as IndexerSymbol);
+                break;
+            case InterfaceDeclaration ifd:
+                bound = BindInterface(context, ifd, symbol as InterfaceSymbol);
                 break;
             case MethodDeclaration md:
                 bound = BindMethod(context, md, symbol as MethodSymbol);
@@ -530,6 +606,9 @@ public class StandardBinder : SemanticBinder
                 break;
             case PropertyDeclaration pd:
                 bound = BindProperty(context, pd, symbol as PropertySymbol);
+                break;
+            case StructDeclaration std:
+                bound = BindStruct(context, std, symbol as StructSymbol);
                 break;
             case TypeParameterDeclaration tp:
                 bound = BindTypeParameter(context, tp, symbol as TypeParameterSymbol);
@@ -615,6 +694,51 @@ public class StandardBinder : SemanticBinder
             returnLabel,
             null
             );
+    }
+
+    #endregion
+
+    #region Delegate Declaration
+
+    protected virtual DelegateDeclaration BindDelegate(
+        BindingContext context,
+        DelegateDeclaration decl,
+        DelegateSymbol? delegateSymbol)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var typeParameters = BindList(context, decl.TypeParameters);
+            var parameters = BindList(context, decl.Parameters);
+            var returnType = BindTypeExpression(context, decl.ReturnType, diagnostics);
+            var baseTypes = BindTypeExpressionList(context, decl.BaseTypes, diagnostics);
+            var declarations = BindList(context, decl.Declarations);
+
+            if (typeParameters == decl.TypeParameters
+                && parameters == decl.Parameters
+                && returnType == decl.ReturnType
+                && baseTypes == decl.BaseTypes
+                && declarations == decl.Declarations)
+                return decl;
+
+            return new DelegateDeclaration(
+                decl.Name,
+                decl.Access,
+                decl.Modifiers,
+                typeParameters,
+                baseTypes,
+                declarations,
+                parameters,
+                returnType,
+                decl.Location,
+                delegateSymbol,
+                diagnostics.ToImmutableList()
+                );
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
 
     #endregion
@@ -1053,14 +1177,11 @@ public class StandardBinder : SemanticBinder
             case NameExpression nameRef:
                 return BindNameReference(context, nameRef);
 
+            case NewArrayExpression newArrayInit:
+                return BindNewArray(context, newArrayInit);
+
             case NewExpression @new:
                 return BindNew(context, @new);
-
-            case NewArrayInitExpression newArrayInit:
-                return BindNewArrayInit(context, newArrayInit);
-
-            case NewArraySizeExpression newArraySize:
-                return BindNewArraySize(context, newArraySize);
 
             case OperatorExpression opex:
                 return BindOperator(context, opex);
@@ -2881,6 +3002,59 @@ public class StandardBinder : SemanticBinder
     }
     #endregion
 
+    #region NewArray Expression
+    /// <summary>
+    /// Binds <see cref="NewArrayExpression"/>
+    /// </summary>
+    protected virtual Expression BindNewArray(BindingContext context, NewArrayExpression newArray)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var targetType = context.TargetType;
+            context = context.WithTargetType(null);
+            var elementType = newArray.ElementType != null ? BindTypeExpression(context, newArray.ElementType, diagnostics) : null;
+            var sizes = BindList(context, newArray.Sizes);
+            var values = BindList(context, newArray.Values);
+
+            var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
+            var elementTypeSymbol = elementType?.ReferencedSymbol as TypeSymbol
+                ?? targetElementType
+                ?? GetBestCommonResultType(context, values);
+
+            var dimensions = sizes.Count == 0 ? 1 : sizes.Count;
+            var resultType = elementTypeSymbol != null
+                ? context.Symbols.GetArray(elementTypeSymbol, dimensions)
+                : null;
+
+            if (elementTypeSymbol == null)
+            {
+                diagnostics.Add(SemanticDiagnostics.CannotInferElementType().WithLocation(newArray.Location));
+            }
+
+            if (elementType == newArray.ElementType
+                && sizes == newArray.Sizes
+                && values == newArray.Values
+                && elementTypeSymbol == newArray.ElementTypeSymbol
+                && resultType == newArray.ResultType)
+                return newArray;
+
+            return new NewArrayExpression(
+                elementType,
+                sizes,
+                values,
+                newArray.Location,
+                elementTypeSymbol,
+                resultType,
+                diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+    #endregion
+
     #region New Expression
     /// <summary>
     /// Binds <see cref="NewExpression"/>
@@ -2979,99 +3153,6 @@ public class StandardBinder : SemanticBinder
     {
         // TODO: get good
         return candidates.OfType<ConstructorSymbol>().FirstOrDefault();
-    }
-    #endregion
-
-    #region NewArraySize Expression
-    /// <summary>
-    /// Binds <see cref="NewArraySizeExpression"/>
-    /// </summary>
-    protected virtual Expression BindNewArraySize(BindingContext context, NewArraySizeExpression newArraySize)
-    {
-        var diagnostics = _diagnosticListPool.AllocateFromPool();
-        try
-        {
-            var targetType = context.TargetType;
-            context = context.WithTargetType(null);
-            var elementType = newArraySize.ElementType != null ? BindTypeExpression(context, newArraySize.ElementType, diagnostics) : null;
-            var sizes = BindList(context, newArraySize.Sizes);
-
-            var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
-            var elementTypeSymbol = elementType?.ReferencedSymbol as TypeSymbol
-                ?? targetElementType;
-            var resultType = elementTypeSymbol != null ? context.Symbols.GetArray(elementTypeSymbol) : null;
-
-            if (elementTypeSymbol == null)
-            {
-                diagnostics.Add(SemanticDiagnostics.CannotInferElementType().WithLocation(newArraySize.Location));
-            }
-
-            if (elementType == newArraySize.ElementType
-                && sizes == newArraySize.Sizes
-                && elementTypeSymbol == newArraySize.ElementTypeSymbol
-                && resultType == newArraySize.ResultType
-                && diagnostics.Count == 0)
-                return newArraySize;
-
-            return new NewArraySizeExpression(
-                elementType,
-                sizes,
-                newArraySize.Location,
-                elementTypeSymbol,
-                resultType,
-                diagnostics.ToImmutableList());
-        }
-        finally
-        {
-            _diagnosticListPool.ReturnToPool(diagnostics);
-        }
-    }
-    #endregion
-
-    #region NewArrayInit Expression
-    /// <summary>
-    /// Binds <see cref="NewArrayInitExpression"/>
-    /// </summary>
-    protected virtual Expression BindNewArrayInit(BindingContext context, NewArrayInitExpression newArrayInit)
-    {
-        var diagnostics = _diagnosticListPool.AllocateFromPool();
-        try
-        {
-            var targetType = context.TargetType;
-            context = context.WithTargetType(null);
-            var elementType = newArrayInit.ElementType != null ? BindTypeExpression(context, newArrayInit.ElementType, diagnostics) : null;
-            var expressions = BindList(context, newArrayInit.Expressions);
-
-            var targetElementType = targetType is ArraySymbol asym ? asym.ElementType : null;
-            var elementTypeSymbol = elementType?.ReferencedSymbol as TypeSymbol
-                ?? targetElementType
-                ?? GetBestCommonResultType(context, expressions);
-            var resultType = elementTypeSymbol != null ? context.Symbols.GetArray(elementTypeSymbol) : null;
-
-            if (elementTypeSymbol == null)
-            {
-                diagnostics.Add(SemanticDiagnostics.CannotInferElementType().WithLocation(newArrayInit.Location));
-            }
-
-            if (elementType == newArrayInit.ElementType
-                && expressions == newArrayInit.Expressions
-                && elementTypeSymbol == newArrayInit.ElementTypeSymbol
-                && resultType == newArrayInit.ResultType
-                && diagnostics.Count == 0)
-                return newArrayInit;
-
-            return new NewArrayInitExpression(
-                elementType,
-                expressions,
-                newArrayInit.Location,
-                elementTypeSymbol,
-                resultType,
-                diagnostics.ToImmutableList());
-        }
-        finally
-        {
-            _diagnosticListPool.ReturnToPool(diagnostics);
-        }
     }
     #endregion
 

@@ -94,18 +94,6 @@ public static class SemanticFactory
         Call(Name(name), arguments);
 
     /// <summary>
-    /// Access the element of an expression
-    /// </summary>
-    public static ElementExpression Element(Expression target, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
-        new ElementExpression(target, arguments, location, null, null, null);
-
-    /// <summary>
-    /// Access the element of an expression
-    /// </summary>
-    public static ElementExpression Element(Expression target, Expression index, ISourceLocation? location = null) =>
-        new ElementExpression(target, [index], location, null, null, null);
-
-    /// <summary>
     /// Evaluates the whenTrue expression if the test expression results in true or otherwise evaluates the whenFalse expression.
     /// </summary>
     public static ConditionExpression Condition(Expression test, Expression whenTrue, Expression whenFalse, ISourceLocation? location = null) =>
@@ -152,6 +140,19 @@ public static class SemanticFactory
     /// </summary>
     public static DefaultExpression Default(ISourceLocation? location = null) =>
         new DefaultExpression(null, location, null, null);
+
+    /// <summary>
+    /// Access the element of an expression
+    /// </summary>
+    public static ElementExpression Element(Expression target, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
+        new ElementExpression(target, arguments, location, null, null, null);
+
+    /// <summary>
+    /// Access the element of an expression
+    /// </summary>
+    public static ElementExpression Element(Expression target, Expression index, ISourceLocation? location = null) =>
+        new ElementExpression(target, [index], location, null, null, null);
+
 
     /// <summary>
     /// A loop that iterates a variable over a range
@@ -244,7 +245,9 @@ public static class SemanticFactory
         new LoopExpression(body, location, null, null, null, null);
 
     /// <summary>
-    /// Accesses the member of the expression.
+    /// Accesses the named member of the expression.
+    /// If the expression is a type reference, it accesses a static member, 
+    /// otherwise it accesses and instance member.
     /// </summary>
     public static MemberExpression Member(Expression expression, string name, ISourceLocation? location = null) =>
         new MemberExpression(expression, name, location, null, null, null);
@@ -274,34 +277,74 @@ public static class SemanticFactory
         new NewExpression(null, null, location, null, null, null);
 
     /// <summary>
+    /// Creates a new array instance of the specified dimension sizes and initial values.
+    /// </summary>
+    public static NewArrayExpression NewArray(
+        Expression? elementType,
+        ImmutableList<Expression> sizes,
+        ImmutableList<Expression> values,
+        ISourceLocation? location = null)
+        =>
+        new NewArrayExpression(elementType, sizes, values, location);
+
+    /// <summary>
+    /// Creates a new array instance of the specified size and initial values.
+    /// </summary>
+    public static NewArrayExpression NewArray(
+        Expression? elementType,
+        Expression size,
+        ImmutableList<Expression> values,
+        ISourceLocation? location = null)
+        =>
+        new NewArrayExpression(elementType, [size], values, location);
+
+    /// <summary>
     /// Creates a new array instance with the specified values.
     /// </summary>
-    public static NewArrayInitExpression NewArray(Expression elementType, ImmutableList<Expression> values, ISourceLocation? location = null) =>
-        new NewArrayInitExpression(elementType, values, location, null, null, null);
+    public static NewArrayExpression NewArray(
+        Expression? elementType,
+        ImmutableList<Expression> values,
+        ISourceLocation? location = null)
+        =>
+        NewArray(elementType, sizes: [], values, location);
+
+    /// <summary>
+    /// Creates a new array instance with the specified values.
+    /// </summary>
+    public static NewArrayExpression NewMultiDimensionalArray(
+        Expression? elementType,
+        ImmutableList<Expression> sizes,
+        ISourceLocation? location = null)
+        =>
+        NewArray(elementType, sizes, values: [], location);
 
     /// <summary>
     /// Creates a new array instance with the specified values, with inferred element type.
     /// </summary>
-    public static NewArrayInitExpression NewArray(ImmutableList<Expression> values, ISourceLocation? location = null) =>
-        new NewArrayInitExpression(null, values, location, null, null, null);
+    public static NewArrayExpression NewArray(
+        ImmutableList<Expression> values,
+        ISourceLocation? location = null)
+        =>
+        NewArray(null, values, location);
 
     /// <summary>
     /// Creates a new array instance of the specified size.
     /// </summary>
-    public static NewArraySizeExpression NewArray(Expression elementType, Expression size, ISourceLocation? location = null) =>
-        new NewArraySizeExpression(elementType, [size], location, null, null, null);
+    public static NewArrayExpression NewArray(
+        Expression elementType,
+        Expression size,
+        ISourceLocation? location = null)
+        =>
+        NewArray(elementType, [size], values: [], location);
 
     /// <summary>
     /// Creates a new array instance of the specified size, with inferred element type.
     /// </summary>
-    public static NewArraySizeExpression NewArray(Expression size, ISourceLocation? location = null) =>
-        new NewArraySizeExpression(null, [size], location, null, null, null);
-
-    /// <summary>
-    /// Creates a new multidimensional array instance of the specified dimension sizes.
-    /// </summary>
-    public static NewArraySizeExpression NewMultiDimensionalArray(Expression elementType, ImmutableList<Expression> sizes, ISourceLocation? location = null) =>
-        new NewArraySizeExpression(elementType, sizes, location, null, null, null);
+    public static NewArrayExpression NewArray(
+        Expression size,
+        ISourceLocation? location = null)
+        =>
+        NewArray(null, [size], values: [], location);
 
     /// <summary>
     /// Invokes an intrinsic operator.
@@ -316,13 +359,13 @@ public static class SemanticFactory
         BranchExpression.CreateReturn(expression, location, null, null);
 
     /// <summary>
-    /// Reference a declared symbol.
+    /// Reference a declared symbol directly via the symbol table (ignoring scoping rules).
     /// </summary>
     public static SymbolExpression Symbol(MemberSymbol symbol, ISourceLocation? location = null) =>
         Symbol(symbol.FullName, location);
 
     /// <summary>
-    /// Reference a declared symbol by its full name; ignores scoping rules.
+    /// Reference a declared symbol directly via the symbol table (ignoring scoping rules).
     /// </summary>
     public static SymbolExpression Symbol(string fullName, ISourceLocation? location = null) =>
         new SymbolExpression(fullName, location, null, null, null);
@@ -493,6 +536,287 @@ public static class SemanticFactory
     public static ClassDeclaration Class(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         Class(name, ImmutableList<Expression>.Empty, declarations, location);
 
+    public static ConstructorDeclaration Constructor(SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
+        new ConstructorDeclaration(access, modifiers, parameters, body, location, null, null, null);
+
+    public static ConstructorDeclaration Constructor(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
+        Constructor(SymbolAccess.Public, SymbolModifier.None, parameters, body, location);
+
+    public static ConstructorDeclaration Constructor(Expression body, ISourceLocation? location = null) =>
+        Constructor(SymbolAccess.Public, SymbolModifier.None, [], body, location);
+
+    public static ConstructorDeclaration Constructor(ISourceLocation? location = null) =>
+        Constructor(SymbolAccess.Public, SymbolModifier.None, [], Block(), location);
+
+    public static DelegateDeclaration Delegate(
+        string name, 
+        ImmutableList<TypeParameterDeclaration> typeParameters, 
+        ImmutableList<ParameterDeclaration> parameters, 
+        Expression returnType, 
+        ISourceLocation? location = null) 
+        =>
+        new DelegateDeclaration(
+            name, 
+            SymbolAccess.Public, 
+            SymbolModifier.None, 
+            typeParameters, 
+            [Symbol("System.Delegate")], 
+            ImmutableList<Declaration>.Empty, 
+            parameters, 
+            returnType, 
+            location, 
+            null, 
+            null
+            );
+
+    public static DelegateDeclaration Delegate(
+        string name,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression returnType,
+        ISourceLocation? location = null)
+        =>
+        Delegate(
+            name,
+            ImmutableList<TypeParameterDeclaration>.Empty,
+            parameters,
+            returnType,
+            location
+            );
+
+    public static FieldDeclaration Field(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, Expression? fieldType = null, Expression? initalizer = null, ISourceLocation? location = null) =>
+        new FieldDeclaration(name, access, modifiers, fieldType, initalizer, location, null, null);
+
+    public static FieldDeclaration Field(string name, Expression? fieldType = null, Expression? initalizer = null, ISourceLocation? location = null) =>
+        Field(name, SymbolAccess.Public, SymbolModifier.None, fieldType, initalizer, location);
+
+    public static IndexerDeclaration Indexer(
+        Expression? elementType,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression getter,
+        Expression? setter = null,
+        ISourceLocation? location = null)
+    {
+        return new IndexerDeclaration(
+            SymbolAccess.Public,
+            SymbolModifier.None,
+            elementType,
+            Method("get_Item",
+                SymbolAccess.Public,
+                SymbolModifier.HideBySig | SymbolModifier.Special,
+                parameters,
+                elementType,
+                getter,
+                getter.Location
+                ),
+            (setter != null)
+                ? Method("set_Item",
+                    SymbolAccess.Public,
+                    SymbolModifier.HideBySig | SymbolModifier.Special,
+                    parameters.Add(Parameter("value", elementType)),
+                    VoidType,
+                    setter,
+                    setter.Location)
+                : null,
+            location,
+            symbol: null,
+            diagnostics: null);
+    }
+
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        new InterfaceDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
+
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
+
+    public static InterfaceDeclaration Interface(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, SymbolAccess.Public, SymbolModifier.None, typeParameters, baseTypes, declarations, location);
+
+    public static InterfaceDeclaration Interface(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
+
+    public static InterfaceDeclaration Interface(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        Interface(name, ImmutableList<Expression>.Empty, declarations, location);
+
+    public static MethodDeclaration Method(
+        string name,
+        SymbolAccess access,
+        BitSet<SymbolModifier> modifiers,
+        ImmutableList<TypeParameterDeclaration> typeParameters,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression? returnType,
+        Expression body,
+        ISourceLocation? location = null)
+        =>
+        new MethodDeclaration(
+            name,
+            access,
+            modifiers,
+            typeParameters,
+            parameters,
+            returnType,
+            body,
+            location,
+            null,
+            null,
+            null
+            );
+
+    public static MethodDeclaration Method(
+        string name,
+        SymbolAccess access,
+        BitSet<SymbolModifier> modifiers,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression? returnType,
+        Expression body,
+        ISourceLocation? location = null)
+        =>
+        Method(
+            name,
+            access,
+            modifiers,
+            ImmutableList<TypeParameterDeclaration>.Empty,
+            parameters,
+            returnType,
+            body,
+            location
+            );
+
+    public static MethodDeclaration Method(
+        string name,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression? returnType,
+        Expression body,
+        ISourceLocation? location = null)
+        =>
+        Method(
+            name,
+            SymbolAccess.Public,
+            SymbolModifier.None,
+            parameters,
+            returnType,
+            body,
+            location
+            );
+
+    public static NamespaceDeclaration Namespace(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
+        new NamespaceDeclaration(name, declarations, location, null, null);
+
+
+    public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, ISourceLocation? location = null) =>
+        new ParameterDeclaration(name, SymbolModifier.None, parameterType, location, null, null);
+
+    public static PropertyDeclaration Property(
+        string name,
+        SymbolAccess access,
+        BitSet<SymbolModifier> modifiers,
+        MethodDeclaration getMethod,
+        MethodDeclaration? setMethod,
+        FieldDeclaration? backingField,
+        Expression? propertyType,
+        ISourceLocation? location = null)
+        =>
+        new PropertyDeclaration(
+            name,
+            access,
+            modifiers,
+            propertyType,
+            backingField,
+            getMethod,
+            setMethod,
+            location,
+            null,
+            null
+            );
+
+    public static PropertyDeclaration Property(
+        string name,
+        MethodDeclaration getMethod,
+        MethodDeclaration? setMethod = null,
+        ISourceLocation? location = null
+        ) =>
+        Property(
+            name,
+            getMethod.Access,
+            getMethod.Modifiers,
+            getMethod,
+            setMethod,
+            null,
+            getMethod.ReturnType,
+            location
+            );
+
+    public static PropertyDeclaration Property(
+        string name,
+        Expression propertyType,
+        Expression getter,
+        Expression setter,
+        ISourceLocation? location = null)
+        =>
+        Property(
+            name,
+            SymbolAccess.Public,
+            SymbolModifier.None,
+            Method("get_" + name,
+                SymbolAccess.Public,
+                SymbolModifier.HideBySig | SymbolModifier.Special,
+                ImmutableList<ParameterDeclaration>.Empty,
+                propertyType,
+                getter,
+                location),
+            setter != null
+                ? Method("set_" + name,
+                    SymbolAccess.Public,
+                    SymbolModifier.HideBySig | SymbolModifier.Special,
+                    [Parameter("value", propertyType)],
+                    VoidType,
+                    setter,
+                    location)
+                : null,
+            backingField: null,
+            propertyType,
+            location
+            );
+
+    public static PropertyDeclaration Property(
+        string name,
+        Expression? propertyType,
+        Expression getter,
+        ISourceLocation? location = null)
+        =>
+        Property(
+            name,
+            Method(
+                "get_" + name,
+                SymbolAccess.Public,
+                SymbolModifier.HideBySig | SymbolModifier.Special,
+                ImmutableList<ParameterDeclaration>.Empty,
+                propertyType,
+                getter,
+                location),
+            null,
+            location
+            );
+
+    public static PropertyDeclaration Property(
+        string name,
+        Expression propertyType,
+        ISourceLocation? location = null
+        )
+    {
+        var fieldName = $"__{name}_backingField";
+        return Property(
+            name,
+            propertyType,
+            Name(fieldName),
+            Assign(Name(fieldName), Name("value")),
+            location)
+            .WithBackingField(
+                Field(fieldName, propertyType)
+                .WithAccess(SymbolAccess.Private));
+    }
 
     public static StructDeclaration Struct(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
         new StructDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
@@ -513,29 +837,6 @@ public static class SemanticFactory
         Struct(name, ImmutableList<Expression>.Empty, declarations, location);
 
 
-    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        new InterfaceDeclaration(name, access, modifiers, typeParameters, baseTypes, declarations, location, null, null);
-
-    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Interface(name, access, modifiers, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
-
-    public static InterfaceDeclaration Interface(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Interface(name, access, modifiers, ImmutableList<Expression>.Empty, declarations, location);
-
-    public static InterfaceDeclaration Interface(string name, ImmutableList<TypeParameterDeclaration> typeParameters, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Interface(name, SymbolAccess.Public, SymbolModifier.None, typeParameters, baseTypes, declarations, location);
-
-    public static InterfaceDeclaration Interface(string name, ImmutableList<Expression> baseTypes, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Interface(name, ImmutableList<TypeParameterDeclaration>.Empty, baseTypes, declarations, location);
-
-    public static InterfaceDeclaration Interface(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        Interface(name, ImmutableList<Expression>.Empty, declarations, location);
-
-
-    public static NamespaceDeclaration Namespace(string name, ImmutableList<Declaration> declarations, ISourceLocation? location = null) =>
-        new NamespaceDeclaration(name, declarations, location, null, null);
-
-
     public static TypeParameterDeclaration TypeParameter(string name, ISourceLocation? location = null) =>
         new TypeParameterDeclaration(name, location, null, null);
 
@@ -545,234 +846,6 @@ public static class SemanticFactory
     public static UsingDeclaration Using(Expression @namespace, ISourceLocation? location = null) =>
         new UsingDeclaration("", @namespace, location, null, null);
 
-
-    public static ParameterDeclaration Parameter(string name, Expression? parameterType = null, ISourceLocation? location = null) =>
-        new ParameterDeclaration(name, SymbolModifier.None, parameterType, location, null, null);
-
-
-    public static MethodDeclaration Method(
-        string name, 
-        SymbolAccess access, 
-        BitSet<SymbolModifier> modifiers, 
-        ImmutableList<TypeParameterDeclaration> typeParameters, 
-        ImmutableList<ParameterDeclaration> parameters, 
-        Expression? returnType, 
-        Expression body, 
-        ISourceLocation? location = null)
-        =>
-        new MethodDeclaration(
-            name, 
-            access, 
-            modifiers, 
-            typeParameters, 
-            parameters, 
-            returnType, 
-            body, 
-            location, 
-            null, 
-            null, 
-            null
-            );
-
-    public static MethodDeclaration Method(
-        string name, 
-        SymbolAccess access, 
-        BitSet<SymbolModifier> modifiers, 
-        ImmutableList<ParameterDeclaration> parameters, 
-        Expression? returnType, 
-        Expression body, 
-        ISourceLocation? location = null) 
-        =>
-        Method(
-            name, 
-            access, 
-            modifiers, 
-            ImmutableList<TypeParameterDeclaration>.Empty, 
-            parameters, 
-            returnType, 
-            body, 
-            location
-            );
-
-    public static MethodDeclaration Method(
-        string name, 
-        ImmutableList<ParameterDeclaration> parameters, 
-        Expression? returnType, 
-        Expression body, 
-        ISourceLocation? location = null) 
-        =>
-        Method(
-            name, 
-            SymbolAccess.Public, 
-            SymbolModifier.None, 
-            parameters, 
-            returnType, 
-            body, 
-            location
-            );
-
-
-    public static ConstructorDeclaration Constructor(SymbolAccess access, BitSet<SymbolModifier> modifiers, ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
-        new ConstructorDeclaration(access, modifiers, parameters, body, location, null, null, null);
-
-    public static ConstructorDeclaration Constructor(ImmutableList<ParameterDeclaration> parameters, Expression body, ISourceLocation? location = null) =>
-        Constructor(SymbolAccess.Public, SymbolModifier.None, parameters, body, location);
-
-    public static ConstructorDeclaration Constructor(Expression body, ISourceLocation? location = null) =>
-        Constructor(SymbolAccess.Public, SymbolModifier.None, [], body, location);
-
-    public static ConstructorDeclaration Constructor(ISourceLocation? location = null) =>
-        Constructor(SymbolAccess.Public, SymbolModifier.None, [], Block(), location);
-
-    public static FieldDeclaration Field(string name, SymbolAccess access, BitSet<SymbolModifier> modifiers, Expression? fieldType = null, Expression? initalizer = null, ISourceLocation? location = null) =>
-        new FieldDeclaration(name, access, modifiers, fieldType, initalizer, location, null, null);
-
-    public static FieldDeclaration Field(string name, Expression? fieldType = null, Expression? initalizer = null, ISourceLocation? location = null) =>
-        Field(name, SymbolAccess.Public, SymbolModifier.None, fieldType, initalizer, location);
-
-
-    public static PropertyDeclaration Property(
-        string name, 
-        SymbolAccess access, 
-        BitSet<SymbolModifier> modifiers, 
-        MethodDeclaration getMethod, 
-        MethodDeclaration? setMethod, 
-        FieldDeclaration? backingField, 
-        Expression? propertyType, 
-        ISourceLocation? location = null) 
-        =>
-        new PropertyDeclaration(
-            name, 
-            access, 
-            modifiers, 
-            propertyType, 
-            backingField, 
-            getMethod, 
-            setMethod, 
-            location,
-            null, 
-            null
-            );
-
-    public static PropertyDeclaration Property(
-        string name, 
-        MethodDeclaration getMethod, 
-        MethodDeclaration? setMethod = null, 
-        ISourceLocation? location = null
-        ) =>
-        Property(
-            name, 
-            getMethod.Access, 
-            getMethod.Modifiers, 
-            getMethod, 
-            setMethod, 
-            null, 
-            getMethod.ReturnType, 
-            location
-            );
-
-    public static PropertyDeclaration Property(
-        string name,
-        Expression propertyType,
-        Expression getter,
-        Expression setter,
-        ISourceLocation? location = null)
-        =>
-        Property(
-            name,
-            SymbolAccess.Public,
-            SymbolModifier.None,
-            Method("get_" + name, 
-                SymbolAccess.Public, 
-                SymbolModifier.HideBySig | SymbolModifier.Special, 
-                ImmutableList<ParameterDeclaration>.Empty, 
-                propertyType, 
-                getter, 
-                location),
-            setter != null 
-                ? Method("set_" + name, 
-                    SymbolAccess.Public, 
-                    SymbolModifier.HideBySig | SymbolModifier.Special, 
-                    [Parameter("value", propertyType)], 
-                    VoidType, 
-                    setter, 
-                    location)
-                : null,
-            backingField: null,
-            propertyType,
-            location
-            );
-
-    public static PropertyDeclaration Property(
-        string name,
-        Expression? propertyType,
-        Expression expression,
-        ISourceLocation? location = null)
-        =>
-        Property(
-            name,
-            Method(
-                "get_" + name,
-                SymbolAccess.Public,
-                SymbolModifier.HideBySig | SymbolModifier.Special,
-                ImmutableList<ParameterDeclaration>.Empty,
-                propertyType,
-                expression,
-                location),
-            null,
-            location
-            );
-
-    public static PropertyDeclaration Property(
-        string name, 
-        Expression propertyType, 
-        ISourceLocation? location = null
-        )
-    {
-        var fieldName = $"__{name}_backingField";
-        return Property(
-            name,
-            propertyType,
-            Name(fieldName),
-            Assign(Name(fieldName), Name("value")),
-            location)
-            .WithBackingField(
-                Field(fieldName, propertyType)
-                .WithAccess(SymbolAccess.Private));
-    }
-
-    public static IndexerDeclaration Indexer(
-        Expression? elementType,
-        ImmutableList<ParameterDeclaration> parameters,
-        Expression getter,
-        Expression? setter = null,
-        ISourceLocation? location = null)
-    {
-        return new IndexerDeclaration(
-            SymbolAccess.Public,
-            SymbolModifier.None,
-            elementType,
-            Method("get_Item", 
-                SymbolAccess.Public, 
-                SymbolModifier.HideBySig | SymbolModifier.Special, 
-                parameters, 
-                elementType,
-                getter, 
-                getter.Location
-                ),
-            (setter != null)
-                ? Method("set_Item", 
-                    SymbolAccess.Public,
-                    SymbolModifier.HideBySig | SymbolModifier.Special, 
-                    parameters.Add(Parameter("value", elementType)), 
-                    VoidType,
-                    setter,
-                    setter.Location)
-                : null,
-            location,
-            symbol: null,
-            diagnostics: null);
-    }
 
 
     #endregion
@@ -823,6 +896,9 @@ public static class SemanticFactory
 
     public static readonly SymbolExpression StringType =
         Symbol("System.String");
+
+    public static readonly SymbolExpression TypeType =
+        Symbol("System.Type");
 
     #endregion
 }

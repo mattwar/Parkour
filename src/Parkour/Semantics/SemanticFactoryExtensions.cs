@@ -147,5 +147,35 @@ public static class SemanticFactoryExtensions
     public static MemberExpression Member(this Expression expression, string name, ISourceLocation? location = null) =>
         SemanticFactory.Member(expression, name, location);
 
+    /// <summary>
+    /// Creates a new instance of the type, by calling a constructor with the specified arguments.
+    /// </summary>
+    public static NewExpression New(this Expression typeExpression, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
+        SemanticFactory.New(typeExpression, arguments, location);
+
+    /// <summary>
+    /// Creates a new instance of the type by calling the default constructor.
+    /// </summary>
+    public static NewExpression New(this Expression typeExpression, ISourceLocation? location = null) =>
+        SemanticFactory.New(typeExpression, ImmutableList<Expression>.Empty, location);
+
+    /// <summary>
+    /// Creates a new array of the specified size.
+    /// </summary>
+    public static NewArrayExpression NewArray(this Expression elementType, Expression size, ISourceLocation? location = null) =>
+        SemanticFactory.NewArray(elementType, size, location);
+
+    /// <summary>
+    /// Creates a new array with the specified values.
+    /// </summary>
+    public static NewArrayExpression NewArray(this Expression elementType, ImmutableList<Expression> values, ISourceLocation? location = null) =>
+        SemanticFactory.NewArray(elementType, values, location);
+
+    /// <summary>
+    /// Creates a new multi-dimensional array with the specified dimension sizes.
+    /// </summary>
+    public static NewArrayExpression NewMultiDimensionalArray(this Expression elementType, ImmutableList<Expression> sizes, ISourceLocation? location = null) =>
+        SemanticFactory.NewMultiDimensionalArray(elementType, sizes, location);
+
     #endregion
 }

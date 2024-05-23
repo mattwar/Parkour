@@ -221,40 +221,84 @@ public class StandardSymbolTable : SymbolTable
     /// <summary>
     /// Gets an array of the specified element type.
     /// </summary>
-    public override ArraySymbol GetArray(TypeSymbol elementType)
+    public override ArraySymbol GetArray(TypeSymbol elementType, int dimensions = 1)
     {
-        if (!_symbolToArrayMap.TryGetValue(elementType, out var arrayType))
+        if (!_elementTypeToArrayInfoMap.TryGetValue(elementType, out var arrayInfo))
         {
-            arrayType = _symbolToArrayMap.GetValue(elementType, CreateArraySymbol);
+            arrayInfo = _elementTypeToArrayInfoMap.GetValue(elementType, _ => new ArrayInfo());
         }
 
-        return arrayType;
+        if (dimensions == 1)
+        {
+            if (arrayInfo.szArray == null)
+            {
+                var tmp = CreateArraySymbol(elementType, 1);
+                Interlocked.CompareExchange(ref arrayInfo.szArray, tmp, null);
+            }
+
+            return arrayInfo.szArray;
+        }
+        else
+        {
+            if (!arrayInfo.dimensionsToArrayMap.TryGetValue(dimensions, out var mdArray))
+            {
+                var tmp = CreateArraySymbol(elementType, dimensions);
+                mdArray = ImmutableInterlocked.GetOrAdd(ref arrayInfo.dimensionsToArrayMap, dimensions, tmp);
+            }
+
+            return mdArray;
+        }
     }
 
     /// <summary>
-    /// Cache for arrays
+    /// Cache for SZ arrays
     /// </summary>
-    private ConditionalWeakTable<TypeSymbol, ArraySymbol> _symbolToArrayMap =
-        new ConditionalWeakTable<TypeSymbol, ArraySymbol>();
+    private ConditionalWeakTable<TypeSymbol, ArrayInfo> _elementTypeToArrayInfoMap =
+        new ConditionalWeakTable<TypeSymbol, ArrayInfo>();
 
-    protected virtual ArraySymbol CreateArraySymbol(TypeSymbol elementType)
+    private class ArrayInfo
     {
-        return new ArraySymbol(
-            GetSymbol("System"),
-            fnElementType: () => elementType,
-            dimensions: 1,
-            isSZArray: true,
-            fnBaseTypes: () => [
-                GetType("System.Array"),
+        public ArraySymbol? szArray;
+
+        public ImmutableDictionary<int, ArraySymbol> dimensionsToArrayMap =
+            ImmutableDictionary<int, ArraySymbol>.Empty;
+    }
+
+    protected virtual ArraySymbol CreateArraySymbol(TypeSymbol elementType, int dimensions)
+    {
+        if (dimensions == 1)
+        {
+            return new ArraySymbol(
+                GetSymbol("System"),
+                fnElementType: () => elementType,
+                dimensions: 1,
+                isSZArray: true,
+                fnBaseTypes: () => [
+                    GetType("System.Array"),
                 GetType("System.Collections.IEnumerable"),
                 GetType("System.Collections.IList"),
                 GetConstructed(GetType("System.Collections.Generic.IEnumerable`1"), [elementType]),
                 GetConstructed(GetType("System.Collections.Generic.IList`1"), [elementType]),
                 GetConstructed(GetType("System.Collections.Generic.IReadOnlyList`1"), [elementType])
-                ],
-            fnMembers: me => [], // TODO: add array members
-            constructedFrom: null
-            );
+                    ],
+                fnMembers: me => [], // TODO: add array members
+                constructedFrom: null
+                );
+        }
+        else
+        {
+            return new ArraySymbol(
+                GetSymbol("System"),
+                fnElementType: () => elementType,
+                dimensions: dimensions,
+                isSZArray: false,
+                fnBaseTypes: () => [
+                    GetType("System.Array"),
+                    ],
+                fnMembers: me => [], // TODO: add array members
+                constructedFrom: null
+                );
+        }
     }
 
     /// <summary>

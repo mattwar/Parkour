@@ -129,12 +129,8 @@ public class StandardBodyBuilder : BodyBuilder
                 EmitNew(ne);
                 break;
 
-            case NewArrayInitExpression newArrayInit:
-                EmitNewArrayInit(newArrayInit);
-                break;
-
-            case NewArraySizeExpression newArraySize:
-                EmitNewArraySize(newArraySize);
+            case NewArrayExpression newArrayInit:
+                EmitNewArray(newArrayInit);
                 break;
 
             case OperatorExpression opex:
@@ -997,62 +993,6 @@ public class StandardBodyBuilder : BodyBuilder
         }
     }
 
-    protected virtual void EmitNewArraySize(NewArraySizeExpression newArraySize)
-    {
-        if (newArraySize.ElementTypeSymbol != null)
-        {
-            switch (newArraySize.Sizes.Count)
-            {
-                case 1:
-                    EmitExpressionAsType(newArraySize.Sizes[0], this.ExternalSymbols.Int32);
-                    this.Emitter.EmitNewSZArray(newArraySize.ElementTypeSymbol);
-                    return;
-                case 2:
-                    InitArrayCreateInstance();
-                    if (_Array_CreateInstance_2 != null)
-                    {
-                        EmitTypeOf(newArraySize.ElementTypeSymbol);
-                        EmitExpressionAsType(newArraySize.Sizes[0], this.ExternalSymbols.Int32);
-                        EmitExpressionAsType(newArraySize.Sizes[1], this.ExternalSymbols.Int32);
-                        this.Emitter.EmitCall(_Array_CreateInstance_2);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
-                    break;
-                case 3:
-                    InitArrayCreateInstance();
-                    if (_Array_CreateInstance_3 != null)
-                    {
-                        EmitTypeOf(newArraySize.ElementTypeSymbol);
-                        EmitExpressionAsType(newArraySize.Sizes[0], this.ExternalSymbols.Int32);
-                        EmitExpressionAsType(newArraySize.Sizes[1], this.ExternalSymbols.Int32);
-                        EmitExpressionAsType(newArraySize.Sizes[2], this.ExternalSymbols.Int32);
-                        this.Emitter.EmitCall(_Array_CreateInstance_3);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
-                    break;
-                default:
-                    InitArrayCreateInstance();
-                    if (_Array_CreateInstance_Any != null)
-                    {
-                        EmitTypeOf(newArraySize.ElementTypeSymbol);
-                        EmitNewArrayInit(this.ExternalSymbols.Int32, newArraySize.Sizes);
-                        this.Emitter.EmitCall(_Array_CreateInstance_Any);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException();
-                    }
-                    break;
-            }
-        }
-    }
-
     private void InitArrayCreateInstance()
     {
         if (_Array_CreateInstance_2 != null)
@@ -1089,11 +1029,11 @@ public class StandardBodyBuilder : BodyBuilder
     private MethodSymbol? _Array_CreateInstance_3;
     private MethodSymbol? _Array_CreateInstance_Any;
 
-    protected virtual void EmitNewArrayInit(NewArrayInitExpression newArrayInit)
+    protected virtual void EmitNewArray(NewArrayExpression newArray)
     {
-        if (newArrayInit.ElementTypeSymbol != null)
+        if (newArray.ElementTypeSymbol != null)
         {
-            this.EmitNewArrayInit(newArrayInit.ElementTypeSymbol, newArrayInit.Expressions);
+            this.EmitNewArray(newArray.ElementTypeSymbol, newArray.Sizes, newArray.Values);
         }
         else
         {
@@ -1101,21 +1041,81 @@ public class StandardBodyBuilder : BodyBuilder
         }
     }
 
-    private void EmitNewArrayInit(TypeSymbol elementType, ImmutableList<Expression> expressions)
+    private void EmitNewArray(TypeSymbol elementType, ImmutableList<Expression> sizes, ImmutableList<Expression> expressions)
     {
-        this.Emitter.EmitLoadInt32(expressions.Count);
+        switch (sizes.Count)
+        {
+            case 0:
+                this.Emitter.EmitLoadInt32(expressions.Count);
+                this.Emitter.EmitNewSZArray(elementType);
+                break;
+            case 1:
+                EmitExpressionAsType(sizes[0], this.ExternalSymbols.Int32);
+                this.Emitter.EmitNewSZArray(elementType);
+                break;
+            case 2:
+                InitArrayCreateInstance();
+                if (_Array_CreateInstance_2 != null)
+                {
+                    EmitTypeOf(elementType);
+                    EmitExpressionAsType(sizes[0], this.ExternalSymbols.Int32);
+                    EmitExpressionAsType(sizes[1], this.ExternalSymbols.Int32);
+                    this.Emitter.EmitCall(_Array_CreateInstance_2);
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+                break;
+            case 3:
+                InitArrayCreateInstance();
+                if (_Array_CreateInstance_3 != null)
+                {
+                    EmitTypeOf(elementType);
+                    EmitExpressionAsType(sizes[0], this.ExternalSymbols.Int32);
+                    EmitExpressionAsType(sizes[1], this.ExternalSymbols.Int32);
+                    EmitExpressionAsType(sizes[2], this.ExternalSymbols.Int32);
+                    this.Emitter.EmitCall(_Array_CreateInstance_3);
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+                break;
+            default:
+                InitArrayCreateInstance();
+                if (_Array_CreateInstance_Any != null)
+                {
+                    EmitTypeOf(elementType);
+                    EmitNewArray(this.ExternalSymbols.Int32, ImmutableList<Expression>.Empty, sizes);
+                    this.Emitter.EmitCall(_Array_CreateInstance_Any);
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+                break;
+        }
 
-        var tmp = new VariableSymbol("array", this.ExternalSymbols.GetArray(elementType));
-        this.Emitter.DeclareVariableStart(tmp);
-        this.Emitter.EmitNewSZArray(elementType);
+        var dimensions = sizes.Count > 0 ? sizes.Count : 1;
+        var tmp = new VariableSymbol("array", this.ExternalSymbols.GetArray(elementType, dimensions));
         this.Emitter.EmitStoreVariable(tmp);
 
-        for (int i = 0; i < expressions.Count; i++)
+        if (dimensions == 1)
         {
-            this.Emitter.EmitLoadVariable(tmp);    // array
-            this.Emitter.EmitLoadInt32(i);         // index
-            EmitExpressionAsType(expressions[i], elementType);
-            this.Emitter.EmitStoreArrayElement(elementType);
+            for (int i = 0; i < expressions.Count; i++)
+            {
+                this.Emitter.EmitLoadVariable(tmp);    // array
+                this.Emitter.EmitLoadInt32(i);         // index
+                EmitExpressionAsType(expressions[i], elementType);
+                this.Emitter.EmitStoreArrayElement(elementType);
+            }
+        }
+        else
+        {
+            // TODO: figure out how to assign md array elements
+            // array.GetUpperBounds(int dimension)
+            // array.SetValue(object? value, int[] indices)
         }
 
         this.Emitter.EmitLoadVariable(tmp);

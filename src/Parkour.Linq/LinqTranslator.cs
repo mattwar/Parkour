@@ -51,7 +51,7 @@ public class LinqTranslator
     public virtual L.Expression Translate(Expression expression)
     {
         if (expression.IsUnbound)
-            throw new InvalidOperationException("Cannot translation unbound expressions");
+            throw new InvalidOperationException("Cannot translate unbound expressions");
 
         switch (expression)
         {
@@ -61,6 +61,8 @@ public class LinqTranslator
                 return TranslateArity(arity);
             case AssignExpression assign:
                 return TranslateAssign(assign);
+            case AsTypeExpression asType:
+                return TranslateAsType(asType);
             case BlockExpression block:
                 return TranslateBlock(block);
             case BranchExpression branch:
@@ -77,6 +79,8 @@ public class LinqTranslator
                 return TranslateConvert(convert);
             case DefaultExpression dex:
                 return TranslateDefault(dex);
+            case IsTypeExpression isType:
+                return TranslateIsType(isType);
             case LabelExpression label:
                 return TranslateLabel(label);
             case LambdaExpression lambda:
@@ -87,12 +91,10 @@ public class LinqTranslator
                 return TranslateMember(path);
             case NameExpression nameRef:
                 return TranslateNameReference(nameRef);
+            case NewArrayExpression newArray:
+                return TranslateNewArray(newArray);
             case NewExpression @new:
                 return TranslateNew(@new);
-            case NewArraySizeExpression newArraySize:
-                return TranslateNewArraySize(newArraySize);
-            case NewArrayInitExpression newArrayInit:
-                return TranslateNewArrayInit(newArrayInit);
             case OperatorExpression opex:
                 return TranslateOperator(opex);
             case SymbolExpression symbolRef:
@@ -104,74 +106,20 @@ public class LinqTranslator
         }
     }
 
-    private Type TranslateType(TypeSymbol typeSymbol)
-    {
-        if (_runtimeSymbols.TryGetRuntimeType(typeSymbol, out var type))
-            return type;
-
-        throw new InvalidOperationException($"Could not determine runtime type for symbol '{typeSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateType)}");
-    }
-
-    private MethodInfo TranslateMethod(MethodSymbol methodSymbol)
-    {
-        if (_runtimeSymbols.TryGetRuntimeMember(methodSymbol, out var memberInfo)
-            && memberInfo is MethodInfo methodInfo)
-        {
-            return methodInfo;
-        }
-
-        throw new InvalidOperationException($"Could not determine runtime method for symbol '{methodSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateMethod)}");
-    }
-
-    private ConstructorInfo TranslateConstructor(ConstructorSymbol constructorSymbol)
-    {
-        if (_runtimeSymbols.TryGetRuntimeMember(constructorSymbol, out var memberInfo)
-            && memberInfo is ConstructorInfo constructorInfo)
-        {
-            return constructorInfo;
-        }
-
-        throw new InvalidOperationException($"Could not determine runtime constructor for symbol '{constructorSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateConstructor)}");
-    }
-
-    private FieldInfo TranslateField(FieldSymbol fieldSymbol)
-    {
-        if (_runtimeSymbols.TryGetRuntimeMember(fieldSymbol, out var memberInfo)
-            && memberInfo is FieldInfo fieldInfo)
-        {
-            return fieldInfo;
-        }
-
-        throw new InvalidOperationException($"Could not determine runtime field for symbol '{fieldSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateField)}");
-    }
-
-    private PropertyInfo TranslateProperty(PropertySymbol propertySymbol)
-    {
-        if (_runtimeSymbols.TryGetRuntimeMember(propertySymbol, out var memberInfo)
-            && memberInfo is PropertyInfo propertyInfo)
-        {
-            return propertyInfo;
-        }
-
-        throw new InvalidOperationException($"Could not determine runtime property for symbol '{propertySymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateProperty)}");
-    }
-
-    private PropertyInfo TranslateIndexer(IndexerSymbol indexerSymbol)
-    {
-        if (_runtimeSymbols.TryGetRuntimeMember(indexerSymbol, out var memberInfo)
-            && memberInfo is PropertyInfo propertyInfo)
-        {
-            return propertyInfo;
-        }
-
-        throw new InvalidOperationException($"Could not determine runtime property for symbol '{indexerSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateProperty)}");
-    }
+    #region expressions
 
     private L.Expression TranslateAssign(AssignExpression assign)
     {
         var target = Translate(assign.Target);
         var source = ConvertVoidToValue(Translate(assign.Source), target.Type);
         return L.Expression.Assign(target, source);
+    }
+
+    private L.Expression TranslateAsType(AsTypeExpression asType)
+    {
+        var expr = Translate(asType.Expression);
+        var type = TranslateType(asType.TypeSymbol!);
+        return L.Expression.TypeAs(expr, type);
     }
 
     private L.Expression TranslateBlock(BlockExpression block)
@@ -282,75 +230,6 @@ public class LinqTranslator
         throw new InvalidOperationException($"Cannot translate call for symbol '{calledSymbol.Name}'");
     }
 
-    private L.Expression TranslateOperator(OperatorExpression opex)
-    {
-        var operatorSymbol = opex.OperatorSymbol;
-        if (operatorSymbol == null)
-            throw new InvalidOperationException($"Cannot translate unknown operator");
-
-        switch (operatorSymbol)
-        {
-            case MethodSymbol method:
-                {
-                    var mi = TranslateMethod(method);
-                    var parameterTypes = mi.GetParameters().Select(p => p.ParameterType).ToArray();
-                    var arguments = TranslateArguments(opex.Arguments, parameterTypes);
-                    return L.Expression.Call(null, mi, arguments);
-                }
-
-            case OperatorSymbol opsym:
-                return TranslateOperator(opsym, opex.Arguments);
-        }
-
-        throw new InvalidOperationException($"Cannot translate call for symbol '{operatorSymbol.Name}'");
-    }
-
-    private L.Expression TranslateOperator(OperatorSymbol opsym, ImmutableList<Expression> arguments)
-    {
-        switch (opsym.Kind)
-        {
-            case OperatorKind.Add:
-                return L.Expression.Add(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Subtract:
-                return L.Expression.Subtract(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Multiply:
-                return L.Expression.Multiply(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Divide:
-                return L.Expression.Divide(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Remainder:
-                return L.Expression.Modulo(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Negate:
-                return L.Expression.Negate(Translate(arguments[0]));
-            case OperatorKind.BitwiseAnd:
-            case OperatorKind.LogicalAnd:
-                return L.Expression.And(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.BitwiseOr:
-            case OperatorKind.LogicalOr:
-                return L.Expression.Or(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.BitwiseNot:
-            case OperatorKind.LogicalNot:
-                return L.Expression.Not(Translate(arguments[0]));
-            case OperatorKind.LogicalAndAlso:
-                return L.Expression.AndAlso(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.LogicalOrElse:
-                return L.Expression.OrElse(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Equal:
-                return L.Expression.Equal(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.NotEqual:
-                return L.Expression.NotEqual(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.LessThan:
-                return L.Expression.LessThan(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.LessThanOrEqual:
-                return L.Expression.LessThanOrEqual(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.GreaterThan:
-                return L.Expression.GreaterThan(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.GreaterThanOrEqual:
-                return L.Expression.GreaterThanOrEqual(Translate(arguments[0]), Translate(arguments[1]));
-        }
-
-        throw new InvalidOperationException($"Unhandled operator kind '{opsym.Kind}'");
-    }
-
     private Expression? GetCallInstance(Expression expression)
     {
         switch (expression)
@@ -413,6 +292,13 @@ public class LinqTranslator
     {
         var type = TranslateType(dex.ResultType);
         return L.Expression.Default(type);
+    }
+
+    private L.Expression TranslateIsType(IsTypeExpression isType)
+    {
+        var expr = Translate(isType.Expression);
+        var type = TranslateType(isType.TypeSymbol!);
+        return L.Expression.TypeIs(expr, type);
     }
 
     private L.Expression TranslateLabel(LabelExpression label)
@@ -535,23 +421,93 @@ public class LinqTranslator
         return L.Expression.New(constructor);
     }
 
-    private L.Expression TranslateNewArraySize(NewArraySizeExpression newArray)
+    private L.Expression TranslateNewArray(NewArrayExpression newArray)
     {
         var elementType = TranslateType(newArray.ElementTypeSymbol!);
-        var sizes = newArray.Sizes.Select(s => Translate(s)).ToArray();
-        return L.Expression.NewArrayBounds(elementType, sizes);
-    }
-
-    private L.Expression TranslateNewArrayInit(NewArrayInitExpression newArray)
-    {
-        var elementType = TranslateType(newArray.ElementTypeSymbol!);
-        var expressions = newArray.Expressions.Select(e => Translate(e)).ToArray();
-        return L.Expression.NewArrayInit(elementType, expressions);
+        if (newArray.Values.Count == 0)
+        {
+            var sizes = newArray.Sizes.Select(s => Translate(s)).ToArray();
+            return L.Expression.NewArrayBounds(elementType, sizes);
+        }
+        else
+        {
+            var values = newArray.Values.Select(e => Translate(e)).ToArray();
+            return L.Expression.NewArrayInit(elementType, values);
+        }
     }
 
     private L.Expression TranslateNameReference(NameExpression rex)
     {
         return TranslateReferencedSymbol(rex.ReferencedSymbol);
+    }
+
+    private L.Expression TranslateOperator(OperatorExpression opex)
+    {
+        var operatorSymbol = opex.OperatorSymbol;
+        if (operatorSymbol == null)
+            throw new InvalidOperationException($"Cannot translate unknown operator");
+
+        switch (operatorSymbol)
+        {
+            case MethodSymbol method:
+                {
+                    var mi = TranslateMethod(method);
+                    var parameterTypes = mi.GetParameters().Select(p => p.ParameterType).ToArray();
+                    var arguments = TranslateArguments(opex.Arguments, parameterTypes);
+                    return L.Expression.Call(null, mi, arguments);
+                }
+
+            case OperatorSymbol opsym:
+                return TranslateOperator(opsym, opex.Arguments);
+        }
+
+        throw new InvalidOperationException($"Cannot translate call for symbol '{operatorSymbol.Name}'");
+    }
+
+    private L.Expression TranslateOperator(OperatorSymbol opsym, ImmutableList<Expression> arguments)
+    {
+        switch (opsym.Kind)
+        {
+            case OperatorKind.Add:
+                return L.Expression.Add(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Subtract:
+                return L.Expression.Subtract(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Multiply:
+                return L.Expression.Multiply(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Divide:
+                return L.Expression.Divide(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Remainder:
+                return L.Expression.Modulo(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Negate:
+                return L.Expression.Negate(Translate(arguments[0]));
+            case OperatorKind.BitwiseAnd:
+            case OperatorKind.LogicalAnd:
+                return L.Expression.And(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.BitwiseOr:
+            case OperatorKind.LogicalOr:
+                return L.Expression.Or(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.BitwiseNot:
+            case OperatorKind.LogicalNot:
+                return L.Expression.Not(Translate(arguments[0]));
+            case OperatorKind.LogicalAndAlso:
+                return L.Expression.AndAlso(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.LogicalOrElse:
+                return L.Expression.OrElse(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.Equal:
+                return L.Expression.Equal(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.NotEqual:
+                return L.Expression.NotEqual(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.LessThan:
+                return L.Expression.LessThan(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.LessThanOrEqual:
+                return L.Expression.LessThanOrEqual(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.GreaterThan:
+                return L.Expression.GreaterThan(Translate(arguments[0]), Translate(arguments[1]));
+            case OperatorKind.GreaterThanOrEqual:
+                return L.Expression.GreaterThanOrEqual(Translate(arguments[0]), Translate(arguments[1]));
+        }
+
+        throw new InvalidOperationException($"Unhandled operator kind '{opsym.Kind}'");
     }
 
     private L.Expression TranslateSymbolReference(SymbolExpression rex)
@@ -663,4 +619,73 @@ public class LinqTranslator
         _variableMap.TryGetValue(symbol, out var variable);
         return variable;
     }
+
+    #endregion
+
+    #region symbols
+
+    private Type TranslateType(TypeSymbol typeSymbol)
+    {
+        if (_runtimeSymbols.TryGetRuntimeType(typeSymbol, out var type))
+            return type;
+
+        throw new InvalidOperationException($"Could not determine runtime type for symbol '{typeSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateType)}");
+    }
+
+    private MethodInfo TranslateMethod(MethodSymbol methodSymbol)
+    {
+        if (_runtimeSymbols.TryGetRuntimeMember(methodSymbol, out var memberInfo)
+            && memberInfo is MethodInfo methodInfo)
+        {
+            return methodInfo;
+        }
+
+        throw new InvalidOperationException($"Could not determine runtime method for symbol '{methodSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateMethod)}");
+    }
+
+    private ConstructorInfo TranslateConstructor(ConstructorSymbol constructorSymbol)
+    {
+        if (_runtimeSymbols.TryGetRuntimeMember(constructorSymbol, out var memberInfo)
+            && memberInfo is ConstructorInfo constructorInfo)
+        {
+            return constructorInfo;
+        }
+
+        throw new InvalidOperationException($"Could not determine runtime constructor for symbol '{constructorSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateConstructor)}");
+    }
+
+    private FieldInfo TranslateField(FieldSymbol fieldSymbol)
+    {
+        if (_runtimeSymbols.TryGetRuntimeMember(fieldSymbol, out var memberInfo)
+            && memberInfo is FieldInfo fieldInfo)
+        {
+            return fieldInfo;
+        }
+
+        throw new InvalidOperationException($"Could not determine runtime field for symbol '{fieldSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateField)}");
+    }
+
+    private PropertyInfo TranslateProperty(PropertySymbol propertySymbol)
+    {
+        if (_runtimeSymbols.TryGetRuntimeMember(propertySymbol, out var memberInfo)
+            && memberInfo is PropertyInfo propertyInfo)
+        {
+            return propertyInfo;
+        }
+
+        throw new InvalidOperationException($"Could not determine runtime property for symbol '{propertySymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateProperty)}");
+    }
+
+    private PropertyInfo TranslateIndexer(IndexerSymbol indexerSymbol)
+    {
+        if (_runtimeSymbols.TryGetRuntimeMember(indexerSymbol, out var memberInfo)
+            && memberInfo is PropertyInfo propertyInfo)
+        {
+            return propertyInfo;
+        }
+
+        throw new InvalidOperationException($"Could not determine runtime property for symbol '{indexerSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateProperty)}");
+    }
+
+    #endregion
 }

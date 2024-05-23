@@ -35,7 +35,7 @@ public class BindingTests
         TestBind(
             [
                 Class("C", []),
-                New(Name("C"))
+                Symbol("C").New()
             ],
             expectedSymbols: ["C", "C.[.ctor]"],
             expectedResultType: "C");
@@ -44,7 +44,7 @@ public class BindingTests
         TestBind(
             [
                 Class("C", [Constructor()]),
-                New(Name("C")),
+                Symbol("C").New(),
             ],
             expectedSymbols: ["C", "C.[.ctor]"],
             expectedResultType: "C");
@@ -56,7 +56,7 @@ public class BindingTests
                     [Parameter("x", Int32Type)], 
                     Block())
                 ]),
-            New(Name("C"), [Constant(1)])
+            Symbol("C").New([Constant(1)])
             ],
             expectedSymbols: ["C", "C.[.ctor]"],           
             expectedResultType: "C");
@@ -72,7 +72,7 @@ public class BindingTests
                 New(Name("C")).Member("F"),
             ],
             expectedSymbols: ["C.F"],
-            expectedResultType: "System.Int32");
+            expectedResultType: Int32Type.FullName);
 
         // static field
         TestBind(
@@ -81,7 +81,7 @@ public class BindingTests
                 Name("C").Member("F"),
             ],
             expectedSymbols: ["C.F"],
-            expectedResultType: "System.Int32");
+            expectedResultType: Int32Type.FullName);
 
         // instance field with initializer
         TestBind(
@@ -90,7 +90,7 @@ public class BindingTests
                 New(Name("C")).Member("F"),
             ],
             expectedSymbols: ["C.F"],
-            expectedResultType: "System.Int32");
+            expectedResultType: Int32Type.FullName);
 
         // infer field type from initializer
         TestBind(
@@ -99,7 +99,7 @@ public class BindingTests
                 New(Name("C")).Member("F"),
             ],
             expectedSymbols: ["C.F"],
-            expectedResultType: "System.Int32");
+            expectedResultType: Int32Type.FullName);
 
         // cyclic field
         TestBind(
@@ -131,7 +131,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: "System.Void"
+            expectedResultType: VoidType.FullName
             );
 
         // instance int returning method
@@ -141,7 +141,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: "System.Int32"
+            expectedResultType: Int32Type.FullName
             );
 
         // instance int returning method with parameters
@@ -151,7 +151,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call([Constant(1)])
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: "System.Int32"
+            expectedResultType: Int32Type.FullName
             );
 
         // static void method
@@ -161,7 +161,7 @@ public class BindingTests
                 Name("C").Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: "System.Void"
+            expectedResultType: VoidType.FullName
             );
 
         // static int returning method
@@ -171,7 +171,7 @@ public class BindingTests
                 Name("C").Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: "System.Int32"
+            expectedResultType: Int32Type.FullName
             );
 
         // static int returning method with parameter
@@ -181,7 +181,7 @@ public class BindingTests
                 Name("C").Member("M").Call(Constant(1))
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: "System.Int32"
+            expectedResultType: Int32Type.FullName
             );
 
         // inferred return type
@@ -191,7 +191,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: "System.Int32"
+            expectedResultType: Int32Type.FullName
             );
 
         // cyclic inferred return type
@@ -201,7 +201,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: "CyclicDefinition"
+            expectedResultType: SpecialSymbols.CyclicDefinition.FullName
             );
 
         // infinite recursion - bad, maybe warn on easy identifiable cases
@@ -225,7 +225,8 @@ public class BindingTests
                 New(Name("C")).Member("P")
             ],
             expectedSymbols: ["C.P"],
-            expectedResultType: "System.Int32");
+            expectedResultType: Int32Type.FullName
+            );
 
         // static property
         TestBind(
@@ -234,7 +235,8 @@ public class BindingTests
                 Name("C").Member("P")
             ],
             expectedSymbols: ["C.P"],
-            expectedResultType: "System.Int32");
+            expectedResultType: Int32Type.FullName
+            );
 
         // inferred property type
         TestBind(
@@ -243,7 +245,8 @@ public class BindingTests
                 New(Name("C")).Member("P")
             ],
             expectedSymbols: ["C.P"],
-            expectedResultType: "System.Int32");
+            expectedResultType: Int32Type.FullName
+            );
 
         // inferred cyclic definition
         TestBind(
@@ -252,7 +255,8 @@ public class BindingTests
                 New(Name("C")).Member("P")
             ],
             expectedSymbols: ["C.P"],
-            expectedResultType: SpecialSymbols.CyclicDefinition.FullName);
+            expectedResultType: SpecialSymbols.CyclicDefinition.FullName
+            );
     }
 
     [TestMethod]
@@ -263,8 +267,8 @@ public class BindingTests
             [
                 Class("C", [
                     Indexer(
-                        Symbol("System.Int32"),
-                        [Parameter("index", Symbol("System.Int32"))],
+                        Int32Type,
+                        [Parameter("index", Int32Type)],
                         Name("index"),
                         null)
                     ])
@@ -277,7 +281,7 @@ public class BindingTests
                 Class("C", [
                     Indexer(
                         elementType: null,
-                        [Parameter("index", Symbol("System.Int32"))],
+                        [Parameter("index", Int32Type)],
                         Name("index"),
                         null)
                     ])
@@ -314,13 +318,27 @@ public class BindingTests
     }
 
     [TestMethod]
+    public void TestDeclaration_Delegate()
+    {
+        TestBind(
+            Delegate("D", [], VoidType),
+            expectedSymbols: ["D"]
+            );
+
+        TestBind(
+            Delegate("D", [Parameter("P", Int32Type)], Int32Type),
+            expectedSymbols: ["D"]
+            );
+    }
+
+    [TestMethod]
     public void TestDeclaration_Struct()
     {
         // instance constructor
         TestBind(
             [
                 Struct("S", []),
-                New(Name("S")),
+                Symbol("S").New(),
             ],
             expectedSymbols: ["S", "S.[.ctor]"],
             expectedResultType: "S");
@@ -338,6 +356,7 @@ public class BindingTests
     [TestMethod]
     public void TestDeclaration_Using()
     {
+        // Members of System are now in scope
         TestBind(
             [
                 Using(Symbol("System")),
@@ -348,6 +367,7 @@ public class BindingTests
             expectedSymbols: ["C.P"]
             );
 
+        // alias X for System is now in scope
         TestBind(
             [
                 Using("X", Symbol("System")),
@@ -616,7 +636,7 @@ public class BindingTests
     public void TestExpression_IsType()
     {
         TestBind(
-            IsType(Name("System").Member("Int32"), Symbol("System.Int32")),
+            Constant(123).IsType(Int32Type),
             expectedResultType: BooleanType.FullName
             );
     }
@@ -1056,13 +1076,33 @@ public class BindingTests
                 Assert.IsNotNull(te.ResultType);
                 Assert.AreEqual("C", te.ResultType.FullName);
             });
+
+        TestBind(
+            Class("C", [
+                Field("F", Int32Type),
+                Method("M",[], Int32Type, This().Member("F"))
+                ])
+            );
+
+        TestBind(
+            Class("C", [
+                Property("P", Int32Type),
+                Method("M",[], Int32Type, This().Member("P"))
+                ])
+            );
+
+        TestBind(
+            Class("C", [
+                Method("M",[], Int32Type, This().Member("M").Call())
+                ])
+            );
     }
 
     [TestMethod]
     public void TestExpression_TypeOf()
     {
         TestBind(
-            TypeOf(Symbol("System.Int32")),
+            TypeOf(Int32Type),
             expectedResultType: "System.Type"
             );
     }

@@ -31,7 +31,7 @@ public class EmitterTests
         // explicit constructor
         TestEmit(
             Class("C", [Constructor()]),
-            New(Symbol("C")),
+            Symbol("C").New(),
             result =>
             {
                 Assert.IsNotNull(result);
@@ -41,28 +41,28 @@ public class EmitterTests
         // instance field
         TestEmit(
             Class("C", [Field("F", Int32Type)]),
-            New(Symbol("C")).Member("F"),
+            Symbol("C").New().Member("F"),
             0
             );
 
         // static method
         TestEmit(
             Class("C", [Method("M", SymbolAccess.Public, SymbolModifier.Static, [], Int32Type, Block(Constant(123)))]),
-            test: Call(Symbol("C.M")),
+            test: Symbol("C.M").Call(),
             expectedResult: 123
             );
 
         // instance method
         TestEmit(
             Class("C", [Method("M", [], Int32Type, Block(Constant(123)))]),
-            test: New(Symbol("C")).Member("M").Call(),
+            test: Symbol("C").New().Member("M").Call(),
             expectedResult: 123
             );
 
         // instance property
         TestEmit(
             Class("C", [Property("P", Int32Type)]),
-            New(Symbol("C")).Member("P"),
+            Symbol("C").New().Member("P"),
             expectedResult: 0
             );
 
@@ -112,7 +112,7 @@ public class EmitterTests
         // explicit constructor
         TestEmit(
             Class("C", [Constructor()]),
-            New(Symbol("C")),
+            Symbol("C").New(),
             result =>
             {
                 Assert.IsNotNull(result);
@@ -122,7 +122,7 @@ public class EmitterTests
         // with parameter
         TestEmit(
             Class("C", [Constructor([Parameter("P", Int32Type)], Block())]),
-            New(Symbol("C"), [Constant(123)]),
+            Symbol("C").New([Constant(123)]),
             result =>
             {
                 Assert.IsNotNull(result);
@@ -136,7 +136,7 @@ public class EmitterTests
         // instance field
         TestEmit(
             Class("C", [Field("F", Int32Type)]),
-            New(Symbol("C")).Member("F"),
+            Symbol("C").New().Member("F"),
             0
             );
 
@@ -150,7 +150,7 @@ public class EmitterTests
         // instance field with initializer
         TestEmit(
             Class("C", [Field("F", Int32Type, Constant(10))]),
-            New(Symbol("C")).Member("F"),
+            Symbol("C").New().Member("F"),
             10
             );
 
@@ -175,28 +175,28 @@ public class EmitterTests
         // instance method
         TestEmit(
             Class("C", [Method("M", [], Int32Type, Block(Constant(123)))]),
-            test: New(Symbol("C")).Member("M").Call(),
+            test: Symbol("C").New().Member("M").Call(),
             expectedResult: 123
             );
 
         // static method
         TestEmit(
             Class("C", [Method("M", SymbolAccess.Public, SymbolModifier.Static, [], Int32Type, Block(Constant(123)))]),
-            test: Call(Symbol("C.M")),
+            test: Symbol("C.M").Call(),
             expectedResult: 123
             );
 
         // void method
         TestEmit(
             Class("C", [Method("M", [], VoidType, Block())]),
-            test: New(Symbol("C")).Member("M").Call(),
+            test: Symbol("C").New().Member("M").Call(),
             expectedResult: null
             );
 
         // with parameters
         TestEmit(
             Class("C", [Method("M", [Parameter("P", Int32Type)], Int32Type, Name("P"))]),
-            test: New(Symbol("C")).Member("M").Call([Constant(123)]),
+            test: Symbol("C").New().Member("M").Call([Constant(123)]),
             expectedResult: 123
             );
     }
@@ -207,7 +207,7 @@ public class EmitterTests
         // instance auto property
         TestEmit(
             Class("C", [Property("P", Int32Type)]),
-            New(Symbol("C")).Member("P"),
+            Symbol("C").New().Member("P"),
             expectedResult: 0
             );
 
@@ -227,7 +227,7 @@ public class EmitterTests
             Class("C", [
                 Indexer(Int32Type, [Parameter("index", Int32Type)], Name("index"), null),
                 ]),
-            New(Symbol("C")).Element(Constant(123)),
+            Symbol("C").New().Element(Constant(123)),
             expectedResult: 123
             );
 
@@ -247,7 +247,7 @@ public class EmitterTests
     {
         TestEmit(
             Method("M", [], Int32Type, Block(Constant(1))),
-            Call(Name("M")),
+            Name("M").Call(),
             expectedResult: 1
             );
     }
@@ -262,7 +262,7 @@ public class EmitterTests
         TestEmit(
             Block(
                 Variable("x", Constant(1)),
-                Assign(Name("x"), Constant(2))
+                Name("x").Assign(Constant(2))
                 ),
             expectedResult: 2);
 
@@ -270,7 +270,7 @@ public class EmitterTests
         TestEmit(
             Block(
                 Variable("a", NewArray(Int32Type, Constant(2))),
-                Assign(Element(Name("a"), Constant(0)), Constant(123))
+                Element(Name("a"), Constant(0)).Assign(Constant(123))
                 ),
             expectedResult: 123);
     }
@@ -332,7 +332,7 @@ public class EmitterTests
     {
         TestEmit(
             [Method("M", [], Int32Type, Constant(123))],
-            Call(Symbol("M")),
+            Symbol("M").Call(),
             expectedResult: 123
             );
     }
@@ -416,7 +416,7 @@ public class EmitterTests
         TestEmit(
             Block(
                 Variable("a", NewArray(Int32Type, Constant(10))),
-                Assign(Element(Name("a"), Constant(0)), Constant(123))
+                Name("a").Element(Constant(0)).Assign(Constant(123))
                 ),
             expectedResult: 123);
 
@@ -424,7 +424,7 @@ public class EmitterTests
         TestEmit(
             Block(
                 Variable("list", New(ListInt32Type, [NewArray(Int32Type, [Constant(7), Constant(11)])])),
-                Element(Name("list"), Constant(0))
+                Name("list").Element(Constant(0))
                 ),
             expectedResult: 7);
 
@@ -432,7 +432,7 @@ public class EmitterTests
         TestEmit(
             Block(
                 Variable("list", New(ListInt32Type, [NewArray(Int32Type, [Constant(7), Constant(11)])])),
-                Assign(Element(Name("list"), Constant(0)), Constant(123))
+                Name("list").Element(Constant(0)).Assign(Constant(123))
                 ),
             expectedResult: 123);
     }
@@ -441,35 +441,35 @@ public class EmitterTests
     public void TestExpression_IsType()
     {
         TestEmit(
-            IsType(Constant("Hello"), StringType),
+            Constant("Hello").IsType(StringType),
             expectedResult: true);
 
         TestEmit(
-            IsType(Constant(1), Int32Type),
+            Constant(1).IsType(Int32Type),
             expectedResult: true);
 
         TestEmit(
-            IsType(Convert(Constant("Hello"), ObjectType), StringType),
+            Constant("Hello").ConvertTo(ObjectType).IsType(StringType),
             expectedResult: true);
 
         TestEmit(
-            IsType(Convert(Constant(1), ObjectType), Int32Type),
+            Constant(1).ConvertTo(ObjectType).IsType(Int32Type),
             expectedResult: true);
 
         TestEmit(
-            IsType(Constant("Hello"), Symbol("System.IEquatable`1").Construct([StringType])),
+            Constant("Hello").IsType(Symbol("System.IEquatable`1").Construct([StringType])),
             expectedResult: true);
 
         TestEmit(
-            IsType(Constant(123), Symbol("System.IEquatable`1").Construct([Int32Type])),
+            Constant(123).IsType(Symbol("System.IEquatable`1").Construct([Int32Type])),
             expectedResult: true);
 
         TestEmit(
-            IsType(Constant("Hello"), Int32Type),
+            Constant("Hello").IsType(Int32Type),
             expectedResult: false);
 
         TestEmit(
-            IsType(Constant(1), StringType),
+            Constant(1).IsType(StringType),
             expectedResult: false);
 
         TestEmit(
@@ -477,7 +477,7 @@ public class EmitterTests
             expectedResult: false);
 
         TestEmit(
-            IsType(Convert(Constant(1), ObjectType), StringType),
+            Constant(1).ConvertTo(ObjectType).IsType(StringType),
             expectedResult: false);
     }
 
@@ -526,7 +526,7 @@ public class EmitterTests
 
         // instance field on struct
         TestEmit(
-            New(Symbol("System.ValueTuple`1").Construct([Int32Type]), [Constant(123)]).Member("Item1"),
+            Symbol("System.ValueTuple`1").Construct([Int32Type]).New([Constant(123)]).Member("Item1"),
             expectedResult: 123
             );
 
@@ -564,14 +564,14 @@ public class EmitterTests
         // field reference
         TestEmit(
             [Class("C", [Field("F", Int32Type), Method("M", [], Int32Type, Name("F"))])],
-            New(Symbol("C")).Member("M").Call(),
+            Symbol("C").New().Member("M").Call(),
             expectedResult: 0
             );
 
         // parameter reference
         TestEmit(
             [Class("C", [Method("M", [Parameter("P", Int32Type)], Int32Type, Name("P"))])],
-            New(Symbol("C")).Member("M").Call([Constant(123)]),
+            Symbol("C").New().Member("M").Call(Constant(123)),
             expectedResult: 123
             );
     }
@@ -599,23 +599,27 @@ public class EmitterTests
     [TestMethod]
     public void TestExpression_NewArray()
     {
+        // new int[2]
         TestEmit(
-            NewArray(Int32Type, Constant(2)),
+            Int32Type.NewArray(Constant(2)),
             expectedResult: new int[2]
             );
 
+        // new int[] {}
         TestEmit(
-            NewArray(Int32Type, []),
+            Int32Type.NewArray([]),
             expectedResult: new int[] { }
             );
 
+        // new int[] {1, 2}
         TestEmit(
-            NewArray(Int32Type, [Constant(1), Constant(2)]),
+            Int32Type.NewArray([Constant(1), Constant(2)]),
             expectedResult: new int[] { 1, 2 }
             );
 
+        // new int[2,3]
         TestEmit(
-            NewMultiDimensionalArray(StringType, [Constant(2), Constant(3)]),
+            StringType.NewMultiDimensionalArray([Constant(2), Constant(3)]),
             expectedResult: new string[2, 3]);
     }
 
@@ -796,24 +800,49 @@ public class EmitterTests
     public void TestExpression_This()
     {
         TestEmit(
-            [Class("C", [
-                Constructor(),
-                Method("M", [], Symbol("System.Object"), 
-                    This()),
-                ])],
-            New(Symbol("C")).Call("M"),
+            Class("C", [
+                Method("M", [], Symbol("C"), This()),
+                ]),
+            Symbol("C").New().Call("M"),
             result =>
             {
                 Assert.IsNotNull(result);
                 Assert.AreEqual("C", result.GetType().Name);
             });
+
+        TestEmit(
+            Class("C", [
+                Field("F", Int32Type, Constant(123)),
+                Method("M",[], Int32Type, This().Member("F"))
+                ]),
+            Symbol("C").New().Member("M").Call(),
+            expectedResult: 123
+            );
+
+        TestEmit(
+            Class("C", [
+                Property("P", Int32Type, Constant(123)),
+                Method("M",[], Int32Type, This().Member("P"))
+                ]),
+            Symbol("C").New().Member("P"),
+            expectedResult: 123
+            );
+
+        TestEmit(
+            Class("C", [
+                Method("X", [], Int32Type, Constant(123)),
+                Method("M",[], Int32Type, This().Member("X").Call())
+                ]),
+            Symbol("C").New().Member("M").Call(),
+            expectedResult: 123
+            );
     }
 
     [TestMethod]
     public void TestExpression_TypeOf()
     {
         TestEmit(
-            TypeOf(Symbol("System.Int32")),
+            TypeOf(Int32Type),
             expectedResult: typeof(int));
     }
 
@@ -822,7 +851,7 @@ public class EmitterTests
     {
         // declared w/o initializer
         TestEmit(
-            Block(Variable(Symbol("System.Int32"), "x")),
+            Block(Variable(Int32Type, "x")),
             expectedResult: 0);
 
         // declared w/ initializer
