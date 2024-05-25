@@ -2,8 +2,11 @@
 
 using Symbols;
 
+[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class SemanticElement
 {
+    internal protected virtual string DebugText => $"{GetType().Name}";
+
     public ImmutableList<Diagnostic> Diagnostics { get; }
     public ISourceLocation? Location { get; }
     private readonly ContainsState _state;

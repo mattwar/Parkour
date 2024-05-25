@@ -4,10 +4,10 @@ using Symbols;
 /// <summary>
 /// References a symbol via the current symbol table.
 /// </summary>
-[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public sealed class SymbolExpression : Expression
 {
-    private string DebugText => $"{GetType().Name}: {ReferencedSymbol?.FullName ?? "???"} {ResultType?.FullName ?? "???"}";
+    internal protected override string DebugText => 
+        $"{GetType().Name}: {ReferencedSymbol?.FullName ?? "???"} {ResultType?.FullName ?? "???"}";
 
     public string FullName { get; }
     public override Symbol? ReferencedSymbol { get; }

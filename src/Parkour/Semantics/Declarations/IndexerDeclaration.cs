@@ -14,6 +14,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         Expression? elementType,
         MethodDeclaration getMethod,
         MethodDeclaration? setMethod,
@@ -28,6 +29,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
         name,
         access,
         modifiers,
+        attributes,
         location,
         diagnostics)
     {
@@ -45,7 +47,8 @@ public sealed class IndexerDeclaration : MemberDeclaration
         : this(
               "Item",
               SymbolAccess.Public, 
-              SymbolModifier.None, 
+              SymbolModifier.None,
+              ImmutableList<AttributeExpression>.Empty,
               elementType, 
               getMethod, 
               setMethod, 
@@ -61,6 +64,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.ElementType,
             this.GetMethod,
             this.SetMethod,
@@ -75,6 +79,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.ElementType,
             this.GetMethod,
             this.SetMethod,
@@ -89,6 +94,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.ElementType,
             this.GetMethod,
             this.SetMethod,
@@ -103,6 +109,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.ElementType,
             this.GetMethod,
             this.SetMethod,
@@ -117,6 +124,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Name,
             access,
             this.Modifiers,
+            this.Attributes,
             this.ElementType,
             this.GetMethod.WithAccess(access),
             this.SetMethod != null ? this.SetMethod.WithAccess(access) : null,
@@ -131,9 +139,25 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             modifiers,
+            this.Attributes,
             this.ElementType,
             this.GetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special),
             this.SetMethod != null ? this.SetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special) : null,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public override IndexerDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new IndexerDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            attributes,
+            this.ElementType,
+            this.GetMethod,
+            this.SetMethod,
             this.Location,
             this.Symbol,
             this.Diagnostics
@@ -145,6 +169,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             elementType,
             this.GetMethod,
             this.SetMethod,
@@ -159,6 +184,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.ElementType,
             getMethod,
             this.SetMethod,
@@ -173,6 +199,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.ElementType,
             this.GetMethod,
             setMethod,
@@ -181,23 +208,31 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override int ChildCount => 3;
+    public override int ChildCount => 
+        base.ChildCount + 3;
 
-    public override SemanticElement? GetChild(int index) =>
-        index switch
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index < base.ChildCount)
+            return base.GetChild(index);
+        index -= base.ChildCount;
+        return index switch
         {
             0 => this.ElementType,
             1 => this.GetMethod,
             2 => this.SetMethod,
             _ => null
         };
+    }
 
     public override IndexerDeclaration RewriteChildren(SemanticRewriter rewriter)
     {
+        var attributes = rewriter.Rewrite(this.Attributes);
         var elementType = rewriter.Rewrite(this.ElementType);
         var getMethod = rewriter.Rewrite(this.GetMethod);
         var setMethod = rewriter.Rewrite(this.SetMethod);
         return this
+            .WithAttributes(attributes)
             .WithElementType(elementType!)
             .WithGetMethod(getMethod!)
             .WithSetMethod(setMethod);

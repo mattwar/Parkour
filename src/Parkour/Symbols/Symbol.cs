@@ -21,6 +21,9 @@ public abstract class Symbol
         }
     }
 
+    public virtual ImmutableList<AttributeInfo> Attributes =>
+        ImmutableList<AttributeInfo>.Empty;
+
     protected Symbol(string name)
     {
         Name = name;

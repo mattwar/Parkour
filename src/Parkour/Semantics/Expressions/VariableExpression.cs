@@ -6,6 +6,9 @@ using Symbols;
 /// </summary>
 public sealed class VariableExpression : Expression
 {
+    protected internal override string DebugText =>
+        $"{nameof(VariableExpression)}: {Name}";
+
     public string Name { get; }
     public Expression? VariableType { get; }
     public Expression? Initializer { get; }

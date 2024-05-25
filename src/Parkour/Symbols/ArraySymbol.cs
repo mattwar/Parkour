@@ -41,6 +41,7 @@ public sealed class ArraySymbol : TypeSymbol
             fnTypeArguments: null, 
             fnBaseTypes, 
             fnMembers, 
+            fnAttributes: null,
             constructedFrom)
     {
         _lazyElementType = new Lazy<TypeSymbol>(fnElementType, SpecialSymbols.CyclicDefinition);

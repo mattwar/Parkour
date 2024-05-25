@@ -11,6 +11,7 @@ public class InterfaceSymbol : TypeSymbol
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
+        Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         TypeSymbol? constructedFrom)
         : base(
             name,
@@ -21,6 +22,7 @@ public class InterfaceSymbol : TypeSymbol
             fnTypeArguments,
             fnBaseTypes,
             fnMembers,
+            fnAttributes,
             constructedFrom)
     {
     }
@@ -41,6 +43,7 @@ public class InterfaceSymbol : TypeSymbol
             () => context.TypeArguments,
             () => subContext.Substitute(this.BaseTypes),
             me => subContext.Substitute(this.Members, me),
+            me => this.Attributes.Map(a => a.Substitute(subContext)),
             definition);
     }
 
@@ -58,7 +61,7 @@ public class InterfaceSymbol : TypeSymbol
             () => context.Substitute(this.TypeArguments),
             () => context.Substitute(this.BaseTypes),
             me => context.Substitute(this.Members),
+            me => this.Attributes.Map(a => a.Substitute(context)),
             this.ConstructedFrom ?? (this.IsConstructable ? this : null));
     }
-
 }

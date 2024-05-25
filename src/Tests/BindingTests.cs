@@ -318,6 +318,29 @@ public class BindingTests
     }
 
     [TestMethod]
+    public void TestDeclaration_Class_Attributes()
+    {
+        TestBind(
+            [
+                Class("MyAttribute"),
+                Class("C").WithAttributes([Attribute(Symbol("MyAttribute"))])
+            ],
+            fnValidate: elements =>
+            {
+                Assert.AreEqual(2, elements.Count);
+                var ma = elements[0] as ClassDeclaration;
+                var cc = elements[1] as ClassDeclaration;
+                Assert.IsNotNull(ma);
+                Assert.IsNotNull(cc);
+                Assert.AreEqual("MyAttribute", ma.Name);
+                Assert.AreEqual("C", cc.Name);
+                Assert.AreEqual(1, cc.Attributes.Count);
+                Assert.IsNotNull(cc.Attributes[0].AttributeInfo);
+                Assert.AreEqual(ma.Symbol, cc.Attributes[0].AttributeInfo!.Constructor.DeclaringType);
+            });
+    }
+
+    [TestMethod]
     public void TestDeclaration_Delegate()
     {
         TestBind(
@@ -370,10 +393,12 @@ public class BindingTests
         // alias X for System is now in scope
         TestBind(
             [
-                Using("X", Symbol("System")),
-                Class("C", [
-                    Property("P", Name("X").Member("Int32"))
-                    ])
+                Namespace(
+                    Using("X", Symbol("System")),
+                    Class("C", [
+                        Property("P", Name("X").Member("Int32"))
+                        ])
+                    )
             ],
             expectedSymbols: ["C.P"]
             );
@@ -530,6 +555,45 @@ public class BindingTests
         TestBind(
             Call(Constant(1).Member("ToString")), 
             expectedResultType: StringType.FullName);
+    }
+
+    [TestMethod]
+    public void TestExpression_Call_Named_Arguments()
+    {
+        // specified in order
+        TestBind(
+            [
+                Method("M", [Parameter("A", Int32Type), Parameter("B", StringType)], VoidType, Block()),
+                Name("M").Call([NamedArgument("A", Constant(10)), NamedArgument("B", Constant("derp"))])
+            ]);
+
+        // specified out of order
+        TestBind(
+            [
+                Method("M", [Parameter("A", Int32Type), Parameter("B", StringType)], VoidType, Block()),
+                Name("M").Call([NamedArgument("B", Constant("derp")), NamedArgument("A", Constant(10))])
+            ],
+            fnValidate: elements =>
+            {
+                Assert.AreEqual(2, elements.Count);
+                var call = elements[1] as CallExpression;
+                Assert.IsNotNull(call);
+                Assert.AreEqual(2, call.Arguments.Count);
+                var arg0 = call.Arguments[0] as NamedArgumentExpression;
+                Assert.IsNotNull(arg0);
+                Assert.AreEqual("A", arg0.Name);
+                var arg1 = call.Arguments[1] as NamedArgumentExpression;
+                Assert.IsNotNull(arg1);
+                Assert.AreEqual("B", arg1.Name);
+            });
+
+        // duplicate named argument
+        TestBind(
+            [
+                Method("M", [Parameter("A", Int32Type), Parameter("B", StringType)], VoidType, Block()),
+                Name("M").Call([NamedArgument("A", Constant(10)), NamedArgument("A", Constant(20))])
+            ],
+            containsDiagnostics: true);
     }
 
     [TestMethod]

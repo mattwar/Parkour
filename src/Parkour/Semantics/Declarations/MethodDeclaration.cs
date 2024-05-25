@@ -16,6 +16,7 @@ public class MethodDeclaration : MemberDeclaration
         string name, 
         SymbolAccess access, 
         BitSet<SymbolModifier> modifiers, 
+        ImmutableList<AttributeExpression> attributes,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<ParameterDeclaration> parameters,
         Expression? returnType,
@@ -33,6 +34,7 @@ public class MethodDeclaration : MemberDeclaration
             name, 
             access, 
             modifiers, 
+            attributes,
             location,
             diagnostics)
     {
@@ -53,7 +55,8 @@ public class MethodDeclaration : MemberDeclaration
         : this(
               name, 
               SymbolAccess.Public, 
-              SymbolModifier.None, 
+              SymbolModifier.None,
+              ImmutableList<AttributeExpression>.Empty,
               ImmutableList<TypeParameterDeclaration>.Empty,
               parameters, 
               returnType, 
@@ -71,6 +74,7 @@ public class MethodDeclaration : MemberDeclaration
             name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.Parameters,
             this.ReturnType,
@@ -87,6 +91,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.Parameters,
             this.ReturnType,
@@ -103,6 +108,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.Parameters,
             this.ReturnType,
@@ -118,6 +124,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.Parameters,
             this.ReturnType,
@@ -134,6 +141,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.Parameters,
             this.ReturnType,
@@ -150,6 +158,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.Parameters,
             this.ReturnType,
@@ -166,6 +175,24 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             modifiers,
+            this.Attributes,
+            this.TypeParameters,
+            this.Parameters,
+            this.ReturnType,
+            this.Body,
+            this.Location,
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
+
+    public override MethodDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new MethodDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            attributes,
             this.TypeParameters,
             this.Parameters,
             this.ReturnType,
@@ -182,6 +209,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             typeParameters,
             this.Parameters,
             this.ReturnType,
@@ -198,6 +226,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             parameters,
             this.ReturnType,
@@ -214,6 +243,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.Parameters,
             returnType,
@@ -230,6 +260,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.Parameters,
             this.ReturnType,
@@ -241,12 +272,16 @@ public class MethodDeclaration : MemberDeclaration
             );
 
     public override int ChildCount =>
-        this.TypeParameters.Count 
+        base.ChildCount
+        + this.TypeParameters.Count 
         + this.Parameters.Count 
         + 2;
 
     public override SemanticElement? GetChild(int index)
     {
+        if (index < base.ChildCount)
+            return base.GetChild(index);
+        index -= base.ChildCount;
         if (index < this.TypeParameters.Count)
             return this.TypeParameters[index];
         index -= this.TypeParameters.Count;
@@ -263,11 +298,13 @@ public class MethodDeclaration : MemberDeclaration
 
     public override MethodDeclaration RewriteChildren(SemanticRewriter rewriter)
     {
+        var attributes = rewriter.Rewrite(this.Attributes);
         var typeParams = rewriter.Rewrite(this.TypeParameters);
         var parameters = rewriter.Rewrite(this.Parameters);
         var returnType = rewriter.Rewrite(this.ReturnType);
         var body = rewriter.Rewrite(this.Body);
         return this
+            .WithAttributes(attributes)
             .WithTypeParameters(typeParams)
             .WithParameters(parameters)
             .WithReturnType(returnType!)

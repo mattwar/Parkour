@@ -5,11 +5,13 @@ using System.Xml.Linq;
 public class NamespaceDeclaration : MemberDeclaration
 {
     public override NamespaceSymbol? Symbol { get; }
-
     public ImmutableList<Declaration> Declarations { get; }
 
     private NamespaceDeclaration(
-        string name, 
+        string name,
+        SymbolAccess access,
+        BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         ImmutableList<Declaration> declarations,
         ISourceLocation? location,
         NamespaceSymbol? symbol,
@@ -18,8 +20,9 @@ public class NamespaceDeclaration : MemberDeclaration
             CombineState(declarations)
             | NotNullState(symbol), 
             name, 
-            SymbolAccess.Public, 
-            SymbolModifier.None, 
+            access, 
+            modifiers, 
+            attributes,
             location,
             diagnostics)
     {
@@ -31,7 +34,15 @@ public class NamespaceDeclaration : MemberDeclaration
         string name,
         ImmutableList<Declaration> declarations,
         ISourceLocation? location)
-        : this(name, declarations, location, null, null)
+        : this(
+              name, 
+              SymbolAccess.Public,
+              SymbolModifier.None,
+              ImmutableList<AttributeExpression>.Empty,
+              declarations, 
+              location, 
+              null, 
+              null)
     {
     }
 
@@ -39,6 +50,9 @@ public class NamespaceDeclaration : MemberDeclaration
         name == this.Name ? this :
         new NamespaceDeclaration(
             name,
+            this.Access,
+            this.Modifiers,
+            this.Attributes,
             this.Declarations,
             this.Location,
             this.Symbol,
@@ -49,6 +63,9 @@ public class NamespaceDeclaration : MemberDeclaration
         location == this.Location ? this :
         new NamespaceDeclaration(
             this.Name,
+            this.Access,
+            this.Modifiers,
+            this.Attributes,
             this.Declarations,
             location,
             this.Symbol,
@@ -59,6 +76,9 @@ public class NamespaceDeclaration : MemberDeclaration
         symbol == this.Symbol ? this :
         new NamespaceDeclaration(
             this.Name,
+            this.Access,
+            this.Modifiers,
+            this.Attributes,
             this.Declarations,
             this.Location,
             symbol,
@@ -69,6 +89,9 @@ public class NamespaceDeclaration : MemberDeclaration
         diagnostics == this.Diagnostics ? this :
         new NamespaceDeclaration(
             this.Name,
+            this.Access,
+            this.Modifiers,
+            this.Attributes,
             this.Declarations,
             this.Location,
             this.Symbol,
@@ -76,15 +99,52 @@ public class NamespaceDeclaration : MemberDeclaration
             );
 
     public override NamespaceDeclaration WithAccess(SymbolAccess access) =>
-        this;
+        access == this.Access ? this :
+        new NamespaceDeclaration(
+            this.Name,
+            access,
+            this.Modifiers,
+            this.Attributes,
+            this.Declarations,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
 
     public override NamespaceDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
-        this;
+        modifiers == this.Modifiers ? this :
+        new NamespaceDeclaration(
+            this.Name,
+            this.Access,
+            modifiers,
+            this.Attributes,
+            this.Declarations,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public override NamespaceDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new NamespaceDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            attributes,
+            this.Declarations,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
 
     public NamespaceDeclaration WithDeclarations(ImmutableList<Declaration> declarations) =>
         declarations == this.Declarations ? this :
         new NamespaceDeclaration(
             this.Name,
+            this.Access,
+            this.Modifiers,
+            this.Attributes,
             declarations,
             this.Location,
             this.Symbol,
@@ -95,14 +155,25 @@ public class NamespaceDeclaration : MemberDeclaration
         this.Name == "";
 
     public override int ChildCount =>
-        this.Declarations.Count;
+        base.ChildCount
+        + this.Declarations.Count;
 
-    public override SemanticElement? GetChild(int index) =>
-        this.Declarations[index];
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index < base.ChildCount)
+            return base.GetChild(index);
+        index -= base.ChildCount;
+        return index < this.Declarations.Count
+            ? this.Declarations[index]
+            : null;
+    }
 
     public override NamespaceDeclaration RewriteChildren(SemanticRewriter rewriter)
     {
+        var attributes = rewriter.Rewrite(this.Attributes);
         var declarations = rewriter.Rewrite(this.Declarations);
-        return this.WithDeclarations(declarations);
+        return this
+            .WithAttributes(attributes)
+            .WithDeclarations(declarations);
     }
 }

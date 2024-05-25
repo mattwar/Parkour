@@ -15,6 +15,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         Expression? propertyType,
         FieldDeclaration? backingField,
         MethodDeclaration getMethod,
@@ -31,6 +32,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
         name,
         access,
         modifiers,
+        attributes,
         location,
         diagnostics)
     {
@@ -51,6 +53,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
               name, 
               SymbolAccess.Public, 
               SymbolModifier.None, 
+              ImmutableList<AttributeExpression>.Empty,
               propertyType, 
               null, 
               getMethod, 
@@ -68,6 +71,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.PropertyType,
             this.BackingField,
             this.GetMethod,
@@ -83,6 +87,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.PropertyType,
             this.BackingField,
             this.GetMethod,
@@ -98,6 +103,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.PropertyType,
             this.BackingField,
             this.GetMethod,
@@ -113,6 +119,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.PropertyType,
             this.BackingField,
             this.GetMethod,
@@ -128,6 +135,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             access,
             this.Modifiers,
+            this.Attributes,
             this.PropertyType,
             this.BackingField,
             this.GetMethod.WithAccess(access),
@@ -143,10 +151,27 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             modifiers,
+            this.Attributes,
             this.PropertyType,
             this.BackingField != null ? this.BackingField.WithModifiers(modifiers) : null,
             this.GetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special),
             this.SetMethod != null ? this.SetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special) : null,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public override PropertyDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new PropertyDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            attributes,
+            this.PropertyType,
+            this.BackingField,
+            this.GetMethod,
+            this.SetMethod,
             this.Location,
             this.Symbol,
             this.Diagnostics
@@ -158,6 +183,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             propertyType,
             this.BackingField,
             this.GetMethod,
@@ -173,6 +199,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.PropertyType,
             backingField,
             this.GetMethod,
@@ -188,6 +215,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.PropertyType,
             this.BackingField,
             getMethod,
@@ -203,6 +231,7 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.PropertyType,
             this.BackingField,
             this.GetMethod,
@@ -212,10 +241,15 @@ public sealed class PropertyDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override int ChildCount => 4;
+    public override int ChildCount => 
+        base.ChildCount + 4;
 
-    public override SemanticElement? GetChild(int index) =>
-        index switch
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index < base.ChildCount)
+            return base.GetChild(index);
+        index -= base.ChildCount;
+        return index switch
         {
             0 => this.PropertyType,
             1 => this.GetMethod,
@@ -223,14 +257,17 @@ public sealed class PropertyDeclaration : MemberDeclaration
             3 => this.BackingField,
             _ => null
         };
+    }
 
     public override PropertyDeclaration RewriteChildren(SemanticRewriter rewriter)
     {
+        var attributes = rewriter.Rewrite(this.Attributes);
         var propType = rewriter.Rewrite(this.PropertyType);
         var backingField = rewriter.Rewrite(this.BackingField);
         var getMethod = rewriter.Rewrite(this.GetMethod);
         var setMethod = rewriter.Rewrite(this.SetMethod);
         return this
+            .WithAttributes(attributes)
             .WithPropertyType(propType!)
             .WithBackingField(backingField)
             .WithGetMethod(getMethod!)

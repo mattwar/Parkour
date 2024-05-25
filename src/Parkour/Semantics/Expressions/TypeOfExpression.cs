@@ -4,6 +4,9 @@ using Symbols;
 
 public class TypeOfExpression : Expression
 {
+    protected internal override string DebugText =>
+        $"{nameof(TypeOfExpression)}: {(TypeSymbol != null ? TypeSymbol.FullName : Type.DebugText)}";
+
     public Expression Type { get; }
     public TypeSymbol? TypeSymbol { get; }
 

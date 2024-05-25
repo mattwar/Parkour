@@ -6,10 +6,10 @@ namespace Parkour.Semantics;
 /// Accesses a member of the instance expression.
 /// If the instance expression is a type expression, a static member can be accessed.
 /// </summary>
-[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public sealed class MemberExpression : Expression
 {
-    private string DebugText => $"{GetType().Name}: {this.Name}: {ResultType?.FullName ?? "???"}";
+    internal protected override string DebugText => 
+        $"{GetType().Name}: {this.Name}: {ResultType?.FullName ?? "???"}";
 
     public Expression Instance { get; }
     public string Name { get; }

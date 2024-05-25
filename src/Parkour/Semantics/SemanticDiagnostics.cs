@@ -105,4 +105,22 @@ internal static class SemanticDiagnostics
 
     public static Diagnostic IndexerIsAmbiguous() =>
         new Diagnostic("The indexing operation is ambiguous, there are multiple best candidates.");
+
+    public static Diagnostic NoMatchingMember(string container, string member) =>
+        new Diagnostic($"The name '{member}' is not a member of '{container}'.");
+
+    public static Diagnostic NoMatchingStaticMember(string type, string member) =>
+        new Diagnostic($"The name '{member}' is not a static member of type '{type}'.");
+
+    public static Diagnostic NoMatchingInstanceMember(string type, string member) =>
+        new Diagnostic($"The name '{member}' is not an instance member of type '{type}'.");
+
+    public static Diagnostic NoMatchingParameterName(string name) =>
+        new Diagnostic($"The name '{name}' does not match a parameter.");
+
+    public static Diagnostic NoCorrespondingParameter() =>
+        new Diagnostic($"The argument has no corresponding parameter.");
+
+    public static Diagnostic AmbiguousArgument(string parameterName) =>
+        new Diagnostic($"An argument for parameter '{parameterName}' is already defined.");
 }

@@ -5,10 +5,10 @@ using Symbols;
 /// References a named symbol or symbols in the current scope,
 /// based on the lookup rules of the binder.
 /// </summary>
-[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public sealed class NameExpression : Expression
 {
-    private string DebugText => $"{GetType().Name}: {this.Name}: {ReferencedSymbol?.FullName ?? "???"}";
+    internal protected override string DebugText => 
+        $"{GetType().Name}: {this.Name}: {ReferencedSymbol?.FullName ?? "???"}";
 
     public string Name { get; }
     public override Symbol? ReferencedSymbol { get; }

@@ -322,6 +322,9 @@ public class ReflectionSymbols : StandardSymbolTable
             Func<TypeSymbol, ImmutableList<Symbol>> fnMembers = 
                 me => CreateMembers(type, me);
 
+            Func<TypeSymbol, ImmutableList<AttributeInfo>> fnAttributes =
+                me => type.GetCustomAttributesData().Select(d => CreateAttributeInfo(d)).ToImmutableList();
+
             var name = StripArity(type.Name);
 
             if (type.IsArray)
@@ -346,7 +349,9 @@ public class ReflectionSymbols : StandardSymbolTable
                     fnTypeArguments,
                     fnBaseTypes,
                     fnMembers,
-                    constructedFromType);
+                    fnAttributes,
+                    constructedFromType
+                    );
             }
             else if (type.IsValueType)
             {
@@ -359,7 +364,9 @@ public class ReflectionSymbols : StandardSymbolTable
                     fnTypeArguments,
                     fnBaseTypes,
                     fnMembers,
-                    constructedFromType);
+                    fnAttributes,
+                    constructedFromType
+                    );
             }
             else
             {
@@ -372,7 +379,9 @@ public class ReflectionSymbols : StandardSymbolTable
                     fnTypeArguments,
                     fnBaseTypes,
                     fnMembers,
-                    constructedFromType);
+                    fnAttributes,
+                    constructedFromType
+                    );
             }
         }
     }
@@ -485,6 +494,18 @@ public class ReflectionSymbols : StandardSymbolTable
                 | (method.IsSpecialName ? SymbolModifier.Special : SymbolModifier.None),
             _ => SymbolModifier.None
         };
+
+    private AttributeInfo CreateAttributeInfo(CustomAttributeData data)
+    {
+        var constructor = (ConstructorSymbol)GetSymbol(data.Constructor)!;
+        var arguments = data.ConstructorArguments
+            .Select((a, i) => new AttributeArgument(constructor.Parameters[i], a.Value))
+            .ToImmutableList();
+        var members = data.NamedArguments
+            .Select(n => new AttributeMember((MemberSymbol)GetSymbol(n.MemberInfo)!, n.TypedValue.Value))
+            .ToImmutableList();
+        return new AttributeInfo(constructor, arguments, members);
+    }
 
     /// <summary>
     /// Finds the symbol in the global namespace

@@ -73,6 +73,17 @@ public class EmitterTests
     }
 
     [TestMethod]
+    public void TestDeclaration_Attributes()
+    {
+        TestEmit(
+            Class("C")
+            .WithAttributes([
+                Attribute(Symbol("System.ObsoleteAttribute"), [Constant("Message")])
+                ])
+            );
+    }
+
+    [TestMethod]
     public void TestDeclaration_Struct()
     {
         // struct emitted

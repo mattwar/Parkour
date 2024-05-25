@@ -12,6 +12,7 @@ public abstract class TypeDeclaration : MemberDeclaration
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
@@ -19,11 +20,13 @@ public abstract class TypeDeclaration : MemberDeclaration
         ImmutableList<Diagnostic>? diagnostics)
     : base(
         state
+        | CombineState(attributes)
         | CombineState(typeParameters)
         | CombineState(declarations),
         name,
         access,
         modifiers,
+        attributes,
         location,
         diagnostics)
     {
@@ -37,12 +40,16 @@ public abstract class TypeDeclaration : MemberDeclaration
     public abstract TypeDeclaration WithDeclarations(ImmutableList<Declaration> declarations);
 
     public override int ChildCount =>
-        this.TypeParameters.Count
+        base.ChildCount
+        + this.TypeParameters.Count
         + this.BaseTypes.Count
         + this.Declarations.Count;
 
     public override SemanticElement? GetChild(int index)
     {
+        if (index < base.ChildCount)
+            return base.GetChild(index);
+        index -= base.ChildCount;
         if (index < this.TypeParameters.Count)
             return this.TypeParameters[index];
         index -= this.TypeParameters.Count;

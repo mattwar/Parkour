@@ -3,6 +3,9 @@ using Symbols;
 
 public class OperatorExpression : Expression
 {
+    protected internal override string DebugText =>
+        $"{nameof(OperatorExpression)}: {Kind}";
+
     public string Kind { get; }
     public ImmutableList<Expression> Arguments { get; }
     public Symbol? OperatorSymbol { get; }

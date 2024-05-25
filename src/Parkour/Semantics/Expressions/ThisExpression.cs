@@ -6,6 +6,9 @@ using Symbols;
 /// </summary>
 public sealed class ThisExpression : Expression
 {
+    protected internal override string DebugText =>
+        $"{nameof(ThisExpression)}: {(ResultType != null ? ResultType.FullName : "")}";
+
     public ThisExpression(
         ISourceLocation? location,
         TypeSymbol? resultType,

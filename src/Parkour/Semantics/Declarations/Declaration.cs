@@ -2,10 +2,9 @@
 
 using Symbols;
 
-[System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class Declaration : SemanticElement
 {
-    private string DebugText => $"{GetType().Name}: {Name}";
+    internal protected override string DebugText => $"{GetType().Name}: {Name}";
 
     public string Name { get; }
 

@@ -27,7 +27,17 @@ public class DelegateSymbol : TypeSymbol
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         TypeSymbol? constructedFrom)
-        : base(name, declaringSymbol, access, modifiers, fnTypeParameters, fnTypeArguments, fnBaseTypes, fnMembers, constructedFrom)
+        : base(
+            name, 
+            declaringSymbol, 
+            access, 
+            modifiers, 
+            fnTypeParameters, 
+            fnTypeArguments, 
+            fnBaseTypes, 
+            fnMembers, 
+            fnAttributes: null,
+            constructedFrom)
     {
         _lazyParameters = fnParameters != null
             ? new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this))

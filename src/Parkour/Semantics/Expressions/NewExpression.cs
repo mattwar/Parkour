@@ -4,6 +4,9 @@ using Symbols;
 
 public class NewExpression : Expression
 {
+    protected internal override string DebugText =>
+        $"{nameof(NewExpression)}: {(ResultType != null ? ResultType.FullName : Type != null ? Type.DebugText : "<inferred>")}";
+
     public Expression? Type { get; }
     public ImmutableList<Expression> Arguments { get; }
     public ConstructorSymbol? ConstructorSymbol { get; }

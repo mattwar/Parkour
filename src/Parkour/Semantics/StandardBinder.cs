@@ -3,6 +3,7 @@
 namespace Parkour.Semantics;
 
 using Symbols;
+using System.Linq.Expressions;
 
 /// <summary>
 /// Converts unbound declarations and expressions into bound declarations and expressions
@@ -285,6 +286,13 @@ public class StandardBinder : SemanticBinder
                     .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
                     .Where(s => s != null)
                     .ToImmutableList()!,
+            fnAttributes: me =>
+                declaration.Attributes.Count > 0
+                    ? declaration.Attributes
+                        .Select(a => this.BindAttribute(typeContext.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
+                    : ImmutableList<AttributeInfo>.Empty,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -405,6 +413,13 @@ public class StandardBinder : SemanticBinder
                     .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
                     .Where(s => s != null)
                     .ToImmutableList()!,
+            fnAttributes: me =>
+                declaration.Attributes.Count > 0
+                    ? declaration.Attributes
+                        .Select(a => this.BindAttribute(typeContext.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
+                    : ImmutableList<AttributeInfo>.Empty,
             constructedFrom: null
             );
 
@@ -524,6 +539,13 @@ public class StandardBinder : SemanticBinder
                     .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
                     .Where(s => s != null)
                     .ToImmutableList()!,
+            fnAttributes: me =>
+                declaration.Attributes.Count > 0
+                    ? declaration.Attributes
+                        .Select(a => this.BindAttribute(typeContext.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
+                    : ImmutableList<AttributeInfo>.Empty,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -632,23 +654,34 @@ public class StandardBinder : SemanticBinder
         ClassDeclaration decl,
         ClassSymbol? symbol)
     {
-        var typeParameters = BindList(context, decl.TypeParameters);
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var typeParameters = BindList(context, decl.TypeParameters);
 
-        // put symbol in scope for baseTypes and members
-        var typeContext = symbol != null
-            ? context
-                .WithScope(context.Scope.AddSymbolAndMembers(symbol))
-                .WithDeclaringType(symbol)
-            : context;
+            // put symbol in scope for baseTypes and members
+            var typeContext = symbol != null
+                ? context
+                    .WithScope(context.Scope.AddSymbolAndMembers(symbol))
+                    .WithDeclaringType(symbol)
+                : context;
 
-        var baseTypes = BindList(typeContext, decl.BaseTypes);
-        var declarations = BindList(typeContext, decl.Declarations);
+            var baseTypes = BindTypeExpressionList(typeContext, decl.BaseTypes, diagnostics);
+            var declarations = BindList(typeContext, decl.Declarations);
+            var attributes = BindList(typeContext, decl.Attributes);
 
-        return decl
-            .WithTypeParameters(typeParameters)
-            .WithBaseTypes(baseTypes)
-            .WithDeclarations(declarations)
-            .WithSymbol(symbol);
+            return decl
+                .WithTypeParameters(typeParameters)
+                .WithBaseTypes(baseTypes)
+                .WithDeclarations(declarations)
+                .WithAttributes(attributes)
+                .WithSymbol(symbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -656,10 +689,11 @@ public class StandardBinder : SemanticBinder
 
     protected virtual ConstructorDeclaration BindConstructor(
         BindingContext context,
-        ConstructorDeclaration cd,
+        ConstructorDeclaration decl,
         ConstructorSymbol? constructorSymbol)
     {
-        var parameters = BindList(context, cd.Parameters);
+        var attrs = BindList(context, decl.Attributes);
+        var parameters = BindList(context, decl.Parameters);
         var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, context.Symbols.Void);
         var bodyContext = context.WithScope(context.Scope.AddSymbol(returnLabel));
 
@@ -670,9 +704,10 @@ public class StandardBinder : SemanticBinder
             bodyContext = bodyContext.WithScope(bodyContext.Scope.AddSymbols(constructorSymbol.Parameters));
         }
 
-        var body = BindExpression(bodyContext, cd.Body);
+        var body = BindExpression(bodyContext, decl.Body);
 
-        return cd
+        return decl
+            .WithAttributes(attrs)
             .WithParameters(parameters)
             .WithBody(body)
             .WithSymbol(constructorSymbol)
@@ -691,6 +726,7 @@ public class StandardBinder : SemanticBinder
         var diagnostics = _diagnosticListPool.AllocateFromPool();
         try
         {
+            var attributes = BindList(context, decl.Attributes);
             var typeParameters = BindList(context, decl.TypeParameters);
             var parameters = BindList(context, decl.Parameters);
             var returnType = BindTypeExpression(context, decl.ReturnType, diagnostics);
@@ -698,6 +734,7 @@ public class StandardBinder : SemanticBinder
             var declarations = BindList(context, decl.Declarations);
 
             return decl
+                .WithAttributes(attributes)
                 .WithTypeParameters(typeParameters)
                 .WithBaseTypes(baseTypes)
                 .WithDeclarations(declarations)
@@ -720,20 +757,33 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     protected virtual FieldDeclaration BindField(
         BindingContext context,
-        FieldDeclaration fd,
+        FieldDeclaration decl,
         FieldSymbol? fieldSymbol)
     {
-        var fieldType = fd.FieldType != null 
-            ? BindExpression(context, fd.FieldType) 
-            : null;
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var attributes = BindList(context, decl.Attributes);
 
-        var initializer = fd.Initializer != null
-            ? BindExpression(context.WithTargetType(fieldType?.ReferencedSymbol as TypeSymbol), fd.Initializer)
-            : null;
-        return fd
-            .WithFieldType(fieldType)
-            .WithInitializer(initializer)
-            .WithSymbol(fieldSymbol);
+            var fieldType = decl.FieldType != null
+                ? BindTypeExpression(context, decl.FieldType, diagnostics)
+                : null;
+
+            var initializer = decl.Initializer != null
+                ? BindExpression(context.WithTargetType(fieldType?.ReferencedSymbol as TypeSymbol), decl.Initializer)
+                : null;
+
+            return decl
+                .WithAttributes(attributes)
+                .WithFieldType(fieldType)
+                .WithInitializer(initializer)
+                .WithSymbol(fieldSymbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -743,26 +793,38 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     protected virtual IndexerDeclaration BindIndexer(
         BindingContext context,
-        IndexerDeclaration id,
+        IndexerDeclaration decl,
         IndexerSymbol? indexerSymbol)
     {
-        var elementType = id.ElementType != null 
-            ? BindExpression(context, id.ElementType) 
-            : null;
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var attributes = BindList(context, decl.Attributes);
 
-        var methodContext = context;
+            var elementType = decl.ElementType != null
+                ? BindTypeExpression(context, decl.ElementType, diagnostics)
+                : null;
 
-        var getMethod = (MethodDeclaration)BindDeclaration(methodContext, id.GetMethod);
+            var methodContext = context;
 
-        var setMethod = id.SetMethod != null
-            ? (MethodDeclaration)BindDeclaration(methodContext, id.SetMethod)
-            : null;
+            var getMethod = (MethodDeclaration)BindDeclaration(methodContext, decl.GetMethod);
 
-        return id
-            .WithElementType(elementType)
-            .WithGetMethod(getMethod)
-            .WithSetMethod(setMethod)
-            .WithSymbol(indexerSymbol);
+            var setMethod = decl.SetMethod != null
+                ? (MethodDeclaration)BindDeclaration(methodContext, decl.SetMethod)
+                : null;
+
+            return decl
+                .WithAttributes(attributes)
+                .WithElementType(elementType)
+                .WithGetMethod(getMethod)
+                .WithSetMethod(setMethod)
+                .WithSymbol(indexerSymbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -775,23 +837,35 @@ public class StandardBinder : SemanticBinder
         InterfaceDeclaration decl,
         InterfaceSymbol? symbol)
     {
-        var typeParameters = BindList(context, decl.TypeParameters);
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var attributes = BindList(context, decl.Attributes);
 
-        // put symbol in scope for baseTypes and members
-        var typeContext = symbol != null
-            ? context
-                .WithScope(context.Scope.AddSymbolAndMembers(symbol))
-                .WithDeclaringType(symbol)
-            : context;
+            var typeParameters = BindList(context, decl.TypeParameters);
 
-        var baseTypes = BindList(typeContext, decl.BaseTypes);
-        var declarations = BindList(typeContext, decl.Declarations);
+            // put symbol in scope for baseTypes and members
+            var typeContext = symbol != null
+                ? context
+                    .WithScope(context.Scope.AddSymbolAndMembers(symbol))
+                    .WithDeclaringType(symbol)
+                : context;
 
-        return decl
-            .WithTypeParameters(typeParameters)
-            .WithBaseTypes(baseTypes)
-            .WithDeclarations(declarations)
-            .WithSymbol(symbol);
+            var baseTypes = BindTypeExpressionList(typeContext, decl.BaseTypes, diagnostics);
+            var declarations = BindList(typeContext, decl.Declarations);
+
+            return decl
+                .WithAttributes(attributes)
+                .WithTypeParameters(typeParameters)
+                .WithBaseTypes(baseTypes)
+                .WithDeclarations(declarations)
+                .WithSymbol(symbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -801,36 +875,51 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     protected virtual MethodDeclaration BindMethod(
         BindingContext context,
-        MethodDeclaration md,
+        MethodDeclaration decl,
         MethodSymbol? methodSymbol)
     {
-        var typeParameters = BindList(context, md.TypeParameters);
-        var parameters = BindList(context, md.Parameters);
-        var returnType = md.ReturnType != null
-            ? BindExpression(context, md.ReturnType)
-            : null;
-        var returnLabel = new LabelSymbol(LabelSymbol.ReturnLabelName, methodSymbol?.ReturnType ?? context.Symbols.Void);
-
-        var bodyContext = context
-            .WithScope(context.Scope.AddSymbol(returnLabel))
-            .WithTargetType(returnType?.ReferencedSymbol as TypeSymbol);
-
-        // add parameters to scope for body
-        if (methodSymbol != null
-            && methodSymbol.Parameters.Count > 0)
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
         {
-            bodyContext = bodyContext.WithScope(bodyContext.Scope.AddSymbols(methodSymbol.Parameters));
+            var attributes = BindList(context, decl.Attributes);
+            var typeParameters = BindList(context, decl.TypeParameters);
+            var parameters = BindList(context, decl.Parameters);
+            
+            var returnType = decl.ReturnType != null
+                ? BindTypeExpression(context, decl.ReturnType, diagnostics)
+                : null;
+
+            var returnLabel = new LabelSymbol(
+                LabelSymbol.ReturnLabelName, 
+                methodSymbol?.ReturnType ?? context.Symbols.Void
+                );
+
+            var bodyContext = context
+                .WithScope(context.Scope.AddSymbol(returnLabel))
+                .WithTargetType(returnType?.ReferencedSymbol as TypeSymbol);
+
+            // add parameters to scope for body
+            if (methodSymbol != null
+                && methodSymbol.Parameters.Count > 0)
+            {
+                bodyContext = bodyContext.WithScope(bodyContext.Scope.AddSymbols(methodSymbol.Parameters));
+            }
+
+            var body = BindExpression(bodyContext, decl.Body);
+
+            return decl
+                .WithAttributes(attributes)
+                .WithTypeParameters(typeParameters)
+                .WithParameters(parameters)
+                .WithReturnType(returnType)
+                .WithBody(body)
+                .WithSymbol(methodSymbol)
+                .WithReturnLabel(returnLabel);
         }
-
-        var body = BindExpression(bodyContext, md.Body);
-
-        return md
-            .WithTypeParameters(typeParameters)
-            .WithParameters(parameters)
-            .WithReturnType(returnType)
-            .WithBody(body)
-            .WithSymbol(methodSymbol)
-            .WithReturnLabel(returnLabel);
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -840,16 +929,18 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     protected virtual NamespaceDeclaration BindNamespace(
         BindingContext context,
-        NamespaceDeclaration nd,
+        NamespaceDeclaration decl,
         NamespaceSymbol? nsSymbol)
     {
+        var attributes = BindList(context, decl.Attributes);
+
         var bodyContext = context;
         if (nsSymbol != null)
         {
             bodyContext = bodyContext.WithScope(bodyContext.Scope.AddSymbolAndMembers(nsSymbol));
         }
 
-        var (declarations, finalContext) = nd.Declarations.Rewrite(bodyContext, (d, _context) =>
+        var (declarations, finalContext) = decl.Declarations.Rewrite(bodyContext, (d, _context) =>
         {
             var nd = BindDeclaration(_context, d);
 
@@ -870,7 +961,8 @@ public class StandardBinder : SemanticBinder
             return (nd, _context);
         });
 
-        return nd
+        return decl
+            .WithAttributes(attributes)
             .WithDeclarations(declarations)
             .WithSymbol(nsSymbol);
     }
@@ -882,16 +974,28 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     protected virtual ParameterDeclaration BindParameter(
         BindingContext context,
-        ParameterDeclaration pd,
+        ParameterDeclaration decl,
         ParameterSymbol? parameterSymbol)
     {
-        var parameterType = pd.ParameterType != null
-            ? BindExpression(context, pd.ParameterType)
-            : null;
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var attributes = BindList(context, decl.Attributes);
 
-        return pd
-            .WithParameterType(parameterType)
-            .WithSymbol(parameterSymbol);
+            var parameterType = decl.ParameterType != null
+                ? BindTypeExpression(context, decl.ParameterType, diagnostics)
+                : null;
+
+            return decl
+                .WithAttributes(attributes)
+                .WithParameterType(parameterType)
+                .WithSymbol(parameterSymbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -901,37 +1005,49 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     protected virtual PropertyDeclaration BindProperty(
         BindingContext context,
-        PropertyDeclaration pd,
+        PropertyDeclaration decl,
         PropertySymbol? propertySymbol)
     {
-        var propertyType = pd.PropertyType != null
-            ? BindExpression(context, pd.PropertyType)
-            : null;
-
-        var backingField = pd.BackingField != null
-            ? (FieldDeclaration)BindDeclaration(context, pd.BackingField)
-            : null;
-
-        var methodContext = context;
-
-        if (propertySymbol?.BackingField != null)
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
         {
-            methodContext = methodContext.WithScope(
-                methodContext.Scope.AddSymbol(propertySymbol.BackingField));
+            var attributes = BindList(context, decl.Attributes);
+
+            var propertyType = decl.PropertyType != null
+                ? BindTypeExpression(context, decl.PropertyType, diagnostics)
+                : null;
+
+            var backingField = decl.BackingField != null
+                ? (FieldDeclaration)BindDeclaration(context, decl.BackingField)
+                : null;
+
+            var methodContext = context;
+
+            if (propertySymbol?.BackingField != null)
+            {
+                methodContext = methodContext.WithScope(
+                    methodContext.Scope.AddSymbol(propertySymbol.BackingField));
+            }
+
+            var getMethod = (MethodDeclaration)BindDeclaration(methodContext, decl.GetMethod);
+
+            var setMethod = decl.SetMethod != null
+                ? (MethodDeclaration)BindDeclaration(methodContext, decl.SetMethod)
+                : null;
+
+            return decl
+                .WithAttributes(attributes)
+                .WithPropertyType(propertyType)
+                .WithBackingField(backingField)
+                .WithGetMethod(getMethod)
+                .WithSetMethod(setMethod)
+                .WithSymbol(propertySymbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
         }
-
-        var getMethod = (MethodDeclaration)BindDeclaration(methodContext, pd.GetMethod);
-
-        var setMethod = pd.SetMethod != null
-            ? (MethodDeclaration)BindDeclaration(methodContext, pd.SetMethod)
-            : null;
-
-        return pd
-            .WithPropertyType(propertyType)
-            .WithBackingField(backingField)
-            .WithGetMethod(getMethod)
-            .WithSetMethod(setMethod)
-            .WithSymbol(propertySymbol);
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -944,29 +1060,34 @@ public class StandardBinder : SemanticBinder
         StructDeclaration decl,
         StructSymbol? symbol)
     {
-        var typeParameters = BindList(context, decl.TypeParameters);
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var attributes = BindList(context, decl.Attributes);
+            var typeParameters = BindList(context, decl.TypeParameters);
 
-        // put symbol in scope for baseTypes and members
-        var typeContext = symbol != null
-            ? context
-                .WithScope(context.Scope.AddSymbolAndMembers(symbol))
-                .WithDeclaringType(symbol)
-            : context;
+            // put symbol in scope for baseTypes and members
+            var typeContext = symbol != null
+                ? context
+                    .WithScope(context.Scope.AddSymbolAndMembers(symbol))
+                    .WithDeclaringType(symbol)
+                : context;
 
-        var baseTypes = BindList(typeContext, decl.BaseTypes);
-        var declarations = BindList(typeContext, decl.Declarations);
+            var baseTypes = BindTypeExpressionList(typeContext, decl.BaseTypes, diagnostics);
+            var declarations = BindList(typeContext, decl.Declarations);
 
-        if (typeParameters == decl.TypeParameters
-            && baseTypes == decl.BaseTypes
-            && declarations == decl.Declarations
-            && symbol == decl.Symbol)
-            return decl;
-
-        return decl
-            .WithTypeParameters(typeParameters)
-            .WithBaseTypes(baseTypes)
-            .WithDeclarations(declarations)
-            .WithSymbol(symbol);
+            return decl
+                .WithAttributes(attributes)
+                .WithTypeParameters(typeParameters)
+                .WithBaseTypes(baseTypes)
+                .WithDeclarations(declarations)
+                .WithSymbol(symbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
     }
     #endregion
 
@@ -976,10 +1097,13 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     protected virtual TypeParameterDeclaration BindTypeParameter(
         BindingContext context,
-        TypeParameterDeclaration typeParameter,
+        TypeParameterDeclaration decl,
         TypeParameterSymbol? typeParameterSymbol)
     {
-        return typeParameter.WithSymbol(typeParameterSymbol);
+        var attributes = BindList(context, decl.Attributes);
+        return decl
+            .WithAttributes(attributes)
+            .WithSymbol(typeParameterSymbol);
     }
     #endregion
     
@@ -1010,23 +1134,6 @@ public class StandardBinder : SemanticBinder
     #endregion
 
     #region Expression Binding
-    private ImmutableDictionary<string, ImmutableList<OperatorSymbol>>? _kindToOperatorsMap;
-
-    protected virtual ImmutableList<OperatorSymbol> GetOperators(BindingContext context, string operatorKind)
-    {
-        if (_kindToOperatorsMap == null)
-        {
-            _kindToOperatorsMap = OperatorSymbols.From(context.Symbols).Default
-                .GroupBy(op => op.Kind)
-                .ToImmutableDictionary(g => g.Key, g => g.ToImmutableList());
-        }
-
-        if (_kindToOperatorsMap.TryGetValue(operatorKind, out var operators))
-            return operators;
-
-        return ImmutableList<OperatorSymbol>.Empty;
-    }
-
 
     /// <summary>
     /// Binds all unbound expressions
@@ -1046,6 +1153,9 @@ public class StandardBinder : SemanticBinder
 
             case AsTypeExpression asType:
                 return BindAsType(context, asType);
+
+            case AttributeExpression attr:
+                return BindAttribute(context, attr);
 
             case BlockExpression block:
                 return BindBlock(context, block);
@@ -1083,8 +1193,11 @@ public class StandardBinder : SemanticBinder
             case MemberExpression member:
                 return BindMember(context, member);
 
-            case NameExpression nameRef:
-                return BindNameReference(context, nameRef);
+            case NameExpression name:
+                return BindNameReference(context, name);
+
+            case NamedArgumentExpression narg:
+                return BindNamedArgument(context, narg);
 
             case NewArrayExpression newArrayInit:
                 return BindNewArray(context, newArrayInit);
@@ -1129,7 +1242,7 @@ public class StandardBinder : SemanticBinder
             expr.ReferencedSymbol is TypeSymbol
             || expr.ReferencedSymbol is GroupSymbol gs && gs.Members.Any(m => m is TypeSymbol);
 
-        if (!isType)
+        if (!isType && !expr.ContainsDiagnostics)
         {
             diagnostics.Add(SemanticDiagnostics.ExpressionIsNotType().WithLocation(type.Location));
         }
@@ -1368,6 +1481,123 @@ public class StandardBinder : SemanticBinder
     }
     #endregion
 
+    #region Attribute Expression
+
+    protected virtual AttributeExpression BindAttribute(BindingContext context, AttributeExpression attr)
+    {
+        var candidates = _symbolListPool.AllocateFromPool();
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var attrType = this.BindExpression(context, attr.Type);
+            var arguments = this.BindList(context, attr.Arguments);
+
+            var typeSymbol = attrType.ReferencedSymbol as TypeSymbol;
+            ConstructorSymbol? constructorSymbol = null;
+            AttributeInfo? info = null;
+
+            if (typeSymbol != null)
+            {
+                // look for constructors
+                GetAttributeConstructorCandidates(context, typeSymbol, candidates);
+
+                var constructorArgs = arguments.Where(a => IsAttributeConstructorArgument(context, typeSymbol, a)).ToImmutableList();
+                var memberArgs = arguments.Where(a => !IsAttributeConstructorArgument(context, typeSymbol, a)).ToImmutableList();
+
+                constructorSymbol = GetBestConstructor(context, constructorArgs, candidates, diagnostics, attr.Location);
+
+                if (constructorSymbol != null)
+                {
+                    constructorArgs = ConvertArguments(context, constructorSymbol.Parameters, constructorArgs);
+                    constructorArgs = AlignArguments(context, constructorSymbol.Parameters, constructorArgs, diagnostics);
+
+                    memberArgs = memberArgs
+                        .OfType<NamedArgumentExpression>()
+                        .Select(narg => (Expression)narg.WithNamedSymbol(GetAttributeInstanceMember(context, typeSymbol, narg)))
+                        .ToImmutableList();
+
+                    info = CreateAttributeInfo(constructorSymbol, constructorArgs, memberArgs);
+
+                    arguments = constructorArgs.AddRange(memberArgs);
+                }
+            }
+
+            return attr
+                .WithType(attrType)
+                .WithArguments(arguments)
+                .WithAttributeInfo(info)
+                .WithResultType(typeSymbol)
+                .WithDiagnostics(diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _symbolListPool.ReturnToPool(candidates);
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+
+    protected virtual void GetAttributeConstructorCandidates(
+        BindingContext context, TypeSymbol attributeType, List<Symbol> candidates)
+    {
+        attributeType.GetMembers(".ctor", m => m is ConstructorSymbol, candidates);
+    }
+
+    protected virtual bool IsAttributeConstructorArgument(BindingContext context, TypeSymbol attributeType, Expression arg)
+    {
+        return GetAttributeInstanceMember(context, attributeType, arg) == null;
+    }
+
+    protected virtual MemberSymbol? GetAttributeInstanceMember(BindingContext context, TypeSymbol attributeType, Expression arg)
+    {
+        if (arg is NamedArgumentExpression narg
+            && this.GetReferencedInstanceMemberOrGroup(context, attributeType, narg.Name) is Symbol memberOrGroup
+            && ((memberOrGroup is FieldSymbol fs && !fs.IsReadOnly)
+                || (memberOrGroup is PropertySymbol prop && prop.SetMethod != null)))
+        {
+            return memberOrGroup as MemberSymbol;
+        }
+
+        return null;
+    }
+
+    protected virtual AttributeInfo CreateAttributeInfo(
+        ConstructorSymbol constructor, 
+        ImmutableList<Expression> constructorArguments,
+        ImmutableList<Expression> memberArguments)
+    {
+        object? GetValue(Expression expression)
+        {
+            if (expression is ConstantExpression cons)
+            {
+                return cons.Value;
+            }
+            else if (expression is ConvertExpression conv)
+            {
+                return GetValue(conv.Expression);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        var arguments =
+            constructorArguments.Select((a, i) =>
+                a is NamedArgumentExpression n && n.NamedSymbol is ParameterSymbol p
+                    ? new AttributeArgument(p, GetValue(n.Expression))
+                    : new AttributeArgument(constructor.Parameters[i], GetValue(a))
+                    ).ToImmutableList();
+
+        var members = memberArguments
+            .OfType<NamedArgumentExpression>()
+            .Select(n => new AttributeMember((MemberSymbol)n.NamedSymbol!, GetValue(n.Expression)))
+            .ToImmutableList();
+
+        return new AttributeInfo(constructor, arguments, members);
+    }
+
+    #endregion
+
     #region Block Expression
     /// <summary>
     /// Binds a <see cref="BlockExpression"/>
@@ -1569,6 +1799,7 @@ public class StandardBinder : SemanticBinder
                     else
                     {
                         arguments = ConvertArguments(context, parameters, arguments);
+                        arguments = AlignArguments(context, parameters, arguments, diagnostics);
                     }
                 }
             }
@@ -1655,7 +1886,8 @@ public class StandardBinder : SemanticBinder
     /// <summary>
     /// Gets the best called symbol from a set of symbols relative to the supplied arguments.
     /// </summary>
-    protected virtual Symbol? GetBestCalledSymbol(BindingContext context, ImmutableList<Expression> arguments, List<Symbol> candidates)
+    protected virtual Symbol? GetBestCalledSymbol(
+        BindingContext context, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
         // todo: be better
         return candidates.FirstOrDefault(c => MatchesParameters(context, c, arguments));
@@ -1664,8 +1896,8 @@ public class StandardBinder : SemanticBinder
     /// <summary>
     /// Get the parameter symbols for the symbol.
     /// </summary>
-    protected virtual ImmutableList<ParameterSymbol> GetSymbolParameters(Symbol symbol) =>
-        symbol switch
+    protected virtual ImmutableList<ParameterSymbol> GetSymbolParameters(Symbol symbolWithParameters) =>
+        symbolWithParameters switch
         {
             DelegateSymbol function => function.Parameters,
             MethodSymbol method => method.Parameters,
@@ -1673,13 +1905,14 @@ public class StandardBinder : SemanticBinder
             _ => ImmutableList<ParameterSymbol>.Empty
         };
 
+
     /// <summary>
     /// Returns true if the callable symbol has parameters that are compatible with the arguments
     /// </summary>
     protected virtual bool MatchesParameters(
         BindingContext context,
         Symbol callableSymbol,
-        ImmutableList<Expression> arguments) =>
+        IReadOnlyList<Expression> arguments) =>
         MatchesParameters(context, GetSymbolParameters(callableSymbol), arguments);
 
     /// <summary>
@@ -1687,20 +1920,61 @@ public class StandardBinder : SemanticBinder
     /// </summary>
     protected virtual bool MatchesParameters(
         BindingContext context,
-        ImmutableList<ParameterSymbol> parameters,
-        ImmutableList<Expression> arguments)
+        IReadOnlyList<ParameterSymbol> parameters,
+        IReadOnlyList<Expression> arguments)
     {
         if (parameters.Count != arguments.Count)
             return false;
 
-        for (int i = 0; i < parameters.Count; i++)
+        for (int i = 0; i < arguments.Count; i++)
         {
-            var conversion = GetConversion(context, arguments[i].ResultType, parameters[i].Type);
+            var argument = arguments[i];
+
+            var parameter = GetCorrespondingParameter(parameters, argument, i);
+            if (parameter == null)
+                return false;
+
+            var conversion = GetConversion(context, argument.ResultType, parameter.Type);
             if (conversion == ConversionKind.None)
                 return false;
         }
 
         return true;
+    }
+
+    protected virtual ParameterSymbol? GetCorrespondingParameter(
+        IReadOnlyList<ParameterSymbol> parameters, 
+        Expression argument, 
+        int argumentIndex)
+    {
+        if (argument is NamedArgumentExpression namedArg)
+        {
+            var parameter = parameters.FirstOrDefault(p => p.Name == namedArg.Name);
+            if (parameter != null)
+                return parameter;
+        }
+
+        if (argumentIndex < parameters.Count)
+            return parameters[argumentIndex];
+
+        return null;
+    }
+
+    protected virtual int GetCorrespondingParameterIndex(
+        ImmutableList<ParameterSymbol> parameters, 
+        Expression argument, 
+        int argumentIndex)
+    {
+        if (argument is NamedArgumentExpression namedArg)
+        {
+            var parameter = parameters.FirstOrDefault(p => p.Name == namedArg.Name);
+            if (parameter != null)
+            {
+                return parameters.IndexOf(parameter);
+            }
+        }
+
+        return argumentIndex;
     }
 
     /// <summary>
@@ -1711,16 +1985,79 @@ public class StandardBinder : SemanticBinder
         ImmutableList<ParameterSymbol> parameters,
         ImmutableList<Expression> arguments)
     {
-        for (int i = 0; i < parameters.Count; i++)
+        for (int argIndex = 0; argIndex < arguments.Count; argIndex++)
         {
-            var parameter = parameters[i];
-            var argument = arguments[i];
-            var convertedArg = ConvertTo(context, argument, parameter.Type);
-            arguments = arguments.SetItem(i, convertedArg);
+            var argument = arguments[argIndex];
+            var parameter = GetCorrespondingParameter(parameters, argument, argIndex);
+            if (parameter != null)
+            {
+                var convertedArg = ConvertTo(context, argument, parameter.Type);
+                arguments = arguments.SetItem(argIndex, convertedArg);
+            }
         }
 
         return arguments;
     }
+
+    /// <summary>
+    /// Puts arguments in parameter order.
+    /// </summary>
+    protected virtual ImmutableList<Expression> AlignArguments(
+        BindingContext context,
+        ImmutableList<ParameterSymbol> parameters,
+        ImmutableList<Expression> arguments,
+        List<Diagnostic> diagnostics)
+    {
+        bool IsInOrder(Expression arg)
+        {
+            var argIndex = arguments.IndexOf(arg);
+            var paramIndex = GetCorrespondingParameterIndex(parameters, arg, argIndex);
+            return argIndex == paramIndex;
+        }
+
+        if (arguments.All(IsInOrder))
+            return arguments;
+
+        var newArguments = new Expression[parameters.Count];
+        var originalDxCount = diagnostics.Count;
+
+        for (int i = 0; i < arguments.Count; i++)
+        {
+            var argument = arguments[i];
+            var parameter = GetCorrespondingParameter(parameters, argument, i);
+            if (parameter != null)
+            {
+                var index = parameters.IndexOf(parameter);
+                if (newArguments[index] == null)
+                {
+                    newArguments[index] = argument;
+                }
+                else
+                {
+                    // parameter already assigned
+                    diagnostics.Add(SemanticDiagnostics.AmbiguousArgument(parameter.Name).WithLocation(argument.Location));
+                }
+            }
+            else if (argument is NamedArgumentExpression narg)
+            {
+                diagnostics.Add(SemanticDiagnostics.NoMatchingParameterName(narg.Name).WithLocation(narg.Location));
+            }
+            else
+            {
+                diagnostics.Add(SemanticDiagnostics.NoCorrespondingParameter().WithLocation(argument.Location));
+            }
+        }
+
+        if (diagnostics.Count > originalDxCount)
+        {
+            return arguments;
+        }
+        else
+        {
+            return newArguments.ToImmutableList();
+        }
+    }
+
     #endregion
 
     #region Condition Expression
@@ -2325,6 +2662,7 @@ public class StandardBinder : SemanticBinder
                         else
                         {
                             arguments = ConvertArguments(context, parameters, arguments);
+                            arguments = AlignArguments(context, parameters, arguments, diagnostics);
                         }
                     }
                 }
@@ -2695,6 +3033,7 @@ public class StandardBinder : SemanticBinder
                     else
                     {
                         arguments = ConvertArguments(context, parameters, arguments);
+                        arguments = AlignArguments(context, parameters, arguments, diagnostics);
                     }
                 }
             }
@@ -2776,6 +3115,23 @@ public class StandardBinder : SemanticBinder
         };
     }
 
+    private ImmutableDictionary<string, ImmutableList<OperatorSymbol>>? _kindToOperatorsMap;
+
+    protected virtual ImmutableList<OperatorSymbol> GetOperators(BindingContext context, string operatorKind)
+    {
+        if (_kindToOperatorsMap == null)
+        {
+            _kindToOperatorsMap = OperatorSymbols.From(context.Symbols).Default
+                .GroupBy(op => op.Kind)
+                .ToImmutableDictionary(g => g.Key, g => g.ToImmutableList());
+        }
+
+        if (_kindToOperatorsMap.TryGetValue(operatorKind, out var operators))
+            return operators;
+
+        return ImmutableList<OperatorSymbol>.Empty;
+    }
+
     #endregion
 
     #region Member Expression
@@ -2788,12 +3144,7 @@ public class StandardBinder : SemanticBinder
         try
         {
             var expression = BindExpression(context.WithTargetType(null), member.Instance);
-
-            if (expression.ResultType is GroupSymbol)
-                diagnostics.Add(SemanticDiagnostics.UnknownName(member.Name).WithLocation(member.Location));
-
-            var referencedSymbol = GetReferencedMember(context, expression, member.Name, diagnostics);
-
+            var referencedSymbol = GetReferencedMember(context, expression, member.Name, diagnostics, member.Location);
             var resultType = GetReferenceResultType(context, referencedSymbol);
 
             if (member.Instance == expression
@@ -2808,7 +3159,8 @@ public class StandardBinder : SemanticBinder
                 member.Location,
                 referencedSymbol,
                 resultType,
-                diagnostics.ToImmutableList());
+                diagnostics.ToImmutableList()
+                );
         }
         finally
         {
@@ -2820,45 +3172,124 @@ public class StandardBinder : SemanticBinder
         BindingContext context,
         Expression expression,
         string name,
-        List<Diagnostic>? diagnositcs)
+        List<Diagnostic>? diagnostics = null,
+        ISourceLocation? location = null)
+    {
+        if (expression.ReferencedSymbol is TypeSymbol type)
+        {
+            return this.GetReferencedStaticMemberOrGroup(context, type, name, diagnostics, location);
+        }
+        else if (expression.ReferencedSymbol is ContainerSymbol container)
+        {
+            return this.GetReferencedContainerMemberOrGroup(context, container, name, diagnostics, location);
+        }
+        else
+        {
+            return this.GetReferencedInstanceMemberOrGroup(context, expression.ResultType, name, diagnostics, location);
+        }
+    }
+
+    protected virtual Symbol? GetReferencedStaticMemberOrGroup(
+        BindingContext context, TypeSymbol type, string name, List<Diagnostic>? diagnostics, ISourceLocation? location = null)
     {
         var members = _symbolListPool.AllocateFromPool();
         try
         {
-            if (expression.ReferencedSymbol is TypeSymbol type)
+            // expression was type expression, match static members of that type
+            this.GetMatchingTypeMembers(
+                type,
+                name,
+                s => s is MemberSymbol m && m.IsStatic,
+                members
+                );
+
+            if (members.Count == 0)
             {
-                // expression was type expression, match static members of that type
-                GetMatchingTypeMembers(
-                    type,
-                    name,
-                    s => s is MemberSymbol m && m.IsStatic,
-                    members);
-            }
-            else if (expression.ReferencedSymbol is ContainerSymbol container)
-            {
-                // expression was namespace (or other non-type container)
-                container.GetMembers(
-                    name,
-                    s => s is MemberSymbol m,
-                    members);
+                if (diagnostics != null)
+                {
+                    diagnostics.Add(SemanticDiagnostics.NoMatchingStaticMember(type.FullName, name).WithLocation(location));
+                }
+
+                return null;
             }
             else
             {
-                // expression was an instance, match non-static members
-                GetMatchingTypeMembers(
-                    expression.ResultType,
-                    name,
-                    s => s is MemberSymbol m && !m.IsStatic,
-                    members);
+                return context.Symbols.GetGroup(members);
             }
-
-            return context.Symbols.GetGroup(members);
         }
         finally
         {
             _symbolListPool.ReturnToPool(members);
         }
     }
+
+    protected virtual Symbol? GetReferencedContainerMemberOrGroup(
+        BindingContext context, ContainerSymbol container, string name, List<Diagnostic>? diagnostics = null, ISourceLocation? location = null)
+    {
+        var members = _symbolListPool.AllocateFromPool();
+        try
+        {
+            // expression was type expression, match static members of that type
+            // expression was namespace (or other non-type container)
+            container.GetMembers(
+                name,
+                s => s is MemberSymbol m,
+                members
+                );
+
+            if (members.Count == 0)
+            {
+                if (diagnostics != null)
+                {
+                    diagnostics.Add(SemanticDiagnostics.NoMatchingMember(container.FullName, name).WithLocation(location));
+                }
+
+                return null;
+            }
+            else
+            {
+                return context.Symbols.GetGroup(members);
+            }
+        }
+        finally
+        {
+            _symbolListPool.ReturnToPool(members);
+        }
+    }
+
+    protected virtual Symbol? GetReferencedInstanceMemberOrGroup(BindingContext context, TypeSymbol type, string name, List<Diagnostic>? diagnostics = null, ISourceLocation? location = null)
+    {
+        var members = _symbolListPool.AllocateFromPool();
+        try
+        {
+            // expression was an instance, match non-static members
+            this.GetMatchingTypeMembers(
+                type,
+                name,
+                s => s is MemberSymbol m && !m.IsStatic,
+                members
+                );
+
+            if (members.Count == 0)
+            {
+                if (diagnostics != null)
+                {
+                    diagnostics.Add(SemanticDiagnostics.NoMatchingInstanceMember(type.FullName, name).WithLocation(location));
+                }
+
+                return null;
+            }
+            else
+            {
+                return context.Symbols.GetGroup(members);
+            }
+        }
+        finally
+        {
+            _symbolListPool.ReturnToPool(members);
+        }
+    }
+
     #endregion
 
     #region NameReference Expression
@@ -2909,6 +3340,18 @@ public class StandardBinder : SemanticBinder
             _symbolListPool.ReturnToPool(symbols);
         }
     }
+    #endregion
+
+    #region NamedArgument Expression
+
+    protected virtual Expression BindNamedArgument(BindingContext context, NamedArgumentExpression narg)
+    {
+        var expr = this.BindExpression(context, narg.Expression);
+        return narg
+            .WithExpression(expr)
+            .WithResultType(expr.ResultType);
+    }
+
     #endregion
 
     #region NewArray Expression
@@ -2980,31 +3423,26 @@ public class StandardBinder : SemanticBinder
             var arguments = BindList(argContext, nex.Arguments);
             var referencedType = (type?.ReferencedSymbol ?? context.TargetType) as TypeSymbol;
 
-            if (referencedType != null)
-                GetConstructorCandidates(context, referencedType, arguments, candidates);
-
             var location = nex.Location;
             ConstructorSymbol? constructorSymbol = null;
 
-            if (candidates.Count == 0)
+            if (referencedType != null)
             {
-                diagnostics.Add(SemanticDiagnostics.NoConstructorFound().WithLocation(location));
+                GetConstructorCandidates(context, referencedType, candidates);
+                constructorSymbol = GetBestConstructor(context, arguments, candidates, diagnostics, nex.Location);
             }
-            else
-            {
-                constructorSymbol = GetBestConstructor(candidates);
 
-                if (constructorSymbol == null)
-                {
-                    diagnostics.Add(SemanticDiagnostics.ConstructorsAreAmbiguous().WithLocation(location));
-                }
-                else if (constructorSymbol.Parameters.Count != arguments.Count)
+
+            if (constructorSymbol != null)
+            {
+                if (constructorSymbol.Parameters.Count != arguments.Count)
                 {
                     diagnostics.Add(SemanticDiagnostics.IncorrectNumberOfArguments().WithLocation(location));
                 }
                 else
                 {
                     arguments = ConvertArguments(context, constructorSymbol.Parameters, arguments);
+                    arguments = AlignArguments(context, constructorSymbol.Parameters, arguments, diagnostics);
                 }
             }
 
@@ -3038,19 +3476,38 @@ public class StandardBinder : SemanticBinder
     protected virtual void GetConstructorCandidates(
         BindingContext context,
         TypeSymbol type,
-        ImmutableList<Expression> arguments,
         List<Symbol> candidates)
+    {
+        type.GetMembers(".ctor", m => m is ConstructorSymbol, candidates);
+    }
+
+    protected virtual ConstructorSymbol? GetBestConstructor(
+        BindingContext context,
+        IReadOnlyList<Expression> arguments,
+        IReadOnlyList<Symbol> candidates,
+        List<Diagnostic> diagnostics,
+        ISourceLocation? location)
     {
         var symbols = _symbolListPool.AllocateFromPool();
         try
         {
-            type.GetMembers(".ctor", symbols);
-
-            candidates.AddRange(
-                symbols
+            symbols.AddRange(
+                candidates
                 .OfType<ConstructorSymbol>()
-                .Where(c => !c.IsStatic && MatchesParameters(context, c, arguments))
+                .Where(c => MatchesParameters(context, c, arguments))
                 );
+
+            switch (symbols.Count)
+            {
+                case 0:
+                    diagnostics.Add(SemanticDiagnostics.NoConstructorFound().WithLocation(location));
+                    return null;
+                case 1:
+                    return (ConstructorSymbol)symbols[0];
+                default:
+                    diagnostics.Add(SemanticDiagnostics.ConstructorsAreAmbiguous().WithLocation(location));
+                    return null;
+            }
         }
         finally
         {
@@ -3058,11 +3515,6 @@ public class StandardBinder : SemanticBinder
         }
     }
 
-    protected virtual ConstructorSymbol? GetBestConstructor(List<Symbol> candidates)
-    {
-        // TODO: get good
-        return candidates.OfType<ConstructorSymbol>().FirstOrDefault();
-    }
     #endregion
 
     #region SymbolReference Expression
@@ -3251,7 +3703,7 @@ public class StandardBinder : SemanticBinder
     }
     #endregion
 
-    #endregion
+#endregion
 
     #region Misc
     /// <summary>
@@ -3767,6 +4219,9 @@ public class StandardBinder : SemanticBinder
 
     private readonly ObjectPool<List<BranchExpression>> _branchListPool =
         new ObjectPool<List<BranchExpression>>(() => new List<BranchExpression>(), list => list.Clear());
+
+    private readonly ObjectPool<List<Expression>> _expressionListPool =
+        new ObjectPool<List<Expression>>(() => new List<Expression>(), list => list.Clear());
 
     private readonly ObjectPool<List<Diagnostic>> _diagnosticListPool =
         new ObjectPool<List<Diagnostic>>(() => new List<Diagnostic>(), list => list.Clear());

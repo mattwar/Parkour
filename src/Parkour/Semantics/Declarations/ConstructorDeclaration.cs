@@ -14,6 +14,7 @@ public class ConstructorDeclaration : MemberDeclaration
     private ConstructorDeclaration(
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         ImmutableList<ParameterDeclaration> parameters,
         Expression body,
         ISourceLocation? location,
@@ -27,6 +28,7 @@ public class ConstructorDeclaration : MemberDeclaration
             modifiers.Contains(SymbolModifier.Static) ? ".cctor" : ".ctor",
             access,
             modifiers,
+            attributes,
             location,
             diagnostics)
     {
@@ -43,6 +45,7 @@ public class ConstructorDeclaration : MemberDeclaration
         : this(
               SymbolAccess.Public, 
               SymbolModifier.None, 
+              ImmutableList<AttributeExpression>.Empty,
               parameters, 
               body, 
               location, 
@@ -60,6 +63,7 @@ public class ConstructorDeclaration : MemberDeclaration
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.Parameters,
             this.Body,
             location,
@@ -73,6 +77,7 @@ public class ConstructorDeclaration : MemberDeclaration
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.Parameters,
             this.Body,
             this.Location,
@@ -86,6 +91,7 @@ public class ConstructorDeclaration : MemberDeclaration
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.Parameters,
             this.Body,
             this.Location,
@@ -99,6 +105,7 @@ public class ConstructorDeclaration : MemberDeclaration
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.Parameters,
             this.Body,
             this.Location,
@@ -112,6 +119,7 @@ public class ConstructorDeclaration : MemberDeclaration
         new ConstructorDeclaration(
             access,
             this.Modifiers,
+            this.Attributes,
             this.Parameters,
             this.Body,
             this.Location,
@@ -125,6 +133,21 @@ public class ConstructorDeclaration : MemberDeclaration
         new ConstructorDeclaration(
             this.Access,
             modifiers,
+            this.Attributes,
+            this.Parameters,
+            this.Body,
+            this.Location,
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
+
+    public override ConstructorDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new ConstructorDeclaration(
+            this.Access,
+            this.Modifiers,
+            attributes,
             this.Parameters,
             this.Body,
             this.Location,
@@ -138,6 +161,7 @@ public class ConstructorDeclaration : MemberDeclaration
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
+            this.Attributes,
             parameters,
             this.Body,
             this.Location,
@@ -151,6 +175,7 @@ public class ConstructorDeclaration : MemberDeclaration
         new ConstructorDeclaration(
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.Parameters,
             body,
             this.Location,
@@ -160,18 +185,25 @@ public class ConstructorDeclaration : MemberDeclaration
             );
 
     public override int ChildCount =>
-        this.Parameters.Count + 1;
+        base.ChildCount + this.Parameters.Count + 1;
 
-    public override SemanticElement? GetChild(int index) =>
-        index < this.Parameters.Count
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index < base.ChildCount)
+            return base.GetChild(index);
+        index -= base.ChildCount;
+        return index < this.Parameters.Count
             ? this.Parameters[index]
             : this.Body;
+    }
 
     public override ConstructorDeclaration RewriteChildren(SemanticRewriter rewriter)
     {
+        var attributes = rewriter.Rewrite(this.Attributes);
         var parameters = rewriter.Rewrite(this.Parameters);
         var body = rewriter.Rewrite(this.Body);
         return this
+            .WithAttributes(attributes)
             .WithParameters(parameters)
             .WithBody(body!);
     }

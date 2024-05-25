@@ -9,6 +9,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration>? declarations,
@@ -20,6 +21,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
         name,
         access,
         modifiers,
+        attributes,
         typeParameters,
         baseTypes,
         declarations,
@@ -38,6 +40,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
               name, 
               SymbolAccess.Public, 
               SymbolModifier.None, 
+              ImmutableList<AttributeExpression>.Empty,
               ImmutableList<TypeParameterDeclaration>.Empty, 
               baseTypes, 
               declarations, 
@@ -53,6 +56,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -67,6 +71,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -81,6 +86,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -95,6 +101,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -109,6 +116,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Name,
             access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -123,6 +131,22 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             modifiers,
+            this.Attributes,
+            this.TypeParameters,
+            this.BaseTypes,
+            this.Declarations,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public override InterfaceDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new InterfaceDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -137,6 +161,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             typeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -151,6 +176,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             baseTypes,
             this.Declarations,
@@ -165,6 +191,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             declarations,
@@ -175,10 +202,12 @@ public sealed class InterfaceDeclaration : TypeDeclaration
 
     public override InterfaceDeclaration RewriteChildren(SemanticRewriter rewriter)
     {
+        var attributes = rewriter.Rewrite(this.Attributes);
         var typeParams = rewriter.Rewrite(this.TypeParameters);
         var baseTypes = rewriter.Rewrite(this.BaseTypes);
         var declarations = rewriter.Rewrite(this.Declarations);
         return this
+            .WithAttributes(attributes)
             .WithTypeParameters(typeParams)
             .WithBaseTypes(baseTypes)
             .WithDeclarations(declarations);

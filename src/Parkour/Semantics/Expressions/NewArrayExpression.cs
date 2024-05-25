@@ -7,6 +7,9 @@ using Symbols;
 /// </summary>
 public class NewArrayExpression : Expression
 {
+    protected internal override string DebugText =>
+        $"{nameof(NewArrayExpression)}: {(ElementType != null ? ElementType.DebugText : "???")}";
+
     public Expression? ElementType { get; }
     public ImmutableList<Expression> Sizes { get; }
     public ImmutableList<Expression> Values { get; }

@@ -4,6 +4,7 @@ using Symbols;
 public sealed class ParameterDeclaration : Declaration
 {
     public BitSet<SymbolModifier> Modifiers { get; }
+    public ImmutableList<AttributeExpression> Attributes { get; }
     public Expression? ParameterType { get; }
 
     public override ParameterSymbol? Symbol { get; }
@@ -11,6 +12,7 @@ public sealed class ParameterDeclaration : Declaration
     private ParameterDeclaration(
         string name, 
         BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         Expression? parameterType,
         ISourceLocation? location,
         ParameterSymbol? symbol,
@@ -23,6 +25,7 @@ public sealed class ParameterDeclaration : Declaration
             diagnostics)
     {
         this.Modifiers = modifiers;
+        this.Attributes = attributes;
         this.ParameterType = parameterType;
         this.Symbol = symbol;
     }
@@ -32,8 +35,9 @@ public sealed class ParameterDeclaration : Declaration
         Expression? parameterType,
         ISourceLocation? location)
         : this(
-              name, 
-              SymbolModifier.None, 
+              name,
+              SymbolModifier.None,
+              ImmutableList<AttributeExpression>.Empty,
               parameterType, 
               location, 
               null, 
@@ -46,6 +50,7 @@ public sealed class ParameterDeclaration : Declaration
         new ParameterDeclaration(
             name,
             this.Modifiers,
+            this.Attributes,
             this.ParameterType,
             this.Location,
             this.Symbol,
@@ -57,6 +62,7 @@ public sealed class ParameterDeclaration : Declaration
         new ParameterDeclaration(
             this.Name,
             this.Modifiers,
+            this.Attributes,
             this.ParameterType,
             location,
             this.Symbol,
@@ -68,6 +74,7 @@ public sealed class ParameterDeclaration : Declaration
         new ParameterDeclaration(
             this.Name,
             this.Modifiers,
+            this.Attributes,
             this.ParameterType,
             this.Location,
             this.Symbol,
@@ -79,6 +86,19 @@ public sealed class ParameterDeclaration : Declaration
         new ParameterDeclaration(
             this.Name,
             modifiers,
+            this.Attributes,
+            this.ParameterType,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public ParameterDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new ParameterDeclaration(
+            this.Name,
+            this.Modifiers,
+            attributes,
             this.ParameterType,
             this.Location,
             this.Symbol,
@@ -90,6 +110,7 @@ public sealed class ParameterDeclaration : Declaration
         new ParameterDeclaration(
             this.Name,
             this.Modifiers,
+            this.Attributes,
             parameterType,
             this.Location,
             this.Symbol,
@@ -101,16 +122,25 @@ public sealed class ParameterDeclaration : Declaration
         new ParameterDeclaration(
             this.Name,
             this.Modifiers,
+            this.Attributes,
             this.ParameterType,
             this.Location,
             symbol,
             this.Diagnostics
             );
 
-    public override int ChildCount => 1;
+    public override int ChildCount => 
+        this.Attributes.Count + 1;
 
-    public override SemanticElement? GetChild(int index) =>
-        this.ParameterType;
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index < this.Attributes.Count)
+            return this.Attributes[index];
+        index -= this.Attributes.Count;
+        return index == 0
+            ? this.ParameterType
+            : null;
+    }
 
     public override ParameterDeclaration RewriteChildren(SemanticRewriter rewriter)
     {

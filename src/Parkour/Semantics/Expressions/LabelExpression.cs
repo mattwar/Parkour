@@ -6,6 +6,9 @@ using Symbols;
 /// </summary>
 public class LabelExpression : Expression
 {
+    protected internal override string DebugText =>
+        $"{nameof(LabelExpression)}: {Name} [{(ReceivingType != null ? ReceivingType.DebugText : "void")}]";
+
     public string Name { get; }
 
     /// <summary>

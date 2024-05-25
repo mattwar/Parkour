@@ -13,6 +13,7 @@ public sealed class FieldDeclaration : MemberDeclaration
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         Expression? fieldType,
         Expression? initializer,
         ISourceLocation? location,
@@ -24,6 +25,7 @@ public sealed class FieldDeclaration : MemberDeclaration
           name,
           access,
           modifiers,
+          attributes,
           location,
           diagnostics)
     {
@@ -41,6 +43,7 @@ public sealed class FieldDeclaration : MemberDeclaration
               name, 
               SymbolAccess.Public, 
               SymbolModifier.None, 
+              ImmutableList<AttributeExpression>.Empty,
               fieldType, 
               initializer, 
               location, 
@@ -55,6 +58,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.FieldType,
             this.Initializer,
             this.Location,
@@ -68,6 +72,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.FieldType,
             this.Initializer,
             location,
@@ -81,6 +86,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.FieldType,
             this.Initializer,
             this.Location,
@@ -94,6 +100,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.FieldType,
             this.Initializer,
             this.Location,
@@ -107,6 +114,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Name,
             access,
             this.Modifiers,
+            this.Attributes,
             this.FieldType,
             this.Initializer,
             this.Location,
@@ -120,6 +128,21 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             modifiers,
+            this.Attributes,
+            this.FieldType,
+            this.Initializer,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public override FieldDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new FieldDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            attributes,
             this.FieldType,
             this.Initializer,
             this.Location,
@@ -133,6 +156,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             fieldType,
             this.Initializer,
             this.Location,
@@ -146,6 +170,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.FieldType,
             initializer,
             this.Location,
@@ -153,21 +178,29 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override int ChildCount => 2;
+    public override int ChildCount => 
+        base.ChildCount + 2;
 
-    public override SemanticElement? GetChild(int index) =>
-        index switch
+    public override SemanticElement? GetChild(int index)
+    {
+        if (index < base.ChildCount)
+            return base.GetChild(index);
+        index -= base.ChildCount;
+        return index switch
         {
             0 => this.FieldType,
             1 => this.Initializer,
             _ => null
         };
+    }
 
     public override FieldDeclaration RewriteChildren(SemanticRewriter rewriter)
     {
+        var attributes = rewriter.Rewrite(this.Attributes);
         var type = rewriter.Rewrite(this.FieldType);
         var initializer = rewriter.Rewrite(this.Initializer);
         return this
+            .WithAttributes(attributes)
             .WithFieldType(type!)
             .WithInitializer(initializer);
     }

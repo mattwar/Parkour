@@ -24,8 +24,24 @@ public static class SemanticFactory
     /// <summary>
     /// Assign a source value to a target location.
     /// </summary>
-    public static AssignExpression Assign(Expression target, Expression expression, ISourceLocation? location = null) =>
-        new AssignExpression(target, expression, location, null, null);
+    public static AssignExpression Assign(Expression target, Expression source, ISourceLocation? location = null) =>
+        new AssignExpression(target, source, location, null, null);
+
+    /// <summary>
+    /// Declares a custom attribute.
+    /// </summary>
+    public static AttributeExpression Attribute(
+        Expression attributeType,
+        ImmutableList<Expression> arguments,
+        ISourceLocation? location = null)
+        =>
+        new AttributeExpression(attributeType, arguments, location);
+
+    public static AttributeExpression Attribute(
+        Expression attributeType,
+        ISourceLocation? location = null)
+        =>
+        Attribute(attributeType, ImmutableList<Expression>.Empty, location);
 
     /// <summary>
     /// Defines a block expression of multiple expressions. The final expression determines the block expression's result.
@@ -257,6 +273,12 @@ public static class SemanticFactory
     /// </summary>
     public static NameExpression Name(string name, ISourceLocation? location = null) =>
         new NameExpression(name, location, null, null, null);
+
+    /// <summary>
+    /// Gives a name to an argument to associate it with a parameter.
+    /// </summary>
+    public static NamedArgumentExpression NamedArgument(string name, Expression expression, ISourceLocation? location = null) =>
+        new NamedArgumentExpression(name, expression, location);
 
     /// <summary>
     /// Creates an new instance of the specfied type.
@@ -538,6 +560,11 @@ public static class SemanticFactory
         =>
         Class(name, ImmutableList<Expression>.Empty, declarations, location);
 
+    public static ClassDeclaration Class(
+        string name,
+        ISourceLocation? location = null)
+        =>
+        Class(name, ImmutableList<Declaration>.Empty, location);
 
     public static ConstructorDeclaration Constructor(
         ImmutableList<ParameterDeclaration> parameters, 
@@ -639,6 +666,10 @@ public static class SemanticFactory
         =>
         new NamespaceDeclaration(name, declarations, location);
 
+    public static NamespaceDeclaration Namespace(
+        params Declaration[] declarations)
+        =>
+        Namespace("", [..declarations]);
 
     public static ParameterDeclaration Parameter(
         string name, 

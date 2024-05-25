@@ -13,6 +13,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
         string name,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
+        ImmutableList<AttributeExpression> attributes,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
         ImmutableList<Declaration> declarations,
@@ -26,6 +27,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
         name,
         access,
         modifiers,
+        attributes,
         typeParameters,
         baseTypes,
         declarations,
@@ -46,6 +48,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
               name,
               SymbolAccess.Public,
               SymbolModifier.None,
+              ImmutableList<AttributeExpression>.Empty,
               ImmutableList<TypeParameterDeclaration>.Empty,
               [SemanticFactory.Symbol("System.Delegate")],
               [],
@@ -64,6 +67,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -80,6 +84,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -96,6 +101,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -112,6 +118,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -128,6 +135,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -144,6 +152,24 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             modifiers,
+            this.Attributes,
+            this.TypeParameters,
+            this.BaseTypes,
+            this.Declarations,
+            this.Parameters,
+            this.ReturnType,
+            this.Location,
+            this.Symbol,
+            this.Diagnostics
+            );
+
+    public override DelegateDeclaration WithAttributes(ImmutableList<AttributeExpression> attributes) =>
+        attributes == this.Attributes ? this :
+        new DelegateDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -160,6 +186,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             typeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -176,6 +203,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             baseTypes,
             this.Declarations,
@@ -192,6 +220,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             declarations,
@@ -208,6 +237,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -224,6 +254,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Name,
             this.Access,
             this.Modifiers,
+            this.Attributes,
             this.TypeParameters,
             this.BaseTypes,
             this.Declarations,
@@ -250,12 +281,14 @@ public sealed class DelegateDeclaration : TypeDeclaration
 
     public override DelegateDeclaration RewriteChildren(SemanticRewriter rewriter)
     {
+        var attributes = rewriter.Rewrite(this.Attributes);
         var baseTypes = rewriter.Rewrite(this.BaseTypes);
         var typeParameters = rewriter.Rewrite(this.TypeParameters);
         var parameters = rewriter.Rewrite(this.Parameters);
         var returnType = rewriter.Rewrite(this.ReturnType);
         var declarations = rewriter.Rewrite(this.Declarations);
         return this
+            .WithAttributes(attributes)
             .WithBaseTypes(baseTypes)
             .WithTypeParameters(typeParameters)
             .WithParameters(parameters)

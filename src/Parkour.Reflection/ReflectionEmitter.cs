@@ -83,6 +83,27 @@ public class ReflectionEmitter : StandardEmitter
         return new EmitResult(_diagnostics.ToImmutableList());
     }
 
+    private CustomAttributeBuilder GetCustomAttribute(AttributeInfo info)
+    {
+        var constructor = GetRuntimeInfo<ConstructorInfo>(info.Constructor);
+        var argValues = info.Arguments.Select(a => a.Value).ToArray();
+        var props = info.Members.Where(m => m.Member is PropertySymbol);
+        var propInfos = props.Select(p => GetRuntimeInfo<PropertyInfo>(p.Member)).ToArray();
+        var propValues = props.Select(p => p.Value).ToArray();
+        var fields = info.Members.Where(m => m.Member is FieldSymbol);
+        var fieldInfos = fields.Select(f => GetRuntimeInfo<FieldInfo>(f.Member)).ToArray();
+        var fieldValues = fields.Select(f => f.Value).ToArray();
+
+        return new CustomAttributeBuilder(
+            constructor,
+            argValues,
+            propInfos,
+            propValues,
+            fieldInfos,
+            fieldValues
+            );
+    }
+
     protected override void DeclareType(TypeSymbol typeSymbol)
     {
         var name = typeSymbol.FullName;
@@ -141,6 +162,16 @@ public class ReflectionEmitter : StandardEmitter
                 typeBuilder.SetParent(typeof(ValueType));
             }
 
+            // declare attributes if any
+            if (typeSymbol.Attributes.Count > 0)
+            {
+                foreach (var attr in typeSymbol.Attributes)
+                {
+                    var customAttr = GetCustomAttribute(attr);
+                    typeBuilder.SetCustomAttribute(customAttr);
+                }
+            }
+
             // TODO: declare interfaces too?
         }
         else
@@ -184,6 +215,7 @@ public class ReflectionEmitter : StandardEmitter
                 fieldSymbol.Name,
                 fieldType,
                 fieldAttrs);
+
             _symbolToBuilder.Add(fieldSymbol, fieldBuilder);
         }
         else
@@ -269,7 +301,7 @@ public class ReflectionEmitter : StandardEmitter
         }
         else
         {
-            _diagnostics.Add(new Diagnostic($"Cannot declare method '{methodSymbol.FullName}'  for undeclared type."));
+            _diagnostics.Add(new Diagnostic($"Cannot declare method '{methodSymbol.FullName}' for undeclared type."));
         }
     }
 

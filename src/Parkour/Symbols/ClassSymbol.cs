@@ -13,8 +13,19 @@ public class ClassSymbol : TypeSymbol
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
+        Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         TypeSymbol? constructedFrom)
-        : base(name, declaringSymbol, access, modifiers, fnTypeParameters, fnTypeArguments, fnBaseTypes, fnMembers, constructedFrom)
+        : base(
+            name, 
+            declaringSymbol, 
+            access, 
+            modifiers, 
+            fnTypeParameters, 
+            fnTypeArguments, 
+            fnBaseTypes, 
+            fnMembers, 
+            fnAttributes,
+            constructedFrom)
     {
     }
 
@@ -23,7 +34,17 @@ public class ClassSymbol : TypeSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers)
-        : this(name, declaringSymbol, access, modifiers, null, null, null, null, null)
+        : this(
+              name, 
+              declaringSymbol, 
+              access, 
+              modifiers, 
+              null, 
+              null, 
+              null, 
+              null,
+              null,
+              null)
     {
     }
 
@@ -50,6 +71,7 @@ public class ClassSymbol : TypeSymbol
             () => context.TypeArguments,
             () => subContext.Substitute(this.BaseTypes),
             me => subContext.Substitute(this.Members, me),
+            me => this.Attributes.Map(a => a.Substitute(subContext)),
             definition);
     }
 
@@ -67,6 +89,7 @@ public class ClassSymbol : TypeSymbol
             () => context.Substitute(this.TypeArguments),
             () => context.Substitute(this.BaseTypes),
             me => context.Substitute(this.Members),
+            me => this.Attributes.Map(a => a.Substitute(context)),
             this.ConstructedFrom ?? (this.IsConstructable ? this : null));
     }
 }

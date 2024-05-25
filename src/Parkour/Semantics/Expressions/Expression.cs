@@ -1,11 +1,11 @@
 ﻿namespace Parkour.Semantics;
-using Symbols;
-using Syntax;
 
-[System.Diagnostics.DebuggerDisplay("{DebugText}")]
+using Symbols;
+
 public abstract class Expression : SemanticElement
 {
-    private string DebugText => $"{GetType().Name}: {ResultType?.FullName ?? "???"}";
+    internal protected override string DebugText => 
+        $"{GetType().Name}: {ResultType?.FullName ?? "???"}";
 
     public TypeSymbol ResultType { get; }
 

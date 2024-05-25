@@ -31,6 +31,13 @@ public abstract class TypeSymbol : ContainerSymbol
         _lazyMembers?.Value ?? ImmutableList<Symbol>.Empty;
     private readonly Lazy<ImmutableList<Symbol>>? _lazyMembers;
 
+    /// <summary>
+    /// Custom attributes declared by this type
+    /// </summary>
+    public override ImmutableList<AttributeInfo> Attributes =>
+        _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
+    private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
+    
     protected TypeSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -40,6 +47,7 @@ public abstract class TypeSymbol : ContainerSymbol
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
+        Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         TypeSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
@@ -51,6 +59,9 @@ public abstract class TypeSymbol : ContainerSymbol
             : null;
         _lazyBaseTypes = fnBaseTypes != null
             ? new Lazy<ImmutableList<TypeSymbol>>(fnBaseTypes)
+            : null;
+        _lazyAttributes = fnAttributes != null
+            ? new Lazy<ImmutableList<AttributeInfo>>(() => fnAttributes(this))
             : null;
         _lazyMembers = fnMembers != null
             ? new Lazy<ImmutableList<Symbol>>(() => fnMembers(this))
@@ -68,6 +79,7 @@ public abstract class TypeSymbol : ContainerSymbol
             declaringSymbol,
             access,
             modifiers,
+            null,
             null,
             null,
             null,
