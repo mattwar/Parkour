@@ -1142,11 +1142,14 @@ public class StandardBinder : SemanticBinder
     {
         switch (expression)
         {
-            case ArrayExpression array:
-                return BindArray(context, array);
+            case ArgumentExpression arg:
+                return BindArgument(context, arg);
 
             case ArityExpression arity:
                 return BindArity(context, arity);
+
+            case ArrayExpression array:
+                return BindArray(context, array);
 
             case AssignExpression assign:
                 return BindAssign(context, assign);
@@ -1195,9 +1198,6 @@ public class StandardBinder : SemanticBinder
 
             case NameExpression name:
                 return BindNameReference(context, name);
-
-            case NamedArgumentExpression narg:
-                return BindNamedArgument(context, narg);
 
             case NewArrayExpression newArrayInit:
                 return BindNewArray(context, newArrayInit);
@@ -1294,45 +1294,16 @@ public class StandardBinder : SemanticBinder
         return bound.ResultType;
     }
 
-    #region Array Expression
-    /// <summary>
-    /// Binds <see cref="ArrayExpression"/>,
-    /// converting referenced symbols into arrays of those symbols.
-    /// </summary>
-    protected virtual Expression BindArray(BindingContext context, ArrayExpression array)
+    #region Argument Expression
+
+    protected virtual Expression BindArgument(BindingContext context, ArgumentExpression argument)
     {
-        var diagnostics = _diagnosticListPool.AllocateFromPool();
-        try
-        {
-            var elementTypeExpr = BindTypeExpression(context, array.TypeOrMember, diagnostics);
-            var elementType = elementTypeExpr.ReferencedSymbol as TypeSymbol;
-            var arrayType = elementType != null ? context.Symbols.GetArray(elementType) : null;
-            var resultType = context.Symbols.Type; // a type is a type
-
-            if (elementType == null)
-            {
-                diagnostics.Add(SemanticDiagnostics.ReferencedSymbolNotType().WithLocation(array.Location));
-            }
-
-            if (elementTypeExpr == array.TypeOrMember
-                && arrayType == array.ReferencedSymbol
-                && resultType == array.ResultType
-                && diagnostics.Count == 0)
-                return array;
-
-            return new ArrayExpression(
-                elementTypeExpr,
-                array.Location,
-                arrayType,
-                resultType,
-                diagnostics.ToImmutableList()
-                );
-        }
-        finally
-        {
-            _diagnosticListPool.ReturnToPool(diagnostics);
-        }
+        var expr = this.BindExpression(context, argument.Expression);
+        return argument
+            .WithExpression(expr)
+            .WithResultType(expr.ResultType);
     }
+
     #endregion
 
     #region Arity Expression
@@ -1377,6 +1348,47 @@ public class StandardBinder : SemanticBinder
                 referencedSymbol,
                 resultType,
                 diagnostics.ToImmutableList());
+        }
+        finally
+        {
+            _diagnosticListPool.ReturnToPool(diagnostics);
+        }
+    }
+    #endregion
+
+    #region Array Expression
+    /// <summary>
+    /// Binds <see cref="ArrayExpression"/>,
+    /// converting referenced symbols into arrays of those symbols.
+    /// </summary>
+    protected virtual Expression BindArray(BindingContext context, ArrayExpression array)
+    {
+        var diagnostics = _diagnosticListPool.AllocateFromPool();
+        try
+        {
+            var elementTypeExpr = BindTypeExpression(context, array.TypeOrMember, diagnostics);
+            var elementType = elementTypeExpr.ReferencedSymbol as TypeSymbol;
+            var arrayType = elementType != null ? context.Symbols.GetArray(elementType) : null;
+            var resultType = context.Symbols.Type; // a type is a type
+
+            if (elementType == null)
+            {
+                diagnostics.Add(SemanticDiagnostics.ReferencedSymbolNotType().WithLocation(array.Location));
+            }
+
+            if (elementTypeExpr == array.TypeOrMember
+                && arrayType == array.ReferencedSymbol
+                && resultType == array.ResultType
+                && diagnostics.Count == 0)
+                return array;
+
+            return new ArrayExpression(
+                elementTypeExpr,
+                array.Location,
+                arrayType,
+                resultType,
+                diagnostics.ToImmutableList()
+                );
         }
         finally
         {
@@ -1512,7 +1524,7 @@ public class StandardBinder : SemanticBinder
                     constructorArgs = AlignArguments(context, constructorSymbol.Parameters, constructorArgs, diagnostics);
 
                     memberArgs = memberArgs
-                        .OfType<NamedArgumentExpression>()
+                        .OfType<ArgumentExpression>()
                         .Select(narg => (Expression)narg.WithNamedSymbol(GetAttributeInstanceMember(context, typeSymbol, narg)))
                         .ToImmutableList();
 
@@ -1549,8 +1561,9 @@ public class StandardBinder : SemanticBinder
 
     protected virtual MemberSymbol? GetAttributeInstanceMember(BindingContext context, TypeSymbol attributeType, Expression arg)
     {
-        if (arg is NamedArgumentExpression narg
-            && this.GetReferencedInstanceMemberOrGroup(context, attributeType, narg.Name) is Symbol memberOrGroup
+        if (arg is ArgumentExpression argEx
+            && argEx.Name != null
+            && this.GetReferencedInstanceMemberOrGroup(context, attributeType, argEx.Name) is Symbol memberOrGroup
             && ((memberOrGroup is FieldSymbol fs && !fs.IsReadOnly)
                 || (memberOrGroup is PropertySymbol prop && prop.SetMethod != null)))
         {
@@ -1583,13 +1596,13 @@ public class StandardBinder : SemanticBinder
 
         var arguments =
             constructorArguments.Select((a, i) =>
-                a is NamedArgumentExpression n && n.NamedSymbol is ParameterSymbol p
+                a is ArgumentExpression n && n.NamedSymbol is ParameterSymbol p
                     ? new AttributeArgument(p, GetValue(n.Expression))
                     : new AttributeArgument(constructor.Parameters[i], GetValue(a))
                     ).ToImmutableList();
 
         var members = memberArguments
-            .OfType<NamedArgumentExpression>()
+            .OfType<ArgumentExpression>()
             .Select(n => new AttributeMember((MemberSymbol)n.NamedSymbol!, GetValue(n.Expression)))
             .ToImmutableList();
 
@@ -1791,7 +1804,7 @@ public class StandardBinder : SemanticBinder
                 }
                 else
                 {
-                    var parameters = GetSymbolParameters(calledSymbol);
+                    var parameters = GetCalledSymbolParameters(calledSymbol);
                     if (parameters.Count != arguments.Count)
                     {
                         diagnostics.Add(SemanticDiagnostics.IncorrectNumberOfArguments().WithLocation(location));
@@ -1875,7 +1888,7 @@ public class StandardBinder : SemanticBinder
     {
         if (symbol is GroupSymbol group)
         {
-            candidates.AddRange(group.Symbols.Where(s => IsCallableSymbol(s) && MatchesParameters(context, s, arguments)));
+            candidates.AddRange(group.Symbols.Where(IsCallableSymbol));
         }
         else if (IsCallableSymbol(symbol))
         {
@@ -1896,7 +1909,7 @@ public class StandardBinder : SemanticBinder
     /// <summary>
     /// Get the parameter symbols for the symbol.
     /// </summary>
-    protected virtual ImmutableList<ParameterSymbol> GetSymbolParameters(Symbol symbolWithParameters) =>
+    protected virtual ImmutableList<ParameterSymbol> GetCalledSymbolParameters(Symbol symbolWithParameters) =>
         symbolWithParameters switch
         {
             DelegateSymbol function => function.Parameters,
@@ -1905,15 +1918,15 @@ public class StandardBinder : SemanticBinder
             _ => ImmutableList<ParameterSymbol>.Empty
         };
 
-
     /// <summary>
     /// Returns true if the callable symbol has parameters that are compatible with the arguments
     /// </summary>
     protected virtual bool MatchesParameters(
         BindingContext context,
         Symbol callableSymbol,
-        IReadOnlyList<Expression> arguments) =>
-        MatchesParameters(context, GetSymbolParameters(callableSymbol), arguments);
+        IReadOnlyList<Expression> arguments) 
+        =>
+        MatchesParameters(context, GetCalledSymbolParameters(callableSymbol), arguments);
 
     /// <summary>
     /// Returns true if the set of arguments matches the parameters.
@@ -1947,9 +1960,10 @@ public class StandardBinder : SemanticBinder
         Expression argument, 
         int argumentIndex)
     {
-        if (argument is NamedArgumentExpression namedArg)
+        if (argument is ArgumentExpression argEx
+            && argEx.Name != null)
         {
-            var parameter = parameters.FirstOrDefault(p => p.Name == namedArg.Name);
+            var parameter = parameters.FirstOrDefault(p => p.Name == argEx.Name);
             if (parameter != null)
                 return parameter;
         }
@@ -1965,9 +1979,10 @@ public class StandardBinder : SemanticBinder
         Expression argument, 
         int argumentIndex)
     {
-        if (argument is NamedArgumentExpression namedArg)
+        if (argument is ArgumentExpression argEx
+            && argEx.Name != null)
         {
-            var parameter = parameters.FirstOrDefault(p => p.Name == namedArg.Name);
+            var parameter = parameters.FirstOrDefault(p => p.Name == argEx.Name);
             if (parameter != null)
             {
                 return parameters.IndexOf(parameter);
@@ -2000,7 +2015,7 @@ public class StandardBinder : SemanticBinder
     }
 
     /// <summary>
-    /// Puts arguments in parameter order.
+    /// Puts arguments in parameter order (due to named arguments being out of order)
     /// </summary>
     protected virtual ImmutableList<Expression> AlignArguments(
         BindingContext context,
@@ -2038,9 +2053,9 @@ public class StandardBinder : SemanticBinder
                     diagnostics.Add(SemanticDiagnostics.AmbiguousArgument(parameter.Name).WithLocation(argument.Location));
                 }
             }
-            else if (argument is NamedArgumentExpression narg)
+            else if (argument is ArgumentExpression argEx && argEx.Name != null)
             {
-                diagnostics.Add(SemanticDiagnostics.NoMatchingParameterName(narg.Name).WithLocation(narg.Location));
+                diagnostics.Add(SemanticDiagnostics.NoMatchingParameterName(argEx.Name).WithLocation(argEx.Location));
             }
             else
             {
@@ -3025,7 +3040,7 @@ public class StandardBinder : SemanticBinder
                 }
                 else
                 {
-                    var parameters = GetSymbolParameters(operatorSymbol);
+                    var parameters = GetCalledSymbolParameters(operatorSymbol);
                     if (parameters.Count != arguments.Count)
                     {
                         diagnostics.Add(SemanticDiagnostics.IncorrectNumberOfOperands().WithLocation(opex.Location));
@@ -3340,18 +3355,6 @@ public class StandardBinder : SemanticBinder
             _symbolListPool.ReturnToPool(symbols);
         }
     }
-    #endregion
-
-    #region NamedArgument Expression
-
-    protected virtual Expression BindNamedArgument(BindingContext context, NamedArgumentExpression narg)
-    {
-        var expr = this.BindExpression(context, narg.Expression);
-        return narg
-            .WithExpression(expr)
-            .WithResultType(expr.ResultType);
-    }
-
     #endregion
 
     #region NewArray Expression

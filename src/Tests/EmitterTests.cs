@@ -77,9 +77,17 @@ public class EmitterTests
     {
         TestEmit(
             Class("C")
-            .WithAttributes([
-                Attribute(Symbol("System.ObsoleteAttribute"), [Constant("Message")])
-                ])
+                .WithAttributes([
+                    Attribute(Symbol("System.ObsoleteAttribute"), [Constant("Message")])
+                    ]),
+            TypeOf(Symbol("C")),
+            result =>
+            {
+                Assert.IsInstanceOfType(result, typeof(Type));
+                var attr = ((Type)result!).GetCustomAttribute<ObsoleteAttribute>();
+                Assert.IsNotNull(attr);
+                Assert.AreEqual("Message", attr.Message);
+            }
             );
     }
 

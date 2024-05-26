@@ -2,19 +2,21 @@
 using Symbols;
 
 /// <summary>
-/// Used to associate an argument with a parameter in a call expression.
+/// Used to annotate an argument in a call expression.
 /// </summary>
-public sealed class NamedArgumentExpression : Expression
+public sealed class ArgumentExpression : Expression
 {
     protected internal override string DebugText =>
         $"{GetType().Name}: {Name} = {Expression.DebugText}";
 
-    public string Name { get; }
+    public string? Name { get; }
+    public BitSet<SymbolModifier> Modifiers { get; }
     public Expression Expression { get; }
     public Symbol? NamedSymbol { get; }
 
-    private NamedArgumentExpression(
-        string name,
+    private ArgumentExpression(
+        string? name,
+        BitSet<SymbolModifier> modifiers,
         Expression expression,
         ISourceLocation? location,
         Symbol? namedSymbol,
@@ -26,22 +28,31 @@ public sealed class NamedArgumentExpression : Expression
             diagnostics)
     {
         this.Name = name;
+        this.Modifiers = modifiers;
         this.Expression = expression;
         this.NamedSymbol = namedSymbol;
     }
 
-    public NamedArgumentExpression(
-        string name,
+    public ArgumentExpression(
+        string? name,
         Expression expression,
         ISourceLocation? location)
-        : this(name, expression, location, null, null, null)
+        : this(
+              name, 
+              SymbolModifier.None,
+              expression, 
+              location, 
+              null, 
+              null, 
+              null)
     {
     }
 
-    public override NamedArgumentExpression WithLocation(ISourceLocation? location) =>
+    public override ArgumentExpression WithLocation(ISourceLocation? location) =>
         location == this.Location ? this :
-        new NamedArgumentExpression(
+        new ArgumentExpression(
             this.Name,
+            this.Modifiers,
             this.Expression,
             location,
             this.NamedSymbol,
@@ -49,10 +60,11 @@ public sealed class NamedArgumentExpression : Expression
             this.Diagnostics
             );
 
-    public override NamedArgumentExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
+    public override ArgumentExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
         diagnostics == this.Diagnostics ? this :
-        new NamedArgumentExpression(
+        new ArgumentExpression(
             this.Name,
+            this.Modifiers,
             this.Expression,
             this.Location,
             this.NamedSymbol,
@@ -60,10 +72,11 @@ public sealed class NamedArgumentExpression : Expression
             diagnostics
             );
 
-    public override NamedArgumentExpression WithResultType(TypeSymbol? resultType) =>
+    public override ArgumentExpression WithResultType(TypeSymbol? resultType) =>
         resultType == this.ResultType ? this :
-        new NamedArgumentExpression(
+        new ArgumentExpression(
             this.Name,
+            this.Modifiers,
             this.Expression,
             this.Location,
             this.NamedSymbol,
@@ -71,10 +84,11 @@ public sealed class NamedArgumentExpression : Expression
             this.Diagnostics
             );
 
-    public NamedArgumentExpression WithName(string name) =>
+    public ArgumentExpression WithName(string name) =>
         name == this.Name ? this :
-        new NamedArgumentExpression(
+        new ArgumentExpression(
             name,
+            this.Modifiers,
             this.Expression,
             this.Location,
             this.NamedSymbol,
@@ -82,10 +96,23 @@ public sealed class NamedArgumentExpression : Expression
             this.Diagnostics
             );
 
-    public NamedArgumentExpression WithExpression(Expression expression) =>
-        expression == this.Expression ? this :
-        new NamedArgumentExpression(
+    public ArgumentExpression WithModifiers(BitSet<SymbolModifier> modifiers) =>
+        modifiers == this.Modifiers ? this :
+        new ArgumentExpression(
             this.Name,
+            modifiers,
+            this.Expression,
+            this.Location,
+            this.NamedSymbol,
+            this.ResultType,
+            this.Diagnostics
+            );
+
+    public ArgumentExpression WithExpression(Expression expression) =>
+        expression == this.Expression ? this :
+        new ArgumentExpression(
+            this.Name,
+            this.Modifiers,
             expression,
             this.Location,
             this.NamedSymbol,
@@ -93,10 +120,11 @@ public sealed class NamedArgumentExpression : Expression
             this.Diagnostics
             );
 
-    public NamedArgumentExpression WithNamedSymbol(Symbol? namedSymbol) =>
+    public ArgumentExpression WithNamedSymbol(Symbol? namedSymbol) =>
         namedSymbol == this.NamedSymbol ? this :
-        new NamedArgumentExpression(
+        new ArgumentExpression(
             this.Name,
+            this.Modifiers,
             this.Expression,
             this.Location,
             namedSymbol,
@@ -109,7 +137,7 @@ public sealed class NamedArgumentExpression : Expression
     public override SemanticElement? GetChild(int index) => 
         index == 0 ? this.Expression : null;
 
-    public override NamedArgumentExpression RewriteChildren(SemanticRewriter rewriter)
+    public override ArgumentExpression RewriteChildren(SemanticRewriter rewriter)
     {
         var expr = rewriter.Rewrite(this.Expression);
         return this.WithExpression(expr!);

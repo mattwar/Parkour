@@ -558,20 +558,20 @@ public class BindingTests
     }
 
     [TestMethod]
-    public void TestExpression_Call_Named_Arguments()
+    public void TestExpression_Call_Arguments()
     {
-        // specified in order
+        // named arguments in order
         TestBind(
             [
                 Method("M", [Parameter("A", Int32Type), Parameter("B", StringType)], VoidType, Block()),
-                Name("M").Call([NamedArgument("A", Constant(10)), NamedArgument("B", Constant("derp"))])
+                Name("M").Call([Argument("A", Constant(10)), Argument("B", Constant("derp"))])
             ]);
 
-        // specified out of order
+        // named arguments out of order
         TestBind(
             [
                 Method("M", [Parameter("A", Int32Type), Parameter("B", StringType)], VoidType, Block()),
-                Name("M").Call([NamedArgument("B", Constant("derp")), NamedArgument("A", Constant(10))])
+                Name("M").Call([Argument("B", Constant("derp")), Argument("A", Constant(10))])
             ],
             fnValidate: elements =>
             {
@@ -579,10 +579,10 @@ public class BindingTests
                 var call = elements[1] as CallExpression;
                 Assert.IsNotNull(call);
                 Assert.AreEqual(2, call.Arguments.Count);
-                var arg0 = call.Arguments[0] as NamedArgumentExpression;
+                var arg0 = call.Arguments[0] as ArgumentExpression;
                 Assert.IsNotNull(arg0);
                 Assert.AreEqual("A", arg0.Name);
-                var arg1 = call.Arguments[1] as NamedArgumentExpression;
+                var arg1 = call.Arguments[1] as ArgumentExpression;
                 Assert.IsNotNull(arg1);
                 Assert.AreEqual("B", arg1.Name);
             });
@@ -591,7 +591,7 @@ public class BindingTests
         TestBind(
             [
                 Method("M", [Parameter("A", Int32Type), Parameter("B", StringType)], VoidType, Block()),
-                Name("M").Call([NamedArgument("A", Constant(10)), NamedArgument("A", Constant(20))])
+                Name("M").Call([Argument("A", Constant(10)), Argument("A", Constant(20))])
             ],
             containsDiagnostics: true);
     }

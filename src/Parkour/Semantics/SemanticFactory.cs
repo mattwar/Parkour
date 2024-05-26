@@ -275,10 +275,16 @@ public static class SemanticFactory
         new NameExpression(name, location, null, null, null);
 
     /// <summary>
-    /// Gives a name to an argument to associate it with a parameter.
+    /// Creates a named argument.
     /// </summary>
-    public static NamedArgumentExpression NamedArgument(string name, Expression expression, ISourceLocation? location = null) =>
-        new NamedArgumentExpression(name, expression, location);
+    public static ArgumentExpression Argument(string name, Expression expression, ISourceLocation? location = null) =>
+        new ArgumentExpression(name, expression, location);
+
+    /// <summary>
+    /// Creates a modified argument.
+    /// </summary>
+    public static ArgumentExpression Argument(BitSet<SymbolModifier> modifiers, Expression expression, ISourceLocation? location = null) =>
+        new ArgumentExpression(null, expression, location).WithModifiers(modifiers);
 
     /// <summary>
     /// Creates an new instance of the specfied type.
