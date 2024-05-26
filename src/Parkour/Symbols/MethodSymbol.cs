@@ -29,6 +29,13 @@ public class MethodSymbol : MemberSymbol
     public TypeSymbol ReturnType => _lazyReturnType.Value;
     private readonly Lazy<TypeSymbol> _lazyReturnType;
 
+    /// <summary>
+    /// Custom attributes for this method
+    /// </summary>
+    public override ImmutableList<AttributeInfo> Attributes =>
+        _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
+    private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
+
     public MethodSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -38,6 +45,7 @@ public class MethodSymbol : MemberSymbol
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<MethodSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
         Func<TypeSymbol> fnReturnType,
+        Func<MethodSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         MethodSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
@@ -51,6 +59,9 @@ public class MethodSymbol : MemberSymbol
             ? new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this))
             : null;
         _lazyReturnType = new Lazy<TypeSymbol>(fnReturnType, SpecialSymbols.CyclicDefinition);
+        _lazyAttributes = fnAttributes != null
+            ? new Lazy<ImmutableList<AttributeInfo>>(() => fnAttributes(this))
+            : null;
         ConstructedFrom = constructedFrom;
     }
 
@@ -129,11 +140,13 @@ public class MethodSymbol : MemberSymbol
             this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            me => ImmutableList<TypeParameterSymbol>.Empty,
+            fnTypeParameters: null,
             () => context.TypeArguments,
-            me => subContext.Substitute(this.Parameters, me),
+            this.Parameters.Count > 0 ? me => subContext.Substitute(this.Parameters, me) : null,
             () => subContext.Substitute(this.ReturnType),
-            definition);
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(subContext)) : null,
+            definition
+            );
     }
 
     internal protected override MethodSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
@@ -143,10 +156,12 @@ public class MethodSymbol : MemberSymbol
             declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            me => this.TypeParameters,
-            () => context.Substitute(this.TypeArguments),
-            me => context.Substitute(this.Parameters),
+            this.TypeParameters.Count > 0 ? me => this.TypeParameters : null,
+            this.TypeArguments.Count > 0 ? () => context.Substitute(this.TypeArguments) : null,
+            this.Parameters.Count > 0 ? me => context.Substitute(this.Parameters) : null,
             () => context.Substitute(this.ReturnType),
-            this.ConstructedFrom ?? (this.IsConstructable ? this : null));
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
+            this.ConstructedFrom ?? (this.IsConstructable ? this : null)
+            );
     }
 }

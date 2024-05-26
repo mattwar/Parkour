@@ -4,20 +4,35 @@ public sealed class ParameterSymbol : Symbol
 {
     public Symbol? DeclaringSymbol { get; }
 
+    public BitSet<SymbolModifier> Modifiers { get; }
+
     /// <summary>
     /// The type of the parameter.
     /// </summary>
     public TypeSymbol Type => _lazyType.Value;
     private readonly Lazy<TypeSymbol> _lazyType;
 
+    /// <summary>
+    /// Custom attributes for this parameter
+    /// </summary>
+    public override ImmutableList<AttributeInfo> Attributes =>
+        _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
+    private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
+
     public ParameterSymbol(
         string name, 
         Symbol? declaringSymbol,
-        Func<TypeSymbol> fnType)
+        BitSet<SymbolModifier> modifiers,
+        Func<TypeSymbol> fnType,
+        Func<ParameterSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
         : base(name)
     {
-        DeclaringSymbol = declaringSymbol;
+        this.DeclaringSymbol = declaringSymbol;
+        this.Modifiers = modifiers;
         _lazyType = new Lazy<TypeSymbol>(fnType, SpecialSymbols.CyclicDefinition);
+        _lazyAttributes = fnAttributes != null
+            ? new Lazy<ImmutableList<AttributeInfo>>(() => fnAttributes(this))
+            : null;
     }
 
     public ParameterSymbol(
@@ -27,7 +42,9 @@ public sealed class ParameterSymbol : Symbol
         : this(
               name,
               declaringSymbol,
-              () => type)
+              SymbolModifier.None,
+              () => type,
+              fnAttributes: null)
     {
     }
 
@@ -39,6 +56,9 @@ public sealed class ParameterSymbol : Symbol
         return new ParameterSymbol(
             this.Name,
             declaringSymbol ?? this.DeclaringSymbol,
-            () => context.Substitute(this.Type));
+            this.Modifiers,
+            () => context.Substitute(this.Type),
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null
+            );
     }
 }

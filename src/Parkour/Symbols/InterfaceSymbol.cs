@@ -39,12 +39,13 @@ public class InterfaceSymbol : TypeSymbol
             this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            me => ImmutableList<TypeParameterSymbol>.Empty,
+            fnTypeParameters: null,
             () => context.TypeArguments,
-            () => subContext.Substitute(this.BaseTypes),
-            me => subContext.Substitute(this.Members, me),
-            me => this.Attributes.Map(a => a.Substitute(subContext)),
-            definition);
+            this.BaseTypes.Count > 0 ? () => subContext.Substitute(this.BaseTypes) : null,
+            this.Members.Count > 0 ? me => subContext.Substitute(this.Members, me) : null,
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(subContext)) : null,
+            definition
+            );
     }
 
     internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
@@ -57,11 +58,12 @@ public class InterfaceSymbol : TypeSymbol
             newDeclaringSymbol,
             this.Access,
             this.Modifiers,
-            me => this.TypeParameters,
-            () => context.Substitute(this.TypeArguments),
-            () => context.Substitute(this.BaseTypes),
-            me => context.Substitute(this.Members),
-            me => this.Attributes.Map(a => a.Substitute(context)),
-            this.ConstructedFrom ?? (this.IsConstructable ? this : null));
+            this.TypeParameters.Count > 0 ? me => this.TypeParameters : null,
+            this.TypeArguments.Count > 0 ? () => context.Substitute(this.TypeArguments) : null,
+            this.BaseTypes.Count > 0 ? () => context.Substitute(this.BaseTypes) : null,
+            this.Members.Count > 0 ? me => context.Substitute(this.Members) : null,
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
+            this.ConstructedFrom ?? (this.IsConstructable ? this : null)
+            );
     }
 }

@@ -15,6 +15,13 @@ public class DelegateSymbol : TypeSymbol
     public TypeSymbol ReturnType => _lazyReturnType.Value;
     private readonly Lazy<TypeSymbol> _lazyReturnType;
 
+    /// <summary>
+    /// Custom attributes for this delegate
+    /// </summary>
+    public override ImmutableList<AttributeInfo> Attributes =>
+        _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
+    private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
+
     private DelegateSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -26,6 +33,7 @@ public class DelegateSymbol : TypeSymbol
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
+        Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         TypeSymbol? constructedFrom)
         : base(
             name, 
@@ -36,13 +44,16 @@ public class DelegateSymbol : TypeSymbol
             fnTypeArguments, 
             fnBaseTypes, 
             fnMembers, 
-            fnAttributes: null,
+            fnAttributes,
             constructedFrom)
     {
         _lazyParameters = fnParameters != null
             ? new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this))
             : null;
         _lazyReturnType = new Lazy<TypeSymbol>(fnReturnType, SpecialSymbols.CyclicDefinition);
+        _lazyAttributes = fnAttributes != null
+            ? new Lazy<ImmutableList<AttributeInfo>>(() => fnAttributes(this))
+            : null;
     }
 
     public DelegateSymbol(
@@ -50,8 +61,9 @@ public class DelegateSymbol : TypeSymbol
         Symbol? declaringSymbol,
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
-        Func<DelegateSymbol, ImmutableList<ParameterSymbol>> fnParameters,
-        Func<TypeSymbol> fnReturnType)
+        Func<DelegateSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
+        Func<TypeSymbol> fnReturnType,
+        Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
         : this(
             name,
             declaringSymbol,
@@ -59,7 +71,12 @@ public class DelegateSymbol : TypeSymbol
             modifiers,
             fnParameters,
             fnReturnType,
-            null, null, null, null, null)
+            fnTypeParameters: null, 
+            fnTypeArguments: null, 
+            fnBaseTypes: null, 
+            fnMembers: null, 
+            fnAttributes,
+            null)
     {
     }
 
@@ -75,7 +92,7 @@ public class DelegateSymbol : TypeSymbol
             SymbolModifier.None,
             fnParameters,
             fnReturnType,
-            null, null, null, null, null)
+            fnAttributes: null)
     {
     }
 
@@ -89,13 +106,15 @@ public class DelegateSymbol : TypeSymbol
             this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            me => subContext.Substitute(this.Parameters),
+            this.Parameters.Count > 0 ? me => subContext.Substitute(this.Parameters) : null,
             () => subContext.Substitute(this.ReturnType),
-            me => ImmutableList<TypeParameterSymbol>.Empty,
+            fnTypeParameters: null,
             () => context.TypeArguments,
-            () => subContext.Substitute(this.BaseTypes),
-            me => subContext.Substitute(this.Members, me),
-            definition);
+            this.BaseTypes.Count > 0 ? () => subContext.Substitute(this.BaseTypes) : null,
+            this.Members.Count > 0 ? me => subContext.Substitute(this.Members, me) : null,
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(subContext)) : null,
+            definition
+            );
     }
 
     internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
@@ -108,13 +127,15 @@ public class DelegateSymbol : TypeSymbol
             newDeclaringSymbol,
             this.Access,
             this.Modifiers,
-            me => context.Substitute(this.Parameters),
+            this.Parameters.Count > 0 ? me => context.Substitute(this.Parameters) : null,
             () => context.Substitute(this.ReturnType),
-            me => this.TypeParameters,
-            () => context.Substitute(this.TypeArguments),
-            () => context.Substitute(this.BaseTypes),
-            me => context.Substitute(this.Members),
-            this.ConstructedFrom ?? (this.IsConstructable ? this : null));
+            this.TypeParameters.Count > 0 ? me => this.TypeParameters : null,
+            this.TypeArguments.Count > 0 ? () => context.Substitute(this.TypeArguments) : null,
+            this.BaseTypes.Count > 0 ? () => context.Substitute(this.BaseTypes) : null,
+            this.Members.Count > 0 ? me => context.Substitute(this.Members) : null,
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
+            this.ConstructedFrom ?? (this.IsConstructable ? this : null)
+            );
     }
 
     public override int DeclaredSymbolCount =>

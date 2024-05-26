@@ -272,27 +272,33 @@ public class StandardBinder : SemanticBinder
             declaringSymbol,
             declaration.Access,
             declaration.Modifiers,
-            fnTypeParameters: me => 
-                declaration.TypeParameters
-                    .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!)
-                    .ToImmutableList()!,
+            fnTypeParameters: 
+                declaration.TypeParameters.Count > 0
+                    ? me => declaration.TypeParameters
+                        .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!)
+                        .ToImmutableList()!
+                    : null,
             fnTypeArguments: null,
-            fnBaseTypes: () => 
-                declaration.BaseTypes
-                    .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
-                    .ToImmutableList()!,
-            fnMembers: me => 
-                declaration.Declarations
-                    .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
-                    .Where(s => s != null)
-                    .ToImmutableList()!,
-            fnAttributes: me =>
+            fnBaseTypes:
+                declaration.BaseTypes.Count > 0
+                    ? () => declaration.BaseTypes
+                        .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
+                        .ToImmutableList()!
+                    : null,
+            fnMembers: 
+                declaration.Declarations.Count > 0
+                    ? me => declaration.Declarations
+                        .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
+                        .Where(s => s != null)
+                        .ToImmutableList()!
+                    : null,
+            fnAttributes: 
                 declaration.Attributes.Count > 0
-                    ? declaration.Attributes
+                    ? me => declaration.Attributes
                         .Select(a => this.BindAttribute(typeContext.BindingContext, a).AttributeInfo)
                         .OfType<AttributeInfo>()
                         .ToImmutableList()
-                    : ImmutableList<AttributeInfo>.Empty,
+                    : null,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -313,10 +319,19 @@ public class StandardBinder : SemanticBinder
             (TypeSymbol)declaringSymbol!,
             declaration.Access,
             declaration.Modifiers,
-            fnParameters: me => 
-                declaration.Parameters
-                    .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
-                    .ToImmutableList()!
+            fnParameters: 
+                declaration.Parameters.Count > 0
+                    ? me => declaration.Parameters
+                        .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
+                        .ToImmutableList()!
+                    : null,
+            fnAttributes:
+                declaration.Attributes.Count > 0
+                    ? me => declaration.Attributes
+                        .Select(a => this.BindAttribute(context.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
+                    : null
             );
     }
 
@@ -328,12 +343,23 @@ public class StandardBinder : SemanticBinder
         return new DelegateSymbol(
             declaration.Name,
             declaringSymbol,
-            fnParameters: me => 
-                declaration.Parameters
-                    .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
-                    .ToImmutableList()!,
+            declaration.Access,
+            declaration.Modifiers,
+            fnParameters: 
+                declaration.Parameters.Count > 0
+                    ? me => declaration.Parameters
+                        .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
+                        .ToImmutableList()!
+                    : null,
             fnReturnType: () => 
-                GetReferencedType(context.BindingContext, declaration.ReturnType)
+                GetReferencedType(context.BindingContext, declaration.ReturnType),
+            fnAttributes:
+                declaration.Attributes.Count > 0
+                    ? me => declaration.Attributes
+                        .Select(a => this.BindAttribute(context.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
+                    : null
             );
     }
 
@@ -358,6 +384,13 @@ public class StandardBinder : SemanticBinder
                     : declaration.Initializer != null ? GetResultType(context.BindingContext, declaration.Initializer)
                     : context.Symbols.Object;
             },
+            fnAttributes:
+                declaration.Attributes.Count > 0
+                    ? me => declaration.Attributes
+                        .Select(a => this.BindAttribute(context.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
+                    : null,
             constValue
             );
     }
@@ -383,6 +416,13 @@ public class StandardBinder : SemanticBinder
             fnSetMethod: 
                 declaration.SetMethod != null
                     ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
+                    : null,
+            fnAttributes:
+                declaration.Attributes.Count > 0
+                    ? me => declaration.Attributes
+                        .Select(a => this.BindAttribute(context.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
                     : null
             );
     }
@@ -399,27 +439,33 @@ public class StandardBinder : SemanticBinder
             declaringSymbol,
             declaration.Access,
             declaration.Modifiers,
-            fnTypeParameters: me => 
-                declaration.TypeParameters
-                    .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!)
-                    .ToImmutableList()!,
+            fnTypeParameters: 
+                declaration.TypeParameters.Count > 0
+                    ? me => declaration.TypeParameters
+                        .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!)
+                        .ToImmutableList()!
+                    : null,
             fnTypeArguments: null,
-            fnBaseTypes: () => 
-                declaration.BaseTypes
-                    .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
-                    .ToImmutableList()!,
-            fnMembers: me => 
-                declaration.Declarations
-                    .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
-                    .Where(s => s != null)
-                    .ToImmutableList()!,
-            fnAttributes: me =>
+            fnBaseTypes: 
+                declaration.BaseTypes.Count > 0
+                    ? () => declaration.BaseTypes
+                        .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
+                        .ToImmutableList()!
+                    : null,
+            fnMembers: 
+                declaration.Declarations.Count > 0           
+                    ? me => declaration.Declarations
+                        .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
+                        .Where(s => s != null)
+                        .ToImmutableList()!
+                    : null,
+            fnAttributes: 
                 declaration.Attributes.Count > 0
-                    ? declaration.Attributes
+                    ? me => declaration.Attributes
                         .Select(a => this.BindAttribute(typeContext.BindingContext, a).AttributeInfo)
                         .OfType<AttributeInfo>()
                         .ToImmutableList()
-                    : ImmutableList<AttributeInfo>.Empty,
+                    : null,
             constructedFrom: null
             );
 
@@ -455,16 +501,25 @@ public class StandardBinder : SemanticBinder
                             .ToImmutableList()
                     : null,
             fnTypeArguments: null,
-            fnParameters: me => 
-                declaration.Parameters
-                    .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
-                    .ToImmutableList()!,
+            fnParameters: 
+                declaration.Parameters.Count > 0
+                    ? me => declaration.Parameters
+                        .Select(p => (ParameterSymbol)CreateAndMapDeclarationSymbol(context, me, p)!)
+                        .ToImmutableList()!
+                    : null,
             fnReturnType: () =>
             {
                 return declaration.ReturnType != null 
                     ? GetReferencedType(context.BindingContext, declaration.ReturnType)
                     : GetResultType(context.BindingContext, declaration.Body);
             },
+            fnAttributes:
+                declaration.Attributes.Count > 0
+                    ? me => declaration.Attributes
+                        .Select(a => this.BindAttribute(context.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
+                    : null,
             constructedFrom: null
             );
     }
@@ -477,10 +532,18 @@ public class StandardBinder : SemanticBinder
         return new ParameterSymbol(
             declaration.Name,
             declaringSymbol,
-            fnType: () => 
+            declaration.Modifiers,
+            fnType: () =>
                 declaration.ParameterType != null
                     ? GetReferencedType(context.BindingContext, declaration.ParameterType)
-                    : context.Symbols.Object
+                    : context.Symbols.Object,
+            fnAttributes:
+                declaration.Attributes.Count > 0
+                    ? me => declaration.Attributes
+                        .Select(a => this.BindAttribute(context.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
+                    : null
             );
     }
 
@@ -509,6 +572,13 @@ public class StandardBinder : SemanticBinder
             fnSetMethod: 
                 declaration.SetMethod != null
                     ? me => (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.SetMethod)!
+                    : null,
+            fnAttributes:
+                declaration.Attributes.Count > 0
+                    ? me => declaration.Attributes
+                        .Select(a => this.BindAttribute(context.BindingContext, a).AttributeInfo)
+                        .OfType<AttributeInfo>()
+                        .ToImmutableList()
                     : null
         );
     }
@@ -525,27 +595,33 @@ public class StandardBinder : SemanticBinder
             declaringSymbol,
             declaration.Access,
             declaration.Modifiers,
-            fnTypeParameters: me => 
-                declaration.TypeParameters
-                    .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).
-                    ToImmutableList()!,
+            fnTypeParameters: 
+                declaration.TypeParameters.Count > 0
+                    ? me => declaration.TypeParameters
+                        .Select(tp => (TypeParameterSymbol)CreateAndMapDeclarationSymbol(context, me, tp)!).
+                        ToImmutableList()!
+                    : null,
             fnTypeArguments: null,
-            fnBaseTypes: () => 
-                declaration.BaseTypes
-                    .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
-                    .ToImmutableList()!,
-            fnMembers: me => 
-                declaration.Declarations
-                    .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
-                    .Where(s => s != null)
-                    .ToImmutableList()!,
-            fnAttributes: me =>
+            fnBaseTypes: 
+                declaration.BaseTypes.Count > 0
+                    ? () => declaration.BaseTypes
+                        .Select(bt => GetReferencedType(typeContext.BindingContext, bt))
+                        .ToImmutableList()!
+                    : null,
+            fnMembers: 
+                declaration.Declarations.Count > 0
+                    ? me => declaration.Declarations
+                        .Select(d => CreateAndMapDeclarationSymbol(typeContext, me, d))
+                        .Where(s => s != null)
+                        .ToImmutableList()!
+                    : null,
+            fnAttributes: 
                 declaration.Attributes.Count > 0
-                    ? declaration.Attributes
+                    ? me => declaration.Attributes
                         .Select(a => this.BindAttribute(typeContext.BindingContext, a).AttributeInfo)
                         .OfType<AttributeInfo>()
                         .ToImmutableList()
-                    : ImmutableList<AttributeInfo>.Empty,
+                    : null,
             constructedFrom: null);
 
         typeContext = context.WithScope(
@@ -2880,7 +2956,9 @@ public class StandardBinder : SemanticBinder
                         BindBodyAndReturnType(pms, context);
                         return pms;
                     },
-                    () => returnTypeSymbol!);
+                    () => returnTypeSymbol!,
+                    fnAttributes: null
+                    );
                 // force eval of deferred parameters and return type
                 // for side-effect assignment to locals  (Erik Meijer said it was okay)
                 var _ = functionSymbol.Parameters;

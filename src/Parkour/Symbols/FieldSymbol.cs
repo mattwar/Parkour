@@ -9,6 +9,13 @@ public sealed class FieldSymbol : MemberSymbol
     private readonly Lazy<TypeSymbol> _lazyType;
 
     /// <summary>
+    /// Custom attributes for this delegate
+    /// </summary>
+    public override ImmutableList<AttributeInfo> Attributes =>
+        _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
+    private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
+
+    /// <summary>
     /// The constant value of the field (constant fields only).
     /// </summary>
     public object? ConstantValue { get; }
@@ -19,28 +26,15 @@ public sealed class FieldSymbol : MemberSymbol
         SymbolAccess access,
         BitSet<SymbolModifier> modifiers,
         Func<TypeSymbol> fnType,
+        Func<FieldSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         object? constantValue = null)
         : base(name, declaringSymbol, access, modifiers)
     {
         _lazyType = new Lazy<TypeSymbol>(fnType, SpecialSymbols.CyclicDefinition);
+        _lazyAttributes = fnAttributes != null
+            ? new Lazy<ImmutableList<AttributeInfo>>(() => fnAttributes(this))
+            : null;
         this.ConstantValue = constantValue;
-    }
-
-    public FieldSymbol(
-        string name,
-        Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
-        TypeSymbol type,
-        object? constantValue = null)
-        : this(
-            name,
-            declaringSymbol,
-            access,
-            modifiers,
-            () => type,
-            constantValue)
-    {
     }
 
     public override int ReferencedSymbolCount => 0;
@@ -57,6 +51,8 @@ public sealed class FieldSymbol : MemberSymbol
             declaringSymbol ?? this.DeclaringSymbol,
             this.Access,
             this.Modifiers,
-            () => context.Substitute(this.Type));
+            () => context.Substitute(this.Type),
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null
+            );
     }
 }

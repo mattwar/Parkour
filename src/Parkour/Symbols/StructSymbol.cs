@@ -43,7 +43,7 @@ public class StructSymbol : TypeSymbol
             () => context.TypeArguments,
             () => subContext.Substitute(this.BaseTypes),
             me => subContext.Substitute(this.Members, me),
-            me => this.Attributes.Map(a => a.Substitute(subContext)),
+            me => this.Attributes.SelectSame(a => a.Substitute(subContext)),
             definition);
     }
 
@@ -61,7 +61,7 @@ public class StructSymbol : TypeSymbol
             () => context.Substitute(this.TypeArguments),
             () => context.Substitute(this.BaseTypes),
             me => context.Substitute(this.Members),
-            me => this.Attributes.Map(a => a.Substitute(context)),
+            me => this.Attributes.SelectSame(a => a.Substitute(context)),
             this.ConstructedFrom ?? (this.IsConstructable ? this : null));
     }
 }

@@ -32,7 +32,7 @@ public abstract class TypeSymbol : ContainerSymbol
     private readonly Lazy<ImmutableList<Symbol>>? _lazyMembers;
 
     /// <summary>
-    /// Custom attributes declared by this type
+    /// Custom attributes for this type
     /// </summary>
     public override ImmutableList<AttributeInfo> Attributes =>
         _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;

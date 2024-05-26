@@ -26,6 +26,13 @@ public sealed class PropertySymbol : MemberSymbol
     public MethodSymbol? SetMethod => _lazySetMethod?.Value;
     private readonly Lazy<MethodSymbol>? _lazySetMethod;
 
+    /// <summary>
+    /// Custom attributes for this property
+    /// </summary>
+    public override ImmutableList<AttributeInfo> Attributes =>
+        _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
+    private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
+
     public PropertySymbol(
         string name,
         Symbol? declaringSymbol,
@@ -34,7 +41,8 @@ public sealed class PropertySymbol : MemberSymbol
         Func<TypeSymbol> fnType,
         Func<PropertySymbol, FieldSymbol>? fnBackingField,
         Func<PropertySymbol, MethodSymbol>? fnGetMethod,
-        Func<PropertySymbol, MethodSymbol>? fnSetMethod)
+        Func<PropertySymbol, MethodSymbol>? fnSetMethod,
+        Func<PropertySymbol, ImmutableList<AttributeInfo>>? fnAttributes)
         : base(name, declaringSymbol, access, modifiers)
     {
         _lazyType = new Lazy<TypeSymbol>(fnType, SpecialSymbols.CyclicDefinition);
@@ -46,6 +54,9 @@ public sealed class PropertySymbol : MemberSymbol
             : null;
         _lazySetMethod = fnSetMethod != null
             ? new Lazy<MethodSymbol>(() => fnSetMethod(this))
+            : null;
+        _lazyAttributes = fnAttributes != null
+            ? new Lazy<ImmutableList<AttributeInfo>>(() => fnAttributes(this))
             : null;
     }
 
@@ -76,14 +87,10 @@ public sealed class PropertySymbol : MemberSymbol
             this.Access,
             this.Modifiers,
             () => context.Substitute(this.Type),
-            this.BackingField != null
-                ? me => context.Substitute(this.BackingField)
-                : null,
-            this.GetMethod != null
-                ? me => context.Substitute(this.GetMethod)
-                : null,
-            this.SetMethod != null
-                ? me => context.Substitute(this.SetMethod)
-                : null);
+            this.BackingField != null ? me => context.Substitute(this.BackingField) : null,
+            this.GetMethod != null ? me => context.Substitute(this.GetMethod) : null,
+            this.SetMethod != null ? me => context.Substitute(this.SetMethod) : null,
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null
+            );
     }
 }

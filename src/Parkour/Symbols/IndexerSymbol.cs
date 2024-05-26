@@ -20,6 +20,13 @@ public sealed class IndexerSymbol : MemberSymbol
     public MethodSymbol? SetMethod => _lazySetMethod?.Value;
     private readonly Lazy<MethodSymbol>? _lazySetMethod;
 
+    /// <summary>
+    /// Custom attributes for this indexer
+    /// </summary>
+    public override ImmutableList<AttributeInfo> Attributes =>
+        _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
+    private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
+
     public IndexerSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -27,7 +34,8 @@ public sealed class IndexerSymbol : MemberSymbol
         BitSet<SymbolModifier> modifiers,
         Func<TypeSymbol> fnElementType,
         Func<IndexerSymbol, MethodSymbol>? fnGetMethod,
-        Func<IndexerSymbol, MethodSymbol>? fnSetMethod)
+        Func<IndexerSymbol, MethodSymbol>? fnSetMethod,
+        Func<IndexerSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
         : base(name, declaringSymbol, access, modifiers)
     {
         _lazyElementType = new Lazy<TypeSymbol>(fnElementType, SpecialSymbols.CyclicDefinition);
@@ -36,6 +44,9 @@ public sealed class IndexerSymbol : MemberSymbol
             : null;
         _lazySetMethod = fnSetMethod != null
             ? new Lazy<MethodSymbol>(() => fnSetMethod(this))
+            : null;
+        _lazyAttributes = fnAttributes != null
+            ? new Lazy<ImmutableList<AttributeInfo>>(() => fnAttributes(this))
             : null;
     }
 
@@ -69,11 +80,9 @@ public sealed class IndexerSymbol : MemberSymbol
             this.Access,
             this.Modifiers,
             () => context.Substitute(this.ElementType),
-            this.GetMethod != null
-                ? me => context.Substitute(this.GetMethod)
-                : null,
-            this.SetMethod != null
-                ? me => context.Substitute(this.SetMethod)
-                : null);
+            this.GetMethod != null ? me => context.Substitute(this.GetMethod) : null,
+            this.SetMethod != null ? me => context.Substitute(this.SetMethod) : null,
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null
+            );
     }
 }

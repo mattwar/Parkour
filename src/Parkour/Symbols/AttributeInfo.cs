@@ -9,8 +9,8 @@ public record AttributeInfo(
     public AttributeInfo Substitute(SubstitutionContext context)
     {
         var constructor = context.Substitute(this.Constructor);
-        var args = this.Arguments.Map(a => a.Substitute(context));
-        var members = this.Members.Map(m => m.Substitute(context));
+        var args = this.Arguments.SelectSame(a => a.Substitute(context));
+        var members = this.Members.SelectSame(m => m.Substitute(context));
 
         if (constructor == this.Constructor
             && args == this.Arguments

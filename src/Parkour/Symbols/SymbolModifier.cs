@@ -73,4 +73,22 @@ public class SymbolModifier
     /// </summary>
     public static readonly BitSet<SymbolModifier> Special = 
         new SymbolModifier(nameof(Special));
+
+    /// <summary>
+    /// The member in input only
+    /// </summary>
+    public static readonly BitSet<SymbolModifier> In =
+        new SymbolModifier(nameof(In));
+
+    /// <summary>
+    /// The member is output only
+    /// </summary>
+    public static readonly BitSet<SymbolModifier> Out =
+        new SymbolModifier(nameof(Out));
+
+    /// <summary>
+    /// The member is ref
+    /// </summary>
+    public static readonly BitSet<SymbolModifier> Ref =
+        new SymbolModifier(nameof(Ref));
 }

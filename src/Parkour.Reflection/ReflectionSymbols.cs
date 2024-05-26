@@ -135,15 +135,15 @@ public class ReflectionSymbols : StandardSymbolTable
         list.AddRange(nestedNamespaces);
 
         return list.ToImmutableList();
-    }
 
-    private static string GetNextNamespaceName(string fullName, string containingNamespace)
-    {
-        var start = containingNamespace.Length == 0 ? 0 : containingNamespace.Length + 1;
-        var nextDot = fullName.IndexOf('.', start);
-        if (nextDot > 0)
-            return fullName.Substring(start, nextDot - start);
-        return fullName.Substring(start);
+        string GetNextNamespaceName(string fullName, string containingNamespace)
+        {
+            var start = containingNamespace.Length == 0 ? 0 : containingNamespace.Length + 1;
+            var nextDot = fullName.IndexOf('.', start);
+            if (nextDot > 0)
+                return fullName.Substring(start, nextDot - start);
+            return fullName.Substring(start);
+        }
     }
 
     private readonly ConditionalWeakTable<object, Symbol> _runtimeInfoToSymbolMap =
@@ -194,6 +194,15 @@ public class ReflectionSymbols : StandardSymbolTable
 
             switch (runtimeSymbol)
             {
+                case ConstructorInfo constructor:
+                    return new ConstructorSymbol(
+                        (TypeSymbol)declaringSymbol!,
+                        GetAccess(constructor),
+                        GetModifiers(constructor),
+                        me => CreateParameters(me, constructor),
+                        me => CreateAttributeInfo(constructor.GetCustomAttributesData())
+                        );
+
                 case FieldInfo field:
                     return new FieldSymbol(
                         field.Name,
@@ -201,7 +210,20 @@ public class ReflectionSymbols : StandardSymbolTable
                         GetAccess(field),
                         GetModifiers(field),
                         () => GetType(field.FieldType),
+                        me => CreateAttributeInfo(field.GetCustomAttributesData()),
                         field.IsLiteral ? field.GetRawConstantValue() : null);
+
+                case MethodInfo method:
+                    return CreateMethod(method, declaringSymbol);
+
+                case ParameterInfo parameter:
+                    return new ParameterSymbol(
+                        parameter.Name ?? "",
+                        declaringSymbol,
+                        GetModifiers(parameter),
+                        () => GetType(parameter.ParameterType),
+                        me => CreateAttributeInfo(parameter.GetCustomAttributesData())
+                        );
 
                 case PropertyInfo property:
                     var indexParameters = property.GetIndexParameters();
@@ -218,7 +240,9 @@ public class ReflectionSymbols : StandardSymbolTable
                                 : null,
                             property.GetSetMethod() is MethodInfo smi
                                 ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
-                                : null);
+                                : null,
+                            me => CreateAttributeInfo(property.GetCustomAttributesData())
+                                );
                     }
                     else
                     {
@@ -234,24 +258,10 @@ public class ReflectionSymbols : StandardSymbolTable
                                 : null,
                             property.GetSetMethod() is MethodInfo smi
                                 ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
-                                : null);
+                                : null,
+                            me => CreateAttributeInfo(property.GetCustomAttributesData())
+                            );
                     }
-
-                case MethodInfo method:
-                    return CreateMethod(method, declaringSymbol);
-
-                case ConstructorInfo constructor:
-                    return new ConstructorSymbol(
-                        (TypeSymbol)declaringSymbol!,
-                        GetAccess(constructor),
-                        GetModifiers(constructor),
-                        me => CreateParameters(me, constructor));
-
-                case ParameterInfo parameter:
-                    return new ParameterSymbol(
-                        parameter.Name ?? "",
-                        declaringSymbol,
-                        () => GetType(parameter.ParameterType));
 
                 case Type type:
                     if (type.IsGenericTypeParameter)
@@ -294,7 +304,9 @@ public class ReflectionSymbols : StandardSymbolTable
                 fnTypeArguments,
                 me => CreateParameters(me, method),
                 () => GetType(method.ReturnType),
-                constructedFrom);
+                me => CreateAttributeInfo(method.GetCustomAttributesData()),
+                constructedFrom
+                );
         }
 
         TypeSymbol CreateType(Type type, Symbol? declaringSymbol)
@@ -323,7 +335,7 @@ public class ReflectionSymbols : StandardSymbolTable
                 me => CreateMembers(type, me);
 
             Func<TypeSymbol, ImmutableList<AttributeInfo>> fnAttributes =
-                me => type.GetCustomAttributesData().Select(d => CreateAttributeInfo(d)).ToImmutableList();
+                me => CreateAttributeInfo(type.GetCustomAttributesData());
 
             var name = StripArity(type.Name);
 
@@ -495,16 +507,35 @@ public class ReflectionSymbols : StandardSymbolTable
             _ => SymbolModifier.None
         };
 
-    private AttributeInfo CreateAttributeInfo(CustomAttributeData data)
+    public static BitSet<SymbolModifier> GetModifiers(ParameterInfo info)
     {
-        var constructor = (ConstructorSymbol)GetSymbol(data.Constructor)!;
-        var arguments = data.ConstructorArguments
-            .Select((a, i) => new AttributeArgument(constructor.Parameters[i], a.Value))
+        var isIn = (info.Attributes & ParameterAttributes.In) != 0;
+        var isOut = (info.Attributes & ParameterAttributes.Out) != 0;
+        return isIn && isOut ? SymbolModifier.Ref
+            : isIn ? SymbolModifier.In
+            : isOut ? SymbolModifier.Out
+            : SymbolModifier.None;
+    }
+
+    public ImmutableList<AttributeInfo> CreateAttributeInfo(IEnumerable<CustomAttributeData> data) =>
+        data.Select(d => CreateAttributeInfo(d))
+            .OfType<AttributeInfo>()
             .ToImmutableList();
-        var members = data.NamedArguments
-            .Select(n => new AttributeMember((MemberSymbol)GetSymbol(n.MemberInfo)!, n.TypedValue.Value))
-            .ToImmutableList();
-        return new AttributeInfo(constructor, arguments, members);
+
+    private AttributeInfo? CreateAttributeInfo(CustomAttributeData data)
+    {
+        var constructor = (ConstructorSymbol?)GetOrCreateSymbol(data.Constructor, null);
+        if (constructor != null)
+        {
+            var arguments = data.ConstructorArguments
+                .Select((a, i) => new AttributeArgument(constructor.Parameters[i], a.Value))
+                .ToImmutableList();
+            var members = data.NamedArguments
+                .Select(n => new AttributeMember((MemberSymbol)GetSymbol(n.MemberInfo)!, n.TypedValue.Value))
+                .ToImmutableList();
+            return new AttributeInfo(constructor, arguments, members);
+        }
+        return null;
     }
 
     /// <summary>
