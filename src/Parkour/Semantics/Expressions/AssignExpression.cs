@@ -11,7 +11,7 @@ public sealed class AssignExpression : Expression
     public Expression Target { get; }
     public Expression Source { get; }
 
-    public AssignExpression(
+    private AssignExpression(
         Expression target,
         Expression source,
         ISourceLocation? location,
@@ -26,6 +26,14 @@ public sealed class AssignExpression : Expression
     {
         this.Target = target;
         this.Source = source;
+    }
+
+    public AssignExpression(
+        Expression target,
+        Expression source,
+        ISourceLocation? location)
+        : this(target, source, location, null, null)
+    {
     }
 
     public override AssignExpression WithLocation(ISourceLocation? location) =>

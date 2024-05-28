@@ -10,7 +10,7 @@ public sealed class ElementExpression : Expression
     public ImmutableList<Expression> Arguments { get; }
     public IndexerSymbol? IndexerSymbol { get; }
 
-    public ElementExpression(
+    private ElementExpression(
         Expression expression,
         ImmutableList<Expression> arguments,
         ISourceLocation? location,
@@ -28,6 +28,14 @@ public sealed class ElementExpression : Expression
         this.Expression = expression;
         this.Arguments = arguments.ToImmutableList();
         this.IndexerSymbol = indexerSymbol;
+    }
+
+    public ElementExpression(
+        Expression expression,
+        ImmutableList<Expression> arguments,
+        ISourceLocation? location)
+        : this(expression, arguments, location, null, null, null)
+    {
     }
 
     public override ElementExpression WithLocation(ISourceLocation? location) =>

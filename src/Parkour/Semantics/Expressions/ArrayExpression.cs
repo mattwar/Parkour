@@ -6,32 +6,42 @@ using Symbols;
 /// </summary>
 public class ArrayExpression : AdjustedReferenceExpression
 {
-    public override Expression TypeOrMember { get; }
-    public override Symbol? ReferencedSymbol { get; }
+    public Expression ElementType { get; }
+    public TypeSymbol? ArrayTypeSymbol { get; }
 
-    public ArrayExpression(
+    public override Expression TypeOrMember => this.ElementType;
+    public override Symbol? ReferencedSymbol => this.ArrayTypeSymbol;
+
+    private ArrayExpression(
         Expression elementType,
         ISourceLocation? location,
-        Symbol? referencedSymbol,
+        TypeSymbol? arrayTypeSymbol,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             State(elementType)
-            | NotNullOrDiagnosticState(referencedSymbol, diagnostics),
+            | NotNullOrDiagnosticState(arrayTypeSymbol, diagnostics),
             location,
             resultType,
             diagnostics)
     {
-        this.TypeOrMember = elementType;
-        this.ReferencedSymbol = referencedSymbol;
+        this.ElementType = elementType;
+        this.ArrayTypeSymbol = arrayTypeSymbol;
+    }
+
+    public ArrayExpression(
+        Expression elementType,
+        ISourceLocation? location)
+        : this(elementType, location, null, null, null)
+    {
     }
 
     public override ArrayExpression WithLocation(ISourceLocation? location) =>
         location == this.Location ? this :
         new ArrayExpression(
-            this.TypeOrMember,
+            this.ElementType,
             location,
-            this.ReferencedSymbol,
+            this.ArrayTypeSymbol,
             this.ResultType,
             this.Diagnostics
             );
@@ -39,9 +49,9 @@ public class ArrayExpression : AdjustedReferenceExpression
     public override ArrayExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
         diagnostics == this.Diagnostics ? this :
         new ArrayExpression(
-            this.TypeOrMember,
+            this.ElementType,
             this.Location,
-            this.ReferencedSymbol,
+            this.ArrayTypeSymbol,
             this.ResultType,
             diagnostics
             );
@@ -49,29 +59,29 @@ public class ArrayExpression : AdjustedReferenceExpression
     public override ArrayExpression WithResultType(TypeSymbol? resultType) =>
         resultType == this.ResultType ? this :
         new ArrayExpression(
-            this.TypeOrMember,
+            this.ElementType,
             this.Location,
-            this.ReferencedSymbol,
+            this.ArrayTypeSymbol,
             resultType,
             this.Diagnostics
             );
 
-    public ArrayExpression WithReferencedSymbol(Symbol? referencedSymbol) =>
-        referencedSymbol == this.ReferencedSymbol ? this :
+    public ArrayExpression WithArrayTypeSymbol(TypeSymbol? arrayTypeSymbol) =>
+        arrayTypeSymbol == this.ReferencedSymbol ? this :
         new ArrayExpression(
-            this.TypeOrMember,
+            this.ElementType,
             this.Location,
-            referencedSymbol,
+            arrayTypeSymbol,
             this.ResultType,
             this.Diagnostics
             );
 
-    public ArrayExpression WithTypeOrMember(Expression typeOrMember) =>
-        typeOrMember == this.TypeOrMember ? this :
+    public ArrayExpression WithElementType(Expression elementType) =>
+        elementType == this.TypeOrMember ? this :
         new ArrayExpression(
-            typeOrMember,
+            elementType,
             this.Location,
-            this.ReferencedSymbol,
+            this.ArrayTypeSymbol,
             this.ResultType,
             this.Diagnostics
             );
@@ -87,7 +97,7 @@ public class ArrayExpression : AdjustedReferenceExpression
 
     public override ArrayExpression RewriteChildren(SemanticRewriter rewriter)
     {
-        var typeOrMember = rewriter.Rewrite(this.TypeOrMember);
-        return this.WithTypeOrMember(typeOrMember!);
+        var elementType = rewriter.Rewrite(this.ElementType);
+        return this.WithElementType(elementType!);
     }
 }

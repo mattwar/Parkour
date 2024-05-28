@@ -8,19 +8,19 @@ using Symbols;
 /// </summary>
 public sealed class LoopExpression : Expression
 {
-    public Expression Body { get; }
+    public Expression Expression { get; }
     public LabelSymbol? BreakTarget { get; }
     public LabelSymbol? ContinueTarget { get; }
 
-    public LoopExpression(
-        Expression body,
+    private LoopExpression(
+        Expression expression,
         ISourceLocation? location,
         TypeSymbol? resultType,
         LabelSymbol? breakTarget,
         LabelSymbol? continueTarget,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
-            State(body)
+            State(expression)
             | NotNullState(resultType)
             | NotNullState(breakTarget)
             | NotNullState(continueTarget), 
@@ -28,15 +28,22 @@ public sealed class LoopExpression : Expression
             resultType, 
             diagnostics)
     {
-        this.Body = body;
+        this.Expression = expression;
         this.BreakTarget = breakTarget;
         this.ContinueTarget = continueTarget;
+    }
+
+    public LoopExpression(
+        Expression expression,
+        ISourceLocation? location)
+        : this(expression, location, null, null, null, null)
+    {
     }
 
     public override LoopExpression WithLocation(ISourceLocation? location) =>
         location == this.Location ? this :
         new LoopExpression(
-            this.Body,
+            this.Expression,
             location,
             this.ResultType,
             this.BreakTarget,
@@ -47,7 +54,7 @@ public sealed class LoopExpression : Expression
     public override LoopExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
         diagnostics == this.Diagnostics ? this :
         new LoopExpression(
-            this.Body,
+            this.Expression,
             this.Location,
             this.ResultType,
             this.BreakTarget,
@@ -58,7 +65,7 @@ public sealed class LoopExpression : Expression
     public override LoopExpression WithResultType(TypeSymbol? resultType) =>
         resultType == this.ResultType ? this :
         new LoopExpression(
-            this.Body,
+            this.Expression,
             this.Location,
             resultType,
             this.BreakTarget,
@@ -66,10 +73,10 @@ public sealed class LoopExpression : Expression
             this.Diagnostics
             );
 
-    public LoopExpression WithBody(Expression body) =>
-        body == this.Body ? this :
+    public LoopExpression WithExpression(Expression expression) =>
+        expression == this.Expression ? this :
         new LoopExpression(
-            body,
+            expression,
             this.Location,
             this.ResultType,
             this.BreakTarget,
@@ -80,7 +87,7 @@ public sealed class LoopExpression : Expression
     public LoopExpression WithBreakTarget(LabelSymbol? breakTarget) =>
         breakTarget == this.BreakTarget ? this :
         new LoopExpression(
-            this.Body,
+            this.Expression,
             this.Location,
             this.ResultType,
             breakTarget,
@@ -91,7 +98,7 @@ public sealed class LoopExpression : Expression
     public LoopExpression WithContinueTarget(LabelSymbol? continueTarget) =>
         continueTarget == this.ContinueTarget ? this :
         new LoopExpression(
-            this.Body,
+            this.Expression,
             this.Location,
             this.ResultType,
             this.BreakTarget,
@@ -104,13 +111,13 @@ public sealed class LoopExpression : Expression
     public override SemanticElement? GetChild(int index) =>
         index switch
         {
-            0 => this.Body,
+            0 => this.Expression,
             _ => null
         };
 
     public override LoopExpression RewriteChildren(SemanticRewriter rewriter)
     {
-        var body = rewriter.Rewrite(this.Body);
-        return this.WithBody(body!);
+        var body = rewriter.Rewrite(this.Expression);
+        return this.WithExpression(body!);
     }
 }

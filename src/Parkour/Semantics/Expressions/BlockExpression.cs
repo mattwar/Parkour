@@ -10,7 +10,7 @@ public sealed class BlockExpression : Expression
 {
     public ImmutableList<Expression> Expressions { get; }
 
-    public BlockExpression(
+    private BlockExpression(
         ImmutableList<Expression> expressions,
         ISourceLocation? location,
         TypeSymbol? resultType,
@@ -23,6 +23,14 @@ public sealed class BlockExpression : Expression
     {
         this.Expressions = expressions.ToImmutableList();
     }
+
+    public BlockExpression(
+        ImmutableList<Expression> expressions,
+        ISourceLocation? location)
+        : this(expressions, location, null, null)
+    {
+    }
+
 
     public override BlockExpression WithLocation(ISourceLocation? location) =>
         location == this.Location ? this :

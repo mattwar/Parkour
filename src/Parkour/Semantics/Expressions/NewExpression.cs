@@ -11,7 +11,7 @@ public class NewExpression : Expression
     public ImmutableList<Expression> Arguments { get; }
     public ConstructorSymbol? ConstructorSymbol { get; }
 
-    public NewExpression(
+    private NewExpression(
         Expression? type,
         ImmutableList<Expression>? arguments,
         ISourceLocation? location,
@@ -30,6 +30,14 @@ public class NewExpression : Expression
         this.Type = type;
         this.Arguments = arguments ?? ImmutableList<Expression>.Empty;
         this.ConstructorSymbol = constructorSymbol;
+    }
+
+    public NewExpression(
+        Expression? type,
+        ImmutableList<Expression>? arguments,
+        ISourceLocation? location)
+        : this(type, arguments, location, null, null, null)
+    {
     }
 
     public override NewExpression WithLocation(ISourceLocation? location) =>
@@ -65,7 +73,7 @@ public class NewExpression : Expression
             this.Diagnostics
             );
 
-    public NewExpression WithType(Expression type) =>
+    public NewExpression WithType(Expression? type) =>
         type == this.Type ? this :
         new NewExpression(
             type,

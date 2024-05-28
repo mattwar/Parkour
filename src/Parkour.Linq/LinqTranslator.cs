@@ -361,7 +361,7 @@ public class LinqTranslator
         SetCurrentBranchTarget(loop.ContinueTarget, loopContinue);
         SetCurrentBranchTarget(loop.BreakTarget, loopBreak);
 
-        var body = Translate(loop.Body);
+        var body = Translate(loop.Expression);
 
         return
             L.Expression.Loop(
@@ -571,7 +571,7 @@ public class LinqTranslator
             // variable must be associated with a block or parameter,
             // but was not predeclared in map from an outer block or parameter
             // so add wrapper block and try again.
-            var block = new BlockExpression([declaration], declaration.Location, declaration.ResultType, null);
+            var block = new BlockExpression([declaration], declaration.Location).WithResultType(declaration.ResultType);
             return TranslateBlock(block);
         }
         else

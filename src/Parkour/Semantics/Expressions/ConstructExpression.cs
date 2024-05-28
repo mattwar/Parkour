@@ -10,7 +10,10 @@ public class ConstructExpression : AdjustedReferenceExpression
     public ImmutableList<Expression> TypeArguments { get; }
     public Symbol? ConstructedSymbol { get; }
 
-    public ConstructExpression(
+    public override Symbol? ReferencedSymbol =>
+        ConstructedSymbol;
+
+    private ConstructExpression(
         Expression typeOrMember,
         ImmutableList<Expression> typeArguments,
         ISourceLocation? location,
@@ -30,8 +33,13 @@ public class ConstructExpression : AdjustedReferenceExpression
         this.ConstructedSymbol = constructedSymbol;
     }
 
-    public override Symbol? ReferencedSymbol => 
-        ConstructedSymbol;
+    public ConstructExpression(
+        Expression typeOrMember,
+        ImmutableList<Expression> typeArguments,
+        ISourceLocation? location)
+        : this(typeOrMember, typeArguments, location, null, null, null)
+    {
+    }
 
     public override ConstructExpression WithLocation(ISourceLocation? location) =>
         location == this.Location ? this :

@@ -13,7 +13,7 @@ public sealed class NameExpression : Expression
     public string Name { get; }
     public override Symbol? ReferencedSymbol { get; }
 
-    public NameExpression(
+    private NameExpression(
         string name,
         ISourceLocation? location,
         Symbol? referencedSymbol,
@@ -28,6 +28,13 @@ public sealed class NameExpression : Expression
     {
         this.Name = name;
         this.ReferencedSymbol = referencedSymbol;
+    }
+
+    public NameExpression(
+        string name,
+        ISourceLocation? location)
+        : this(name, location, null, null, null)
+    {
     }
 
     public override NameExpression WithLocation(ISourceLocation? location) =>

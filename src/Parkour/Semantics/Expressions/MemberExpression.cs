@@ -15,7 +15,7 @@ public sealed class MemberExpression : Expression
     public string Name { get; }
     public override Symbol? ReferencedSymbol { get; }
 
-    public MemberExpression(
+    private MemberExpression(
         Expression instance,
         string name,
         ISourceLocation? location,
@@ -33,6 +33,14 @@ public sealed class MemberExpression : Expression
         this.Instance = instance;
         this.Name = name;
         this.ReferencedSymbol = referencedSymbol;
+    }
+
+    public MemberExpression(
+        Expression instance,
+        string name,
+        ISourceLocation? location)
+        : this(instance, name, location, null, null, null)
+    {
     }
 
     public override MemberExpression WithLocation(ISourceLocation? location) =>

@@ -11,7 +11,7 @@ public sealed class BranchExpression : Expression
     public LabelSymbol? LabelSymbol { get; }
     public Expression? Expression { get; }
 
-    public BranchExpression(
+    private BranchExpression(
         string labelName,
         Expression? expression,
         ISourceLocation? location,
@@ -31,19 +31,27 @@ public sealed class BranchExpression : Expression
         this.Expression = expression;
     }
 
+    public BranchExpression(
+        string labelName,
+        Expression? expression,
+        ISourceLocation? location)
+        : this(labelName, expression, location, null, null, null)
+    {
+    }
+
     public bool IsBreak => this.LabelName == LabelSymbol.BreakLabelName;
     public bool IsContinue => this.LabelName == LabelSymbol.ContinueLabelName;
     public bool IsReturn => this.LabelName == LabelSymbol.ReturnLabelName;
     public bool IsGoto => !IsBreak && !IsContinue && !IsReturn;
 
-    public static BranchExpression CreateBreak(Expression? expression, ISourceLocation? location, LabelSymbol? labelSymbol, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression(LabelSymbol.BreakLabelName, expression, location, labelSymbol, labelSymbol != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
+    public static BranchExpression CreateBreak(Expression? expression, ISourceLocation? location) =>
+        new BranchExpression(LabelSymbol.BreakLabelName, expression, location);
 
-    public static BranchExpression CreateContinue(ISourceLocation? location, LabelSymbol? labelSymbol, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression(LabelSymbol.ContinueLabelName, null, location, labelSymbol, labelSymbol != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
+    public static BranchExpression CreateContinue(ISourceLocation? location) =>
+        new BranchExpression(LabelSymbol.ContinueLabelName, null, location);
 
-    public static BranchExpression CreateReturn(Expression? expression, ISourceLocation? location, LabelSymbol? labelSymbol, ImmutableList<Diagnostic>? diagnostics) =>
-        new BranchExpression(LabelSymbol.ReturnLabelName, expression, location, labelSymbol, labelSymbol != null ? SpecialSymbols.DoesNotReturn : null, diagnostics);
+    public static BranchExpression CreateReturn(Expression? expression, ISourceLocation? location) =>
+        new BranchExpression(LabelSymbol.ReturnLabelName, expression, location);
 
     public override BranchExpression WithLocation(ISourceLocation? location) =>
         location == this.Location ? this :

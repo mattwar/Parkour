@@ -21,7 +21,7 @@ public class LabelExpression : Expression
     /// </summary>
     public LabelSymbol? LabelSymbol { get; }
 
-    public LabelExpression(
+    private LabelExpression(
         string name,
         Expression? receivingType,
         ISourceLocation? location,
@@ -39,6 +39,14 @@ public class LabelExpression : Expression
         this.Name = name;
         this.ReceivingType = receivingType;
         this.LabelSymbol = labelSymbol;
+    }
+
+    public LabelExpression(
+        string name,
+        Expression? receivingType,
+        ISourceLocation? location)
+        : this(name, receivingType, location, null, null, null)
+    {
     }
 
     public override LabelExpression WithLocation(ISourceLocation? location) =>
@@ -85,7 +93,7 @@ public class LabelExpression : Expression
             this.Diagnostics
             );
 
-    public LabelExpression WithReceivingType(Expression receivingType) =>
+    public LabelExpression WithReceivingType(Expression? receivingType) =>
         receivingType == this.ReceivingType ? this :
         new LabelExpression(
             this.Name,

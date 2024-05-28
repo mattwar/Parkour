@@ -10,7 +10,7 @@ public class ConvertExpression : Expression
     public Expression? ConvertedType { get; }
     public Symbol? ConversionSymbol { get; }
 
-    public ConvertExpression(
+    private ConvertExpression(
         Expression expression,
         Expression? convertedType,
         ISourceLocation? location,
@@ -28,6 +28,14 @@ public class ConvertExpression : Expression
         this.Expression = expression;
         this.ConvertedType = convertedType;
         this.ConversionSymbol = conversionSymbol;
+    }
+
+    public ConvertExpression(
+        Expression expression,
+        Expression? convertedType,
+        ISourceLocation? location)
+        : this(expression, convertedType, location, null, null, null)
+    {
     }
 
     public override ConvertExpression WithLocation(ISourceLocation? location) =>
@@ -74,7 +82,7 @@ public class ConvertExpression : Expression
             this.Diagnostics
             );
 
-    public ConvertExpression WithConvertedType(Expression convertedType) =>
+    public ConvertExpression WithConvertedType(Expression? convertedType) =>
         convertedType == this.ConvertedType ? this :
         new ConvertExpression(
             this.Expression,

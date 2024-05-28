@@ -10,7 +10,7 @@ public class ArityExpression : AdjustedReferenceExpression
     public int Arity { get; }
     public override Symbol? ReferencedSymbol { get; }
 
-    public ArityExpression(
+    private ArityExpression(
         Expression typeOrMember,
         int arity,
         ISourceLocation? location,
@@ -27,6 +27,14 @@ public class ArityExpression : AdjustedReferenceExpression
         this.TypeOrMember = typeOrMember;
         this.Arity = arity;
         this.ReferencedSymbol = referencedSymbol;
+    }
+
+    public ArityExpression(
+        Expression typeOrMember,
+        int arity,
+        ISourceLocation? location)
+        : this(typeOrMember, arity, location, null, null, null)
+    {
     }
 
     public override ArityExpression WithLocation(ISourceLocation? location) =>

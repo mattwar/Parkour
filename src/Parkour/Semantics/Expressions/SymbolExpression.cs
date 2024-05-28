@@ -2,18 +2,22 @@
 using Symbols;
 
 /// <summary>
-/// References a symbol via the current symbol table.
+/// References a symbol by looking it up by name in the current symbol table.
 /// </summary>
 public sealed class SymbolExpression : Expression
 {
     internal protected override string DebugText => 
         $"{GetType().Name}: {ReferencedSymbol?.FullName ?? "???"} {ResultType?.FullName ?? "???"}";
 
-    public string FullName { get; }
+    /// <summary>
+    /// The full name of the symbol in the symbol table.
+    /// </summary>
+    public string Name { get; }
+
     public override Symbol? ReferencedSymbol { get; }
 
-    public SymbolExpression(
-        string fullName,
+    private SymbolExpression(
+        string name,
         ISourceLocation? location,
         Symbol? referencedSymbol,
         TypeSymbol? resultType,
@@ -25,14 +29,21 @@ public sealed class SymbolExpression : Expression
             resultType,
             diagnostics)
     {
-        this.FullName = fullName;
+        this.Name = name;
         this.ReferencedSymbol = referencedSymbol;
+    }
+
+    public SymbolExpression(
+        string name,
+        ISourceLocation? location)
+        : this(name, location, null, null, null)
+    {
     }
 
     public override SymbolExpression WithLocation(ISourceLocation? location) =>
         location == this.Location ? this :
         new SymbolExpression(
-            this.FullName,
+            this.Name,
             location,
             this.ReferencedSymbol,
             this.ResultType,
@@ -42,7 +53,7 @@ public sealed class SymbolExpression : Expression
     public override SymbolExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
         diagnostics == this.Diagnostics ? this :
         new SymbolExpression(
-            this.FullName,
+            this.Name,
             this.Location,
             this.ReferencedSymbol,
             this.ResultType,
@@ -52,17 +63,17 @@ public sealed class SymbolExpression : Expression
     public override SymbolExpression WithResultType(TypeSymbol? resultType) =>
         resultType == this.ResultType ? this :
         new SymbolExpression(
-            this.FullName,
+            this.Name,
             this.Location,
             this.ReferencedSymbol,
             resultType,
             this.Diagnostics
             );
 
-    public SymbolExpression WithFullName(string fullName) =>
-        fullName == this.FullName ? this :
+    public SymbolExpression WithName(string name) =>
+        name == this.Name ? this :
         new SymbolExpression(
-            fullName,
+            name,
             this.Location,
             this.ReferencedSymbol,
             this.ResultType,
@@ -72,7 +83,7 @@ public sealed class SymbolExpression : Expression
     public SymbolExpression WithReferencedSymbol(Symbol? referencedSymbol) =>
         referencedSymbol == this.ReferencedSymbol ? this :
         new SymbolExpression(
-            this.FullName,
+            this.Name,
             this.Location,
             referencedSymbol,
             this.ResultType,

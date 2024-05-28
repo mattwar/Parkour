@@ -8,7 +8,7 @@ public sealed class ConstantExpression : Expression
 {
     public object? Value { get; }
 
-    public ConstantExpression(
+    private ConstantExpression(
         object? value,
         ISourceLocation? location,
         TypeSymbol? resultType,
@@ -20,6 +20,13 @@ public sealed class ConstantExpression : Expression
             diagnostics)
     {
         this.Value = value;
+    }
+
+    public ConstantExpression(
+        object? value,
+        ISourceLocation? location)
+        : this(value, location, null, null)
+    {
     }
 
     public override ConstantExpression WithLocation(ISourceLocation? location) =>

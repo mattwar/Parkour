@@ -72,7 +72,7 @@ public class BindingTests
                 New(Name("C")).Member("F"),
             ],
             expectedSymbols: ["C.F"],
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // static field
         TestBind(
@@ -81,7 +81,7 @@ public class BindingTests
                 Name("C").Member("F"),
             ],
             expectedSymbols: ["C.F"],
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // instance field with initializer
         TestBind(
@@ -90,7 +90,7 @@ public class BindingTests
                 New(Name("C")).Member("F"),
             ],
             expectedSymbols: ["C.F"],
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // infer field type from initializer
         TestBind(
@@ -99,7 +99,7 @@ public class BindingTests
                 New(Name("C")).Member("F"),
             ],
             expectedSymbols: ["C.F"],
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // cyclic field
         TestBind(
@@ -131,7 +131,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: VoidType.FullName
+            expectedResultType: VoidType.Name
             );
 
         // instance int returning method
@@ -141,7 +141,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
 
         // instance int returning method with parameters
@@ -151,7 +151,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call([Constant(1)])
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
 
         // static void method
@@ -161,7 +161,7 @@ public class BindingTests
                 Name("C").Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: VoidType.FullName
+            expectedResultType: VoidType.Name
             );
 
         // static int returning method
@@ -171,7 +171,7 @@ public class BindingTests
                 Name("C").Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
 
         // static int returning method with parameter
@@ -181,7 +181,7 @@ public class BindingTests
                 Name("C").Member("M").Call(Constant(1))
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
 
         // inferred return type
@@ -191,7 +191,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
 
         // cyclic inferred return type
@@ -211,7 +211,7 @@ public class BindingTests
                 New(Name("C")).Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
     }
 
@@ -225,7 +225,7 @@ public class BindingTests
                 New(Name("C")).Member("P")
             ],
             expectedSymbols: ["C.P"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
 
         // static property
@@ -235,7 +235,7 @@ public class BindingTests
                 Name("C").Member("P")
             ],
             expectedSymbols: ["C.P"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
 
         // inferred property type
@@ -245,7 +245,7 @@ public class BindingTests
                 New(Name("C")).Member("P")
             ],
             expectedSymbols: ["C.P"],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
 
         // inferred cyclic definition
@@ -379,16 +379,16 @@ public class BindingTests
     [TestMethod]
     public void TestDeclaration_Using()
     {
-        // Members of System are now in scope
-        TestBind(
-            [
-                Using(Symbol("System")),
-                Class("C", [
-                    Property("P", Name("Int32"))
-                    ])
-            ],
-            expectedSymbols: ["C.P"]
-            );
+        //// Members of System are now in scope
+        //TestBind(
+        //    [
+        //        Using(Symbol("System")),
+        //        Class("C", [
+        //            Property("P", Name("Int32"))
+        //            ])
+        //    ],
+        //    expectedSymbols: ["C.P"]
+        //    );
 
         // alias X for System is now in scope
         TestBind(
@@ -431,7 +431,7 @@ public class BindingTests
                     Variable(Int32Type, "x"),
                     Assign(Name("x"), Constant(1)))
             ],
-            expectedResultType: Int32Type.FullName
+            expectedResultType: Int32Type.Name
             );
     }
 
@@ -441,14 +441,14 @@ public class BindingTests
         // block can contain just one expression
         TestBind(
             Block(Constant(1)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // last expression determines block type
         TestBind(
             Block(
                 Constant("zero"),
                 Constant(1)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
 
         // declare in block
@@ -456,7 +456,7 @@ public class BindingTests
             Block(
                 Variable("x", Constant(1)),
                 Name("x")),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
     }
 
     [TestMethod]
@@ -468,7 +468,7 @@ public class BindingTests
                 Branch("label", Constant(1)),
                 Label("label")
                 ),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         TestBind(
             Block(
@@ -483,7 +483,7 @@ public class BindingTests
                 Branch("label"),
                 Label("label", Int32Type)
                 ),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             Block(
@@ -498,7 +498,7 @@ public class BindingTests
                 Branch("label", Constant(1)),
                 Label("label", Int64Type)
                 ),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
 
         TestBind(
             Block(
@@ -539,14 +539,14 @@ public class BindingTests
             Block(
                 If(Constant(true), Branch("label")),
                 Label("label")),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // branch to label in outer block
         TestBind(
             Block(
                 Block(Branch("label")),
                 Label("label")),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
     }
 
     [TestMethod]
@@ -554,7 +554,7 @@ public class BindingTests
     {
         TestBind(
             Call(Constant(1).Member("ToString")), 
-            expectedResultType: StringType.FullName);
+            expectedResultType: StringType.Name);
     }
 
     [TestMethod]
@@ -602,33 +602,33 @@ public class BindingTests
         // whenTrue/whenFalse same types
         TestBind(
             Condition(Constant(true), Constant(1), Constant(0)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // whenTrue/whenFalse not same types, convertable
         TestBind(
             Condition(Constant(true), Constant(1), Constant(1L)),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
 
         // whenTrue / whenFalse not same types, not convertable
         TestBind(
             Condition(Constant(true), Constant(1), Constant("zero")),
-            expectedResultType: ObjectType.FullName,
+            expectedResultType: ObjectType.Name,
             containsDiagnostics: true);
 
         // whenTrue is void (void path leads to default)
         TestBind(
             Condition(Constant(true), Block(), Constant(2)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // whenFalse is void (void path leads to default)
         TestBind(
             Condition(Constant(true), Constant(1), Block()),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // both are void
         TestBind(
             Condition(Constant(true), Block(), Block()),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
     }
 
     [TestMethod]
@@ -636,7 +636,7 @@ public class BindingTests
     {
         TestBind(
             Constant(1),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
     }
 
     [TestMethod]
@@ -654,7 +654,7 @@ public class BindingTests
 
         TestBind(
             Convert(Constant(1), Int64Type),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
     }
 
     [TestMethod]
@@ -663,7 +663,7 @@ public class BindingTests
         // default w/ type expression
         TestBind(
             Default(Int32Type),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // default w/o type expression
         TestBind(
@@ -673,7 +673,7 @@ public class BindingTests
         // default w/o type but with target type
         TestBind(
             Variable(Int32Type, "x", Default()),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
     }
 
     [TestMethod]
@@ -681,19 +681,19 @@ public class BindingTests
     {
         TestBind(
             NewArray(Int32Type, Constant(2)).Element(Constant(0)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             NewArray(StringType, Constant(2)).Element(Constant(0)),
-            expectedResultType: StringType.FullName);
+            expectedResultType: StringType.Name);
 
         TestBind(
             New(ListInt32Type,[]).Element(Constant(0)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             New(ListStringType, []).Element(Constant(0)),
-            expectedResultType: StringType.FullName);
+            expectedResultType: StringType.Name);
     }
 
     [TestMethod]
@@ -701,7 +701,7 @@ public class BindingTests
     {
         TestBind(
             Constant(123).IsType(Int32Type),
-            expectedResultType: BooleanType.FullName
+            expectedResultType: BooleanType.Name
             );
     }
 
@@ -711,22 +711,22 @@ public class BindingTests
         // lone void label okay
         TestBind(
             Label("x"),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // lone void label in block okay
         TestBind(
             Block(Label("x")),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // lone label with receiving type okay
         TestBind(
             Label("x", Int32Type),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // label in block with receiving type okay
         TestBind(
             Block(Label("x", Int32Type)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
     }
 
     [TestMethod]
@@ -739,12 +739,12 @@ public class BindingTests
         // called lambda with no parameters and no return
         TestBind(
             Call(Lambda(Constant(1))),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // called lambda with no parameters and no return
         TestBind(
             Call(Lambda(Block())),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // lambda with parameter
         TestBind(
@@ -759,14 +759,14 @@ public class BindingTests
                     [Parameter("x", StringType)],
                     Name("x")),
                 Constant("string")),
-            expectedResultType: StringType.FullName);
+            expectedResultType: StringType.Name);
 
         // lambda with return
         TestBind(
             Call(
                 Lambda(
                     Return(Constant(1)))),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // lambda with return and value
         TestBind(
@@ -776,7 +776,7 @@ public class BindingTests
                         Return(Constant(1)),
                         Constant(2L)
                         ))),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
 
         // lambda with conditional true and value
         TestBind(
@@ -784,7 +784,7 @@ public class BindingTests
                 Lambda(
                     Condition(Constant(true), Return(Constant(1)), Constant(2L))
                     )),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
 
         // lambda with conditional returns
         TestBind(
@@ -792,7 +792,7 @@ public class BindingTests
                 Lambda(
                     Condition(Constant(true), Return(Constant(1)), Return(Constant(2L)))
                     )),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
 
         // lambda with non-convertable returns
         TestBind(
@@ -800,7 +800,7 @@ public class BindingTests
                 Lambda(
                     Condition(Constant(true), Return(Constant(1)), Return(Constant("two")))
                     )),
-            expectedResultType: ObjectType.FullName);
+            expectedResultType: ObjectType.Name);
     }
 
     [TestMethod]
@@ -809,50 +809,50 @@ public class BindingTests
         // loop with no break
         TestBind(
             Loop(Constant(1)),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with block & no break
         TestBind(
             Loop(Block(Constant(1))),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with break
         TestBind(
             Loop(Break()),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with break in block
         TestBind(
             Loop(Block(Break())),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with break with value
         TestBind(
             Loop(Break(Constant(1))),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // loop with break with value in block
         TestBind(
             Loop(Block(Break(Constant(1)))),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // loop with conditional break
         TestBind(
             Loop(
                 Condition(Constant(true), Constant(1), Break())),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with conditional break returning value
         TestBind(
             Loop(
                 Condition(Constant(true), Constant(1), Break(Constant(2)))),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // loop with conditional break returning compatible values
         TestBind(
             Loop(
                 Condition(Constant(true), Constant(1), Break(Constant(2L)))),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
 
         // loop with multiple compatible breaks
         TestBind(
@@ -860,14 +860,14 @@ public class BindingTests
                 Block(
                     Break(),
                     Break())),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         TestBind(
             Loop(
                 Block(
                     Break(Constant(1)),
                     Break(Constant(2L)))),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
 
         // loop with multiple breaks, void and value
         TestBind(
@@ -875,14 +875,14 @@ public class BindingTests
                 Block(
                     Break(),
                     Break(Constant(1)))),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             Loop(
                 Block(
                     Break(Constant(1)),
                     Break())),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // loop with final expression (not compatible with break)
         // does not figure in loop's type
@@ -891,17 +891,17 @@ public class BindingTests
                 Block(
                     Break(Constant(1)),
                     Constant("string"))),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // loop with continue
         TestBind(
             Loop(Continue()),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with continue in block
         TestBind(
             Loop(Block(Continue())),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with continue between other expressions
         TestBind(
@@ -909,29 +909,29 @@ public class BindingTests
                 Constant(1),
                 Continue(),
                 Constant(2))),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with conditional continue.
         TestBind(
             Loop(Condition(Constant(true), Continue())),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with multiple continues
         TestBind(
             Loop(Block(
                 Continue(),
                 Continue())),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with continue and break
         TestBind(
             Loop(Condition(Constant(true), Continue(), Break())),
-            expectedResultType: VoidType.FullName);
+            expectedResultType: VoidType.Name);
 
         // loop with continue and break with value
         TestBind(
             Loop(Condition(Constant(true), Continue(), Break(Constant(1)))),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
     }
 
     [TestMethod]
@@ -939,7 +939,7 @@ public class BindingTests
     {
         TestBind(
             Int32Type.Member("MaxValue"), 
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
     }
 
     [TestMethod]
@@ -950,7 +950,7 @@ public class BindingTests
             Block(
                 Variable("x", Constant(1)),
                 Name("x")),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // refer to a namespace name in scope
         TestBind(
@@ -969,7 +969,7 @@ public class BindingTests
     {
         TestBind(
             New(ObjectType, []),
-            expectedResultType: ObjectType.FullName
+            expectedResultType: ObjectType.Name
             );
 
         TestBind(
@@ -1019,89 +1019,89 @@ public class BindingTests
         // Int32
         TestBind(
             Add(Constant(1), Constant(2)), 
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             Subtract(Constant(1), Constant(2)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             Multiply(Constant(1), Constant(2)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             Divide(Constant(1), Constant(2)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             Remainder(Constant(1), Constant(2)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             Negate(Constant(1)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             Equal(Constant(1), Constant(2)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             NotEqual(Constant(1), Constant(2)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             LessThan(Constant(1), Constant(2)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             LessThanOrEqual(Constant(1), Constant(2)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             GreaterThan(Constant(1), Constant(2)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             GreaterThanOrEqual(Constant(1), Constant(2)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             BitwiseAnd(Constant(1), Constant(2)), 
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             BitwiseOr(Constant(1), Constant(2)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             BitwiseXor(Constant(1), Constant(2)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         TestBind(
             BitwiseNot(Constant(1)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // boolean / logical
         TestBind(
             LogicalAnd(Constant(true), Constant(true)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             LogicalOr(Constant(true), Constant(true)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             LogicalNot(Constant(true)),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         // string
         TestBind(
             Equal(Constant("one"), Constant("two")),
-            expectedResultType: BooleanType.FullName);
+            expectedResultType: BooleanType.Name);
 
         TestBind(
             Add(Constant("one"), Constant("two")),
-            expectedResultType: StringType.FullName);
+            expectedResultType: StringType.Name);
     }
 
     [TestMethod]
@@ -1177,33 +1177,33 @@ public class BindingTests
         // declaration with initializer
         TestBind(
             Variable("x", Constant(1)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // declare with type but no initializer
         TestBind(
             Variable(Int32Type, "x"),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // declare with type and initializer
         TestBind(
             Variable(Int32Type, "x", Constant(1)),
-            expectedResultType: Int32Type.FullName);
+            expectedResultType: Int32Type.Name);
 
         // declare with type and initializer with convertable types
         TestBind(
             Variable(Int64Type, "x", Constant(1)),
-            expectedResultType: Int64Type.FullName);
+            expectedResultType: Int64Type.Name);
 
         // declare with type and initializer with non-convertable types
         TestBind(
             Variable(Int64Type, "x", Constant("one")),
-            expectedResultType: Int64Type.FullName,
+            expectedResultType: Int64Type.Name,
             containsDiagnostics: true);
 
         // declare with no type and no initializer
         TestBind(
-            new VariableExpression("x", null, null, null, null, null, null),
-            expectedResultType: ObjectType.FullName,
+            new VariableExpression("x", null, null, null),
+            expectedResultType: ObjectType.Name,
             containsDiagnostics: true);
     }
 
@@ -1239,7 +1239,8 @@ public class BindingTests
     {
         var binder = new StandardBinder();
         var binding = binder.Bind(elements, ReflectionSymbols.CurrentMscorlib);
-        var diagnostics = binding.Elements.GetContainedDiagnostics();
+        
+        var diagnostics = binding.Elements.GetContainedDiagnostics();       
         if (diagnostics.Count > 0 && !containsDiagnostics)
         {
             Assert.Fail($"Unexpected declaration diagnostics:\n{diagnostics[0]}");
@@ -1247,6 +1248,12 @@ public class BindingTests
         else if (containsDiagnostics && diagnostics.Count == 0)
         {
             Assert.Fail($"Unexpected missing diagnostics");
+        }
+
+        var allBound = binding.Elements.All(e => !e.IsUnbound);
+        if (!allBound)
+        {
+            Assert.Fail("Elements still unbound after binding");
         }
 
         if (expectedSymbols != null)

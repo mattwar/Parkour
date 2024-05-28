@@ -63,12 +63,10 @@ public class ReflectionSymbols : StandardSymbolTable
 
         ReflectionSymbols? runtimeSymbols = null;
 
-        var ns = new GlobalNamespaceSymbol(_ns =>
-        {
-            return runtimeSymbols!.GetNamespaceMembers(_ns, "", "", types, methods, fields);
-        });
+        runtimeSymbols = new ReflectionSymbols(
+            new GlobalNamespaceSymbol(_ns => runtimeSymbols!.GetNamespaceMembers(_ns, "", "", types, methods, fields)), 
+            assemblies);
 
-        runtimeSymbols = new ReflectionSymbols(ns, assemblies);
         return runtimeSymbols;
     }
 
@@ -124,7 +122,6 @@ public class ReflectionSymbols : StandardSymbolTable
             .GroupBy(t => GetNextNamespaceName(t.Namespace!, namespaceFullName))
             .Where(g => g.Key.Length > 0) // remove non-namespaces
             .ToList();
-
 
         var nestedNamespaces = nsGroups.Select(ng =>
             new NamespaceSymbol(

@@ -9,7 +9,7 @@ public sealed class DefaultExpression : Expression
 {
     public Expression? Type { get; }
 
-    public DefaultExpression(
+    private DefaultExpression(
         Expression? type,
         ISourceLocation? location,
         TypeSymbol? resultType,
@@ -21,6 +21,13 @@ public sealed class DefaultExpression : Expression
             diagnostics)
     {
         this.Type = type;
+    }
+
+    public DefaultExpression(
+        Expression? type,
+        ISourceLocation? location)
+        : this(type, location, null, null)
+    {
     }
 
     public override DefaultExpression WithLocation(ISourceLocation? location) =>
@@ -50,7 +57,7 @@ public sealed class DefaultExpression : Expression
             this.Diagnostics
             );
 
-    public DefaultExpression WithType(Expression type) =>
+    public DefaultExpression WithType(Expression? type) =>
         type == this.Type ? this :
         new DefaultExpression(
             type,

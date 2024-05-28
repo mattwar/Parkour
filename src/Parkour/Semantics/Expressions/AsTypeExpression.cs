@@ -12,7 +12,7 @@ public class AsTypeExpression : Expression
     public Expression Type { get; }
     public TypeSymbol? TypeSymbol { get; }
 
-    public AsTypeExpression(
+    private AsTypeExpression(
         Expression expression,
         Expression type,
         ISourceLocation? location,
@@ -31,6 +31,14 @@ public class AsTypeExpression : Expression
         this.Expression = expression;
         this.Type = type;
         this.TypeSymbol = typeSymbol;
+    }
+
+    public AsTypeExpression(
+        Expression expression,
+        Expression type,
+        ISourceLocation? location)
+        : this(expression, type, location, null, null, null)
+    {
     }
 
     public override AsTypeExpression WithLocation(ISourceLocation? location) =>

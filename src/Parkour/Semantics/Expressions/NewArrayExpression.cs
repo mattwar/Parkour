@@ -15,7 +15,7 @@ public class NewArrayExpression : Expression
     public ImmutableList<Expression> Values { get; }
     public TypeSymbol? ElementTypeSymbol { get; }
 
-    public NewArrayExpression(
+    private NewArrayExpression(
         Expression? elementType,
         ImmutableList<Expression> sizes,
         ImmutableList<Expression> values,
@@ -83,7 +83,7 @@ public class NewArrayExpression : Expression
             this.Diagnostics
             );
 
-    public NewArrayExpression WithElementType(Expression elementType) =>
+    public NewArrayExpression WithElementType(Expression? elementType) =>
         elementType == this.ElementType ? this :
         new NewArrayExpression(
             elementType,

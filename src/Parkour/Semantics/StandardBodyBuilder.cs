@@ -812,7 +812,7 @@ public class StandardBodyBuilder : BodyBuilder
     {
         var continueTarget = loop.ContinueTarget ?? new LabelSymbol("continue", this.ExternalSymbols.Void);
         this.Emitter.MarkLabel(continueTarget);
-        EmitExpressionAsType(loop.Body, loop.ResultType);
+        EmitExpressionAsType(loop.Expression, loop.ResultType);
         this.Emitter.EmitBranch(continueTarget);
         if (loop.BreakTarget != null)
             this.Emitter.MarkLabel(loop.BreakTarget!);

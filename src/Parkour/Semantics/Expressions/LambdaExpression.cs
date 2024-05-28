@@ -13,7 +13,7 @@ public sealed class LambdaExpression : Expression
     public DelegateSymbol? FunctionSymbol { get; }
     public LabelSymbol? ReturnLabel { get; }
 
-    public LambdaExpression(
+    private LambdaExpression(
         string name,
         ImmutableList<ParameterDeclaration> parameters,
         Expression? returnType,
@@ -39,6 +39,16 @@ public sealed class LambdaExpression : Expression
         this.ReturnType = returnType;
         this.FunctionSymbol = functionSymbol;
         this.ReturnLabel = returnLabel;
+    }
+
+    public LambdaExpression(
+        string name,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression? returnType,
+        Expression body,
+        ISourceLocation? location)
+        : this(name, parameters, returnType, body, location, null, null, null, null)
+    {
     }
 
     public override LambdaExpression WithLocation(ISourceLocation? location) =>

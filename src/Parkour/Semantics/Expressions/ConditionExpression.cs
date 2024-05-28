@@ -12,7 +12,7 @@ public sealed class ConditionExpression : Expression
     public Expression WhenTrue { get; }
     public Expression WhenFalse { get; }
 
-    public ConditionExpression(
+    private ConditionExpression(
         Expression test,
         Expression whenTrue,
         Expression whenFalse,
@@ -31,6 +31,15 @@ public sealed class ConditionExpression : Expression
         this.Test = test;
         this.WhenTrue = whenTrue;
         this.WhenFalse = whenFalse;
+    }
+
+    public ConditionExpression(
+        Expression test,
+        Expression whenTrue,
+        Expression whenFalse,
+        ISourceLocation? location)
+        : this(test, whenTrue, whenFalse, location, null, null)
+    {
     }
 
     public override ConditionExpression WithLocation(ISourceLocation? location) =>

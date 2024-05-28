@@ -11,7 +11,7 @@ public class ScopedExpression : Expression
     public Expression Scope { get; }
     public Expression Expression { get; }
 
-    public ScopedExpression(
+    private ScopedExpression(
         Expression scope,
         Expression expression,
         ISourceLocation? location,
@@ -27,6 +27,14 @@ public class ScopedExpression : Expression
     {
         this.Scope = scope;
         this.Expression = expression;
+    }
+
+    public ScopedExpression(
+        Expression scope,
+        Expression expression,
+        ISourceLocation? location)
+        : this(scope, expression, location, null, null)
+    {
     }
 
     public override ScopedExpression WithLocation(ISourceLocation? location) =>

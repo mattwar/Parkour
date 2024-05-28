@@ -13,19 +13,19 @@ public static class SemanticFactory
     /// Converts the referenced symbol to an array of that type.
     /// </summary>
     public static ArrayExpression Array(Expression expression, ISourceLocation? location = null) =>
-        new ArrayExpression(expression, location, null, null, null);
+        new ArrayExpression(expression, location);
 
     /// <summary>
     /// Filter the referenced symbol(s) to only those with the specified arity.
     /// </summary>
     public static ArityExpression Arity(Expression expression, int arity, ISourceLocation? location = null) =>
-        new ArityExpression(expression, arity, location, null, null, null);
+        new ArityExpression(expression, arity, location);
 
     /// <summary>
     /// Assign a source value to a target location.
     /// </summary>
     public static AssignExpression Assign(Expression target, Expression source, ISourceLocation? location = null) =>
-        new AssignExpression(target, source, location, null, null);
+        new AssignExpression(target, source, location);
 
     /// <summary>
     /// Declares a custom attribute.
@@ -47,7 +47,7 @@ public static class SemanticFactory
     /// Defines a block expression of multiple expressions. The final expression determines the block expression's result.
     /// </summary>
     public static BlockExpression Block(ImmutableList<Expression> expressions, ISourceLocation? location = null) =>
-        new BlockExpression(expressions, location, null, null);
+        new BlockExpression(expressions, location);
 
     /// <summary>
     /// Defines a block expression of multiple expressions. The final expression determines the block expression's result.
@@ -71,19 +71,19 @@ public static class SemanticFactory
     /// Branches to a label.
     /// </summary>
     public static BranchExpression Branch(string labelName, Expression? expression = null, ISourceLocation? location = null) =>
-        new BranchExpression(labelName, expression, location, null, null, null);
+        new BranchExpression(labelName, expression, location);
 
     /// <summary>
     /// Branches to the break location of a loop.
     /// </summary>
     public static BranchExpression Break(Expression? expression = null, ISourceLocation? location = null) =>
-        BranchExpression.CreateBreak(expression, location, null, null);
+        BranchExpression.CreateBreak(expression, location);
 
     /// <summary>
     /// Invokes a delegate, lambda function or method.
     /// </summary>
     public static CallExpression Call(Expression target, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
-        new CallExpression(target, arguments, location, null, null, null);
+        new CallExpression(target, arguments, location);
 
     /// <summary>
     /// Invokes a delegate, lambda function or method.
@@ -113,62 +113,61 @@ public static class SemanticFactory
     /// Evaluates the whenTrue expression if the test expression results in true or otherwise evaluates the whenFalse expression.
     /// </summary>
     public static ConditionExpression Condition(Expression test, Expression whenTrue, Expression whenFalse, ISourceLocation? location = null) =>
-        new ConditionExpression(test, whenTrue, whenFalse, location, null, null);
+        new ConditionExpression(test, whenTrue, whenFalse, location);
 
     /// <summary>
     /// Evaluates the whenTrue expression if the test expressions results in true.
     /// </summary>
     public static ConditionExpression Condition(Expression test, Expression whenTrue, ISourceLocation? location = null) =>
-        new ConditionExpression(test, whenTrue, Block([], location), location, null, null);
+        new ConditionExpression(test, whenTrue, Block([], location), location);
 
     /// <summary>
     /// Produces the constant value specified at runtime.
     /// </summary>
     public static ConstantExpression Constant(object? value, ISourceLocation? location = null) =>
-        new ConstantExpression(value, location, null, null);
+        new ConstantExpression(value, location);
 
     /// <summary>
     /// Constructs the type or method with the specified type arguments.
     /// </summary>
     public static ConstructExpression Construct(Expression expression, ImmutableList<Expression> typeArguments, ISourceLocation? location = null) =>
-        new ConstructExpression(expression, typeArguments, location, null, null, null);
+        new ConstructExpression(expression, typeArguments, location);
 
     /// <summary>
     /// Branches to the loop's continue location.
     /// </summary>
     public static BranchExpression Continue(ISourceLocation? location = null) =>
-        BranchExpression.CreateContinue(location, null, null);
+        BranchExpression.CreateContinue(location);
 
     /// <summary>
     /// Converts an expression to a specific type.
     /// </summary>
     public static ConvertExpression Convert(Expression expression, Expression convertedType, ISourceLocation? location = null) =>
-        new ConvertExpression(expression, convertedType, location, null, null, null);
+        new ConvertExpression(expression, convertedType, location);
 
     /// <summary>
     /// Produces the default value for the specified type.
     /// </summary>
-    public static DefaultExpression Default(Expression type, ISourceLocation? location = null) =>
-        new DefaultExpression(type, location, null, null);
+    public static DefaultExpression Default(Expression? type, ISourceLocation? location = null) =>
+        new DefaultExpression(type, location);
 
     /// <summary>
     /// Produces the default value for the infered type.
     /// </summary>
     public static DefaultExpression Default(ISourceLocation? location = null) =>
-        new DefaultExpression(null, location, null, null);
+        Default(null, location);
 
     /// <summary>
     /// Access the element of an expression
     /// </summary>
     public static ElementExpression Element(Expression target, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
-        new ElementExpression(target, arguments, location, null, null, null);
+        new ElementExpression(target, arguments, location);
 
     /// <summary>
     /// Access the element of an expression
     /// </summary>
     public static ElementExpression Element(Expression target, Expression index, ISourceLocation? location = null) =>
-        new ElementExpression(target, [index], location, null, null, null);
-
+        Element(target, [index], location);
 
     /// <summary>
     /// A loop that iterates a variable over a range
@@ -196,7 +195,7 @@ public static class SemanticFactory
     /// This is a synonym for <see cref="Branch(string, Expression?, ISourceLocation?)"/>
     /// </summary>
     public static BranchExpression Goto(string labelName, Expression? expression = null, ISourceLocation? location = null) =>
-        new BranchExpression(labelName, expression, location, null, null, null);
+        new BranchExpression(labelName, expression, location);
 
     /// <summary>
     /// Evaluates the whenTrue expression if the test expressions results in true.
@@ -216,25 +215,25 @@ public static class SemanticFactory
     /// Tests the expression if it is an instance of the specified type.
     /// </summary>
     public static IsTypeExpression IsType(Expression expression, Expression type, ISourceLocation? location = null) =>
-        new IsTypeExpression(expression, type, location, null, null, null);
+        new IsTypeExpression(expression, type, location);
 
     /// <summary>
     /// Casts the expression as the type or null if the value is not an instance of the type.
     /// </summary>
     public static AsTypeExpression AsType(Expression expression, Expression type, ISourceLocation? location = null) =>
-        new AsTypeExpression(expression, type, location, null, null, null);
+        new AsTypeExpression(expression, type, location);
 
     /// <summary>
     /// A label for branch targets.
     /// </summary>
     public static LabelExpression Label(string name, Expression? recievingType = null, ISourceLocation? location = null) =>
-        new LabelExpression(name, recievingType, location, null, null, null);
+        new LabelExpression(name, recievingType, location);
 
     /// <summary>
     /// Creates a lambda function.
     /// </summary>
     public static LambdaExpression Lambda(ImmutableList<ParameterDeclaration> parameters, Expression returnType, Expression body, ISourceLocation? location = null) =>
-        new LambdaExpression("", parameters, returnType, body, location, null, null, null, null);
+        new LambdaExpression("", parameters, returnType, body, location);
 
     /// <summary>
     /// Creates a lambda function.
@@ -255,10 +254,10 @@ public static class SemanticFactory
         Lambda(ImmutableList<ParameterDeclaration>.Empty, body, location);
 
     /// <summary>
-    /// A loop that continues to repeat the body until a break exits the loop.
+    /// A loop that continues to repeat the expression until a break exits the loop.
     /// </summary>
-    public static LoopExpression Loop(Expression body, ISourceLocation? location = null) =>
-        new LoopExpression(body, location, null, null, null, null);
+    public static LoopExpression Loop(Expression expression, ISourceLocation? location = null) =>
+        new LoopExpression(expression, location);
 
     /// <summary>
     /// Accesses the named member of the expression.
@@ -266,13 +265,13 @@ public static class SemanticFactory
     /// otherwise it accesses and instance member.
     /// </summary>
     public static MemberExpression Member(Expression expression, string name, ISourceLocation? location = null) =>
-        new MemberExpression(expression, name, location, null, null, null);
+        new MemberExpression(expression, name, location);
 
     /// <summary>
     /// References a named symbol in scope.
     /// </summary>
     public static NameExpression Name(string name, ISourceLocation? location = null) =>
-        new NameExpression(name, location, null, null, null);
+        new NameExpression(name, location);
 
     /// <summary>
     /// Creates a named argument.
@@ -289,20 +288,20 @@ public static class SemanticFactory
     /// <summary>
     /// Creates an new instance of the specfied type.
     /// </summary>
-    public static NewExpression New(Expression typeExpression, ImmutableList<Expression>? arguments = null, ISourceLocation? location = null) =>
-        new NewExpression(typeExpression, arguments, location, null, null, null);
+    public static NewExpression New(Expression? typeExpression, ImmutableList<Expression>? arguments = null, ISourceLocation? location = null) =>
+        new NewExpression(typeExpression, arguments, location);
 
     /// <summary>
     /// Creates an new instance of the infered type.
     /// </summary>
     public static NewExpression New(ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
-        new NewExpression(null, arguments, location, null, null, null);
+        New(null, arguments, location);
 
     /// <summary>
     /// Creates an new instance of the infered type.
     /// </summary>
     public static NewExpression New(ISourceLocation? location = null) =>
-        new NewExpression(null, null, location, null, null, null);
+        New(null, null, location);
 
     /// <summary>
     /// Creates a new array instance of the specified dimension sizes and initial values.
@@ -378,13 +377,13 @@ public static class SemanticFactory
     /// Invokes an intrinsic operator.
     /// </summary>
     public static OperatorExpression Operator(string name, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
-        new OperatorExpression(name, arguments, location, null, null, null);
+        new OperatorExpression(name, arguments, location);
 
     /// <summary>
     /// Return from a method or lambda.
     /// </summary>
     public static BranchExpression Return(Expression? expression = null, ISourceLocation? location = null) =>
-        BranchExpression.CreateReturn(expression, location, null, null);
+        BranchExpression.CreateReturn(expression, location);
 
     /// <summary>
     /// Reference a declared symbol directly via the symbol table (ignoring scoping rules).
@@ -395,38 +394,38 @@ public static class SemanticFactory
     /// <summary>
     /// Reference a declared symbol directly via the symbol table (ignoring scoping rules).
     /// </summary>
-    public static SymbolExpression Symbol(string fullName, ISourceLocation? location = null) =>
-        new SymbolExpression(fullName, location, null, null, null);
+    public static SymbolExpression Symbol(string nameInSymbolTable, ISourceLocation? location = null) =>
+        new SymbolExpression(nameInSymbolTable, location);
 
     /// <summary>
     /// References the current instance.
     /// </summary>
     public static ThisExpression This(ISourceLocation? location = null) =>
-        new ThisExpression(location, null, null);
+        new ThisExpression(location);
 
     /// <summary>
     /// Returns the runtime type of a type expression.
     /// </summary>
     public static TypeOfExpression TypeOf(Expression type, ISourceLocation? location = null) =>
-        new TypeOfExpression(type, location, null, null, null);
+        new TypeOfExpression(type, location);
 
     /// <summary>
     /// Declares a variable of a specific type and initializer.
     /// </summary>
     public static VariableExpression Variable(Expression variableType, string name, Expression initializer, ISourceLocation? location = null) =>
-        new VariableExpression(name, variableType, initializer, location, null, null, null);
+        new VariableExpression(name, variableType, initializer, location);
 
     /// <summary>
     /// Declares a variable of a specific type.
     /// </summary>
     public static VariableExpression Variable(Expression variableType, string name, ISourceLocation? location = null) =>
-        new VariableExpression(name, variableType, null, location, null, null, null);
+        new VariableExpression(name, variableType, null, location);
 
     /// <summary>
     /// Declares and initializes a variable.
     /// </summary>
     public static VariableExpression Variable(string name, Expression initializer, ISourceLocation? location = null) =>
-        new VariableExpression(name, null, initializer, location, null, null, null);
+        new VariableExpression(name, null, initializer, location);
 
     /// <summary>
     /// A loop that continues to repeat the body until the test fails or a break exists the loop.

@@ -10,7 +10,7 @@ public class TypeOfExpression : Expression
     public Expression Type { get; }
     public TypeSymbol? TypeSymbol { get; }
 
-    public TypeOfExpression(
+    private TypeOfExpression(
         Expression type,
         ISourceLocation? location,
         TypeSymbol? typeSymbol,
@@ -26,6 +26,13 @@ public class TypeOfExpression : Expression
     {
         this.Type = type;
         this.TypeSymbol = typeSymbol;
+    }
+
+    public TypeOfExpression(
+        Expression type,
+        ISourceLocation? location)
+        : this(type, location, null, null, null)
+    {
     }
 
     public override TypeOfExpression WithLocation(ISourceLocation? location) =>

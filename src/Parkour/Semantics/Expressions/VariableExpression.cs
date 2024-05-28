@@ -14,7 +14,7 @@ public sealed class VariableExpression : Expression
     public Expression? Initializer { get; }
     public VariableSymbol? VariableSymbol { get; }
 
-    public VariableExpression(
+    private VariableExpression(
         string name,
         Expression? variableType,
         Expression? initializer,
@@ -35,6 +35,15 @@ public sealed class VariableExpression : Expression
         this.VariableType = variableType;
         this.Initializer = initializer;
         this.VariableSymbol = variable;
+    }
+
+    public VariableExpression(
+        string name,
+        Expression? variableType,
+        Expression? initializer,
+        ISourceLocation? location)
+        : this(name, variableType, initializer, location, null, null, null)
+    {
     }
 
     public override VariableExpression WithLocation(ISourceLocation? location) =>
@@ -85,7 +94,7 @@ public sealed class VariableExpression : Expression
             this.Diagnostics
             );
 
-    public VariableExpression WithVariableType(Expression variableType) =>
+    public VariableExpression WithVariableType(Expression? variableType) =>
         variableType == this.VariableType ? this :
         new VariableExpression(
             this.Name,
@@ -97,7 +106,7 @@ public sealed class VariableExpression : Expression
             this.Diagnostics
             );
 
-    public VariableExpression WithInitializer(Expression initializer) =>
+    public VariableExpression WithInitializer(Expression? initializer) =>
         initializer == this.Initializer ? this :
         new VariableExpression(
             this.Name,

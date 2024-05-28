@@ -58,7 +58,7 @@ internal static class SemanticDiagnostics
     public static Diagnostic CannotConvert(TypeSymbol source, TypeSymbol target) =>
         new Diagnostic($"Cannot convert from type '{source.Name}' to type '{target.Name}'.");
 
-    public static Diagnostic NotAValidAssignmentTarget() =>
+    public static Diagnostic NotValidAssignmentTarget() =>
         new Diagnostic($"The expression is not a valid assignment target.");
 
     public static Diagnostic CannotPassValueToLabel(string label) =>

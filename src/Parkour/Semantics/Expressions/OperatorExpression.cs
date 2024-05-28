@@ -10,7 +10,7 @@ public class OperatorExpression : Expression
     public ImmutableList<Expression> Arguments { get; }
     public Symbol? OperatorSymbol { get; }
 
-    public OperatorExpression(
+    private OperatorExpression(
         string kind, 
         ImmutableList<Expression> arguments,
         ISourceLocation? location,
@@ -28,6 +28,14 @@ public class OperatorExpression : Expression
         this.Kind = kind;
         this.Arguments = arguments;
         this.OperatorSymbol = operatorSymbol;
+    }
+
+    public OperatorExpression(
+        string kind,
+        ImmutableList<Expression> arguments,
+        ISourceLocation? location)
+        : this(kind, arguments, location, null, null, null)
+    {
     }
 
     public override OperatorExpression WithLocation(ISourceLocation? location) =>
@@ -85,7 +93,7 @@ public class OperatorExpression : Expression
             this.Diagnostics
             );
 
-    public OperatorExpression WithOperatorSymbol(OperatorSymbol? operatorSymbol) =>
+    public OperatorExpression WithOperatorSymbol(Symbol? operatorSymbol) =>
         operatorSymbol == this.OperatorSymbol ? this :
         new OperatorExpression(
             this.Kind,

@@ -285,7 +285,7 @@ public class SemanticWriter
             case LoopExpression loop:
                 WriteSeparated("loop");
                 WriteLine();
-                WriteBlockOrIndented(loop.Body);
+                WriteBlockOrIndented(loop.Expression);
                 break;
 
             case MemberExpression member:
@@ -299,7 +299,7 @@ public class SemanticWriter
                 break;
 
             case SymbolExpression symbolRef:
-                WriteSeparated(symbolRef.FullName);
+                WriteSeparated(symbolRef.Name);
                 break;
 
             case VariableExpression declaration:

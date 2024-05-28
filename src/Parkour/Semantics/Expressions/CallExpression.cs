@@ -11,7 +11,7 @@ public sealed class CallExpression : Expression
     public ImmutableList<Expression> Arguments { get; }
     public Symbol? CalledSymbol { get; }
 
-    public CallExpression(
+    private CallExpression(
         Expression expression,
         ImmutableList<Expression> arguments,
         ISourceLocation? location,
@@ -30,6 +30,14 @@ public sealed class CallExpression : Expression
         this.Expression = expression;
         this.Arguments = arguments.ToImmutableList();
         this.CalledSymbol = calledSymbol;
+    }
+
+    public CallExpression(
+        Expression expression,
+        ImmutableList<Expression> arguments,
+        ISourceLocation? location)
+        : this(expression, arguments, location, null, null, null)
+    {
     }
 
     public override CallExpression WithLocation(ISourceLocation? location) =>

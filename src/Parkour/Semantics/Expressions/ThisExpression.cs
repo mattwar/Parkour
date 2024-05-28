@@ -9,7 +9,7 @@ public sealed class ThisExpression : Expression
     protected internal override string DebugText =>
         $"{nameof(ThisExpression)}: {(ResultType != null ? ResultType.FullName : "")}";
 
-    public ThisExpression(
+    private ThisExpression(
         ISourceLocation? location,
         TypeSymbol? resultType,
         ImmutableList<Diagnostic>? diagnostics)
@@ -18,6 +18,12 @@ public sealed class ThisExpression : Expression
             location,
             resultType,
             diagnostics)
+    {
+    }
+
+    public ThisExpression(
+        ISourceLocation? location)
+        : this(location, null, null)
     {
     }
 
