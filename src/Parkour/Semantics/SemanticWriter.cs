@@ -400,9 +400,16 @@ public class SemanticWriter
                 Write("):");
                 WriteType(md.Symbol?.ReturnType, md.ReturnType);
                 WriteLine();
-                WriteLine("{");
-                WriteIndented(md.Body);
-                WriteLine("}");
+                if (md.Body != null)
+                {
+                    WriteLine("{");
+                    WriteIndented(md.Body);
+                    WriteLine("}");
+                }
+                else
+                {
+                    WriteLine(";");
+                }
                 break;
 
             case ParameterDeclaration pd:

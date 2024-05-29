@@ -570,14 +570,32 @@ public class ReflectionSymbols : StandardSymbolTable
         if (constructor != null)
         {
             var arguments = data.ConstructorArguments
-                .Select((a, i) => new AttributeArgument(constructor.Parameters[i], a.Value))
+                .Select((a, i) => new AttributeArgument(constructor.Parameters[i], CreateValue(a.Value)))
                 .ToImmutableList();
             var members = data.NamedArguments
-                .Select(n => new AttributeMember((MemberSymbol)GetSymbol(n.MemberInfo)!, n.TypedValue.Value))
+                .Select(n => new AttributeMember((MemberSymbol)GetSymbol(n.MemberInfo)!, CreateValue(n.TypedValue.Value)))
                 .ToImmutableList();
             return new AttributeInfo(constructor, arguments, members);
         }
         return null;
+
+        AttributeValue CreateValue(object? value)
+        {
+            if (value is Type type)
+            {
+                return new AttributeTypeValue(GetType(type));
+            }
+            else if (value is Array array)
+            {
+                var elementType = GetType(array.GetType().GetElementType()!);
+                var values = array.OfType<object>().Select(v => CreateValue(v)).ToImmutableList();
+                return new AttributeArrayValue(elementType, values);
+            }
+            else
+            {
+                return new AttributeConstantValue(value);
+            }
+        }
     }
 
     /// <summary>

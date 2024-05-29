@@ -25,21 +25,60 @@ public record AttributeInfo(
     }
 }
 
-public record AttributeArgument(ParameterSymbol Parameter, object? Value)
+public abstract record AttributeValue()
+{
+    public abstract AttributeValue Substitute(SubstitutionContext context);
+}
+
+public record AttributeConstantValue(object? Value) : AttributeValue()
+{
+    public override AttributeValue Substitute(SubstitutionContext context) =>
+        this;
+}
+
+public record AttributeTypeValue(TypeSymbol Type) : AttributeValue()
+{
+    public override AttributeValue Substitute(SubstitutionContext context)
+    {
+        var subbed = context.Substitute(this.Type);
+        return (subbed == this.Type)
+            ? this
+            : new AttributeTypeValue(subbed);
+    }
+}
+
+public record AttributeArrayValue(TypeSymbol ElementType, ImmutableList<AttributeValue> Values) : AttributeValue
+{
+    public override AttributeValue Substitute(SubstitutionContext context)
+    {
+        var elemType = context.Substitute(this.ElementType);
+        var values = this.Values.SelectSame(v => v.Substitute(context));
+        return (elemType == this.ElementType && values == this.Values)
+            ? this
+            : new AttributeArrayValue(elemType, values);
+    }
+}
+
+public record AttributeArgument(ParameterSymbol Parameter, AttributeValue Value)
 {
     public AttributeArgument Substitute(SubstitutionContext context)
     {
-        var subbed = context.Substitute(this.Parameter);
-        return subbed == this.Parameter ? this : new AttributeArgument(subbed, this.Value);
+        var parameter = context.Substitute(this.Parameter);
+        var value = this.Value.Substitute(context);
+        return parameter == this.Parameter && value == this.Value
+            ? this
+            : new AttributeArgument(parameter, value);
     }
 }
 
-public record AttributeMember(MemberSymbol Member, object? Value)
+public record AttributeMember(MemberSymbol Member, AttributeValue Value)
 {
     public AttributeMember Substitute(SubstitutionContext context)
     {
-        var subbed = context.Substitute(this.Member);
-        return subbed == this.Member ? this : new AttributeMember(subbed, this.Value);
+        var member = context.Substitute(this.Member);
+        var value = this.Value.Substitute(context);
+        return member == this.Member && value == this.Value
+            ? this
+            : new AttributeMember(member, value);
     }
 }
-

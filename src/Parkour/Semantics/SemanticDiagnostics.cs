@@ -123,4 +123,7 @@ internal static class SemanticDiagnostics
 
     public static Diagnostic AmbiguousArgument(string parameterName) =>
         new Diagnostic($"An argument for parameter '{parameterName}' is already defined.");
+
+    public static Diagnostic InvalidAttributeValue() =>
+        new Diagnostic($"The value is not a valid attribute value.");
 }

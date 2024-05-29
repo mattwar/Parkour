@@ -1683,7 +1683,7 @@ public class StandardBinder : SemanticBinder
                         .Select(narg => (Expression)narg.WithNamedSymbol(GetAttributeInstanceMember(context, typeSymbol, narg)))
                         .ToImmutableList();
 
-                    info = CreateAttributeInfo(constructorSymbol, constructorArgs, memberArgs);
+                    info = CreateAttributeInfo(constructorSymbol, constructorArgs, memberArgs, diagnostics);
 
                     arguments = constructorArgs.AddRange(memberArgs);
                 }
@@ -1731,22 +1731,32 @@ public class StandardBinder : SemanticBinder
     protected virtual AttributeInfo CreateAttributeInfo(
         ConstructorSymbol constructor, 
         ImmutableList<Expression> constructorArguments,
-        ImmutableList<Expression> memberArguments)
+        ImmutableList<Expression> memberArguments,
+        List<Diagnostic> diagnostics)
     {
-        object? GetValue(Expression expression)
+        AttributeValue GetValue(Expression expression)
         {
             if (expression is ConstantExpression cons)
             {
-                return cons.Value;
+                return new AttributeConstantValue(cons.Value);
             }
             else if (expression is ConvertExpression conv)
             {
                 return GetValue(conv.Expression);
             }
-            else
+            else if (expression is TypeOfExpression tof
+                && tof.TypeSymbol != null)
             {
-                return null;
+                return new AttributeTypeValue(tof.TypeSymbol);
             }
+            else if (expression is NewArrayExpression na
+                && na.ElementTypeSymbol != null)
+            {
+                return new AttributeArrayValue(na.ElementTypeSymbol!, na.Values.Select(v => GetValue(v)).ToImmutableList());
+            }
+
+            diagnostics.Add(SemanticDiagnostics.InvalidAttributeValue().WithLocation(expression.Location));
+            return new AttributeConstantValue(null);
         }
 
         var arguments =
