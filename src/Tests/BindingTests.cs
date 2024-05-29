@@ -216,6 +216,34 @@ public class BindingTests
     }
 
     [TestMethod]
+    public void TestDeclaration_Class_Method_Implements()
+    {
+        TestBind(
+            [
+                Interface("I", [
+                    Method("M", [], VoidType)
+                    ]),
+                Class("C", [
+                    Method("M", [], VoidType, Block())
+                        .WithImplements([Symbol("I.M")])
+                    ])
+                    .WithBaseTypes([Symbol("I")])
+            ],
+            fnValidate: elements =>
+            {
+                Assert.AreEqual(2, elements.Count);
+                var cd = elements[1] as ClassDeclaration;
+                Assert.IsNotNull(cd);
+                var md = cd.Declarations.OfType<MethodDeclaration>().FirstOrDefault();
+                Assert.IsNotNull(md);
+                Assert.AreEqual(1, md.Implements.Count);
+                var sym = md.Symbol;
+                Assert.IsNotNull(sym);
+                Assert.AreEqual(1, sym.Implements.Count);
+            });
+    }
+
+    [TestMethod]
     public void TestDeclaration_Class_Property()
     {
         // instance property

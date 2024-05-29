@@ -420,7 +420,8 @@ public class StandardBinder : SemanticBinder
             {
                 return declaration.ElementType != null ? GetReferencedType(context.BindingContext, declaration.ElementType)
                     : declaration.GetMethod.ReturnType != null ? GetReferencedType(context.BindingContext, declaration.GetMethod.ReturnType)
-                    : GetResultType(context.BindingContext, declaration.GetMethod.Body);
+                    : declaration.GetMethod.Body != null ? GetResultType(context.BindingContext, declaration.GetMethod.Body) 
+                    : context.Imports.Object;
             },
             fnGetMethod: me => 
                 (MethodSymbol)CreateAndMapDeclarationSymbol(context, declaringSymbol, declaration.GetMethod)!,
@@ -520,9 +521,9 @@ public class StandardBinder : SemanticBinder
                     : null,
             fnReturnType: () =>
             {
-                return declaration.ReturnType != null 
-                    ? GetReferencedType(context.BindingContext, declaration.ReturnType)
-                    : GetResultType(context.BindingContext, declaration.Body);
+                return declaration.ReturnType != null ? GetReferencedType(context.BindingContext, declaration.ReturnType)
+                    : declaration.Body != null ? GetResultType(context.BindingContext, declaration.Body)
+                    : context.Imports.Void;
             },
             fnAttributes:
                 declaration.Attributes.Count > 0
@@ -531,8 +532,82 @@ public class StandardBinder : SemanticBinder
                         .OfType<AttributeInfo>()
                         .ToImmutableList()
                     : null,
+            fnImplements:
+                declaration.Implements.Count > 0
+                    ? me => declaration.Implements
+                        .Select(imp => GetInterfaceMethodSymbol(context.BindingContext, me, imp))
+                        .OfType<MethodSymbol>()
+                        .ToImmutableList()!
+                    : null,
             constructedFrom: null
             );
+    }
+
+    protected virtual MethodSymbol? GetInterfaceMethodSymbol(
+        BindingContext context, MethodSymbol implementationMethod, Expression implementation)
+    {
+        var symbol = GetReferencedSymbol(context, implementation);
+        if (symbol is GroupSymbol group)
+        {
+            // find the method with signature that matches the implementation method
+            return group.Members.OfType<MethodSymbol>().FirstOrDefault(m => MatchesSignature(context, m, implementationMethod));
+        }
+
+        return symbol as MethodSymbol;
+    }
+
+    protected virtual bool MatchesSignature(BindingContext context, MethodSymbol symbolA, MethodSymbol symbolB)
+    {
+        if (symbolA == symbolB)
+            return true;
+
+        if (symbolA.Parameters.Count != symbolB.Parameters.Count)
+            return false;
+
+        if (symbolA.IsGeneric != symbolB.IsGeneric)
+            return false;
+
+        if (symbolA.IsConstructed != symbolB.IsConstructed)
+            return false;
+
+        if (symbolA.IsGeneric && symbolA.IsDefinition)
+        {
+            if (symbolA.TypeParameters.Count != symbolB.TypeParameters.Count)
+                return false;
+
+            // get symbol b constructed with symbol a type parameters
+            // so parameter types match
+            if (symbolA.Parameters.Count > 0)
+            {
+                symbolB = context.Symbols.GetConstructed(symbolB, [.. symbolA.TypeParameters]);
+            }
+        }
+        else if (symbolA.IsGeneric && symbolA.IsConstructed)
+        {
+            // both are constructed, compare type arguments
+            if (symbolA.TypeArguments.Count != symbolB.TypeArguments.Count)
+                return false;
+
+            for (int i = 0; i < symbolA.TypeArguments.Count; i++)
+            {
+                var typeArgA = symbolA.TypeArguments[i];
+                var typeArgB = symbolB.TypeArguments[i];
+
+                if (!TypeEqualityComparer.Instance.Equals(typeArgA, typeArgB))
+                    return false;
+            }
+        }
+
+        // compare parameters
+        for (int i = 0; i < symbolA.Parameters.Count; i++)
+        {
+            var paramA = symbolA.Parameters[i];
+            var paramB = symbolB.Parameters[i];
+            if (!TypeEqualityComparer.Instance.Equals(paramA.Type, paramB.Type))
+                return false;
+        }
+
+        return true;
     }
 
     protected virtual Symbol CreateParameterSymbol(
@@ -572,7 +647,8 @@ public class StandardBinder : SemanticBinder
             {
                 return declaration.PropertyType != null ? GetReferencedType(context.BindingContext, declaration.PropertyType)
                     : declaration.GetMethod.ReturnType != null ? GetReferencedType(context.BindingContext, declaration.GetMethod.ReturnType)
-                    : GetResultType(context.BindingContext, declaration.GetMethod.Body);
+                    : declaration.GetMethod.Body != null ? GetResultType(context.BindingContext, declaration.GetMethod.Body)
+                    : context.Imports.Object;
             },
             fnBackingField: 
                 declaration.BackingField != null
@@ -972,7 +1048,8 @@ public class StandardBinder : SemanticBinder
             var attributes = BindList(context, decl.Attributes);
             var typeParameters = BindList(context, decl.TypeParameters);
             var parameters = BindList(context, decl.Parameters);
-            
+            var implements = BindList(context, decl.Implements);
+
             var returnType = decl.ReturnType != null
                 ? BindTypeExpression(context, decl.ReturnType, diagnostics)
                 : null;
@@ -993,7 +1070,7 @@ public class StandardBinder : SemanticBinder
                 bodyContext = bodyContext.WithScope(bodyContext.Scope.AddSymbols(methodSymbol.Parameters));
             }
 
-            var body = BindExpression(bodyContext, decl.Body);
+            var body = decl.Body != null ? BindExpression(bodyContext, decl.Body) : null;
 
             return decl
                 .WithAttributes(attributes)
@@ -1001,6 +1078,7 @@ public class StandardBinder : SemanticBinder
                 .WithParameters(parameters)
                 .WithReturnType(returnType)
                 .WithBody(body)
+                .WithImplements(implements)
                 .WithSymbol(methodSymbol)
                 .WithReturnLabel(returnLabel);
         }

@@ -302,6 +302,9 @@ public class ReflectionSymbols : StandardSymbolTable
                 me => CreateParameters(me, method),
                 () => GetType(method.ReturnType),
                 me => CreateAttributeInfo(method.GetCustomAttributesData()),
+                me => GetInterfaceMethods(method) is { } methods && methods.Count > 0
+                    ? methods.Select(m => (MethodSymbol?)GetOrCreateSymbol(m, null)).OfType<MethodSymbol>().ToImmutableList()
+                    : ImmutableList<MethodSymbol>.Empty,
                 constructedFrom
                 );
         }
@@ -393,6 +396,48 @@ public class ReflectionSymbols : StandardSymbolTable
                     );
             }
         }
+    }
+
+    private ImmutableDictionary<Type, ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>>> _typeToInterfaceMethodMap =
+        ImmutableDictionary<Type, ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>>>.Empty;
+
+    public ImmutableList<MethodInfo> GetInterfaceMethods(MethodInfo implementationMethod)
+    {
+        if (implementationMethod.DeclaringType == null
+            || !implementationMethod.DeclaringType.IsInterface)
+            return ImmutableList<MethodInfo>.Empty;
+
+        if (!_typeToInterfaceMethodMap.TryGetValue(implementationMethod.DeclaringType, out var methodMap))
+        {
+            var tmp = CreateMethodMap();
+            methodMap = ImmutableInterlocked.GetOrAdd(ref _typeToInterfaceMethodMap, implementationMethod.DeclaringType, tmp);
+
+            ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>> CreateMethodMap()
+            {
+                var map = new Dictionary<MethodInfo, List<MethodInfo>>();
+
+                var interfaces = implementationMethod.DeclaringType.GetInterfaces();
+                foreach (var iface in interfaces)
+                {
+                    var interfaceMap = iface.GetInterfaceMap(iface);
+                    for (int i = 0; i < interfaceMap.TargetMethods.Length; i++)
+                    {
+                        var targetMethod = interfaceMap.TargetMethods[i];
+                        var interfaceMethod = interfaceMap.InterfaceMethods[i];
+                        if (!map.TryGetValue(targetMethod, out var interfaceMethods))
+                        {
+                            interfaceMethods = new List<MethodInfo>();
+                        }
+                        interfaceMethods.Add(interfaceMethod);
+                    }
+                }
+
+                return map.ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableList());
+            }
+        }
+
+        methodMap.TryGetValue(implementationMethod, out var interfaceMethods);
+        return interfaceMethods ?? ImmutableList<MethodInfo>.Empty;
     }
 
     private static string StripArity(string name)

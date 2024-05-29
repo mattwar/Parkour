@@ -26,22 +26,30 @@ public class StandardBodyBuilder : BodyBuilder
     }
 
     public override void BuildBody(
-        Expression body, 
+        Expression? body, 
         TypeSymbol returnType, 
         LabelSymbol? returnLabel)
     {
-        EmitExpression(body);
-        var prevType = body.ResultType;
-
-        if (returnLabel != null)
+        if (body != null)
         {
-            this.Emitter.EmitConvert(prevType, returnLabel.Type, true);
-            this.Emitter.MarkLabel(returnLabel);
-            prevType = returnLabel.Type;
-        }
+            EmitExpression(body);
+            var prevType = body.ResultType;
 
-        this.Emitter.EmitConvert(prevType, returnType, true);
-        this.Emitter.EmitReturn();
+            if (returnLabel != null)
+            {
+                this.Emitter.EmitConvert(prevType, returnLabel.Type, true);
+                this.Emitter.MarkLabel(returnLabel);
+                prevType = returnLabel.Type;
+            }
+
+            this.Emitter.EmitConvert(prevType, returnType, true);
+            this.Emitter.EmitReturn();
+        }
+        else
+        {
+            this.Emitter.EmitDefault(returnType);
+            this.Emitter.EmitReturn();
+        }
     }
 
     /// <summary>

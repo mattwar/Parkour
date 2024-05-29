@@ -8,8 +8,9 @@ public class MethodDeclaration : MemberDeclaration
 
     public ImmutableList<TypeParameterDeclaration> TypeParameters { get; }
     public ImmutableList<ParameterDeclaration> Parameters { get; }
-    public Expression Body { get; }
+    public Expression? Body { get; }
     public Expression? ReturnType { get; }
+    public ImmutableList<Expression> Implements { get; }
     public LabelSymbol? ReturnLabel { get; }
 
     private MethodDeclaration(
@@ -20,17 +21,19 @@ public class MethodDeclaration : MemberDeclaration
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<ParameterDeclaration> parameters,
         Expression? returnType,
-        Expression body, 
+        Expression? body, 
+        ImmutableList<Expression> implements,
         ISourceLocation? location,
-        MethodSymbol? symbol,
+        MethodSymbol? methodSymbol,
         LabelSymbol? returnLabel,
         ImmutableList<Diagnostic>? diagnostics)
         : base(
             CombineState(typeParameters)
             | CombineState(parameters) 
             | State(body)
+            | CombineState(implements)
             | State(returnType)
-            | NotNullState(symbol),
+            | NotNullState(methodSymbol),
             name, 
             access, 
             modifiers, 
@@ -42,7 +45,8 @@ public class MethodDeclaration : MemberDeclaration
         this.Parameters = parameters;
         this.Body = body;
         this.ReturnType = returnType;
-        this.Symbol = symbol;
+        this.Implements = implements;
+        this.Symbol = methodSymbol;
         this.ReturnLabel = returnLabel;
     }
 
@@ -50,7 +54,7 @@ public class MethodDeclaration : MemberDeclaration
         string name,
         ImmutableList<ParameterDeclaration> parameters,
         Expression? returnType,
-        Expression body,
+        Expression? body,
         ISourceLocation? location)
         : this(
               name, 
@@ -61,6 +65,7 @@ public class MethodDeclaration : MemberDeclaration
               parameters, 
               returnType, 
               body, 
+              ImmutableList<Expression>.Empty,
               location, 
               null, 
               null, 
@@ -79,6 +84,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             this.ReturnLabel,
@@ -96,6 +102,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             location,
             this.Symbol,
             this.ReturnLabel,
@@ -113,6 +120,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             symbol,
             this.ReturnLabel,
@@ -129,6 +137,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             returnLabel,
@@ -146,6 +155,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             this.ReturnLabel,
@@ -163,6 +173,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             this.ReturnLabel,
@@ -180,6 +191,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             this.ReturnLabel,
@@ -197,6 +209,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             this.ReturnLabel,
@@ -214,6 +227,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             this.ReturnLabel,
@@ -231,6 +245,7 @@ public class MethodDeclaration : MemberDeclaration
             parameters,
             this.ReturnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             this.ReturnLabel,
@@ -248,13 +263,14 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             returnType,
             this.Body,
+            this.Implements,
             this.Location,
             this.Symbol,
             this.ReturnLabel,
             this.Diagnostics
             );
 
-    public MethodDeclaration WithBody(Expression body) =>
+    public MethodDeclaration WithBody(Expression? body) =>
         body == this.Body ? this :
         new MethodDeclaration(
             this.Name,
@@ -265,16 +281,37 @@ public class MethodDeclaration : MemberDeclaration
             this.Parameters,
             this.ReturnType,
             body,
+            this.Implements,
             this.Location,
-            symbol: null,
-            returnLabel: null,
-            diagnostics: null
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
             );
+
+    public MethodDeclaration WithImplements(ImmutableList<Expression> implements) =>
+        implements == this.Implements ? this :
+        new MethodDeclaration(
+            this.Name,
+            this.Access,
+            this.Modifiers,
+            this.Attributes,
+            this.TypeParameters,
+            this.Parameters,
+            this.ReturnType,
+            this.Body,
+            implements,
+            this.Location,
+            this.Symbol,
+            this.ReturnLabel,
+            this.Diagnostics
+            );
+
 
     public override int ChildCount =>
         base.ChildCount
         + this.TypeParameters.Count 
         + this.Parameters.Count 
+        + this.Implements.Count
         + 2;
 
     public override SemanticElement? GetChild(int index)
@@ -288,6 +325,9 @@ public class MethodDeclaration : MemberDeclaration
         if (index < this.Parameters.Count)
             return this.Parameters[index];
         index -= this.Parameters.Count;
+        if (index < this.Implements.Count)
+            return this.Implements[index];
+        index -= this.Implements.Count;
         return index switch
         {
             0 => this.Body,
@@ -303,11 +343,13 @@ public class MethodDeclaration : MemberDeclaration
         var parameters = rewriter.Rewrite(this.Parameters);
         var returnType = rewriter.Rewrite(this.ReturnType);
         var body = rewriter.Rewrite(this.Body);
+        var implements = rewriter.Rewrite(this.Implements);
         return this
             .WithAttributes(attributes)
             .WithTypeParameters(typeParams)
             .WithParameters(parameters)
             .WithReturnType(returnType!)
-            .WithBody(body!);
+            .WithBody(body!)
+            .WithImplements(implements);
     }
 }

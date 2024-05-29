@@ -653,7 +653,7 @@ public static class SemanticFactory
         string name,
         ImmutableList<ParameterDeclaration> parameters,
         Expression? returnType,
-        Expression body,
+        Expression? body,
         ISourceLocation? location = null)
         =>
         new MethodDeclaration(
@@ -661,6 +661,20 @@ public static class SemanticFactory
             parameters,
             returnType,
             body,
+            location
+            );
+
+    public static MethodDeclaration Method(
+        string name,
+        ImmutableList<ParameterDeclaration> parameters,
+        Expression? returnType,
+        ISourceLocation? location = null)
+        =>
+        Method(
+            name,
+            parameters,
+            returnType,
+            body: null,
             location
             );
 

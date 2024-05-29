@@ -36,6 +36,13 @@ public class MethodSymbol : MemberSymbol
         _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
     private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
 
+    /// <summary>
+    /// The interface methods this method implements.
+    /// </summary>
+    public ImmutableList<MethodSymbol> Implements => 
+        _lazyImplements?.Value ?? ImmutableList<MethodSymbol>.Empty;
+    private readonly Lazy<ImmutableList<MethodSymbol>>? _lazyImplements;
+
     public MethodSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -46,6 +53,7 @@ public class MethodSymbol : MemberSymbol
         Func<MethodSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
         Func<TypeSymbol> fnReturnType,
         Func<MethodSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
+        Func<MethodSymbol, ImmutableList<MethodSymbol>>? fnImplements,
         MethodSymbol? constructedFrom)
         : base(name, declaringSymbol, access, modifiers)
     {
@@ -61,6 +69,9 @@ public class MethodSymbol : MemberSymbol
         _lazyReturnType = new Lazy<TypeSymbol>(fnReturnType, SpecialSymbols.CyclicDefinition);
         _lazyAttributes = fnAttributes != null
             ? new Lazy<ImmutableList<AttributeInfo>>(() => fnAttributes(this))
+            : null;
+        _lazyImplements = fnImplements != null
+            ? new Lazy<ImmutableList<MethodSymbol>>(() => fnImplements(this))
             : null;
         ConstructedFrom = constructedFrom;
     }
@@ -145,6 +156,7 @@ public class MethodSymbol : MemberSymbol
             this.Parameters.Count > 0 ? me => subContext.Substitute(this.Parameters, me) : null,
             () => subContext.Substitute(this.ReturnType),
             this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(subContext)) : null,
+            this.Implements != null ? me => subContext.Substitute(this.Implements, me) : null,
             definition
             );
     }
@@ -161,6 +173,7 @@ public class MethodSymbol : MemberSymbol
             this.Parameters.Count > 0 ? me => context.Substitute(this.Parameters) : null,
             () => context.Substitute(this.ReturnType),
             this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
+            this.Implements != null ? me => context.Substitute(this.Implements, me) : null,
             this.ConstructedFrom ?? (this.IsConstructable ? this : null)
             );
     }

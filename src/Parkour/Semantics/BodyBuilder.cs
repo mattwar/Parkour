@@ -11,7 +11,7 @@ public abstract class BodyBuilder
     /// Emits an expression as a method body.
     /// </summary>
     public abstract void BuildBody(
-        Expression body,
+        Expression? body,
         TypeSymbol returnType,
         LabelSymbol? returnLabel);
 }
