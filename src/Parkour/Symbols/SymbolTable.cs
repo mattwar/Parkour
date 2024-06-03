@@ -341,7 +341,8 @@ public abstract class SymbolTable
     #endregion
 
     public Type? GetRuntimeType(TypeSymbol typeSymbol) =>
-        typeSymbol == this.Byte ? typeof(byte)
+        typeSymbol == this.Boolean ? typeof(bool)
+        : typeSymbol == this.Byte ? typeof(byte)
         : typeSymbol == this.SByte ? typeof(sbyte)
         : typeSymbol == this.Int16 ? typeof(short)
         : typeSymbol == this.UInt16 ? typeof(ushort)

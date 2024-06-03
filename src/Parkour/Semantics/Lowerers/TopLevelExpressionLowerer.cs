@@ -3,6 +3,9 @@
 using Symbols;
 using static Semantics.SemanticFactory;
 
+/// <summary>
+/// Converts all top-level expressions into Program.Main()
+/// </summary>
 public class TopLevelExpressionLowerer : PartialLowerer
 {
     public static readonly PartialLowerer Instance =

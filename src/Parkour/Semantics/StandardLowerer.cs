@@ -1,26 +1,33 @@
 ﻿namespace Parkour.Semantics;
 
-using Symbols;
-
 /// <summary>
 /// Applies all standard lowerers and all element specific lowerers
 /// </summary>
 public class StandardLowerer : SemanticLowerer
 {
     protected SemanticBinder Binder { get; }
+    protected ImmutableList<PartialLowerer> Lowerers { get; }
+    protected bool IncludeElementLowerers { get; }
 
     public StandardLowerer(
-        SemanticBinder? binder = null)
+        SemanticBinder? binder = null,
+        ImmutableList<PartialLowerer>? lowerers = null, 
+        bool includeElementLowerers = true)
     {
         this.Binder = binder ?? new StandardBinder();
+        this.Lowerers = lowerers ?? GetStandardLowerers();
+        this.IncludeElementLowerers = includeElementLowerers;
     }
 
     public override SemanticLowering Lower(
         SemanticBinding binding)
     {
         var lowerers = new List<PartialLowerer>();
-        this.GetElementBasedLowerers(binding.Elements, lowerers);
-        lowerers.AddRange(this.GetStandardLowerers());
+        
+        if (this.IncludeElementLowerers)
+            this.GetElementSpecificLowerers(binding.Elements, lowerers);
+
+        lowerers.AddRange(this.Lowerers);
 
         var newElements = binding.Elements;
 
@@ -46,6 +53,7 @@ public class StandardLowerer : SemanticLowerer
     protected virtual ImmutableList<PartialLowerer> GetStandardLowerers()
     {
         return [
+            ConstantFoldingLowerer.Instance,
             FieldInitializerLowerer.Instance,
             TopLevelExpressionLowerer.Instance,
             ];
@@ -55,7 +63,7 @@ public class StandardLowerer : SemanticLowerer
     /// Gets all the lowerers needed as determined by the 
     /// elements involved.
     /// </summary>
-    private void GetElementBasedLowerers(
+    private void GetElementSpecificLowerers(
         ImmutableList<SemanticElement> elements,
         List<PartialLowerer> lowerers)
     {
