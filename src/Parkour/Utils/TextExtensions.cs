@@ -2,7 +2,7 @@
 
 namespace Parkour;
 
-internal static class TextExtensions
+public static class TextExtensions
 {
     /// <summary>
     /// Returns this <see cref="LinePosition"/> for the text position.
@@ -19,11 +19,41 @@ internal static class TextExtensions
         }
         else
         {
-            var offset = position - lineStarts[lineIndex] + 1; // 1-based
-            var line = lineIndex + 1; // 1-based
+            var offset = position - lineStarts[lineIndex];
+            var line = lineIndex;
             return new LinePosition(line, offset);
         }
     }
+
+    /// <summary>
+    /// Gets the text position for the zero-based line and offset
+    /// </summary>
+    public static int GetTextPosition(this string text, int line, int lineOffset)
+    {
+        var lineStarts = GetLineStarts(text);
+        if (line >= 0 && line < lineStarts.Count)
+        {
+            return lineStarts[line] + lineOffset;
+        }
+        else if (line < 0 && lineStarts.Count > 0)
+        {
+            return lineStarts[0];
+        }
+        else if (line >= lineStarts.Count && lineStarts.Count > 0)
+        {
+            return lineStarts[^1];
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets the text position for the <see cref="LinePosition"/>
+    /// </summary>
+    public static int GetTextPosition(this string text, LinePosition linePosition) =>
+        GetTextPosition(text, linePosition.Line, linePosition.Offset);
 
     private static readonly ConditionalWeakTable<string, ImmutableList<int>> _lineStartsMap =
         new ConditionalWeakTable<string, ImmutableList<int>>();

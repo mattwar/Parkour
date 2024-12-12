@@ -74,11 +74,11 @@ public class TinyTests
             ]);
 
         TestClassification("'ABC'", [
-            ClassificationKinds.StringLiteral
+            ClassificationKinds.String
             ]);
 
         TestClassification("123", [
-            ClassificationKinds.NumericLiteral
+            ClassificationKinds.Number
             ]);
 
         TestClassification("A + B", [

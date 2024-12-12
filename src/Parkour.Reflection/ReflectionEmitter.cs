@@ -367,10 +367,18 @@ public partial class ReflectionEmitter : SemanticEmitter
 
         var fieldType = GetRuntimeType(fieldSymbol.Type);
         var fieldAttrs = GetFieldAttributes(fieldSymbol);
+
         var fieldBuilder = typeBuilder.DefineField(
             fieldSymbol.Name,
             fieldType,
             fieldAttrs);
+
+        // set constant value
+        if (fieldSymbol.Modifiers.Contains(SymbolModifier.Constant)
+            && declaration.Initializer is ConstantExpression fieldConst)
+        {
+            fieldBuilder.SetConstant(fieldConst.Value);
+        }
 
         // declare attributes
         foreach (var attr in fieldSymbol.Attributes)
@@ -823,6 +831,9 @@ public partial class ReflectionEmitter : SemanticEmitter
 
         if (field.Modifiers.Contains(SymbolModifier.Special))
             attrs |= FieldAttributes.SpecialName;
+
+        if (field.Modifiers.Contains(SymbolModifier.Constant))
+            attrs |= FieldAttributes.Literal;
 
         if (field.Access == SymbolAccess.Private)
         {

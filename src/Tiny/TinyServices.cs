@@ -7,7 +7,7 @@ namespace Tiny;
 
 public class TinyServices : CompilationServices
 {
-    public TinyServices(TinyCompilation compilation, ISourceDocument document)
+    public TinyServices(ICompilation compilation, ISourceDocument document)
         : base(compilation, document)
     {
     }
@@ -16,8 +16,8 @@ public class TinyServices : CompilationServices
         new string[]
         {
             ClassificationKinds.Name,
-            ClassificationKinds.NumericLiteral,
-            ClassificationKinds.StringLiteral,
+            ClassificationKinds.Number,
+            ClassificationKinds.String,
             ClassificationKinds.Punctuation,
             ClassificationKinds.Keyword
 
@@ -30,8 +30,8 @@ public class TinyServices : CompilationServices
         new Dictionary<string, string>
         {
             { TinyTokenKinds.IdentifierToken, ClassificationKinds.Name },
-            { TinyTokenKinds.NumberToken, ClassificationKinds.NumericLiteral },
-            { TinyTokenKinds.StringToken, ClassificationKinds.StringLiteral },
+            { TinyTokenKinds.NumberToken, ClassificationKinds.Number },
+            { TinyTokenKinds.StringToken, ClassificationKinds.String },
             { TinyTokenKinds.OpenParenToken, ClassificationKinds.Punctuation },
             { TinyTokenKinds.CloseParenToken, ClassificationKinds.Punctuation },
             { TinyTokenKinds.PlusToken, ClassificationKinds.Punctuation },

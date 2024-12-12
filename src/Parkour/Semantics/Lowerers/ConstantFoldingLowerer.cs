@@ -1,7 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
 using Symbols;
-using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Constant folds all intrinsic operators and conversions if possible

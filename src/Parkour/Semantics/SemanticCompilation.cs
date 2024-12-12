@@ -1,6 +1,5 @@
 ﻿namespace Parkour.Semantics;
 
-using Parsers;
 using Symbols;
 
 /// <summary>

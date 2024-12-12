@@ -1,6 +1,4 @@
-﻿using Parkour.Utils;
-
-namespace Parkour.Symbols;
+﻿namespace Parkour.Symbols;
 
 /// <summary>
 /// Containers are symbols with members.

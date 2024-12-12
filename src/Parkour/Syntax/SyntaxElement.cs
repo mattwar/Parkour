@@ -228,25 +228,42 @@ public abstract class SyntaxElement
     {
         var builder = new StringBuilder();
 
-        var token = this.GetFirstToken();
-        while (token != null)
+        SyntaxToken? token;
+        for (token = this.GetFirstToken(); token != null; token = token!.GetNextToken())
         {
-            var trLen = Math.Min(token.Trivia.Length, start + length) - start;
-            if (trLen > 0)
+            if (token.Start > start + length)
             {
-                builder.Append(token.Trivia, start, trLen);
-                start -= Math.Min(start, trLen);
-                length -= trLen;
+                // token is after the range
+                break;
+            }
+            else if (token.End < start)
+            {
+                // token is before the range
+                continue;
             }
             else
             {
-                start = -trLen;
-            }
+                // token overlaps the range
+                AppendTextInRange(token.Start, token.Trivia);
+                AppendTextInRange(token.TextStart, token.Text);
 
-            var txLen = Math.Min(token.Text.Length, start + length) - start;
-            if (txLen > 0)
-            {
-                builder.Append(token.Text, start, txLen);
+                void AppendTextInRange(int textStart, string text)
+                {
+                    if (text.Length > 0 && (textStart + TextLength > start || textStart < start + length))
+                    {
+                        var appendStart = Math.Min(Math.Max(start, textStart), Math.Max(start + length, textStart + text.Length)) - textStart;
+                        var appendEnd = Math.Max(Math.Min(start, textStart), Math.Min(start + length, textStart + text.Length)) - textStart;
+                        var appendLength = appendEnd - appendStart;
+                        if (appendLength == text.Length)
+                        {
+                            builder.Append(text);
+                        }
+                        else
+                        {
+                            builder.Append(text, appendStart, appendLength);
+                        }
+                    }
+                }
             }
         }
 

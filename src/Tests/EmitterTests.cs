@@ -654,7 +654,7 @@ public class EmitterTests
             Add(Constant("one"), Constant("two")),
             expectedResult: "onetwo");
 
-        // add withi local variable
+        // add with local variable
         TestEmit(
             Block(
                 Variable("x", Constant(1)),

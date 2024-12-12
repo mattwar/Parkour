@@ -5,26 +5,36 @@
 /// </summary>
 public static class ClassificationKinds
 {
-    public const string Text = nameof(Text);
-    public const string Keyword = nameof(Keyword);
-    public const string Punctuation = nameof(Punctuation);
-    public const string Trivia = nameof(Trivia);
-    public const string Comment = nameof(Comment);
-    public const string Annotation = nameof(Annotation);
-    public const string Literal = nameof(Literal);
-    public const string NumericLiteral = nameof(NumericLiteral);
-    public const string StringLiteral = nameof(StringLiteral);
-    public const string DateTimeLiteral = nameof(DateTimeLiteral);
-    public const string Intrinsic = nameof(Intrinsic);
-    public const string Name = nameof(Name);
-    public const string TypeName = nameof(TypeName);
-    public const string TypeMemberName = nameof(TypeMemberName);
-    public const string TypeParameterName = nameof(TypeParameterName);
-    public const string InterfaceName = nameof(InterfaceName);
-    public const string NamespaceName = nameof(NamespaceName);
-    public const string MethodName = nameof(MethodName);
-    public const string FieldName = nameof(FieldName);
-    public const string PropertyName = nameof(PropertyName);
-    public const string EventName = nameof(EventName);
+    public const string Text = "text";
+    public const string Keyword = "keyword";
+    public const string Punctuation = "punctuation";
+    public const string Trivia = "trivia";
+    public const string Comment = "comment";
+    public const string Annotation = "annotation";
+    public const string Literal = "literal";
+    public const string Number = "number";
+    public const string String = "string";
+    public const string Regex = "regex";
+    public const string DateTime = "datetime";
+    public const string Operator = "operator";
+    public const string Intrinsic = "intrinsic";
+    public const string Name = "name";
+    public const string Namespace = "namespace";
+    public const string Type = "type";
+    public const string Struct = "struct";
+    public const string Class = "class";
+    public const string Interface = "interface";
+    public const string Enum = "enum";
+    public const string EnumMember = "enumMember";
+    public const string TypeParameter = "typeParameter";
+    public const string Function = "function";
+    public const string Method = "method";
+    public const string Property = "property";
+    public const string Macro = "macro";
+    public const string Variable = "variable";
+    public const string Parameter = "parameter";
+    public const string Label = "label";
+    public const string Modifier = "modifier";
+    public const string Event = "event";
 }
 

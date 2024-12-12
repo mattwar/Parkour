@@ -3,10 +3,10 @@ namespace Parkour.Services;
 
 public class CompilationServices : DocumentServices
 {
-    public Compilation Compilation { get; }
+    public ICompilation Compilation { get; }
 
     public CompilationServices(
-        Compilation compilation,
+        ICompilation compilation,
         ISourceDocument document)
         : base(document)
     {

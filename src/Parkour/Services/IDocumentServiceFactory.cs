@@ -2,5 +2,7 @@
 
 public interface IDocumentServiceFactory
 {
-    TService? GetService<TService>() where TService : class, IDocumentService;
+    bool TryGetDocumentService<TService>(
+        [NotNullWhen(true)] out TService? service) 
+        where TService : class, IDocumentService;
 }

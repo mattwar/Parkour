@@ -1,5 +1,8 @@
 ﻿namespace Parkour;
 
+/// <summary>
+/// A compilation is parsed and semantically analyzed set of source documents. 
+/// </summary>
 public interface ICompilation
 {
     /// <summary>

@@ -1,4 +1,4 @@
-﻿namespace Parkour.Utils;
+﻿namespace Parkour;
 
 internal static class CollectionExtensions
 {

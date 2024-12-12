@@ -41,7 +41,7 @@ public class Diagnostic
         {
             var linePosition = this.Location.Document.Text.GetLinePosition(this.Location.Start);
 
-            message = $"{linePosition}: ";
+            message = $"({linePosition.Line + 1}, {linePosition.Offset + 1}): ";
 
             if (this.Location.Document.Name.Length > 0)
                 message = $"{this.Location.Document.Name}: {message}";

@@ -223,7 +223,7 @@ public class StandardRuntimeOperators : RuntimeOperators
             { typeof(Single), new FloatingPointOperators<Single>() },
             { typeof(Double), new FloatingPointOperators<Double>() },
             { typeof(Decimal), new NumberOperators<Decimal>() },
-            { typeof(String), new ComparableOperators<String>() }
+            { typeof(String), new StringOperators() }
         }
         .ToImmutableDictionary();
 
@@ -784,5 +784,18 @@ public class StandardRuntimeOperators : RuntimeOperators
 
         public override T ShiftRightUnchecked(T left, int right) =>
             unchecked(left >> right);
+    }
+
+    private class StringOperators : ComparableOperators<string>
+    {
+        public override string Add(string left, string right)
+        {
+            return left + right;
+        }
+
+        public override string AddUnchecked(string left, string right)
+        {
+            return left + right;
+        }
     }
 }

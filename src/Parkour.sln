@@ -11,7 +11,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tiny", "Tiny\Tiny.csproj", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Parkour.Reflection", "Parkour.Reflection\Parkour.Reflection.csproj", "{EC9B88E4-20F4-4D0A-8B93-89F0C56CA5E1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parkour.Linq", "Parkour.Linq\Parkour.Linq.csproj", "{63E09434-5609-4054-8E3A-4785763274A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Parkour.Linq", "Parkour.Linq\Parkour.Linq.csproj", "{63E09434-5609-4054-8E3A-4785763274A2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parkour.LSP", "Parkour.LSP\Parkour.LSP.csproj", "{8E71A7F9-1221-4583-80CA-2BB0F00EF399}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tiny.LSP", "Tiny.LSP\Tiny.LSP.csproj", "{0106690E-68D9-448B-9CD9-2CDB5B49AFB4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +43,14 @@ Global
 		{63E09434-5609-4054-8E3A-4785763274A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{63E09434-5609-4054-8E3A-4785763274A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{63E09434-5609-4054-8E3A-4785763274A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E71A7F9-1221-4583-80CA-2BB0F00EF399}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E71A7F9-1221-4583-80CA-2BB0F00EF399}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E71A7F9-1221-4583-80CA-2BB0F00EF399}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E71A7F9-1221-4583-80CA-2BB0F00EF399}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0106690E-68D9-448B-9CD9-2CDB5B49AFB4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0106690E-68D9-448B-9CD9-2CDB5B49AFB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0106690E-68D9-448B-9CD9-2CDB5B49AFB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0106690E-68D9-448B-9CD9-2CDB5B49AFB4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

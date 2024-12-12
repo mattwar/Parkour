@@ -10,16 +10,6 @@ public class Lazy<TValue>
     private TValue _value;
     private object? _syncLock;
 
-    private Lazy(
-        Func<TValue>? fnValue,
-        TValue value,
-        object? syncLock)
-    {
-        _fnValue = fnValue;
-        _value = value;
-        _syncLock = syncLock;
-    }
-
     public Lazy(
         Func<TValue> fnValue,
         TValue defaultValue = default!)
@@ -34,10 +24,11 @@ public class Lazy<TValue>
         get
         {
             if (_fnValue is { } fnValue
-                && Interlocked.CompareExchange(ref _fnValue, null, fnValue) == fnValue)
+                && Interlocked.CompareExchange(ref _fnValue, null, fnValue) == fnValue
+                && _syncLock != null)
             {
                 // first one in does computation and remove lock after
-                lock (_syncLock!)
+                lock (_syncLock)
                 {
                     _value = fnValue();
                     _syncLock = null;

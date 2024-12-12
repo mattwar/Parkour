@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OmniSharp.Extensions.LanguageServer" Version="0.19.9" />
+    <PackageReference Include="System.Collections.Immutable" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Parkour.LSP\Parkour.LSP.csproj" />
+    <ProjectReference Include="..\Parkour.Reflection\Parkour.Reflection.csproj" />
+    <ProjectReference Include="..\Parkour\Parkour.csproj" />
+    <ProjectReference Include="..\Tiny\Tiny.csproj" />
+  </ItemGroup>
+
+</Project>

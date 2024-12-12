@@ -17,9 +17,12 @@ public class DocumentServices
         this.Document = document;
     }
 
-    public TService? GetService<TService>() where TService : class, IDocumentService
+    public bool TryGetDocumentService<TService>(
+        [NotNullWhen(true)] out TService? service)
+        where TService : class, IDocumentService
     {
-        return this as TService;
+        service = this as TService;
+        return service != null;
     }
 
     /// <summary>
