@@ -62,7 +62,7 @@ namespace Tests
         {
             var symbols = CecilSymbols.CurrentMscorlib;
 
-            var listT = symbols.GetType("System.Collections.Generic.List`1");
+            var listT = symbols.GetTypeSymbol("System.Collections.Generic.List`1");
             Assert.IsNotNull(listT);
 
             var listTBT = listT.BaseTypes;
@@ -92,7 +92,7 @@ namespace Tests
             //var declaringType = (GenericInstanceType)parameterType.DeclaringType;
 
             var symbols = CecilSymbols.GetOrCreate([CecilSymbols.CurrentMscorlibAssembly, testAssembly]);
-            var type = symbols.GetType("Test.Metadata.Test");
+            var type = symbols.GetTypeSymbol("Test.Metadata.Test");
             var field = type.Members.OfType<FieldSymbol>().FirstOrDefault(f => f.Name == "Field");
             var ftype = field!.Type;
 

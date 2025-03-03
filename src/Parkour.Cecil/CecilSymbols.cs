@@ -508,7 +508,7 @@ public class CecilSymbols : StandardSymbolTable
         {
             if (arg.Value is Type type)
             {
-                return new AttributeTypeValue(GetType(type));
+                return new AttributeTypeValue(GetTypeSymbol(type));
             }
             else if (arg.Value is CustomAttributeArgument[] args)
             {
@@ -525,17 +525,6 @@ public class CecilSymbols : StandardSymbolTable
 #endregion
 
     #region Get symbols from Cecil types
-    /// <summary>
-    /// Tries to find the already created symbol.
-    /// </summary>
-    private bool TryGetSymbol(IMetadataTokenProvider cecilSymbol, [NotNullWhen(true)] out Symbol? symbol)
-    {
-        if (cecilSymbol is MemberReference mr)
-            cecilSymbol = ResolveReference(mr);
-
-        return _cecilToSymbolMap.TryGetValue(cecilSymbol, out symbol);
-    }
-
     /// <summary>
     /// Gets the symbol corresponding to the Cecil metadata object.
     /// </summary>
@@ -835,12 +824,17 @@ public class CecilSymbols : StandardSymbolTable
         }
 
         if (typeSymbol == this.Object
-            || typeSymbol == this.Void
-            || typeSymbol == SpecialSymbols.DoesNotReturn
             || typeSymbol == SpecialSymbols.Null
             || typeSymbol == SpecialSymbols.Unknown)
         {
             cecilType = this.ObjectDefinition;
+            return true;
+        }
+        else if (
+            typeSymbol == this.Void
+            || typeSymbol == SpecialSymbols.DoesNotReturn)
+        {
+            cecilType = this.VoidDefinition;
             return true;
         }
 
@@ -1131,6 +1125,9 @@ public class CecilSymbols : StandardSymbolTable
     /// </summary>
     private TypeDefinition ObjectDefinition => _lazyObjectType ??= GetFirstTypeDefinition("System.Object")!;
     private TypeDefinition? _lazyObjectType;
+
+    private TypeDefinition VoidDefinition => _lazyVoidDefinition ?? GetFirstTypeDefinition("System.Void")!;
+    private TypeDefinition? _lazyVoidDefinition;
 
     #endregion
 

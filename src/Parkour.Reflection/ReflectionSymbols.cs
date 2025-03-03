@@ -17,6 +17,21 @@ public class ReflectionSymbols : StandardSymbolTable
     /// </summary>
     public ImmutableList<Assembly> Assemblies { get; }
 
+    /// <summary>
+    /// Map from Reflection types to symbols.
+    /// </summary>
+    private readonly ConditionalWeakTable<object, Symbol> _infoToSymbolMap =
+        new ConditionalWeakTable<object, Symbol>();
+
+    /// <summary>
+    /// Map from symbols to reflection types.
+    /// </summary>
+    private readonly ConditionalWeakTable<Symbol, object> _symbolToInfoMap =
+        new ConditionalWeakTable<Symbol, object>();
+
+    /// <summary>
+    /// Constructs a new <see cref="ReflectionSymbols"/> instance.
+    /// </summary>
     private ReflectionSymbols(GlobalNamespaceSymbol globalNamespace, ImmutableList<Assembly> assemblies)
         : base(globalNamespace)
     {
@@ -24,40 +39,32 @@ public class ReflectionSymbols : StandardSymbolTable
     }
 
     /// <summary>
-    /// The <see cref="ReflectionSymbols"/> associated with the current mscorlib assembly in use at runtime.
-    /// </summary>
-    public static ReflectionSymbols CurrentMscorlib => 
-        GetOrCreate(_mscorlibAssemblies);
-
-    private static ImmutableList<Assembly> _mscorlibAssemblies =
-        [typeof(int).Assembly];
-
-    private static readonly ConditionalWeakTable<ImmutableList<Assembly>, ReflectionSymbols> _assemblyToRuntimeSymbolsMap =
-        new ConditionalWeakTable<ImmutableList<Assembly>, ReflectionSymbols>();
-
-    private static readonly ConditionalWeakTable<GlobalNamespaceSymbol, ReflectionSymbols> _namespaceToRuntimeSymbolsMap =
-        new ConditionalWeakTable<GlobalNamespaceSymbol, ReflectionSymbols>();
-
-    /// <summary>
     /// Gets or creates the <see cref="ReflectionSymbols"/> associated with the assemblies
     /// </summary>
     public static ReflectionSymbols GetOrCreate(ImmutableList<Assembly> assemblies)
     {
-        if (!_assemblyToRuntimeSymbolsMap.TryGetValue(assemblies, out var runtimeSymbols))
+        if (!_assembliesToSymbolTableMap.TryGetValue(assemblies, out var runtimeSymbols))
         {
-            runtimeSymbols = _assemblyToRuntimeSymbolsMap.GetValue(assemblies, CreateRuntimeSymbols);
-            _namespaceToRuntimeSymbolsMap.TryAdd(runtimeSymbols.GlobalNamespace, runtimeSymbols);
+            runtimeSymbols = _assembliesToSymbolTableMap.GetValue(assemblies, CreateSymbolTable);
+            _namespaceToSymbolTableMap.TryAdd(runtimeSymbols.GlobalNamespace, runtimeSymbols);
         }
 
         return runtimeSymbols;
     }
 
+    private static readonly ConditionalWeakTable<ImmutableList<Assembly>, ReflectionSymbols> _assembliesToSymbolTableMap =
+        new ConditionalWeakTable<ImmutableList<Assembly>, ReflectionSymbols>();
+
+    private static readonly ConditionalWeakTable<GlobalNamespaceSymbol, ReflectionSymbols> _namespaceToSymbolTableMap =
+        new ConditionalWeakTable<GlobalNamespaceSymbol, ReflectionSymbols>();
+
+
+    #region Create Symbols
     /// <summary>
     /// Creates a new <see cref="ReflectionSymbols"/> for the given assemblies.
     /// </summary>
-    private static ReflectionSymbols CreateRuntimeSymbols(ImmutableList<Assembly>? assemblies)
+    private static ReflectionSymbols CreateSymbolTable(ImmutableList<Assembly> assemblies)
     {
-        assemblies = assemblies ?? _mscorlibAssemblies;
         var types = assemblies.SelectMany(a => a.GetTypes()).ToList();
         var modules = assemblies.SelectMany(a => a.GetModules()).ToList();
         var methods = modules.SelectMany(m => m.GetMethods()).ToList();
@@ -66,7 +73,8 @@ public class ReflectionSymbols : StandardSymbolTable
         ReflectionSymbols? runtimeSymbols = null;
 
         runtimeSymbols = new ReflectionSymbols(
-            new GlobalNamespaceSymbol(_ns => runtimeSymbols!.GetNamespaceMembers(_ns, "", "", types, methods, fields)), 
+            new GlobalNamespaceSymbol(_ns => 
+                runtimeSymbols!.CreateNamespaceMembers(_ns, "", "", types, methods, fields)), 
             assemblies);
 
         return runtimeSymbols;
@@ -75,8 +83,8 @@ public class ReflectionSymbols : StandardSymbolTable
     /// <summary>
     /// Gets a list of all symbols contained in the namespace.
     /// </summary>
-    private ImmutableList<Symbol> GetNamespaceMembers(
-        NamespaceSymbol? declaringNamespace,
+    private ImmutableList<Symbol> CreateNamespaceMembers(
+        NamespaceSymbol declaringNamespace,
         string containingNamespace,
         string namespaceName,
         IEnumerable<Type> types,
@@ -97,21 +105,21 @@ public class ReflectionSymbols : StandardSymbolTable
             .ToList();
 
         var symbolsInNamespace = typesInNamespace
-            .Select(t => GetOrCreateSymbol(t, declaringNamespace))
+            .Select(t => CreateSymbol(t, declaringNamespace))
             .OfType<Symbol>()
             .ToList();
 
         if (methods != null)
         {
             symbolsInNamespace.AddRange(
-                methods.Select(m => GetOrCreateSymbol(m, declaringNamespace))
+                methods.Select(m => CreateSymbol(m, declaringNamespace))
                 .OfType<Symbol>());
         }
 
         if (fields != null)
         {
             symbolsInNamespace.AddRange(
-                fields.Select(f => GetOrCreateSymbol(f, declaringNamespace))
+                fields.Select(f => CreateSymbol(f, declaringNamespace))
                 .OfType<Symbol>());
         }
 
@@ -132,7 +140,7 @@ public class ReflectionSymbols : StandardSymbolTable
             new NamespaceSymbol(
                 ng.Key,
                 declaringNamespace,
-                _ns => GetNamespaceMembers(_ns, namespaceFullName, ng.Key, ng, null, null)));
+                _ns => CreateNamespaceMembers(_ns, namespaceFullName, ng.Key, ng, null, null)));
 
         list.AddRange(nestedNamespaces);
 
@@ -146,363 +154,270 @@ public class ReflectionSymbols : StandardSymbolTable
                 return fullName.Substring(start, nextDot - start);
             return fullName.Substring(start);
         }
-    }
 
-    private readonly ConditionalWeakTable<object, Symbol> _runtimeInfoToSymbolMap =
-        new ConditionalWeakTable<object, Symbol>();
-
-    private readonly ConditionalWeakTable<Symbol, object> _symbolToRuntimeInfoMap =
-        new ConditionalWeakTable<Symbol, object>();
-
-    /// <summary>
-    /// Gets the symbol if it is already created and associated with the reflection object.
-    /// </summary>
-    private bool TryGetSymbol(object reflectionInfo, [NotNullWhen(true)] out Symbol? symbol)
-    {
-        return _runtimeInfoToSymbolMap.TryGetValue(reflectionInfo, out symbol);
-    }
-
-    /// <summary>
-    /// Gets or creates the symbol associated with the reflection object.
-    /// </summary>
-    private Symbol? GetOrCreateSymbol(object runtimeSymbol, Symbol? declaringSymbol)
-    {
-        if (!_runtimeInfoToSymbolMap.TryGetValue(runtimeSymbol, out var symbol))
+        /// <summary>
+        /// Gets or creates the symbol associated with the reflection object.
+        /// </summary>
+        Symbol? CreateSymbol(object runtimeSymbol, Symbol declaringSymbol)
         {
-            var tmp = CreateSymbol(runtimeSymbol, declaringSymbol);
-            if (tmp != null)
+            if (!_infoToSymbolMap.TryGetValue(runtimeSymbol, out var symbol))
             {
-                symbol = _runtimeInfoToSymbolMap.GetValue(runtimeSymbol, _ => tmp);
-                _symbolToRuntimeInfoMap.TryAdd(symbol, runtimeSymbol);
-            }
-        }
-
-        return symbol;
-
-        // create symbol is nested here to keep me from accidentally calling it outside this method
-        Symbol? CreateSymbol(object runtimeSymbol, Symbol? declaringSymbol)
-        {
-            if (declaringSymbol == null)
-            {
-                if (runtimeSymbol is Type type)
+                var tmp = Create();
+                if (tmp != null)
                 {
-                    declaringSymbol ??=
-                        (type.DeclaringType != null) ? GetOrCreateSymbol(type.DeclaringType, null) as MemberSymbol
-                        : (type.Namespace != null) ? this.GetFirstSymbolFromPath<NamespaceSymbol>(type.Namespace)
-                        : null;
-                }
-                else if (runtimeSymbol is MemberInfo member)
-                {
-                    declaringSymbol ??= (member.DeclaringType != null)
-                        ? GetOrCreateSymbol(member.DeclaringType, null) as MemberSymbol
-                        : null;
+                    symbol = _infoToSymbolMap.GetValue(runtimeSymbol, _ => tmp);
+                    _symbolToInfoMap.TryAdd(symbol, runtimeSymbol);
                 }
             }
 
-            switch (runtimeSymbol)
+            return symbol;
+
+            Symbol? Create()
             {
-                case ConstructorInfo constructor:
-                    return new ConstructorSymbol(
-                        (TypeSymbol)declaringSymbol!,
-                        GetAccess(constructor),
-                        GetModifiers(constructor),
-                        me => CreateParameters(me, constructor),
-                        me => CreateAttributeInfo(constructor.GetCustomAttributesData())
-                        );
-
-                case FieldInfo field:
-                    return new FieldSymbol(
-                        field.Name,
-                        declaringSymbol as TypeSymbol,
-                        GetAccess(field),
-                        GetModifiers(field),
-                        () => GetType(field.FieldType),
-                        me => CreateAttributeInfo(field.GetCustomAttributesData()),
-                        field.IsLiteral ? field.GetRawConstantValue() : null);
-
-                case MethodInfo method:
-                    return CreateMethod(method, declaringSymbol);
-
-                case ParameterInfo parameter:
-                    return new ParameterSymbol(
-                        parameter.Name ?? "",
-                        declaringSymbol,
-                        GetModifiers(parameter),
-                        () => GetType(parameter.ParameterType),
-                        me => CreateAttributeInfo(parameter.GetCustomAttributesData())
-                        );
-
-                case PropertyInfo property:
-                    var indexParameters = property.GetIndexParameters();
-                    if (indexParameters.Length > 0)
-                    {
-                        return new IndexerSymbol(
-                            property.Name,
-                            declaringSymbol as TypeSymbol,
-                            GetAccess(property),
-                            GetModifiers(property),
-                            () => GetType(property.PropertyType),
-                            property.GetGetMethod() is MethodInfo gmi
-                                ? me => (MethodSymbol)GetOrCreateSymbol(gmi, me)!
-                                : null,
-                            property.GetSetMethod() is MethodInfo smi
-                                ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
-                                : null,
-                            me => CreateAttributeInfo(property.GetCustomAttributesData())
-                                );
-                    }
-                    else
-                    {
-                        return new PropertySymbol(
-                            property.Name,
-                            declaringSymbol as TypeSymbol,
-                            GetAccess(property),
-                            GetModifiers(property),
-                            () => GetType(property.PropertyType),
-                            fnBackingField: null,
-                            property.GetGetMethod() is MethodInfo gmi
-                                ? me => (MethodSymbol)GetOrCreateSymbol(gmi, me)!
-                                : null,
-                            property.GetSetMethod() is MethodInfo smi
-                                ? me => (MethodSymbol)GetOrCreateSymbol(smi, me)!
-                                : null,
-                            me => CreateAttributeInfo(property.GetCustomAttributesData())
+                switch (runtimeSymbol)
+                {
+                    case ConstructorInfo constructor:
+                        return new ConstructorSymbol(
+                            (TypeSymbol)declaringSymbol!,
+                            GetAccess(constructor),
+                            GetModifiers(constructor),
+                            me => CreateParameters(constructor, me),
+                            me => CreateAttributeInfoList(constructor.GetCustomAttributesData())
                             );
-                    }
 
-                case Type type:
-                    if (type.IsGenericTypeParameter)
-                    {
-                        return new TypeParameterSymbol(type.Name);
-                    }
-                    else
-                    {
-                        return CreateType(type, declaringSymbol);
-                    }
+                    case FieldInfo field:
+                        return new FieldSymbol(
+                            field.Name,
+                            declaringSymbol,
+                            GetAccess(field),
+                            GetModifiers(field),
+                            () => GetTypeSymbol(field.FieldType),
+                            me => CreateAttributeInfoList(field.GetCustomAttributesData()),
+                            field.IsLiteral ? field.GetRawConstantValue() : null);
+
+                    case MethodInfo method:
+                        var name = StripArity(method.Name);
+                        return new MethodSymbol(
+                            name,
+                            declaringSymbol,
+                            GetAccess(method),
+                            GetModifiers(method),
+                            fnTypeParameters:
+                                method.IsGenericMethodDefinition
+                                    ? me => CreateTypeParameters(method.GetGenericArguments())
+                                    : me => ImmutableList<TypeParameterSymbol>.Empty,
+                            fnTypeArguments:
+                                () => ImmutableList<TypeSymbol>.Empty,
+                            me => CreateParameters(method, me),
+                            () => GetTypeSymbol(method.ReturnType),
+                            me => CreateAttributeInfoList(method.GetCustomAttributesData()),
+                            me => GetInterfaceMethods(method) is { } methods && methods.Count > 0
+                                ? methods.Select(m => (MethodSymbol?)GetSymbolFromInfo(m)).OfType<MethodSymbol>().ToImmutableList()
+                                : ImmutableList<MethodSymbol>.Empty,
+                            constructedFrom: null
+                            );
+
+                    case ParameterInfo parameter:
+                        return new ParameterSymbol(
+                            parameter.Name ?? "",
+                            declaringSymbol,
+                            GetModifiers(parameter),
+                            () => GetTypeSymbol(parameter.ParameterType),
+                            me => CreateAttributeInfoList(parameter.GetCustomAttributesData())
+                            );
+
+                    case PropertyInfo property:
+                        var indexParameters = property.GetIndexParameters();
+                        if (indexParameters.Length > 0)
+                        {
+                            return new IndexerSymbol(
+                                property.Name,
+                                declaringSymbol as TypeSymbol,
+                                GetAccess(property),
+                                GetModifiers(property),
+                                () => GetTypeSymbol(property.PropertyType),
+                                property.GetGetMethod() is MethodInfo gmi
+                                    ? (IndexerSymbol me) => (MethodSymbol)CreateSymbol(gmi, me)!
+                                    : null,
+                                property.GetSetMethod() is MethodInfo smi
+                                    ? (IndexerSymbol me) => (MethodSymbol)CreateSymbol(smi, me)!
+                                    : null,
+                                me => CreateAttributeInfoList(property.GetCustomAttributesData())
+                                    );
+                        }
+                        else
+                        {
+                            return new PropertySymbol(
+                                property.Name,
+                                declaringSymbol as TypeSymbol,
+                                GetAccess(property),
+                                GetModifiers(property),
+                                () => GetTypeSymbol(property.PropertyType),
+                                fnBackingField: null,
+                                property.GetGetMethod() is MethodInfo gmi
+                                    ? (PropertySymbol me) => (MethodSymbol)CreateSymbol(gmi, me)!
+                                    : null,
+                                property.GetSetMethod() is MethodInfo smi
+                                    ? (PropertySymbol me) => (MethodSymbol)CreateSymbol(smi, me)!
+                                    : null,
+                                me => CreateAttributeInfoList(property.GetCustomAttributesData())
+                                );
+                        }
+
+                    case Type type:
+                        if (type.IsGenericTypeParameter)
+                        {
+                            return new TypeParameterSymbol(type.Name);
+                        }
+                        else
+                        {
+                            name = StripArity(type.Name);
+                            var access = GetAccess(type);
+                            var modifiers = GetModifiers(type);
+
+                            Func<TypeSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters =
+                                type.IsGenericTypeDefinition
+                                    ? me => CreateTypeParameters(type.GetGenericArguments())
+                                    : me => ImmutableList<TypeParameterSymbol>.Empty;
+
+                            Func<ImmutableList<TypeSymbol>> fnTypeArguments =
+                                    () => ImmutableList<TypeSymbol>.Empty;
+
+                            Func<ImmutableList<TypeSymbol>> fnBaseTypes =
+                                () => GetBaseTypes(type.BaseType, type.GetInterfaces());
+
+                            Func<TypeSymbol, ImmutableList<Symbol>> fnMembers =
+                                me => CreateMembers(type, me);
+
+                            Func<TypeSymbol, ImmutableList<AttributeInfo>> fnAttributes =
+                                me => CreateAttributeInfoList(type.GetCustomAttributesData());
+
+                            if (type.IsInterface)
+                            {
+                                return new InterfaceSymbol(
+                                    name,
+                                    declaringSymbol,
+                                    access,
+                                    modifiers,
+                                    fnTypeParameters,
+                                    fnTypeArguments,
+                                    fnBaseTypes,
+                                    fnMembers,
+                                    fnAttributes,
+                                    constructedFrom: null
+                                    );
+                            }
+                            else if (type.IsValueType)
+                            {
+                                return new StructSymbol(
+                                    name,
+                                    declaringSymbol,
+                                    access,
+                                    modifiers,
+                                    fnTypeParameters,
+                                    fnTypeArguments,
+                                    fnBaseTypes,
+                                    fnMembers,
+                                    fnAttributes,
+                                    constructedFrom: null
+                                    );
+                            }
+                            else
+                            {
+                                return new ClassSymbol(
+                                    name,
+                                    declaringSymbol,
+                                    access,
+                                    modifiers,
+                                    fnTypeParameters,
+                                    fnTypeArguments,
+                                    fnBaseTypes,
+                                    fnMembers,
+                                    fnAttributes,
+                                    constructedFrom: null
+                                    );
+                            }
+                        }
+                }
+
+                return null;
             }
-
-            return null;       
         }
 
-        MethodSymbol CreateMethod(MethodInfo method, Symbol? declaringSymbol)
+        ImmutableList<Symbol> CreateMembers(Type runtimeType, MemberSymbol declaringSymbol) =>
+            GetMemberInfos(runtimeType)
+                .Select(m => CreateSymbol(m, declaringSymbol))
+                .Where(s => s != null)
+                .ToImmutableList()!;
+
+        ImmutableList<ParameterSymbol> CreateParameters(MethodBase method, MemberSymbol declaringSymbol) =>
+            method.GetParameters()
+            .Select(p => (ParameterSymbol)CreateSymbol(p, declaringSymbol)!)
+            .ToImmutableList();
+
+        ImmutableList<TypeParameterSymbol> CreateTypeParameters(IEnumerable<Type> typeParameters) =>
+            typeParameters.Select(tp => new TypeParameterSymbol(tp.Name)).ToImmutableList();
+
+        ImmutableList<TypeSymbol> GetBaseTypes(Type? baseType, Type[] interfaces)
         {
-            Func<MethodSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters =
-                method.IsGenericMethod && !method.IsConstructedGenericMethod
-                    ? me => GetTypes(method.GetGenericArguments()).OfType<TypeParameterSymbol>().ToImmutableList()
-                    : me => ImmutableList<TypeParameterSymbol>.Empty;
-
-            Func<ImmutableList<TypeSymbol>> fnTypeArguments =
-                method.IsConstructedGenericMethod
-                    ? () => GetTypes(method.GetGenericArguments())
-                    : () => ImmutableList<TypeSymbol>.Empty;
-
-            var constructedFrom = method.IsConstructedGenericMethod
-                ? (MethodSymbol?)GetOrCreateSymbol(method.GetGenericMethodDefinition(), null)
-                : null;
-
-            var name = StripArity(method.Name);
-
-            return new MethodSymbol(
-                name,
-                declaringSymbol,
-                GetAccess(method),
-                GetModifiers(method),
-                fnTypeParameters,
-                fnTypeArguments,
-                me => CreateParameters(me, method),
-                () => GetType(method.ReturnType),
-                me => CreateAttributeInfo(method.GetCustomAttributesData()),
-                me => GetInterfaceMethods(method) is { } methods && methods.Count > 0
-                    ? methods.Select(m => (MethodSymbol?)GetOrCreateSymbol(m, null)).OfType<MethodSymbol>().ToImmutableList()
-                    : ImmutableList<MethodSymbol>.Empty,
-                constructedFrom
-                );
-        }
-
-        TypeSymbol CreateType(Type type, Symbol? declaringSymbol)
-        {
-            var access = GetAccess(type);
-            var modifiers = GetModifiers(type);
-
-            Func<TypeSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters =
-                type.IsGenericType && !type.IsConstructedGenericType
-                    ? me => GetTypes(type.GetGenericArguments()).OfType<TypeParameterSymbol>().ToImmutableList()
-                    : me => ImmutableList<TypeParameterSymbol>.Empty;
-
-            Func<ImmutableList<TypeSymbol>> fnTypeArguments =
-                type.IsConstructedGenericType
-                    ? () => GetTypes(type.GetGenericArguments())
-                    : () => ImmutableList<TypeSymbol>.Empty;
-
-            var constructedFromType = type.IsConstructedGenericType
-                ? GetType(type.GetGenericTypeDefinition())
-                : null;
-
-            Func<ImmutableList<TypeSymbol>> fnBaseTypes = 
-                () => GetBaseTypes(type.BaseType, type.GetInterfaces());
-
-            Func<TypeSymbol, ImmutableList<Symbol>> fnMembers = 
-                me => CreateMembers(type, me);
-
-            Func<TypeSymbol, ImmutableList<AttributeInfo>> fnAttributes =
-                me => CreateAttributeInfo(type.GetCustomAttributesData());
-
-            var name = StripArity(type.Name);
-
-            if (type.IsArray)
+            if (baseType != null)
             {
-                return new ArraySymbol(
-                    declaringSymbol,
-                    fnElementType: () => GetType(type.GetElementType()!),
-                    dimensions: type.GetArrayRank(),
-                    isSZArray: type.IsSZArray,
-                    fnBaseTypes: fnBaseTypes,
-                    fnMembers: fnMembers,
-                    constructedFrom: constructedFromType);
+                if (interfaces == null || interfaces.Length == 0)
+                    return [GetTypeSymbol(baseType)];
+
+                return GetTypeSymbols(new[] { baseType }.Concat(interfaces));
             }
-            else if (type.IsInterface)
+            else if (interfaces.Length > 0)
             {
-                return new InterfaceSymbol(
-                    name,
-                    declaringSymbol,
-                    access,
-                    modifiers,
-                    fnTypeParameters,
-                    fnTypeArguments,
-                    fnBaseTypes,
-                    fnMembers,
-                    fnAttributes,
-                    constructedFromType
-                    );
-            }
-            else if (type.IsValueType)
-            {
-                return new StructSymbol(
-                    name,
-                    declaringSymbol,
-                    access,
-                    modifiers,
-                    fnTypeParameters,
-                    fnTypeArguments,
-                    fnBaseTypes,
-                    fnMembers,
-                    fnAttributes,
-                    constructedFromType
-                    );
+                return GetTypeSymbols(interfaces);
             }
             else
             {
-                return new ClassSymbol(
-                    name,
-                    declaringSymbol,
-                    access,
-                    modifiers,
-                    fnTypeParameters,
-                    fnTypeArguments,
-                    fnBaseTypes,
-                    fnMembers,
-                    fnAttributes,
-                    constructedFromType
-                    );
+                return ImmutableList<TypeSymbol>.Empty;
             }
         }
-    }
 
-    private ImmutableDictionary<Type, ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>>> _typeToInterfaceMethodMap =
-        ImmutableDictionary<Type, ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>>>.Empty;
+        ImmutableList<AttributeInfo> CreateAttributeInfoList(IEnumerable<CustomAttributeData> data) =>
+            data.Select(d => CreateAttributeInfo(d))
+                .OfType<AttributeInfo>()
+                .ToImmutableList();
 
-    /// <summary>
-    /// Gets the list of interface methods that the implementation method implements.
-    /// </summary>
-    public ImmutableList<MethodInfo> GetInterfaceMethods(MethodInfo implementationMethod)
-    {
-        if (implementationMethod.DeclaringType == null
-            || !implementationMethod.DeclaringType.IsInterface)
-            return ImmutableList<MethodInfo>.Empty;
-
-        if (!_typeToInterfaceMethodMap.TryGetValue(implementationMethod.DeclaringType, out var methodMap))
+        AttributeInfo? CreateAttributeInfo(CustomAttributeData data)
         {
-            var tmp = CreateMethodMap();
-            methodMap = ImmutableInterlocked.GetOrAdd(ref _typeToInterfaceMethodMap, implementationMethod.DeclaringType, tmp);
-
-            ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>> CreateMethodMap()
+            var constructor = (ConstructorSymbol?)GetSymbolFromInfo(data.Constructor);
+            if (constructor != null)
             {
-                var map = new Dictionary<MethodInfo, List<MethodInfo>>();
+                var arguments = data.ConstructorArguments
+                    .Select((a, i) => new AttributeArgument(constructor.Parameters[i], CreateValue(a.Value)))
+                    .ToImmutableList();
+                var members = data.NamedArguments
+                    .Select(n => new AttributeMember((MemberSymbol)GetSymbolFromInfo(n.MemberInfo)!, CreateValue(n.TypedValue.Value)))
+                    .ToImmutableList();
+                return new AttributeInfo(constructor, arguments, members);
+            }
+            return null;
 
-                var interfaces = implementationMethod.DeclaringType.GetInterfaces();
-                foreach (var iface in interfaces)
+            AttributeValue CreateValue(object? value)
+            {
+                if (value is Type type)
                 {
-                    var interfaceMap = iface.GetInterfaceMap(iface);
-                    for (int i = 0; i < interfaceMap.TargetMethods.Length; i++)
-                    {
-                        var targetMethod = interfaceMap.TargetMethods[i];
-                        var interfaceMethod = interfaceMap.InterfaceMethods[i];
-                        if (!map.TryGetValue(targetMethod, out var interfaceMethods))
-                        {
-                            interfaceMethods = new List<MethodInfo>();
-                        }
-                        interfaceMethods.Add(interfaceMethod);
-                    }
+                    return new AttributeTypeValue(GetTypeSymbol(type));
                 }
-
-                return map.ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableList());
+                else if (value is Array array)
+                {
+                    var elementType = GetTypeSymbol(array.GetType().GetElementType()!);
+                    var values = array.OfType<object>().Select(v => CreateValue(v)).ToImmutableList();
+                    return new AttributeArrayValue(elementType, values);
+                }
+                else
+                {
+                    return new AttributeConstantValue(value);
+                }
             }
         }
-
-        methodMap.TryGetValue(implementationMethod, out var interfaceMethods);
-        return interfaceMethods ?? ImmutableList<MethodInfo>.Empty;
     }
 
-    public override bool TryGetType(Type type, [NotNullWhen(true)] out TypeSymbol typeSymbol)
-    {
-        if (TryGetSymbol(type, out var symbol) && symbol is TypeSymbol cached)
-        {
-            typeSymbol = cached;
-            return true;
-        }
-
-        if (FindSymbol(type) is TypeSymbol found)
-        {
-            typeSymbol = found;
-            return true;
-        }
-
-        typeSymbol = (TypeSymbol)GetOrCreateSymbol(type, null)!;
-        return true;
-    }
-
-    public static IReadOnlyList<MemberInfo> GetMembers(Type runtimeType) =>
-        runtimeType.GetMembers(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly);
-
-    private ImmutableList<Symbol> CreateMembers(Type runtimeType, MemberSymbol? container) =>
-        GetMembers(runtimeType)
-            .Select(m => GetOrCreateSymbol(m, container) is Symbol s ? s : null)
-            .Where(s => s != null)
-            .ToImmutableList()!;
-
-    private ImmutableList<ParameterSymbol> CreateParameters(MemberSymbol? declaringSymbol, MethodBase method) =>
-        method.GetParameters().Select(p => (ParameterSymbol)GetOrCreateSymbol(p, declaringSymbol)!).ToImmutableList();
-
-    private ImmutableList<TypeSymbol> GetBaseTypes(Type? baseType, Type[] interfaces)
-    {
-        if (baseType != null)
-        {
-            if (interfaces == null || interfaces.Length == 0)
-                return [GetType(baseType)];
-
-            return GetTypes(new[] { baseType }.Concat(interfaces));
-        }
-        else if (interfaces.Length > 0)
-        {
-            return GetTypes(interfaces);
-        }
-        else
-        {
-            return ImmutableList<TypeSymbol>.Empty;
-        }
-    }
-
-    public static SymbolAccess GetAccess(MemberInfo info) =>
+    private static SymbolAccess GetAccess(MemberInfo info) =>
         info switch
         {
             System.Type type =>
@@ -533,7 +448,7 @@ public class ReflectionSymbols : StandardSymbolTable
             _ => SymbolAccess.Private
         };
 
-    public static BitSet<SymbolModifier> GetModifiers(MemberInfo info) =>
+    private static BitSet<SymbolModifier> GetModifiers(MemberInfo info) =>
         info switch
         {
             System.Type type =>
@@ -554,7 +469,7 @@ public class ReflectionSymbols : StandardSymbolTable
             _ => SymbolModifier.None
         };
 
-    public static BitSet<SymbolModifier> GetModifiers(ParameterInfo info)
+    private static BitSet<SymbolModifier> GetModifiers(ParameterInfo info)
     {
         var isIn = (info.Attributes & ParameterAttributes.In) != 0;
         var isOut = (info.Attributes & ParameterAttributes.Out) != 0;
@@ -564,69 +479,168 @@ public class ReflectionSymbols : StandardSymbolTable
             : SymbolModifier.None;
     }
 
-    public ImmutableList<AttributeInfo> CreateAttributeInfo(IEnumerable<CustomAttributeData> data) =>
-        data.Select(d => CreateAttributeInfo(d))
-            .OfType<AttributeInfo>()
-            .ToImmutableList();
+    #endregion
 
-    private AttributeInfo? CreateAttributeInfo(CustomAttributeData data)
+    #region Get Symbol from Reflection info
+    /// <summary>
+    /// Gets the <see cref="TypeSymbol"/> for the corresponding reflection type.
+    /// </summary>
+    public override bool TryGetTypeSymbol(Type type, [NotNullWhen(true)] out TypeSymbol? typeSymbol)
     {
-        var constructor = (ConstructorSymbol?)GetOrCreateSymbol(data.Constructor, null);
-        if (constructor != null)
-        {
-            var arguments = data.ConstructorArguments
-                .Select((a, i) => new AttributeArgument(constructor.Parameters[i], CreateValue(a.Value)))
-                .ToImmutableList();
-            var members = data.NamedArguments
-                .Select(n => new AttributeMember((MemberSymbol)GetOrCreateSymbol(n.MemberInfo, constructor.DeclaringSymbol)!, CreateValue(n.TypedValue.Value)))
-                .ToImmutableList();
-            return new AttributeInfo(constructor, arguments, members);
-        }
-        return null;
-
-        AttributeValue CreateValue(object? value)
-        {
-            if (value is Type type)
-            {
-                return new AttributeTypeValue(GetType(type));
-            }
-            else if (value is Array array)
-            {
-                var elementType = GetType(array.GetType().GetElementType()!);
-                var values = array.OfType<object>().Select(v => CreateValue(v)).ToImmutableList();
-                return new AttributeArrayValue(elementType, values);
-            }
-            else
-            {
-                return new AttributeConstantValue(value);
-            }
-        }
+        typeSymbol = GetSymbolFromInfo(type) as TypeSymbol;
+        return typeSymbol != null;
     }
 
     /// <summary>
-    /// Finds the symbol in the global namespace
+    /// Gets the symbol corresponding to the reflection info.
     /// </summary>
-    private Symbol? FindSymbol(object runtimeSymbol)
+    private Symbol? GetSymbolFromInfo(object reflectionInfo)
     {
-        // note: constructed types and members won't appear in the global namespace
-        if (runtimeSymbol is Type type && type.IsGenericTypeDefinition)
+        if (_infoToSymbolMap.TryGetValue(reflectionInfo, out var symbol))
+            return symbol;
+
+        if (reflectionInfo is MemberInfo member)
         {
-            return this.GetFirstSymbolFromPath<TypeSymbol>(GetDottedPath(type));
+            if (member is Type type)
+            {
+                if (type.IsConstructedGenericType)
+                {
+                    var definition = GetTypeSymbol(type.GetGenericTypeDefinition())!;
+                    var typeArgs = GetTypeSymbols(type.GetGenericArguments());
+                    return this.GetConstructed(definition, typeArgs);
+                }
+                else if (type.IsGenericTypeParameter && type.DeclaringType != null)
+                {
+                    var declaringSymbol = GetSymbolFromInfo(type.DeclaringType);
+                    return FindMember(declaringSymbol!, type);
+                }
+                else if (type.IsGenericMethodParameter && type.DeclaringMethod != null)
+                {
+                    var declaringSymbol = GetSymbolFromInfo(type.DeclaringMethod);
+                    return FindMember(declaringSymbol!, type);
+                }
+                else if (type.IsArray)
+                {
+                    var elementSymbol = GetTypeSymbol(type.GetElementType()!);
+                    return GetArray(elementSymbol, type.GetArrayRank());
+                }
+            }
+            else if (member is MethodInfo method && method.IsConstructedGenericMethod)
+            {
+                var definition = (MethodSymbol)GetSymbolFromInfo(method.GetGenericMethodDefinition())!;
+                var typeArgs = GetTypeSymbols(method.GetGenericArguments());
+                return this.GetConstructed<MethodSymbol>(definition, typeArgs);
+            }
+
+            if (member.DeclaringType != null)
+            {
+                var declaringSymbol = GetSymbolFromInfo(member.DeclaringType);
+                if (declaringSymbol != null)
+                {
+                    return FindMember(declaringSymbol, member);
+                }
+            }
         }
-        else if (runtimeSymbol is MemberInfo member
-            && member.DeclaringType != null && member.DeclaringType.IsGenericTypeDefinition)
+        else if (reflectionInfo is ParameterInfo parameter 
+            && parameter.Member != null)
         {
-            return this.GetFirstSymbolFromPath(GetDottedPath(member));
+            var memberSymbol = GetSymbolFromInfo(parameter.Member);
+
+            if (memberSymbol is MethodSymbol method)
+            {
+                return method.Parameters[parameter.Position];
+            }
+            else if (memberSymbol is ConstructorSymbol constructor)
+            {
+                return constructor.Parameters[parameter.Position];
+            }
+            else if (memberSymbol is IndexerSymbol indexer && indexer.GetMethod != null)
+            {
+                return indexer.GetMethod.Parameters[parameter.Position];
+            }
+        }
+
+        // nothing else worked, try dotted path as last resort
+        var path = GetDottedPath(reflectionInfo);
+        return GetSymbol(path);
+    }
+
+    /// <summary>
+    /// Finds the member of the symbol matching the reflection info.
+    /// </summary>
+    private Symbol? FindMember(Symbol declaringSymbol, MemberInfo member)
+    {
+        if (declaringSymbol is TypeSymbol declaringType)
+        {
+            switch (member)
+            {
+                case ConstructorInfo constructor:
+                    var parameterTypes = constructor.GetParameters().Select(p => GetTypeSymbol(p.ParameterType)).ToImmutableList();
+                    return declaringType.GetFirstMember<ConstructorSymbol>(
+                        cs => cs.IsSealed && constructor.IsStatic
+                            && Matches(cs.Parameters, parameterTypes)
+                            );
+                case MethodInfo method:
+                    var name = StripArity(method.Name, out var arity);
+                    parameterTypes = GetTypeSymbols(method.GetParameters().Select(p => p.ParameterType));
+                    return declaringType.GetFirstMember<MethodSymbol>(
+                        name,
+                        ms => Matches(ms.Parameters, parameterTypes)
+                        );    
+                case FieldInfo field:
+                    return declaringType.GetFirstMember<FieldSymbol>(field.Name);
+                case PropertyInfo property:
+                    var parameters = property.GetIndexParameters();
+                    if (parameters.Length > 0)
+                    {
+                        parameterTypes = GetTypeSymbols(parameters.Select(p => p.ParameterType));
+                        return declaringType.GetFirstMember<IndexerSymbol>(nx => Matches(nx.GetMethod!.Parameters, parameterTypes));
+                    }
+                    else
+                    {
+                        return declaringType.GetFirstMember<PropertySymbol>(property.Name);
+                    }
+                case Type type:
+                    if (type.IsGenericParameter)
+                    {
+                        return declaringType.TypeParameters.FirstOrDefault(tp => tp.Name == type.Name);
+                    }
+                    else
+                    {
+                        name = StripArity(type.Name, out arity);
+                        return declaringType.GetFirstMember<TypeSymbol>(type.Name, ts => ts.Arity == arity);
+                    }
+            }
+        }
+        else if (declaringSymbol is MethodSymbol declaringMethod)
+        {
+            if (member is Type type && type.IsGenericMethodParameter)
+            {
+                return declaringMethod.TypeParameters.FirstOrDefault(tp => tp.Name == type.Name);
+            }
+        }
+        else if (declaringSymbol is NamespaceSymbol declaringNamespace)
+        {
+            if (member is Type type)
+            {
+                var name = StripArity(type.Name, out var arity);
+                return declaringNamespace.GetFirstMember<TypeSymbol>(name, ts => ts.Arity == arity);
+            }
         }
 
         return null;
     }
 
-    private ImmutableList<TypeSymbol> GetTypes(IEnumerable<Type> types)
+    private static bool Matches(IReadOnlyList<ParameterSymbol> parameters, IReadOnlyList<TypeSymbol> types)
     {
-        if (!types.Any())
-            return ImmutableList<TypeSymbol>.Empty;
-        return types.Select(GetType).ToImmutableList();
+        if (parameters.Count != types.Count)
+            return false;
+        for (int i = 0; i < parameters.Count; i++)
+        {
+            if (!TypeEqualityComparer.Instance.Equals(parameters[i].Type, types[i]))
+                return false;
+        }
+        return true;
     }
 
     /// <summary>
@@ -661,11 +675,25 @@ public class ReflectionSymbols : StandardSymbolTable
                 return member.Name;
             }
         }
+        else if (reflectionInfo is ParameterInfo parameter)
+        {
+            if (parameter.Member != null)
+            {
+                return GetDottedPath(parameter.Member) + "." + parameter.Name;
+            }
+            else
+            {
+                return parameter.Name!;
+            }
+        }
         else
         {
             throw new InvalidOperationException($"Unhandled runtime info: '{reflectionInfo.GetType().Name}' in {nameof(ReflectionSymbols)}.{nameof(GetDottedPath)}");
         }
     }
+    #endregion
+
+    #region Get reflection info for symbol
 
     /// <summary>
     /// Gets the System.Reflection info (Type, MemberInfo, ParameterInfo) corresponding to the <see cref="Symbol"/>.
@@ -723,11 +751,11 @@ public class ReflectionSymbols : StandardSymbolTable
     /// <summary>
     /// Gets the <see cref="Type"/> corresponding to the <see cref="TypeSymbol"/>
     /// </summary>
-    public bool TryGetType(TypeSymbol typeSymbol, [NotNullWhen(true)] out Type? type) =>
+    public override bool TryGetType(TypeSymbol typeSymbol, [NotNullWhen(true)] out Type? type) =>
         TryGetType(typeSymbol, out type, null);
 
     /// <summary>
-    /// Gets the <see cref="Type"/> corresponding to the <see cref="TypeSymbol"/>
+    /// Gets the <see cref="Type"/> corresponding to the <see cref="TypeSymbol"/> if possible.
     /// </summary>
     public bool TryGetType(TypeSymbol typeSymbol, [NotNullWhen(true)] out Type? type, Func<Symbol, object?>? alternateSource)
     {
@@ -737,26 +765,15 @@ public class ReflectionSymbols : StandardSymbolTable
             return true;
         }
 
-        if (_symbolToRuntimeInfoMap.TryGetValue(typeSymbol, out var runtimeInfo)
+        if (_symbolToInfoMap.TryGetValue(typeSymbol, out var runtimeInfo)
             && runtimeInfo is Type rt)
         {
             type = rt;
             return true;
         }
 
-        if (typeSymbol == this.Void
-            || typeSymbol == SpecialSymbols.DoesNotReturn)
-        {
-            type = typeof(void);
+        if (base.TryGetType(typeSymbol, out type))
             return true;
-        }
-        else if (typeSymbol == this.Object
-            || typeSymbol == SpecialSymbols.Null
-            || typeSymbol == SpecialSymbols.Unknown)
-        {
-            type = typeof(object);
-            return true;
-        }
 
         if (typeSymbol is ArraySymbol array
             && TryGetType(array.ElementType, out var elementType, alternateSource))
@@ -789,12 +806,22 @@ public class ReflectionSymbols : StandardSymbolTable
             var index = declaringTypeSymbol.Members.IndexOf(typeSymbol);
             if (index >= 0)
             {
-                var members = GetMembers(declaringType);
+                var members = GetMemberInfos(declaringType);
                 if (members[index] is Type mt)
                 {
                     type = mt;
                     return true;
                 }
+            }
+        }
+
+        // look for type by metadata name
+        foreach (var assembly in this.Assemblies)
+        {
+            if (assembly.GetType(typeSymbol.FullName) is Type t)
+            {
+                type = t;
+                return true;
             }
         }
 
@@ -841,7 +868,7 @@ public class ReflectionSymbols : StandardSymbolTable
             return true;
         }
 
-        if (_symbolToRuntimeInfoMap.TryGetValue(memberSymbol, out var runtimeInfo)
+        if (_symbolToInfoMap.TryGetValue(memberSymbol, out var runtimeInfo)
             && runtimeInfo is MemberInfo mi)
         {
             memberInfo = mi;
@@ -874,7 +901,7 @@ public class ReflectionSymbols : StandardSymbolTable
             var index = declaringTypeSymbol.Members.IndexOf(memberSymbol);
             if (index >= 0)
             {
-                var members = GetMembers(declaringType);
+                var members = GetMemberInfos(declaringType);
                 if (members[index] is MemberInfo minfo)
                 {
                     memberInfo = minfo;
@@ -886,4 +913,73 @@ public class ReflectionSymbols : StandardSymbolTable
         memberInfo = null;
         return false;
     }
+    #endregion
+
+    #region Reflection helpers
+
+    public static IReadOnlyList<MemberInfo> GetMemberInfos(Type runtimeType) =>
+        runtimeType.GetMembers(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly);
+
+    private ImmutableDictionary<Type, ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>>> _typeToInterfaceMethodMap =
+        ImmutableDictionary<Type, ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>>>.Empty;
+
+    /// <summary>
+    /// Gets the list of interface methods that the implementation method implements.
+    /// </summary>
+    public ImmutableList<MethodInfo> GetInterfaceMethods(MethodInfo implementationMethod)
+    {
+        if (implementationMethod.DeclaringType == null
+            || implementationMethod.DeclaringType.IsInterface)
+            return ImmutableList<MethodInfo>.Empty;
+
+        if (!_typeToInterfaceMethodMap.TryGetValue(implementationMethod.DeclaringType, out var methodMap))
+        {
+            var tmp = CreateMethodMap();
+            methodMap = ImmutableInterlocked.GetOrAdd(ref _typeToInterfaceMethodMap, implementationMethod.DeclaringType, tmp);
+
+            ImmutableDictionary<MethodInfo, ImmutableList<MethodInfo>> CreateMethodMap()
+            {
+                var map = new Dictionary<MethodInfo, List<MethodInfo>>();
+
+                var interfaces = implementationMethod.DeclaringType.GetInterfaces();
+                foreach (var iface in interfaces)
+                {
+                    var interfaceMap = implementationMethod.DeclaringType.GetInterfaceMap(iface);
+                    for (int i = 0; i < interfaceMap.TargetMethods.Length; i++)
+                    {
+                        var targetMethod = interfaceMap.TargetMethods[i];
+                        var interfaceMethod = interfaceMap.InterfaceMethods[i];
+                        if (!map.TryGetValue(targetMethod, out var interfaceMethods))
+                        {
+                            interfaceMethods = new List<MethodInfo>();
+                        }
+                        interfaceMethods.Add(interfaceMethod);
+                    }
+                }
+
+                return map.ToImmutableDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableList());
+            }
+        }
+
+        methodMap.TryGetValue(implementationMethod, out var interfaceMethods);
+        return interfaceMethods ?? ImmutableList<MethodInfo>.Empty;
+    }
+
+    #endregion
+
+    #region mscorlib
+
+    /// <summary>
+    /// The <see cref="ReflectionSymbols"/> corresponding to the current mscorlib loaded into this process.
+    /// </summary>
+    public static ReflectionSymbols CurrentMscorlib =>
+        GetOrCreate([MscorlibAssembly]);
+
+    /// <summary>
+    /// The <see cref="Assembly"/> for the current mscorlib loaded into this process.
+    /// </summary>
+    private static Assembly MscorlibAssembly =
+        typeof(int).Assembly;
+
+    #endregion
 }

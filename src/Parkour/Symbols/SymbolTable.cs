@@ -41,28 +41,55 @@ public abstract class SymbolTable
     /// <summary>
     /// Gets the <see cref="TypeSymbol"/> for the equivalent runtime type.
     /// </summary>
-    public abstract bool TryGetType(Type type, [NotNullWhen(true)] out TypeSymbol typeSymbol);
+    public virtual bool TryGetTypeSymbol(Type type, [NotNullWhen(true)] out TypeSymbol? typeSymbol)
+    {
+        if (type.IsArray
+            && type.GetElementType() is Type elementType
+            && TryGetTypeSymbol(elementType, out var elementTypeSymbol))
+        {
+            typeSymbol = GetArray(elementTypeSymbol);
+            return true;
+        }
+        else if (type.IsConstructedGenericType
+            && TryGetTypeSymbol(type.GetGenericTypeDefinition(), out var definitionSymbol)
+            && TryGetTypeSymbols(type.GetGenericArguments(), out var typeArgSymbols))
+        {
+            typeSymbol = GetConstructed(definitionSymbol, typeArgSymbols);
+            return true;
+        }
+        else if (type.FullName != null
+            && TryGetTypeSymbol(type.FullName, out var declaredType))
+        {
+            typeSymbol = declaredType;
+            return true;
+        }
+        else
+        {
+            typeSymbol = null!;
+            return false;
+        }
+    }
 
     /// <summary>
     /// Gets the <see cref="TypeSymbol"/> for the equivalent runtime type.
     /// </summary>
-    public TypeSymbol GetType(Type type) =>
-       TryGetType(type, out var typeSymbol)
+    public TypeSymbol GetTypeSymbol(Type type) =>
+       TryGetTypeSymbol(type, out var typeSymbol)
             ? typeSymbol
             : throw new InvalidOperationException($"type {type.FullName ?? type.Name} not found");
 
     /// <summary>
     /// Gets the type symbols for the list of runtime types.
     /// </summary>
-    public bool TryGetTypes(IReadOnlyList<Type> types, [NotNullWhen(true)] out ImmutableList<TypeSymbol> typeSymbols)
+    public bool TryGetTypeSymbols(IEnumerable<Type> types, [NotNullWhen(true)] out ImmutableList<TypeSymbol>? typeSymbols)
     {
         var list = new List<TypeSymbol>();
 
         foreach (var type in types)
         {
-            if (!TryGetType(type, out var typeSymbol))
+            if (!TryGetTypeSymbol(type, out var typeSymbol))
             {
-                typeSymbols = null!;
+                typeSymbols = null;
                 return false;
             }
 
@@ -71,6 +98,47 @@ public abstract class SymbolTable
 
         typeSymbols = list.ToImmutableList();
         return true;
+    }
+
+    /// <summary>
+    /// Gets the type symbols for the list of runtime types.
+    /// </summary>
+    public ImmutableList<TypeSymbol> GetTypeSymbols(IEnumerable<Type> types)
+    {
+        return types.Select(GetTypeSymbol).ToImmutableList();
+    }
+
+    #endregion
+
+    #region Getting Runtime types from Symbols
+
+    /// <summary>
+    /// Gets the runtime type for a type symbol
+    /// </summary>
+    public virtual bool TryGetType(TypeSymbol typeSymbol, [NotNullWhen(true)] out Type? type)
+    {
+        // quick translation of common known types
+        type = 
+            typeSymbol == this.Object ? typeof(object)
+            : typeSymbol == SpecialSymbols.Null ? typeof(object)
+            : typeSymbol == SpecialSymbols.Unknown ? typeof(object)
+            : typeSymbol == this.Void ? typeof(void)
+            : typeSymbol == SpecialSymbols.DoesNotReturn ? typeof(void)
+            : typeSymbol == this.Boolean ? typeof(bool)
+            : typeSymbol == this.Byte ? typeof(byte)
+            : typeSymbol == this.SByte ? typeof(sbyte)
+            : typeSymbol == this.Int16 ? typeof(short)
+            : typeSymbol == this.UInt16 ? typeof(ushort)
+            : typeSymbol == this.Int32 ? typeof(int)
+            : typeSymbol == this.UInt32 ? typeof(uint)
+            : typeSymbol == this.Int64 ? typeof(long)
+            : typeSymbol == this.UInt64 ? typeof(ulong)
+            : typeSymbol == this.Single ? typeof(float)
+            : typeSymbol == this.Double ? typeof(double)
+            : typeSymbol == this.Decimal ? typeof(Decimal)
+            : typeSymbol == this.String ? typeof(string)
+            : null;
+        return type != null;
     }
 
     #endregion
@@ -83,14 +151,14 @@ public abstract class SymbolTable
     /// </summary>
     public abstract bool TryGetSymbol<TSymbol>(
         string dottedPath,
-        [NotNullWhen(true)] out TSymbol symbol)
+        [NotNullWhen(true)] out TSymbol? symbol)
         where TSymbol : Symbol;
 
     /// <summary>
     /// Get the declared symbol given the dotted path to the symbol from the root of the global namespace.
     /// If multiple symbols are found with the same full name, the first is returned.
     /// </summary>
-    public bool TryGetSymbol(string dottedPath, [NotNullWhen(true)] out Symbol symbol) =>
+    public bool TryGetSymbol(string dottedPath, [NotNullWhen(true)] out Symbol? symbol) =>
         TryGetSymbol<Symbol>(dottedPath, out symbol);
 
     /// <summary>
@@ -114,8 +182,8 @@ public abstract class SymbolTable
     /// Gets the declared type given the dotted pa th from the root of the global namespace.
     /// If multiple types with the same name are found, the first is returned.
     /// </summary>
-    public TypeSymbol GetType(string dottedPath) =>
-        TryGetType(dottedPath, out var type)
+    public TypeSymbol GetTypeSymbol(string dottedPath) =>
+        TryGetTypeSymbol(dottedPath, out var type)
             ? type
             : throw new InvalidOperationException($"type {dottedPath} not found");
 
@@ -123,7 +191,7 @@ public abstract class SymbolTable
     /// Gets the declared type given the dotted path from the root of the global namespace.
     /// If multiple types with the same full name are found, the first is returned.
     /// </summary>
-    public bool TryGetType(string dottedPath, [NotNullWhen(true)] out TypeSymbol type) =>
+    public bool TryGetTypeSymbol(string dottedPath, [NotNullWhen(true)] out TypeSymbol? type) =>
         TryGetSymbol(dottedPath, out type);
 
     #endregion
@@ -273,7 +341,7 @@ public abstract class SymbolTable
     /// If the type is not found, a proxy with no members is supplied.
     /// </summary>
     protected TypeSymbol GetOrCreateCommonType(Type type) =>
-        TryGetType(type, out var typeSymbol)
+        TryGetTypeSymbol(type, out var typeSymbol)
             ? typeSymbol
             : new ClassSymbol(type.Name);
 
@@ -340,19 +408,5 @@ public abstract class SymbolTable
 
     #endregion
 
-    public Type? GetRuntimeType(TypeSymbol typeSymbol) =>
-        typeSymbol == this.Boolean ? typeof(bool)
-        : typeSymbol == this.Byte ? typeof(byte)
-        : typeSymbol == this.SByte ? typeof(sbyte)
-        : typeSymbol == this.Int16 ? typeof(short)
-        : typeSymbol == this.UInt16 ? typeof(ushort)
-        : typeSymbol == this.Int32 ? typeof(int)
-        : typeSymbol == this.UInt32 ? typeof(uint)
-        : typeSymbol == this.Int64 ? typeof(long)
-        : typeSymbol == this.UInt64 ? typeof(ulong)
-        : typeSymbol == this.Single ? typeof(float)
-        : typeSymbol == this.Double ? typeof(double)
-        : typeSymbol == this.Decimal ? typeof(Decimal)
-        : typeSymbol == this.String ? typeof(string)
-        : null;
+
 }

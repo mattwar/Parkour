@@ -2271,7 +2271,7 @@ public class StandardBinder : SemanticBinder
     {
         var resultType = constant.Value == null
             ? SpecialSymbols.Null
-            : context.Symbols.GetType(constant.Value.GetType());
+            : context.Symbols.GetTypeSymbol(constant.Value.GetType());
 
         if (resultType == constant.ResultType)
             return constant;

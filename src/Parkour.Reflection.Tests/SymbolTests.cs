@@ -61,7 +61,7 @@ namespace Tests
         {
             var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
 
-            var listT = runtimeSymbols.GetType("System.Collections.Generic.List`1");
+            var listT = runtimeSymbols.GetTypeSymbol("System.Collections.Generic.List`1");
             Assert.IsNotNull(listT);
 
             var listTBT = listT.BaseTypes;

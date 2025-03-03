@@ -1006,7 +1006,7 @@ public class StandardBodyBuilder : BodyBuilder
         if (_Array_CreateInstance_2 != null)
             return;
 
-        var arraySymbol = this.ExternalSymbols.GetType("System.Array");
+        var arraySymbol = this.ExternalSymbols.GetTypeSymbol("System.Array");
 
         _Array_CreateInstance_2 = arraySymbol.GetFirstHierarchyMember<MethodSymbol>(
             "CreateInstance",

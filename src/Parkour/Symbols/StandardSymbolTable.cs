@@ -27,38 +27,6 @@ public class StandardSymbolTable : SymbolTable
     }
 
     /// <summary>
-    /// Gets the <see cref="TypeSymbol"/> for the equivalent runtime type.
-    /// </summary>
-    public override bool TryGetType(Type type, [NotNullWhen(true)] out TypeSymbol typeSymbol)
-    {
-        if (type.IsArray
-            && type.GetElementType() is Type elementType
-            && TryGetType(elementType, out var elementTypeSymbol))
-        {
-            typeSymbol = GetArray(elementTypeSymbol);
-            return true;
-        }
-        else if (type.IsConstructedGenericType
-            && TryGetType(type.GetGenericTypeDefinition(), out var definitionSymbol)
-            && TryGetTypes(type.GetGenericArguments(), out var typeArgSymbols))
-        {
-            typeSymbol = GetConstructed(definitionSymbol, typeArgSymbols);
-            return true;
-        }
-        else if (type.FullName != null
-            && TryGetType(type.FullName, out var declaredType))
-        {
-            typeSymbol = declaredType;
-            return true;
-        }
-        else
-        {
-            typeSymbol = null!;
-            return false;
-        }
-    }
-
-    /// <summary>
     /// Get the declared symbol with the full name.
     /// If multiple symbols are found with the same full name, the first is returned.
     /// </summary>
@@ -274,12 +242,12 @@ public class StandardSymbolTable : SymbolTable
                 dimensions: 1,
                 isSZArray: true,
                 fnBaseTypes: () => [
-                    GetType("System.Array"),
-                GetType("System.Collections.IEnumerable"),
-                GetType("System.Collections.IList"),
-                GetConstructed(GetType("System.Collections.Generic.IEnumerable`1"), [elementType]),
-                GetConstructed(GetType("System.Collections.Generic.IList`1"), [elementType]),
-                GetConstructed(GetType("System.Collections.Generic.IReadOnlyList`1"), [elementType])
+                    GetTypeSymbol("System.Array"),
+                GetTypeSymbol("System.Collections.IEnumerable"),
+                GetTypeSymbol("System.Collections.IList"),
+                GetConstructed(GetTypeSymbol("System.Collections.Generic.IEnumerable`1"), [elementType]),
+                GetConstructed(GetTypeSymbol("System.Collections.Generic.IList`1"), [elementType]),
+                GetConstructed(GetTypeSymbol("System.Collections.Generic.IReadOnlyList`1"), [elementType])
                     ],
                 fnMembers: me => [], // TODO: add array members
                 constructedFrom: null
@@ -293,7 +261,7 @@ public class StandardSymbolTable : SymbolTable
                 dimensions: dimensions,
                 isSZArray: false,
                 fnBaseTypes: () => [
-                    GetType("System.Array"),
+                    GetTypeSymbol("System.Array"),
                     ],
                 fnMembers: me => [], // TODO: add array members
                 constructedFrom: null

@@ -33,7 +33,7 @@ public class ConstantFoldingLowerer : PartialLowerer
                     try
                     {
                         var result = _operators.Invoke(op.Kind, unaryArg.Value);
-                        if (result == null || symbols.GetType(result.GetType()) == op.ResultType)
+                        if (result == null || symbols.GetTypeSymbol(result.GetType()) == op.ResultType)
                         {
                             return new ConstantExpression(result, op.Location)
                                 .WithResultType(op.ResultType);
@@ -45,13 +45,12 @@ public class ConstantFoldingLowerer : PartialLowerer
                 }
                 else if (op.Arguments.Count == 2
                     && op.Arguments[0] is ConstantExpression arg0
-                    && op.Arguments[1] is ConstantExpression arg1
-                    && symbols.GetRuntimeType(op.ResultType) is Type type)
+                    && op.Arguments[1] is ConstantExpression arg1)
                 {
                     try
                     {
                         var result = _operators.Invoke(op.Kind, arg0.Value, arg1.Value);
-                        if (result == null || symbols.GetType(result.GetType()) == op.ResultType)
+                        if (result == null || symbols.GetTypeSymbol(result.GetType()) == op.ResultType)
                         {
                             return new ConstantExpression(result, op.Location)
                                 .WithResultType(op.ResultType);
@@ -65,7 +64,7 @@ public class ConstantFoldingLowerer : PartialLowerer
             else if (ex is ConvertExpression cv
                 && cv.ConversionSymbol == null  // not converted via method call
                 && cv.Expression is ConstantExpression cvx
-                && symbols.GetRuntimeType(cv.ResultType) is Type convertToType)
+                && symbols.TryGetType(cv.ResultType, out var convertToType))
             {
                 try
                 {
