@@ -111,7 +111,7 @@ public class StandardSymbolTable : SymbolTable
     private static readonly char[] _namePathSplitChars = new[] { '.', '+', '`' };
 
     /// <summary>
-    /// Gets all the symbols that can be reached with the specified dotted name.
+    /// Gets all the symbols that can be reached from the global namespace using the dotted path.
     /// Typically this returns 1 or 0, but may return more if there are multiple symbols with the same name.
     /// </summary>
     protected virtual void GetSymbolsFromPath(string dottedPath, List<Symbol> symbols)
@@ -507,9 +507,15 @@ public class StandardSymbolTable : SymbolTable
         }
     }
 
+    /// <summary>
+    /// Returns the name without the arity value.
+    /// </summary>
     protected static string StripArity(string name) =>
         StripArity(name, out _);
 
+    /// <summary>
+    /// Returns the name without the arity and arity value.
+    /// </summary>
     protected static string StripArity(string name, out int arity)
     {
         var arityStart = name.IndexOf('`');
