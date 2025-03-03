@@ -78,53 +78,53 @@ public abstract class SymbolTable
     #region Symbols from dotted paths
 
     /// <summary>
-    /// Get the declared symbol with the full name.
+    /// Get the declared symbol given the dotted path to the symbol from the root of the global namespace.
     /// If multiple symbols are found with the same full name, the first is returned.
     /// </summary>
     public abstract bool TryGetSymbol<TSymbol>(
-        string dottedName,
+        string dottedPath,
         [NotNullWhen(true)] out TSymbol symbol)
         where TSymbol : Symbol;
 
     /// <summary>
-    /// Get the declared symbol with the full name.
+    /// Get the declared symbol given the dotted path to the symbol from the root of the global namespace.
     /// If multiple symbols are found with the same full name, the first is returned.
     /// </summary>
-    public bool TryGetSymbol(string dottedName, [NotNullWhen(true)] out Symbol symbol) =>
-        TryGetSymbol<Symbol>(dottedName, out symbol);
+    public bool TryGetSymbol(string dottedPath, [NotNullWhen(true)] out Symbol symbol) =>
+        TryGetSymbol<Symbol>(dottedPath, out symbol);
 
     /// <summary>
-    /// Get the declared symbol given the symbol's full name.
+    /// Get the declared symbol given the dotted path to the symbol from the root of the global namespace.
     /// If multiple symbols are found with the same full name, the first is returned.
     /// </summary>
-    public TSymbol GetSymbol<TSymbol>(string dottedName)
+    public TSymbol GetSymbol<TSymbol>(string dottedPath)
         where TSymbol : Symbol =>
-        TryGetSymbol<TSymbol>(dottedName, out var symbol)
+        TryGetSymbol<TSymbol>(dottedPath, out var symbol)
             ? symbol
-            : throw new InvalidOperationException($"symbol {dottedName} not found");
+            : throw new InvalidOperationException($"symbol {dottedPath} not found");
 
     /// <summary>
-    /// Get the declared symbol with the full name.
+    /// Get the declared symbol using the dotted path from the root of the global namespace.
     /// If multiple symbols are found with the same name, the first is returned.
     /// </summary>
-    public Symbol GetSymbol(string dottedName) =>
-        GetSymbol<Symbol>(dottedName);
+    public Symbol GetSymbol(string dottedPath) =>
+        GetSymbol<Symbol>(dottedPath);
 
     /// <summary>
-    /// Gets the declared type given its full name.
+    /// Gets the declared type given the dotted pa th from the root of the global namespace.
     /// If multiple types with the same name are found, the first is returned.
     /// </summary>
-    public TypeSymbol GetType(string dottedName) =>
-        TryGetType(dottedName, out var type)
+    public TypeSymbol GetType(string dottedPath) =>
+        TryGetType(dottedPath, out var type)
             ? type
-            : throw new InvalidOperationException($"type {dottedName} not found");
+            : throw new InvalidOperationException($"type {dottedPath} not found");
 
     /// <summary>
-    /// Gets the declared type given the type's full name.
+    /// Gets the declared type given the dotted path from the root of the global namespace.
     /// If multiple types with the same full name are found, the first is returned.
     /// </summary>
-    public bool TryGetType(string dottedName, [NotNullWhen(true)] out TypeSymbol type) =>
-        TryGetSymbol(dottedName, out type);
+    public bool TryGetType(string dottedPath, [NotNullWhen(true)] out TypeSymbol type) =>
+        TryGetSymbol(dottedPath, out type);
 
     #endregion
 

@@ -10,13 +10,15 @@ namespace Parkour.Parsers;
 public abstract class Parser<TInput>
 {
     /// <summary>
-    /// Parse zero or more input items and produce a single weakly-typed output item.
+    /// Consume zero or more input items and produce a single weakly-typed output item.
     /// </summary>
     public abstract ParseResult<object> ParseAsObject(
         ReadOnlySpan<TInput> input);
 
     /// <summary>
-    /// Determine if (and how many) input items match the parser's grammar.
+    /// Determine if (and how many) input items the parser would consume.
+    /// Return of 0 is a success that consumes no input; Optional and ZeroOrMore do this.
+    /// Return of < 0 is a failure.
     /// </summary>
     public abstract ScanResult Scan(
         ReadOnlySpan<TInput> input);
@@ -32,7 +34,7 @@ public abstract class Parser<TInput>
 
     /// <summary>
     /// True if the parser is required to succeed even if the grammar does not match.
-    /// Similar to optional, but will always return non-null result.
+    /// Knowledge of required elements is important for behavior of <see cref="Search"/> operation.
     /// </summary>
     public virtual bool IsRequired => false;
 

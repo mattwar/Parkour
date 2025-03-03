@@ -99,6 +99,12 @@ public abstract class ContainerSymbol : MemberSymbol
     /// <summary>
     /// Gets all the first symbol that matches the predicate.
     /// </summary>
+    public Symbol? GetFirstMember<TSymbol>(Func<TSymbol, bool> predicate) where TSymbol : Symbol =>
+        GetFirstMember(null, predicate);
+
+    /// <summary>
+    /// Gets all the first symbol that matches the predicate.
+    /// </summary>
     public Symbol? GetFirstMember(Func<Symbol, bool> predicate) =>
         GetFirstMember<Symbol>(null, predicate);
 

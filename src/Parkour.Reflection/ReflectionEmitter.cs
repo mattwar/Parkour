@@ -760,7 +760,7 @@ public partial class ReflectionEmitter : SemanticEmitter
 
     private object? GetRuntimeInfo(Symbol symbol)
     {
-        _symbols.TryGetRuntimeInfo(symbol, out var info, GetFromBuilders);
+        _symbols.TryGetInfo(symbol, out var info, GetFromBuilders);
         return info;
 
         object? GetFromBuilders(Symbol symbol)

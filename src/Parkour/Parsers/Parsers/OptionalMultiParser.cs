@@ -4,7 +4,6 @@ public sealed class OptionalMultiParser<TInput, TOutput> : MultiParser<TInput, T
 {
     private readonly MultiParser<TInput, TOutput> _parser;
     private readonly Func<IEnumerable<TOutput>>? _fnMissing;
-    private readonly bool _isRequired;
 
     public OptionalMultiParser(
         Parser<TInput, IReadOnlyList<TOutput>> parser, 
@@ -13,10 +12,10 @@ public sealed class OptionalMultiParser<TInput, TOutput> : MultiParser<TInput, T
     {
         _parser = parser.ToMultiParser();
         _fnMissing = fnMissing;
-        _isRequired = isRequired;
+        this.IsRequired = isRequired;
     }
 
-    public override bool IsRequired => _isRequired;
+    public override bool IsRequired { get; }
 
     public override string DebugContent => $"[{_parser.DebugContent}]";
 
@@ -44,7 +43,7 @@ public sealed class OptionalMultiParser<TInput, TOutput> : MultiParser<TInput, T
 
         var result = _parser.Search(input, afterMissing, fnCallback);
 
-        if (!result.Success && _isRequired)
+        if (!result.Success && this.IsRequired)
         {
             // failure after a required means it item was missing
             return new SearchResult(true, result.Length, AfterMissing: true);

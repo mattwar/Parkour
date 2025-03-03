@@ -1,6 +1,7 @@
 ﻿using Parkour;
-using Parkour.Reflection;
+using Parkour.Cecil;
 using Parkour.Symbols;
+using Mono.Cecil;
 
 namespace Tests
 {
@@ -8,9 +9,9 @@ namespace Tests
     public class SymbolTests
     {
         [TestMethod]
-        public void TestCommonSymbols_ReflectionSymbols()
+        public void TestCommonSymbols()
         {
-            TestCommonSymbols(ReflectionSymbols.CurrentMscorlib);
+            TestCommonSymbols(CecilSymbols.CurrentMscorlib);
         }
 
         private void TestCommonSymbols(SymbolTable symbols)
@@ -29,10 +30,10 @@ namespace Tests
         }
 
         [TestMethod]
-        public void TestRuntimeSymbolsWalk()
+        public void TestSymbolsWalk()
         {
             // attempt to iterate though all declared symbols reachable from global namespace
-            var rs = ReflectionSymbols.CurrentMscorlib;
+            var rs = CecilSymbols.CurrentMscorlib;
             EnumerateMembers(rs.GlobalNamespace);
 
             void EnumerateMembers(Symbol symbol)
@@ -44,7 +45,7 @@ namespace Tests
         [TestMethod]
         public void TestFindSymbol()
         {
-            var rs = ReflectionSymbols.CurrentMscorlib;
+            var rs = CecilSymbols.CurrentMscorlib;
 
             //TestFindSymbol(ns, "System.Int32");
             TestFindSymbol(rs, "System.Collections.Generic.List`1");
@@ -59,14 +60,14 @@ namespace Tests
         [TestMethod]
         public void TestConstruct()
         {
-            var runtimeSymbols = ReflectionSymbols.CurrentMscorlib;
+            var symbols = CecilSymbols.CurrentMscorlib;
 
-            var listT = runtimeSymbols.GetType("System.Collections.Generic.List`1");
+            var listT = symbols.GetType("System.Collections.Generic.List`1");
             Assert.IsNotNull(listT);
 
             var listTBT = listT.BaseTypes;
 
-            var listInt32 = runtimeSymbols.GetConstructed(listT, [runtimeSymbols.Int32]);
+            var listInt32 = symbols.GetConstructed(listT, [symbols.Int32]);
             Assert.IsNotNull(listInt32);
 
             var listBT = listInt32.BaseTypes;
@@ -75,6 +76,27 @@ namespace Tests
             Assert.IsTrue(ieT.IsConstructed, "base type IEnumerable<T> is not constructed");
 
             listInt32.WalkDeclarations(null);
+
+            symbols.TryGetTypeReference(listInt32, out var cecilType);
+        }
+
+
+        [TestMethod]
+        public void TestNestedReference()
+        {
+            var testAssembly = AssemblyDefinition.ReadAssembly("Test.Metadata.dll");
+
+            //var testType = testAssembly.MainModule.GetTypes().FirstOrDefault(t => t.Name == "Test");
+            //var testMethod = testType!.Methods.FirstOrDefault(m => m.Name == "TestNestedReference");
+            //var parameterType = testMethod!.Parameters[0].ParameterType;
+            //var declaringType = (GenericInstanceType)parameterType.DeclaringType;
+
+            var symbols = CecilSymbols.GetOrCreate([CecilSymbols.CurrentMscorlibAssembly, testAssembly]);
+            var type = symbols.GetType("Test.Metadata.Test");
+            var field = type.Members.OfType<FieldSymbol>().FirstOrDefault(f => f.Name == "Field");
+            var ftype = field!.Type;
+
+            //var symbols = CecilSymbols.GetOrCreate([CecilSymbols.CurrentMscorlibAssembly, testAssembly]);
         }
     }
 }

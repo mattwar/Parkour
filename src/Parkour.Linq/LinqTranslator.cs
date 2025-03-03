@@ -626,7 +626,7 @@ public class LinqTranslator
 
     private Type TranslateType(TypeSymbol typeSymbol)
     {
-        if (_runtimeSymbols.TryGetRuntimeType(typeSymbol, out var type))
+        if (_runtimeSymbols.TryGetType(typeSymbol, out var type))
             return type;
 
         throw new InvalidOperationException($"Could not determine runtime type for symbol '{typeSymbol.FullName}' in {nameof(LinqTranslator)}.{nameof(TranslateType)}");
@@ -634,7 +634,7 @@ public class LinqTranslator
 
     private MethodInfo TranslateMethod(MethodSymbol methodSymbol)
     {
-        if (_runtimeSymbols.TryGetRuntimeMember(methodSymbol, out var memberInfo)
+        if (_runtimeSymbols.TryGetMemberInfo(methodSymbol, out var memberInfo)
             && memberInfo is MethodInfo methodInfo)
         {
             return methodInfo;
@@ -645,7 +645,7 @@ public class LinqTranslator
 
     private ConstructorInfo TranslateConstructor(ConstructorSymbol constructorSymbol)
     {
-        if (_runtimeSymbols.TryGetRuntimeMember(constructorSymbol, out var memberInfo)
+        if (_runtimeSymbols.TryGetMemberInfo(constructorSymbol, out var memberInfo)
             && memberInfo is ConstructorInfo constructorInfo)
         {
             return constructorInfo;
@@ -656,7 +656,7 @@ public class LinqTranslator
 
     private FieldInfo TranslateField(FieldSymbol fieldSymbol)
     {
-        if (_runtimeSymbols.TryGetRuntimeMember(fieldSymbol, out var memberInfo)
+        if (_runtimeSymbols.TryGetMemberInfo(fieldSymbol, out var memberInfo)
             && memberInfo is FieldInfo fieldInfo)
         {
             return fieldInfo;
@@ -667,7 +667,7 @@ public class LinqTranslator
 
     private PropertyInfo TranslateProperty(PropertySymbol propertySymbol)
     {
-        if (_runtimeSymbols.TryGetRuntimeMember(propertySymbol, out var memberInfo)
+        if (_runtimeSymbols.TryGetMemberInfo(propertySymbol, out var memberInfo)
             && memberInfo is PropertyInfo propertyInfo)
         {
             return propertyInfo;
@@ -678,7 +678,7 @@ public class LinqTranslator
 
     private PropertyInfo TranslateIndexer(IndexerSymbol indexerSymbol)
     {
-        if (_runtimeSymbols.TryGetRuntimeMember(indexerSymbol, out var memberInfo)
+        if (_runtimeSymbols.TryGetMemberInfo(indexerSymbol, out var memberInfo)
             && memberInfo is PropertyInfo propertyInfo)
         {
             return propertyInfo;

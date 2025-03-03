@@ -63,10 +63,10 @@ public class StandardSymbolTable : SymbolTable
     /// If multiple symbols are found with the same full name, the first is returned.
     /// </summary>
     public override bool TryGetSymbol<TSymbol>(
-        string dottedName,
+        string dottedPath,
         [NotNullWhen(true)] out TSymbol symbol)
     {
-        var tmp = this.GetFirstSymbolFromPath<TSymbol>(dottedName);
+        var tmp = this.GetFirstSymbolFromPath<TSymbol>(dottedPath);
         if (tmp != null)
         {
             symbol = tmp;
@@ -505,5 +505,21 @@ public class StandardSymbolTable : SymbolTable
 
             return false;
         }
+    }
+
+    protected static string StripArity(string name) =>
+        StripArity(name, out _);
+
+    protected static string StripArity(string name, out int arity)
+    {
+        var arityStart = name.IndexOf('`');
+        if (arityStart > 0)
+        {
+            int.TryParse(name.Substring(arityStart + 1), out arity);
+            return name.Substring(0, arityStart);
+        }
+
+        arity = 0;
+        return name;
     }
 }

@@ -9,11 +9,11 @@ using static Parkour.Semantics.SemanticFactory;
 namespace Tests;
 
 [TestClass]
-public class LINQTranslationTests
+public class TranslationTests
 {
     private readonly ReflectionSymbols _symbols;
 
-    public LINQTranslationTests()
+    public TranslationTests()
     {
         _symbols = ReflectionSymbols.CurrentMscorlib;
     }
