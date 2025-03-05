@@ -213,8 +213,7 @@ public class ReflectionSymbols : StandardSymbolTable
                             me => CreateAttributeInfoList(method.GetCustomAttributesData()),
                             me => GetInterfaceMethods(method) is { } methods && methods.Count > 0
                                 ? methods.Select(m => (MethodSymbol?)GetSymbolFromInfo(m)).OfType<MethodSymbol>().ToImmutableList()
-                                : ImmutableList<MethodSymbol>.Empty,
-                            constructedFrom: null
+                                : ImmutableList<MethodSymbol>.Empty
                             );
 
                     case ParameterInfo parameter:
@@ -304,7 +303,7 @@ public class ReflectionSymbols : StandardSymbolTable
                                     fnBaseTypes,
                                     fnMembers,
                                     fnAttributes,
-                                    constructedFrom: null
+                                    definition: null
                                     );
                             }
                             else if (type.IsValueType)
@@ -318,8 +317,7 @@ public class ReflectionSymbols : StandardSymbolTable
                                     fnTypeArguments,
                                     fnBaseTypes,
                                     fnMembers,
-                                    fnAttributes,
-                                    constructedFrom: null
+                                    fnAttributes
                                     );
                             }
                             else
@@ -333,8 +331,7 @@ public class ReflectionSymbols : StandardSymbolTable
                                     fnTypeArguments,
                                     fnBaseTypes,
                                     fnMembers,
-                                    fnAttributes,
-                                    constructedFrom: null
+                                    fnAttributes
                                     );
                             }
                         }
@@ -583,10 +580,7 @@ public class ReflectionSymbols : StandardSymbolTable
                 case MethodInfo method:
                     var name = StripArity(method.Name, out var arity);
                     parameterTypes = GetTypeSymbols(method.GetParameters().Select(p => p.ParameterType));
-                    return declaringType.GetFirstMember<MethodSymbol>(
-                        name,
-                        ms => Matches(ms.Parameters, parameterTypes)
-                        );    
+                    return declaringType.FindMethod(name, parameterTypes);    
                 case FieldInfo field:
                     return declaringType.GetFirstMember<FieldSymbol>(field.Name);
                 case PropertyInfo property:
@@ -608,7 +602,7 @@ public class ReflectionSymbols : StandardSymbolTable
                     else
                     {
                         name = StripArity(type.Name, out arity);
-                        return declaringType.GetFirstMember<TypeSymbol>(type.Name, ts => ts.Arity == arity);
+                        return declaringType.FindType(type.Name, arity);
                     }
             }
         }
@@ -624,7 +618,7 @@ public class ReflectionSymbols : StandardSymbolTable
             if (member is Type type)
             {
                 var name = StripArity(type.Name, out var arity);
-                return declaringNamespace.GetFirstMember<TypeSymbol>(name, ts => ts.Arity == arity);
+                return declaringNamespace.FindType(name, arity);
             }
         }
 
@@ -713,20 +707,20 @@ public class ReflectionSymbols : StandardSymbolTable
         }
 
         if (symbol is TypeSymbol typeSymbol
-            && TryGetType(typeSymbol, out var runtimeType))
+            && TryGetType(typeSymbol, out var runtimeType, alternateSource))
         {
             reflectionInfo = runtimeType;
             return true;
         }
         else if (symbol is MemberSymbol memberSymbol
-            && TryGetMemberInfo(memberSymbol, out var memberInfo))
+            && TryGetMemberInfo(memberSymbol, out var memberInfo, alternateSource))
         {
             reflectionInfo = memberInfo;
             return true;
         }
         else if (symbol is ParameterSymbol parameterSymbol
             && parameterSymbol.DeclaringSymbol is MemberSymbol declaringMemberSymbol
-            && TryGetMemberInfo(declaringMemberSymbol, out var declaringMemberInfo)
+            && TryGetMemberInfo(declaringMemberSymbol, out var declaringMemberInfo, alternateSource)
             && declaringMemberInfo is MethodBase declaringMethodBase)
         {
             var index = declaringMemberSymbol switch
@@ -789,8 +783,8 @@ public class ReflectionSymbols : StandardSymbolTable
             type = global::System.Linq.Expressions.Expression.GetDelegateType(types);
             return true;
         }
-        else if (typeSymbol.ConstructedFrom != null
-            && TryGetType(typeSymbol.ConstructedFrom, out var typeDef, alternateSource)
+        else if (typeSymbol.Definition != null
+            && TryGetType(typeSymbol.Definition, out var typeDef, alternateSource)
             && TryGetTypes(typeSymbol.TypeArguments, out var typeArgs, alternateSource))
         {
             type = typeDef.MakeGenericType(typeArgs.ToArray());
@@ -799,7 +793,7 @@ public class ReflectionSymbols : StandardSymbolTable
 
         // find type via declaring type
         if (typeSymbol.DeclaringSymbol is TypeSymbol declaringTypeSymbol
-            && TryGetType(declaringTypeSymbol, out var declaringType))
+            && TryGetType(declaringTypeSymbol, out var declaringType, alternateSource))
         {
             // assume member index in current symbol is same as index in runtime type's members
             // (since using same function to fetch them)
@@ -883,8 +877,9 @@ public class ReflectionSymbols : StandardSymbolTable
 
         }
         else if (memberSymbol is MethodSymbol methodSymbol
-            && methodSymbol.ConstructedFrom != null
-            && TryGetMemberInfo(methodSymbol.ConstructedFrom, out var methodDef, alternateSource)
+            && methodSymbol.IsConstructed
+            && methodSymbol.Definition != null
+            && TryGetMemberInfo(methodSymbol.Definition, out var methodDef, alternateSource)
             && methodDef is MethodInfo methodInfo
             && TryGetTypes(methodSymbol.TypeArguments, out var typeArgs, alternateSource))
         {

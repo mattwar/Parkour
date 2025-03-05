@@ -27,6 +27,11 @@ public sealed class IndexerSymbol : MemberSymbol
         _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
     private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
 
+    /// <summary>
+    /// The indexer definition without substituted type parameter references.
+    /// </summary>
+    public new IndexerSymbol? Definition => base.Definition as IndexerSymbol;
+
     public IndexerSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -35,8 +40,9 @@ public sealed class IndexerSymbol : MemberSymbol
         Func<TypeSymbol> fnElementType,
         Func<IndexerSymbol, MethodSymbol>? fnGetMethod,
         Func<IndexerSymbol, MethodSymbol>? fnSetMethod,
-        Func<IndexerSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
-        : base(name, declaringSymbol, access, modifiers)
+        Func<IndexerSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
+        IndexerSymbol? definition = null)
+        : base(name, declaringSymbol, access, modifiers, definition)
     {
         _lazyElementType = new Lazy<TypeSymbol>(fnElementType, SpecialSymbols.CyclicDefinition);
         _lazyGetMethod = fnGetMethod != null

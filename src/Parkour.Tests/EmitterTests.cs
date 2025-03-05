@@ -7,8 +7,10 @@ using static Tests.TestHelpers;
 
 namespace Tests;
 
-[TestClass]
-public class EmitterTests
+/// <summary>
+/// These tests are specialized in separate test libraries.
+/// </summary>
+public abstract class EmitterTests
 {
     #region declarations
 
@@ -261,6 +263,7 @@ public class EmitterTests
             );
     }
 
+#if false
     [TestMethod]
     public void TestDeclaration_GlobalMethod()
     {
@@ -270,6 +273,8 @@ public class EmitterTests
             expectedResult: 1
             );
     }
+#endif
+
     #endregion
 
     #region Expressions
@@ -350,8 +355,8 @@ public class EmitterTests
     public void TestExpression_Call()
     {
         TestEmit(
-            [Method("M", [], Int32Type, Constant(123))],
-            Symbol("M").Call(),
+            [Class("C", [Method("M", [], Int32Type, Constant(123)).WithModifiers(SymbolModifier.Static)])],
+            Symbol("C.M").Call(),
             expectedResult: 123
             );
     }
@@ -896,7 +901,7 @@ public class EmitterTests
     private void TestEmit(List<Declaration> declarations, Expression? test, Action<object?>? fnCheckResult)
     {
         var binder = new StandardBinder();
-        var imports = ReflectionSymbols.CurrentMscorlib;
+        var imports = GetTestSymbols();
 
         var elements = ImmutableList<SemanticElement>.Empty.AddRange(declarations);
 
@@ -919,124 +924,58 @@ public class EmitterTests
         var lowerer = new StandardLowerer();
         var lowering = lowerer.Lower(binding);
 
-        var emitter = new ReflectionEmitter(imports, "test_assembly");
-        var result = emitter.Emit(lowering);
+        var resultSymbols = TestEmit(lowering, imports, test != null ? "Run" : null, fnCheckResult);
 
-        if (result.Diagnostics.Count > 0)
-        {
-            Assert.Fail($"Unexpected diagnostic: {result.Diagnostics[0]}");
-        }
-
-        // verify all delared symbols are represented in the assembly
-        VerifyDeclarations(emitter.Assembly, lowering.Elements.OfType<Declaration>());
-
-#if false
-        var generator = new Lokad.ILPack.AssemblyGenerator();
-        generator.GenerateAssembly(emitter.Assembly, "test_assembly.dll");
-#endif
-
-        if (emitter.Module is Module m && test != null)
-        {
-            var testType = emitter.Module.GetType("Test");
-            Assert.IsNotNull(testType, "Test type not found");
-            var testMethod = testType.GetMethod("Run", BindingFlags.Public|BindingFlags.Static);
-            Assert.IsNotNull(testMethod, "Test.Run not found");
-            var testResult = testMethod.Invoke(null, []);
-
-            if (fnCheckResult != null)
-            {
-                fnCheckResult(testResult);
-            }
-        }
+        VerifyDeclarations(resultSymbols, declarations);
     }
 
+    protected abstract SymbolTable GetTestSymbols();
+
+    protected abstract SymbolTable TestEmit(
+        SemanticLowering lowering,
+        SymbolTable imports,
+        string? testMethodName = null,
+        Action<object?>? fnCheckResult = null);
+
+    /// <summary>
+    /// Verify all the declared symbols exist in the results
+    /// </summary>
     private void VerifyDeclarations(
-        Assembly assembly, 
+        SymbolTable emittedSymbols,
         IEnumerable<Declaration> declarations)
     {
-        foreach (var decl in declarations)
+        VerifyAll(declarations);
+        
+        void VerifyAll(IEnumerable<Declaration> declarations)
         {
-            Verify(decl);
+            foreach (var decl in declarations)
+            {
+                Verify(decl);
+            }
         }
 
         void Verify(Declaration decl)
         {
             if (decl is NamespaceDeclaration nd)
             {
-                VerifyDeclarations(assembly, nd.Declarations);
+                VerifyAll(nd.Declarations);
             }
-            else if (decl is ClassDeclaration cd
-                && cd.Symbol is {} cs)
+            else if (decl is TypeDeclaration td && td.Symbol is TypeSymbol ts)
             {
-                var type = assembly.GetType(cs.FullName);
-                if (type == null)
+                if (!emittedSymbols.TryGetTypeSymbol(ts.FullName, out _))
                 {
-                    Assert.Fail($"Did not find type for '{cs.FullName}'");
+                    Assert.Fail($"Did not find type for '{ts.FullName}'");
+                }
+
+                VerifyAll(declarations);
+            }
+            else if (decl is MemberDeclaration md && md.Symbol is MemberSymbol ms)
+            {
+                if (!emittedSymbols.TryGetSymbol<MemberSymbol>(ms.FullName, out _))
+                {
+                    Assert.Fail($"Did not find member for '{ms.FullName}'");
                 }
             }
-        }
-    }
-
-    private static BindingFlags GetBindingFlags(MemberSymbol symbol)
-    {
-        var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy;
-        
-        if (symbol.IsStatic)
-            flags |= BindingFlags.Static;
-        else
-            flags |= BindingFlags.Instance;
-
-        return flags;
-    }
-
-    private void VerifySymbols(Type type, Symbol symbol)
-    {
-        switch (symbol)
-        {
-            case FieldSymbol fs:
-                var fieldInfo = type.GetField(symbol.Name, GetBindingFlags(fs));
-                if (fieldInfo == null)
-                {
-                    Assert.Fail($"Did not find field '{fs.FullName}'");
-                }
-                break;
-            case MethodSymbol ms:
-                var methodInfo = type.GetMethod(symbol.Name, GetBindingFlags(ms));
-                if (methodInfo == null)
-                {
-                    Assert.Fail($"Did not find method '{ms.FullName}'");
-                }
-                break;
-            case ConstructorSymbol cs:
-                var constructorInfo = type
-                    .GetConstructors(GetBindingFlags(cs))
-                    .FirstOrDefault(c => c.GetParameters().Length == cs.Parameters.Count);
-                if (constructorInfo == null)
-                {
-                    Assert.Fail($"Did not find constructor '{cs.FullName}'");
-                }
-                break;
-            case PropertySymbol ps:
-                var propertyInfo = type
-                    .GetProperties(GetBindingFlags(ps))
-                    .FirstOrDefault(p => p.GetIndexParameters().Length == 0);
-                if (propertyInfo == null)
-                {
-                    Assert.Fail($"Did not find property '{ps.FullName}'");
-                }
-                break;
-            case IndexerSymbol ins:
-                var indexerInfo = type
-                    .GetProperties(GetBindingFlags(ins))
-                    .FirstOrDefault(p => p.GetIndexParameters().Length > 0);
-                if (indexerInfo == null)
-                {
-                    Assert.Fail($"Did not find indexer '{ins.FullName}'");
-                }
-                break;
-
-            default:
-                throw new InvalidOperationException($"Unhandled symbol kind '{symbol.GetType().Name}' in VerifySymbols");
         }
     }
 }

@@ -6,6 +6,8 @@ namespace Parkour.Reflection;
 
 using Semantics;
 using Symbols;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection.PortableExecutable;
 
 /// <summary>
 /// A <see cref="SemanticEmitter"/> that emits into a <see cref="ModuleBuilder"/>
@@ -68,111 +70,13 @@ public partial class ReflectionEmitter : SemanticEmitter
             .OfType<Declaration>()
             .ToImmutableList();
 
-        DeclareTypes(declarations);
-        DeclareTypeReferences(declarations);
-        DeclareTypeMembers(declarations);
-        BuildMemberBodies(declarations);
+        // declare all types and emit all IL
+        Declare(declarations);
+
+        // finalize types (so they can be used).
         CreateTypes();
 
         return new EmitResult(_diagnostics.ToImmutableList());
-    }
-
-    private void DeclareTypes(ImmutableList<Declaration> declarations)
-    {
-        foreach (var decl in declarations)
-        {
-            Declare(decl);
-        }
-
-        void Declare(Declaration decl)
-        {
-            if (decl is NamespaceDeclaration nd)
-            {
-                DeclareTypes(nd.Declarations);
-            }
-            else if (decl is TypeDeclaration td)
-            {
-                this.DeclareType(td);
-                DeclareTypes(td.Declarations);
-            }
-        }
-    }
-
-    private void DeclareTypeReferences(ImmutableList<Declaration> declarations)
-    {
-        foreach (var d in declarations)
-        {
-            Declare(d);
-        }
-
-        void Declare(Declaration decl)
-        {
-            if (decl is NamespaceDeclaration nd)
-            {
-                DeclareTypeReferences(nd.Declarations);
-            }
-            else if (decl is TypeDeclaration td)
-            {
-                this.DeclareTypeReferences(td);
-                DeclareTypeReferences(td.Declarations);
-            }
-        }
-    }
-
-    private void DeclareTypeMembers(ImmutableList<Declaration> declarations)
-    {
-        foreach (var decl in declarations)
-        {
-            Declare(decl);
-        }
-
-        void Declare(Declaration decl)
-        {
-            if (decl is NamespaceDeclaration nd)
-            {
-                DeclareTypeMembers(nd.Declarations);
-            }
-            else if (decl is TypeDeclaration td)
-            {
-                DeclareTypeMembers(td.Declarations);
-            }
-            else if (decl is PropertyDeclaration pd)
-            {
-                this.DeclareTypeMember(pd);
-            }
-            else if (decl is IndexerDeclaration xd)
-            {
-                this.DeclareTypeMember(xd);
-            }
-            else if (decl is MemberDeclaration md)
-            {
-                this.DeclareTypeMember(md);
-            }
-        }
-    }
-
-    private void BuildMemberBodies(ImmutableList<Declaration> declarations)
-    {
-        foreach (var decl in declarations)
-        {
-            Build(decl);
-        }
-
-        void Build(Declaration decl)
-        {
-            if (decl is NamespaceDeclaration nd)
-            {
-                BuildMemberBodies(nd.Declarations);
-            }
-            else if (decl is TypeDeclaration td)
-            {
-                BuildMemberBodies(td.Declarations);
-            }
-            else if (decl is MemberDeclaration md)
-            {
-                this.EmitMemberBody(md);
-            }
-        }
     }
 
     private void CreateTypes()
@@ -192,7 +96,7 @@ public partial class ReflectionEmitter : SemanticEmitter
         _moduleBuilder.CreateGlobalFunctions();
     }
 
-    private void DeclareType(TypeDeclaration declaration)
+    protected override void DeclareType(TypeDeclaration declaration)
     {
         var typeSymbol = declaration.Symbol as TypeSymbol;
         if (typeSymbol == null)
@@ -241,7 +145,7 @@ public partial class ReflectionEmitter : SemanticEmitter
         }
     }
 
-    private void DeclareTypeReferences(TypeDeclaration declaration)
+    protected override void DeclareBaseTypesAndInterfaces(TypeDeclaration declaration)
     {
         var typeSymbol = declaration.Symbol as TypeSymbol;
         if (typeSymbol == null)
@@ -257,7 +161,7 @@ public partial class ReflectionEmitter : SemanticEmitter
             var hasBaseType = false;
             foreach (var bt in typeSymbol.BaseTypes)
             {
-                var rt = GetRuntimeType(bt);
+                var rt = GetReflectionType(bt);
                 if (bt.IsInterface)
                 {
                     typeBuilder.AddInterfaceImplementation(rt);
@@ -273,22 +177,6 @@ public partial class ReflectionEmitter : SemanticEmitter
             {
                 typeBuilder.SetParent(typeof(ValueType));
             }
-
-            // declare attributes if any
-            if (typeSymbol.Attributes.Count > 0)
-            {
-                foreach (var attr in typeSymbol.Attributes)
-                {
-                    var customAttr = GetCustomAttribute(attr);
-                    typeBuilder.SetCustomAttribute(customAttr);
-                }
-            }
-
-            // declare type parameter references
-            foreach (var typeParameter in typeSymbol.TypeParameters)
-            {
-                this.DeclareTypeParameterReferences(typeParameter);
-            }
         }
         else
         {
@@ -296,398 +184,372 @@ public partial class ReflectionEmitter : SemanticEmitter
         }
     }
 
-    /// <summary>
-    /// Declares type parameter constraints and custom attributes
-    /// </summary>
-    /// <param name="typeParameter"></param>
-    protected virtual void DeclareTypeParameterReferences(TypeParameterSymbol typeParameter)
+    protected override void DeclareMember(MemberDeclaration declaration)
     {
-        if (_symbolToBuilder.TryGetValue(typeParameter, out var builder)
-            && builder is GenericTypeParameterBuilder tpBuilder)
+        var memberSymbol = declaration.Symbol as MemberSymbol;
+        if (memberSymbol == null)
         {
-            foreach (var attr in typeParameter.Attributes)
-            {
-                var customAttr = GetCustomAttribute(attr);
-                tpBuilder.SetCustomAttribute(customAttr);
-            }
+            _diagnostics.Add(new Diagnostic($"Cannot declare unbound member '{declaration.Name}'.").WithLocation(declaration.Location));
+            return;
         }
-    }
 
-    private void DeclareTypeMember(MemberDeclaration declaration)
-    {
-        switch (declaration)
+        // global method special case
+        if (memberSymbol.DeclaringSymbol is GlobalNamespaceSymbol
+            && memberSymbol is MethodSymbol globalMethodSymbol)
         {
-            case FieldDeclaration field:
-                this.DeclareField(field);
+            DeclareGlobalMethod(globalMethodSymbol);
+            return;
+        }
+
+        if (memberSymbol.DeclaringType == null)  
+        {
+            _diagnostics.Add(new Diagnostic($"Cannot declare member '{memberSymbol.FullName}' outside type.").WithLocation(declaration.Location));
+            return;
+        }
+
+        if (!TryGetBuilder<TypeBuilder>(memberSymbol.DeclaringType, out var typeBuilder))
+        {
+            _diagnostics.Add(new Diagnostic($"Cannot declare member '{memberSymbol.FullName}' for undeclared type.").WithLocation(declaration.Location));
+            return;
+        }
+
+        switch (memberSymbol)
+        {
+            case FieldSymbol fieldSymbol when declaration is FieldDeclaration fieldDecl:
+                DeclareField(fieldSymbol, fieldDecl, typeBuilder);
                 break;
-            case MethodDeclaration method:
-                this.DeclareMethod(method);
+            case MethodSymbol methodSymbol:
+                DeclareMethod(methodSymbol, typeBuilder);
                 break;
-            case ConstructorDeclaration constructor:
-                this.DeclareConstructor(constructor);
+            case ConstructorSymbol constructorSymbol:
+                DeclareConstructor(constructorSymbol, typeBuilder);
                 break;
-            case PropertyDeclaration property:
-                this.DeclareProperty(property);
+            case PropertySymbol propertySymbol when declaration is PropertyDeclaration property:
+                DeclareProperty(propertySymbol, property, typeBuilder);
                 break;
-            case IndexerDeclaration indexer:
-                this.DeclareIndexer(indexer);
+            case IndexerSymbol indexerSymbol:
+                DeclareIndexer(indexerSymbol, typeBuilder);
                 break;
             default:
                 _diagnostics.Add(new Diagnostic($"Cannot declare unsupported member '{declaration.GetType().Name}'."));
                 break;
         }
-    }
-
-    private void DeclareField(FieldDeclaration declaration)
-    {
-        var fieldSymbol = declaration.Symbol;
-        if (fieldSymbol == null)
+        
+        void DeclareField(FieldSymbol fieldSymbol, FieldDeclaration fieldDecl, TypeBuilder typeBuilder)
         {
-            _diagnostics.Add(new Diagnostic($"Cannot declare field for unbound field declaration '{declaration.Name}'."));
-            return;
-        }
+            var fieldType = GetReflectionType(fieldSymbol.Type);
+            var fieldAttrs = GetFieldAttributes(fieldSymbol);
+            var fieldBuilder = typeBuilder.DefineField(fieldSymbol.Name, fieldType, fieldAttrs);
+            _symbolToBuilder.Add(fieldSymbol, fieldBuilder);
 
-        if (fieldSymbol.DeclaringType == null)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare field '{fieldSymbol.FullName}' outside type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (fieldSymbol.DeclaringType.IsInterface)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare field '{fieldSymbol.FullName}' for interface type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (!TryGetDeclaringTypeBuilder(fieldSymbol, out var typeBuilder))
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare field '{fieldSymbol.FullName}' for undeclared type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        var fieldType = GetRuntimeType(fieldSymbol.Type);
-        var fieldAttrs = GetFieldAttributes(fieldSymbol);
-
-        var fieldBuilder = typeBuilder.DefineField(
-            fieldSymbol.Name,
-            fieldType,
-            fieldAttrs);
-
-        // set constant value
-        if (fieldSymbol.Modifiers.Contains(SymbolModifier.Constant)
-            && declaration.Initializer is ConstantExpression fieldConst)
-        {
-            fieldBuilder.SetConstant(fieldConst.Value);
-        }
-
-        // declare attributes
-        foreach (var attr in fieldSymbol.Attributes)
-        {
-            var customAttr = GetCustomAttribute(attr);
-            fieldBuilder.SetCustomAttribute(customAttr);
-        }
-
-        _symbolToBuilder.Add(fieldSymbol, fieldBuilder);
-    }
-
-    private void DeclareMethod(MethodDeclaration declaration)
-    {
-        var methodSymbol = declaration.Symbol;
-        if (methodSymbol == null)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare method for unbound method declaration '{declaration.Name}'.").WithLocation(declaration.Location));
-            return;
-        }
-
-        MethodBuilder? methodBuilder = null;
-        TypeBuilder? typeBuilder = null;
-
-        if (methodSymbol.DeclaringType != null)
-        {
-            if (!TryGetDeclaringTypeBuilder(methodSymbol, out typeBuilder))
+            // set constant value
+            if (fieldSymbol.Modifiers.Contains(SymbolModifier.Constant)
+                && fieldDecl.Initializer is ConstantExpression fieldConst)
             {
-                _diagnostics.Add(new Diagnostic($"Cannot declare method '{methodSymbol.FullName}' for undeclared type.").WithLocation(declaration.Location));
-                return;
+                fieldBuilder.SetConstant(fieldConst.Value);
             }
+        }
 
-            methodBuilder = typeBuilder.DefineMethod(
+        MethodBuilder DeclareMethod(MethodSymbol methodSymbol, TypeBuilder typeBuilder)
+        {
+            var methodBuilder = typeBuilder.DefineMethod(
                 methodSymbol.Name,
                 GetMethodAttributes(methodSymbol));
+            _symbolToBuilder.Add(methodSymbol, methodBuilder);
+            return DeclareMethodCore(methodSymbol, methodBuilder, typeBuilder);
         }
-        else if (methodSymbol.DeclaringSymbol is GlobalNamespaceSymbol)
+
+        void DeclareGlobalMethod(MethodSymbol methodSymbol)
         {
-            methodBuilder = _moduleBuilder.DefineGlobalMethod(
-                methodSymbol.Name,
-                GetMethodAttributes(methodSymbol),
+            var methodBuilder = _moduleBuilder.DefineGlobalMethod(
+                globalMethodSymbol.Name,
+                GetMethodAttributes(globalMethodSymbol),
                 null,
                 null
                 );
-        }
-        else
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare global method '{methodSymbol.FullName}' in non-global namespace.").WithLocation(declaration.Location));
-            return;
+            _symbolToBuilder.Add(globalMethodSymbol, methodBuilder);
+            DeclareMethodCore(globalMethodSymbol, methodBuilder, null);
         }
 
-        _symbolToBuilder.Add(methodSymbol, methodBuilder);
-
-        // define type parameters (before items that may reference them)
-        if (methodSymbol.TypeParameters.Count > 0)
+        MethodBuilder DeclareMethodCore(MethodSymbol methodSymbol, MethodBuilder methodBuilder, TypeBuilder? typeBuilder)
         {
-            var typeParameterBuilders = methodBuilder.DefineGenericParameters(
-                methodSymbol.TypeParameters.Select(tp => tp.Name).ToArray());
-
-            for (int i = 0; i < typeParameterBuilders.Length; i++)
+            // define type parameters (before items that may reference them)
+            if (methodSymbol.TypeParameters.Count > 0)
             {
-                var typeParameter = methodSymbol.TypeParameters[i];
-                var tpBuilder = typeParameterBuilders[i];
-                _symbolToBuilder.Add(typeParameter, tpBuilder);
-                this.DeclareTypeParameterReferences(typeParameter);
-            }
-        }
+                var typeParameterBuilders = methodBuilder.DefineGenericParameters(
+                    methodSymbol.TypeParameters.Select(tp => tp.Name).ToArray());
 
-        // set return type
-        methodBuilder.SetReturnType(GetRuntimeType(methodSymbol.ReturnType));
-
-        // set parameter types
-        var parameterTypes = methodSymbol.Parameters
-            .Select(p => GetRuntimeType(p.Type))
-            .ToArray();
-        methodBuilder.SetParameters(parameterTypes);
-
-        // set parameter info
-        for (int i = 0; i < methodSymbol.Parameters.Count; i++)
-        {
-            var parameterSymbol = methodSymbol.Parameters[i];
-            var parameterBuilder = methodBuilder.DefineParameter(i, GetParameterAttributes(parameterSymbol), parameterSymbol.Name);
-            _symbolToBuilder.Add(parameterSymbol, parameterBuilder);
-
-            // declare custom attributes
-            foreach (var attr in parameterSymbol.Attributes)
-            {
-                var customAttr = GetCustomAttribute(attr);
-                parameterBuilder.SetCustomAttribute(customAttr);
-            }
-        }
-
-        if (typeBuilder != null)
-        {
-            foreach (var impl in methodSymbol.Implements)
-            {
-                var interfaceMethod = GetRuntimeInfo<MethodInfo>(impl);
-                if (interfaceMethod != null)
+                for (int i = 0; i < typeParameterBuilders.Length; i++)
                 {
-                    typeBuilder.DefineMethodOverride(methodBuilder, interfaceMethod);
+                    var typeParameter = methodSymbol.TypeParameters[i];
+                    var tpBuilder = typeParameterBuilders[i];
+                    _symbolToBuilder.Add(typeParameter, tpBuilder);
+                }
+            }
+
+            // set return type
+            methodBuilder.SetReturnType(GetReflectionType(methodSymbol.ReturnType));
+
+            // set parameter types
+            var parameterTypes = methodSymbol.Parameters
+                .Select(p => GetReflectionType(p.Type))
+                .ToArray();
+            methodBuilder.SetParameters(parameterTypes);
+
+            // set parameter info
+            for (int i = 0; i < methodSymbol.Parameters.Count; i++)
+            {
+                var parameterSymbol = methodSymbol.Parameters[i];
+                var parameterBuilder = methodBuilder.DefineParameter(i, GetParameterAttributes(parameterSymbol), parameterSymbol.Name);
+                _symbolToBuilder.Add(parameterSymbol, parameterBuilder);
+
+                // declare custom attributes
+                foreach (var attr in parameterSymbol.Attributes)
+                {
+                    var customAttr = CreateCustomAttribute(attr);
+                    parameterBuilder.SetCustomAttribute(customAttr);
+                }
+            }
+
+            if (typeBuilder != null)
+            {
+                foreach (var impl in methodSymbol.Implements)
+                {
+                    var interfaceMethod = GetReflectionInfo<MethodInfo>(impl);
+                    if (interfaceMethod != null)
+                    {
+                        typeBuilder.DefineMethodOverride(methodBuilder, interfaceMethod);
+                    }
+                }
+            }
+
+            return methodBuilder;
+        }
+
+        void DeclareConstructor(ConstructorSymbol constructorSymbol, TypeBuilder typeBuilder)
+        {
+            if (constructorSymbol.IsStatic && constructorSymbol.Parameters.Count > 0)
+            {
+                _diagnostics.Add(new Diagnostic($"static constructors cannot have arguments").WithLocation(declaration.Location));
+                return;
+            }
+
+            ConstructorBuilder constructorBuilder;
+            if (constructorSymbol.IsStatic)
+            {
+                constructorBuilder = typeBuilder.DefineTypeInitializer();
+            }
+            else
+            {
+                constructorBuilder = typeBuilder.DefineConstructor(
+                    GetMethodAttributes(constructorSymbol),
+                    CallingConventions.Standard,
+                    constructorSymbol.Parameters.Select(p => GetReflectionType(p.Type)).ToArray()
+                    );
+            }
+            _symbolToBuilder.Add(constructorSymbol, constructorBuilder);
+
+            for (int i = 0; i < constructorSymbol.Parameters.Count; i++)
+            {
+                var parameterSymbol = constructorSymbol.Parameters[i];
+                var parameterBuilder = constructorBuilder.DefineParameter(i, GetParameterAttributes(parameterSymbol), parameterSymbol.Name);
+                _symbolToBuilder.Add(parameterSymbol, parameterBuilder);
+
+                // declare custom attributes
+                foreach (var attr in parameterSymbol.Attributes)
+                {
+                    var customAttr = this.CreateCustomAttribute(attr);
+                    parameterBuilder.SetCustomAttribute(customAttr);
                 }
             }
         }
 
-        // declare custom attributes
-        foreach (var attr in methodSymbol.Attributes)
+        void DeclareProperty(PropertySymbol propertySymbol, PropertyDeclaration propertyDecl, TypeBuilder typeBuilder)
         {
-            var customAttr = GetCustomAttribute(attr);
-            methodBuilder.SetCustomAttribute(customAttr);
-        }
-    }
+            // TODO: this backing field should already have been lowered to its own declaration
+            if (propertyDecl.BackingField != null)
+            {
+                DeclareField((FieldSymbol)propertyDecl.BackingField.Symbol!, propertyDecl.BackingField, typeBuilder);
+            }
 
-    private void DeclareConstructor(ConstructorDeclaration declaration)
-    {
-        var constructorSymbol = declaration.Symbol;
-        if (constructorSymbol == null)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare constructor for unbound constructor declaration.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (constructorSymbol.DeclaringType == null)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare constructor outside type declaration.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (!TryGetDeclaringTypeBuilder(constructorSymbol, out var typeBuilder))
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare constructor '{constructorSymbol.FullName}' for undeclared type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (typeBuilder.IsInterface)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare constructor '{constructorSymbol.FullName}' for interface type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (constructorSymbol.IsStatic && constructorSymbol.Parameters.Count > 0)
-        {
-            _diagnostics.Add(new Diagnostic($"static constructors cannot have arguments").WithLocation(declaration.Location));
-            return;
-        }
-
-        ConstructorBuilder constructorBuilder;
-        if (constructorSymbol.IsStatic)
-        {
-            constructorBuilder = typeBuilder.DefineTypeInitializer();
-        }
-        else
-        {
-            constructorBuilder = typeBuilder.DefineConstructor(
-                GetMethodAttributes(constructorSymbol),
-                CallingConventions.Standard,
-                constructorSymbol.Parameters.Select(p => GetRuntimeType(p.Type)).ToArray()
+            DeclarePropertyOrIndexer(
+                typeBuilder,
+                propertySymbol,
+                propertySymbol.Type,
+                propertySymbol.GetMethod,
+                propertySymbol.SetMethod
                 );
         }
 
-        _symbolToBuilder.Add(constructorSymbol, constructorBuilder);
-
-        for (int i = 0; i < constructorSymbol.Parameters.Count; i++)
+        void DeclareIndexer(IndexerSymbol indexerSymbol, TypeBuilder typeBuilder)
         {
-            var parameterSymbol = constructorSymbol.Parameters[i];
-            var parameterBuilder = constructorBuilder.DefineParameter(i, GetParameterAttributes(parameterSymbol), parameterSymbol.Name);
-            _symbolToBuilder.Add(parameterSymbol, parameterBuilder);
+            DeclarePropertyOrIndexer(
+                typeBuilder,
+                indexerSymbol,
+                indexerSymbol.ElementType,
+                indexerSymbol.GetMethod,
+                indexerSymbol.SetMethod
+                );
+        }
 
-            // declare custom attributes
-            foreach (var attr in parameterSymbol.Attributes)
+
+        void DeclarePropertyOrIndexer(
+            TypeBuilder typeBuilder,
+            MemberSymbol propertySymbol,
+            TypeSymbol propertyType,
+            MethodSymbol? getMethodSymbol,
+            MethodSymbol? setMethodSymbol)
+        {
+            var propertyBuilder = typeBuilder.DefineProperty(
+                propertySymbol.Name,
+                GetPropertyAttributes(propertySymbol),
+                GetReflectionType(propertyType),
+                []);
+
+            _symbolToBuilder.Add(propertySymbol, propertyBuilder);
+
+            if (getMethodSymbol != null)
             {
-                var customAttr = this.GetCustomAttribute(attr);
-                parameterBuilder.SetCustomAttribute(customAttr);
+                propertyBuilder.SetGetMethod(DeclareMethod(getMethodSymbol, typeBuilder));
+            }
+
+            if (setMethodSymbol != null)
+            {
+                propertyBuilder.SetSetMethod(DeclareMethod(setMethodSymbol, typeBuilder));
+            }
+        }
+    }
+
+    protected override void DeclareAccessors(MemberDeclaration declaration)
+    {
+        // already handled in DeclareMember
+    }
+
+    protected override void DeclareAttributes(MemberDeclaration declaration)
+    {
+        if (declaration.Symbol != null)
+            Declare(declaration.Symbol);
+
+        void Declare(Symbol symbol)
+        {
+            switch (symbol)
+            {
+                case FieldSymbol fieldSymbol:
+                    if (TryGetBuilder<FieldBuilder>(fieldSymbol, out var fieldBuilder))
+                    {
+                        foreach (var attr in fieldSymbol.Attributes)
+                        {
+                            var customAttr = CreateCustomAttribute(attr);
+                            fieldBuilder.SetCustomAttribute(customAttr);
+                        }
+                    }
+                    break;
+                case MethodSymbol methodSymbol:
+                    if (TryGetBuilder<MethodBuilder>(methodSymbol, out var methodBuilder))
+                    {
+                        foreach (var attr in methodSymbol.Attributes)
+                        {
+                            var customAttr = CreateCustomAttribute(attr);
+                            methodBuilder.SetCustomAttribute(customAttr);
+                        }
+
+                        DeclareAll(methodSymbol.Parameters);
+                        DeclareAll(methodSymbol.TypeParameters);
+                    }
+                    break;
+                case ConstructorSymbol constructorSymbol:
+                    if (TryGetBuilder<ConstructorBuilder>(constructorSymbol, out var constructorBuilder))
+                    {
+                        foreach (var attr in constructorSymbol.Attributes)
+                        {
+                            var customAttr = CreateCustomAttribute(attr);
+                            constructorBuilder.SetCustomAttribute(customAttr);
+                        }
+
+                        DeclareAll(constructorSymbol.Parameters);
+                    }
+                    break;
+                case ParameterSymbol parameterSymbol:
+                    if (TryGetBuilder<ParameterBuilder>(parameterSymbol, out var parameterBuilder))
+                    {
+                        foreach (var attr in parameterSymbol.Attributes)
+                        {
+                            var customAttr = CreateCustomAttribute(attr);
+                            parameterBuilder.SetCustomAttribute(customAttr);
+                        }
+                    }
+                    break;
+                case TypeParameterSymbol typeParameterSymbol:
+                    if (TryGetBuilder<GenericTypeParameterBuilder>(typeParameterSymbol, out var typeParameterBuilder))
+                    {
+                        foreach (var attr in typeParameterSymbol.Attributes)
+                        {
+                            var customAttr = CreateCustomAttribute(attr);
+                            typeParameterBuilder.SetCustomAttribute(customAttr);
+                        }
+                    }
+                    break;
+                case PropertySymbol propertySymbol:
+                    if (TryGetBuilder<PropertyBuilder>(symbol, out var propertyBuilder))
+                    {
+                        foreach (var attr in propertySymbol.Attributes)
+                        {
+                            var customAttr = CreateCustomAttribute(attr);
+                            propertyBuilder.SetCustomAttribute(customAttr);
+                        }
+                    }
+                    break;
+                case IndexerSymbol indexerSymbol:
+                    if (TryGetBuilder<PropertyBuilder>(symbol, out var indexerBuilder))
+                    {
+                        foreach (var attr in indexerSymbol.Attributes)
+                        {
+                            var customAttr = CreateCustomAttribute(attr);
+                            indexerBuilder.SetCustomAttribute(customAttr);
+                        }
+                    }
+                    break;
+                case TypeSymbol typeSymbol:
+                    if (TryGetBuilder<TypeBuilder>(symbol, out var typeBuilder))
+                    {
+                        // declare attributes if any
+                        if (typeSymbol.Attributes.Count > 0)
+                        {
+                            foreach (var attr in typeSymbol.Attributes)
+                            {
+                                var customAttr = CreateCustomAttribute(attr);
+                                typeBuilder.SetCustomAttribute(customAttr);
+                            }
+                        }
+                    }
+                    break;
             }
         }
 
-        // declare custom attributes
-        foreach (var attr in constructorSymbol.Attributes)
+        void DeclareAll<TSymbol>(IEnumerable<TSymbol> symbols) where TSymbol : Symbol
         {
-            var customAttr = this.GetCustomAttribute(attr);
-            constructorBuilder.SetCustomAttribute(customAttr);
-        }
-    }
-
-    private void DeclareProperty(PropertyDeclaration declaration)
-    {
-        var propertySymbol = declaration.Symbol;
-        if (propertySymbol == null)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare property for unbound property declaration.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (propertySymbol.DeclaringType == null)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare property '{propertySymbol.FullName}' outside type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (!TryGetDeclaringTypeBuilder(propertySymbol, out var typeBuilder))
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare property '{propertySymbol.FullName}' for undeclared type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (declaration.BackingField != null)
-        {
-            this.DeclareField(declaration.BackingField);
-        }
-
-        DeclarePropertyOrIndexer(
-            typeBuilder,
-            declaration,
-            propertySymbol,
-            propertySymbol.Type,
-            declaration.GetMethod,
-            declaration.SetMethod
-            );
-    }
-
-    private void DeclareIndexer(IndexerDeclaration declaration)
-    {
-        var indexerSymbol = declaration.Symbol;
-        if (indexerSymbol == null)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare indexer for unbound indexer declaration.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (indexerSymbol.DeclaringType == null)
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare indexer outside type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        if (!TryGetDeclaringTypeBuilder(indexerSymbol, out var typeBuilder))
-        {
-            _diagnostics.Add(new Diagnostic($"Cannot declare indexer for undeclared type.").WithLocation(declaration.Location));
-            return;
-        }
-
-        DeclarePropertyOrIndexer(
-            typeBuilder,
-            declaration,
-            indexerSymbol,
-            indexerSymbol.ElementType,
-            declaration.GetMethod,
-            declaration.SetMethod
-            );
-    }
-
-    private void DeclarePropertyOrIndexer(
-        TypeBuilder typeBuilder,
-        MemberDeclaration declaration,
-        MemberSymbol propertySymbol,
-        TypeSymbol propertyType,
-        MethodDeclaration? getMethod, 
-        MethodDeclaration? setMethod)
-    {
-        var propertyBuilder = typeBuilder.DefineProperty(
-            propertySymbol.Name,
-            GetPropertyAttributes(propertySymbol),
-            GetRuntimeType(propertyType),
-            []);
-
-        _symbolToBuilder.Add(propertySymbol, propertyBuilder);
-
-        if (getMethod != null)
-        {
-            this.DeclareMethod(getMethod);
-
-            if (getMethod.Symbol != null && _symbolToBuilder.TryGetValue(getMethod.Symbol, out var getMethodBuilder))
+            foreach (var symbol in symbols)
             {
-                propertyBuilder.SetGetMethod((MethodBuilder)getMethodBuilder);
+                Declare(symbol);
             }
         }
-
-        if (setMethod != null)
-        {
-            this.DeclareMethod(setMethod);
-
-            if (setMethod.Symbol != null && _symbolToBuilder.TryGetValue(setMethod.Symbol, out var setMethodBuilder))
-            {
-                propertyBuilder.SetSetMethod((MethodBuilder)setMethodBuilder);
-            }
-        }
-
-        foreach (var attr in propertySymbol.Attributes)
-        {
-            var customAttr = this.GetCustomAttribute(attr);
-            propertyBuilder.SetCustomAttribute(customAttr);
-        }
     }
 
-    private bool TryGetDeclaringTypeBuilder(MemberSymbol memberSymbol, out TypeBuilder typeBuilder)
+    private bool TryGetBuilder<TBuilder>(Symbol symbol, [NotNullWhen(true)] out TBuilder? builder)
     {
-        if (memberSymbol.DeclaringSymbol is TypeSymbol declaringTypeSymbol
-            && _symbolToBuilder.TryGetValue(declaringTypeSymbol, out var builder)
-            && builder is TypeBuilder tb)
+        if (symbol != null 
+            && _symbolToBuilder.TryGetValue(symbol, out var b) && b is TBuilder tb)
         {
-            typeBuilder = tb;
+            builder = tb;
             return true;
         }
-        else
         {
-            typeBuilder = null!;
+            builder = default;
             return false;
         }
     }
 
-    private void EmitMemberBody(MemberDeclaration declaration)
+    protected override void EmitMemberBody(MemberDeclaration declaration)
     {
         var memberSymbol = declaration.Symbol as MemberSymbol;
         if (memberSymbol == null)
@@ -708,7 +570,7 @@ public partial class ReflectionEmitter : SemanticEmitter
                 {
                     var methodBuilder = (MethodBuilder)builder;
                     var methodSymbol = (MethodSymbol)memberSymbol;
-                    var ilEmitter = new ReflectionILEmitter(this, methodBuilder.GetILGenerator());
+                    var ilEmitter = new ILEmitter(this, methodBuilder.GetILGenerator());
                     var bodyBuilder = new StandardBodyBuilder(methodSymbol, ilEmitter);
                     bodyBuilder.BuildBody(methodDecl.Body, methodSymbol.ReturnType, methodDecl.ReturnLabel);
                 }
@@ -718,7 +580,7 @@ public partial class ReflectionEmitter : SemanticEmitter
                 {
                     var constructorBuilder = (ConstructorBuilder)builder;
                     var constructorSymbol = (ConstructorSymbol)memberSymbol;
-                    var ilEmitter = new ReflectionILEmitter(this, constructorBuilder.GetILGenerator());
+                    var ilEmitter = new ILEmitter(this, constructorBuilder.GetILGenerator());
                     var bodyBuilder = new StandardBodyBuilder(constructorSymbol, ilEmitter);
                     bodyBuilder.BuildBody(constructorDecl.Body, _symbols.Void, constructorDecl.ReturnLabel);
                 }
@@ -737,36 +599,6 @@ public partial class ReflectionEmitter : SemanticEmitter
                 if (indexerDecl.SetMethod != null)
                     EmitMemberBody(indexerDecl.SetMethod);
                 break;
-        }
-    }
-
-
-    private Type GetRuntimeType(TypeSymbol typeSymbol) =>
-        GetRuntimeInfo<TypeInfo>(typeSymbol);
-
-    private TInfo GetRuntimeInfo<TInfo>(Symbol symbol)
-        where TInfo : class
-    {
-        var info = GetRuntimeInfo(symbol);
-        if (info != null && info is TInfo tinfo)
-        {
-            return tinfo;
-        }
-        else
-        {
-            throw new InvalidOperationException($"Could not convert symbol '{symbol.FullName}' to runtime type");
-        }
-    }
-
-    private object? GetRuntimeInfo(Symbol symbol)
-    {
-        _symbols.TryGetInfo(symbol, out var info, GetFromBuilders);
-        return info;
-
-        object? GetFromBuilders(Symbol symbol)
-        {
-            _symbolToBuilder.TryGetValue(symbol, out var builder);
-            return builder;
         }
     }
 
@@ -917,15 +749,15 @@ public partial class ReflectionEmitter : SemanticEmitter
         return PropertyAttributes.None;
     }
 
-    private CustomAttributeBuilder GetCustomAttribute(AttributeInfo info)
+    private CustomAttributeBuilder CreateCustomAttribute(AttributeInfo info)
     {
-        var constructor = GetRuntimeInfo<ConstructorInfo>(info.Constructor);
+        var constructor = GetReflectionInfo<ConstructorInfo>(info.Constructor);
         var argValues = info.Arguments.Select(a => GetValue(a.Value)).ToArray();
         var props = info.Members.Where(m => m.Member is PropertySymbol);
-        var propInfos = props.Select(p => GetRuntimeInfo<PropertyInfo>(p.Member)).ToArray();
+        var propInfos = props.Select(p => GetReflectionInfo<PropertyInfo>(p.Member)).ToArray();
         var propValues = props.Select(p => GetValue(p.Value)).ToArray();
         var fields = info.Members.Where(m => m.Member is FieldSymbol);
-        var fieldInfos = fields.Select(f => GetRuntimeInfo<FieldInfo>(f.Member)).ToArray();
+        var fieldInfos = fields.Select(f => GetReflectionInfo<FieldInfo>(f.Member)).ToArray();
         var fieldValues = fields.Select(f => GetValue(f.Value)).ToArray();
 
         return new CustomAttributeBuilder(
@@ -944,10 +776,10 @@ public partial class ReflectionEmitter : SemanticEmitter
                 case AttributeConstantValue cv:
                     return cv.Value;
                 case AttributeTypeValue tv:
-                    var atype = GetRuntimeType(tv.Type);
+                    var atype = GetReflectionType(tv.Type);
                     return atype;
                 case AttributeArrayValue av:
-                    var elemType = GetRuntimeType(av.ElementType);
+                    var elemType = GetReflectionType(av.ElementType);
                     var values = av.Values.Select(v => GetValue(v)).ToArray();
                     if (elemType == typeof(object))
                         return values;
@@ -964,4 +796,27 @@ public partial class ReflectionEmitter : SemanticEmitter
             }
         }
     }
+
+    private Type GetReflectionType(TypeSymbol typeSymbol) =>
+        GetReflectionInfo<TypeInfo>(typeSymbol);
+
+    private TInfo GetReflectionInfo<TInfo>(Symbol symbol)
+        where TInfo : class
+    {
+        var info = GetReflectionInfo(symbol);
+        if (info != null && info is TInfo tinfo)
+        {
+            return tinfo;
+        }
+        else
+        {
+            throw new InvalidOperationException($"Could not convert symbol '{symbol.FullName}' to runtime type");
+        }
+    }
+
+    private object? GetReflectionInfo(Symbol symbol) =>
+        _symbols.TryGetInfo(symbol, out var info, GetReflectionInfoFromDeclarations) ? info : null;
+
+    private object? GetReflectionInfoFromDeclarations(Symbol symbol) =>
+        _symbolToBuilder.TryGetValue(symbol, out var builder) ? builder : null;
 }

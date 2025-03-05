@@ -22,6 +22,11 @@ public class DelegateSymbol : TypeSymbol
         _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
     private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
 
+    /// <summary>
+    /// The definition of the delegate without substituted type parameters.
+    /// </summary>
+    public new DelegateSymbol? Definition => base.Definition as DelegateSymbol;
+
     private DelegateSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -34,7 +39,7 @@ public class DelegateSymbol : TypeSymbol
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
-        TypeSymbol? constructedFrom)
+        TypeSymbol? definition = null)
         : base(
             name, 
             declaringSymbol, 
@@ -45,7 +50,7 @@ public class DelegateSymbol : TypeSymbol
             fnBaseTypes, 
             fnMembers, 
             fnAttributes,
-            constructedFrom)
+            definition)
     {
         _lazyParameters = fnParameters != null
             ? new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this))
@@ -98,7 +103,7 @@ public class DelegateSymbol : TypeSymbol
 
     internal protected override TypeSymbol Construct(ConstructionContext context)
     {
-        var definition = this.ConstructedFrom ?? this;
+        var definition = this.Definition ?? this;
         var subContext = context.CreateSubstitution(definition.TypeParameters);
 
         return new DelegateSymbol(
@@ -134,7 +139,7 @@ public class DelegateSymbol : TypeSymbol
             this.BaseTypes.Count > 0 ? () => context.Substitute(this.BaseTypes) : null,
             this.Members.Count > 0 ? me => context.Substitute(this.Members) : null,
             this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
-            this.ConstructedFrom ?? (this.IsConstructable ? this : null)
+            this.Definition ?? this
             );
     }
 

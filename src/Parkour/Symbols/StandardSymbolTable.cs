@@ -249,8 +249,7 @@ public class StandardSymbolTable : SymbolTable
                 GetConstructed(GetTypeSymbol("System.Collections.Generic.IList`1"), [elementType]),
                 GetConstructed(GetTypeSymbol("System.Collections.Generic.IReadOnlyList`1"), [elementType])
                     ],
-                fnMembers: me => [], // TODO: add array members
-                constructedFrom: null
+                fnMembers: me => [] // TODO: add array members
                 );
         }
         else
@@ -263,8 +262,7 @@ public class StandardSymbolTable : SymbolTable
                 fnBaseTypes: () => [
                     GetTypeSymbol("System.Array"),
                     ],
-                fnMembers: me => [], // TODO: add array members
-                constructedFrom: null
+                fnMembers: me => [] // TODO: add array members
                 );
         }
     }

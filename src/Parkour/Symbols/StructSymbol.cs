@@ -2,6 +2,13 @@
 
 public class StructSymbol : TypeSymbol
 {
+    public override bool IsValueType => true;
+
+    /// <summary>
+    /// The definition of the struct without substituted type parameters.
+    /// </summary>
+    public new StructSymbol? Definition => base.Definition as StructSymbol;
+
     public StructSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -12,7 +19,7 @@ public class StructSymbol : TypeSymbol
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
-        TypeSymbol? constructedFrom)
+        StructSymbol? definition = null)
         : base(
             name, 
             declaringSymbol, 
@@ -23,15 +30,13 @@ public class StructSymbol : TypeSymbol
             fnBaseTypes,
             fnMembers,
             fnAttributes,
-            constructedFrom)
+            definition)
     {
     }
 
-    public override bool IsValueType => true;
-
     internal protected override TypeSymbol Construct(ConstructionContext context)
     {
-        var definition = this.ConstructedFrom ?? this;
+        var definition = this.Definition ?? this;
         var subContext = context.CreateSubstitution(definition.TypeParameters);
 
         return new StructSymbol(
@@ -44,7 +49,8 @@ public class StructSymbol : TypeSymbol
             () => subContext.Substitute(this.BaseTypes),
             me => subContext.Substitute(this.Members, me),
             me => this.Attributes.SelectSame(a => a.Substitute(subContext)),
-            definition);
+            definition
+            );
     }
 
     internal protected override TypeSymbol Substitute(SubstitutionContext context, Symbol? declaringSymbol)
@@ -62,6 +68,7 @@ public class StructSymbol : TypeSymbol
             () => context.Substitute(this.BaseTypes),
             me => context.Substitute(this.Members),
             me => this.Attributes.SelectSame(a => a.Substitute(context)),
-            this.ConstructedFrom ?? (this.IsConstructable ? this : null));
+            this.Definition ?? this
+            );
     }
 }

@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Parkour.Reflection\Parkour.Reflection.csproj" />
     <ProjectReference Include="..\Parkour.Tests.Common\Parkour.Tests.Common.csproj" />
+    <ProjectReference Include="..\Parkour.Tests\Parkour.Tests.csproj" />
     <ProjectReference Include="..\Parkour\Parkour.csproj" />
   </ItemGroup>
 

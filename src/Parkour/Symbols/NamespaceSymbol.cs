@@ -12,11 +12,23 @@ public class NamespaceSymbol : ContainerSymbol
         string name, 
         Symbol? declaringSymbol,
         Func<NamespaceSymbol, ImmutableList<Symbol>> fnMembers)
-        : base(name, declaringSymbol, SymbolAccess.Public, SymbolModifier.None)
+        : base(name, declaringSymbol, SymbolAccess.Public, SymbolModifier.None, null)
     {
         _lazyMembers = new Lazy<ImmutableList<Symbol>>(() => fnMembers(this));
     }
 
     public override int DeclaredSymbolCount => this.Members.Count;
     public override Symbol? GetDeclaredSymbol(int index) => this.Members[index];
+
+    /// <summary>
+    /// Gets the first matching nested type.
+    /// </summary>
+    public TypeSymbol? FindType(string name, int arity = 0) =>
+        this.GetFirstMember<TypeSymbol>(name, t => t.Arity == arity);
+
+    /// <summary>
+    /// Gets the first matching namespace.
+    /// </summary>
+    public NamespaceSymbol? FindNamespace(string name) =>
+        this.GetFirstMember<NamespaceSymbol>(name);
 }

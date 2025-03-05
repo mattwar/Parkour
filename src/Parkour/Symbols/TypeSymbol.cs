@@ -48,8 +48,8 @@ public abstract class TypeSymbol : ContainerSymbol
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
-        TypeSymbol? constructedFrom)
-        : base(name, declaringSymbol, access, modifiers)
+        TypeSymbol? definition)
+        : base(name, declaringSymbol, access, modifiers, definition)
     {
         _lazyTypeParameters = fnTypeParameters != null
             ? new Lazy<ImmutableList<TypeParameterSymbol>>(() => fnTypeParameters(this))
@@ -66,14 +66,14 @@ public abstract class TypeSymbol : ContainerSymbol
         _lazyMembers = fnMembers != null
             ? new Lazy<ImmutableList<Symbol>>(() => fnMembers(this))
             : null;
-        this.ConstructedFrom = constructedFrom;
     }
 
     protected TypeSymbol(
         string name,
         Symbol? declaringSymbol,
         SymbolAccess access,
-        BitSet<SymbolModifier> modifiers)
+        BitSet<SymbolModifier> modifiers,
+        Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
         : this(
             name,
             declaringSymbol,
@@ -83,8 +83,20 @@ public abstract class TypeSymbol : ContainerSymbol
             null,
             null,
             null,
-            null,
+            fnAttributes,
             null)
+    {
+    }
+
+    protected TypeSymbol(
+        string name,
+        Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
+        : this(
+              name,
+              null,
+              SymbolAccess.Public,
+              SymbolModifier.None,
+              fnAttributes)
     {
     }
 
@@ -93,7 +105,8 @@ public abstract class TypeSymbol : ContainerSymbol
             name,
             null,
             SymbolAccess.Public,
-            SymbolModifier.None)
+            SymbolModifier.None,
+            null)
     {
     }
 
@@ -105,21 +118,16 @@ public abstract class TypeSymbol : ContainerSymbol
         || this.TypeArguments.Count > 0;
 
     /// <summary>
-    /// True if this type is a generic type definition.
-    /// </summary>
-    public bool IsDefinition => 
-        IsGeneric && this.TypeArguments.Count == 0;
-
-    /// <summary>
     /// True if this type is a constructed generic type.
     /// </summary>
     public bool IsConstructed => 
         IsGeneric && this.TypeArguments.Count > 0;
 
     /// <summary>
-    /// The type this type is constructed from.
+    /// The definition of the type without substituted type parameters.
     /// </summary>
-    public TypeSymbol? ConstructedFrom { get; }
+    public new TypeSymbol? Definition => 
+        base.Definition as TypeSymbol;
 
     /// <summary>
     /// True if the type is an interface
@@ -195,11 +203,53 @@ public abstract class TypeSymbol : ContainerSymbol
         return false;
     }
 
-    public MethodSymbol? GetMethod(string? name, ImmutableList<TypeSymbol> parameterTypes, Func<MethodSymbol, bool>? predicate = null) =>
+    /// <summary>
+    /// Returns the first matching nested type.
+    /// </summary>
+    public TypeSymbol? FindType(string name, int arity = 0, Func<TypeSymbol, bool>? predicate = null) =>
+        this.GetFirstMember<TypeSymbol>(name, t => t.Arity == arity && (predicate == null || predicate(t)));
+
+    /// <summary>
+    /// Returns the first matching constructor.
+    /// </summary>
+    public ConstructorSymbol? FindConstructor(ImmutableList<TypeSymbol> parameterTypes, Func<ConstructorSymbol, bool>? predicate = null) =>
+        this.GetFirstMember<ConstructorSymbol>(c => ParametersMatch(c.Parameters, parameterTypes) && (predicate == null || predicate(c)));
+
+    /// <summary>
+    /// Returns the first matching method.
+    /// </summary>
+    public MethodSymbol? FindMethod(string? name, ImmutableList<TypeSymbol> parameterTypes, Func<MethodSymbol, bool>? predicate = null) =>
         this.GetFirstMember<MethodSymbol>(name, m => m.Arity == 0 && ParametersMatch(m.Parameters, parameterTypes) && (predicate == null || predicate(m)));
 
-    public MethodSymbol? GetMethod(string? name, ImmutableList<TypeSymbol> typeArguments, ImmutableList<TypeSymbol> parameterTypes, Func<MethodSymbol, bool>? predicate = null) =>
+    /// <summary>
+    /// Returns the first matching method.
+    /// </summary>
+    public MethodSymbol? FindMethod(string? name, ImmutableList<TypeSymbol> typeArguments, ImmutableList<TypeSymbol> parameterTypes, Func<MethodSymbol, bool>? predicate = null) =>
         this.GetFirstMember<MethodSymbol>(name, m => m.Arity == typeArguments.Count && TypesMatch(m.TypeArguments, typeArguments) && ParametersMatch(m.Parameters, parameterTypes) && (predicate == null || predicate(m)));
+
+    /// <summary>
+    /// Returns the first matching property.
+    /// </summary>
+    public PropertySymbol? FindProperty(string name, Func<PropertySymbol, bool>? predicate = null) =>
+        this.GetFirstMember(name, predicate);
+
+    /// <summary>
+    /// Returns the first matching field.
+    /// </summary>
+    public FieldSymbol? FindField(string name, Func<FieldSymbol, bool>? predicate = null) =>
+        this.GetFirstMember(name, predicate);
+
+    /// <summary>
+    /// Returns the first matching property or field.
+    /// </summary>
+    public MemberSymbol? FindPropertyOrField(string name, Func<MemberSymbol, bool>? predicate = null) =>
+        this.GetFirstMember<MemberSymbol>(name, m => (m is PropertySymbol || m is FieldSymbol) && (predicate == null || predicate(m)));
+
+    /// <summary>
+    /// Returns the first matching indexer.
+    /// </summary>
+    public IndexerSymbol? FindIndexer(ImmutableList<TypeSymbol> parameterTypes, Func<IndexerSymbol, bool>? predicate = null) =>
+        this.GetFirstMember<IndexerSymbol>(i => ParametersMatch(i.GetMethod!.Parameters, parameterTypes) && (predicate == null || predicate(i)));
 
     private static bool TypesMatch(ImmutableList<TypeSymbol> types1, ImmutableList<TypeSymbol> types2)
     {

@@ -310,7 +310,7 @@ public class StandardBinder : SemanticBinder
                         .OfType<AttributeInfo>()
                         .ToImmutableList()
                     : null,
-            constructedFrom: null);
+            definition: null);
 
         typeContext = context.WithScope(
             _scope => _scope
@@ -478,7 +478,7 @@ public class StandardBinder : SemanticBinder
                         .OfType<AttributeInfo>()
                         .ToImmutableList()
                     : null,
-            constructedFrom: null
+            definition: null
             );
 
         // determine context after symbol is declared
@@ -538,8 +538,7 @@ public class StandardBinder : SemanticBinder
                         .Select(imp => GetInterfaceMethodSymbol(context.BindingContext, me, imp))
                         .OfType<MethodSymbol>()
                         .ToImmutableList()!
-                    : null,
-            constructedFrom: null
+                    : null
             );
     }
 
@@ -708,8 +707,8 @@ public class StandardBinder : SemanticBinder
                         .Select(a => this.BindAttribute(typeContext.BindingContext, a).AttributeInfo)
                         .OfType<AttributeInfo>()
                         .ToImmutableList()
-                    : null,
-            constructedFrom: null);
+                    : null
+            );
 
         typeContext = context.WithScope(
             _scope => _scope.Scope

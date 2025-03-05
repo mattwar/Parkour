@@ -2,8 +2,10 @@
 
 public class TypeParameterSymbol : TypeSymbol
 {
-    public TypeParameterSymbol(string name)
-        : base(name)
+    public TypeParameterSymbol(
+        string name,
+        Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes = null)
+        : base(name, fnAttributes)
     {
     }
 }

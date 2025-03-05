@@ -47,7 +47,7 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
                 // must both be construct with same definition
                 if (!type1.IsConstructed 
                     || !type2.IsConstructed
-                    || type1.ConstructedFrom != type2.ConstructedFrom
+                    || !Equals(type1.Definition, type2.Definition)
                     || type1.TypeArguments.Count != type2.TypeArguments.Count)
                     return false;
 
@@ -84,9 +84,9 @@ public class TypeEqualityComparer : IEqualityComparer<TypeSymbol>
                 }
                 break;
             default:
-                if (type.IsConstructed && type.ConstructedFrom != null)
+                if (type.IsConstructed && type.Definition != null)
                 {
-                    hc = GetHashCode(type.ConstructedFrom);
+                    hc = GetHashCode(type.Definition);
                     for (int i = 0; i < type.TypeArguments.Count; i++)
                     {
                         hc = HashCode.Combine(GetHashCode(type.TypeArguments[i]));

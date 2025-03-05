@@ -54,8 +54,8 @@ public class MethodSymbol : MemberSymbol
         Func<TypeSymbol> fnReturnType,
         Func<MethodSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         Func<MethodSymbol, ImmutableList<MethodSymbol>>? fnImplements,
-        MethodSymbol? constructedFrom)
-        : base(name, declaringSymbol, access, modifiers)
+        MethodSymbol? definition = null)
+        : base(name, declaringSymbol, access, modifiers, definition)
     {
         _lazyTypeParameters = fnTypeParameters != null
             ? new Lazy<ImmutableList<TypeParameterSymbol>>(() => fnTypeParameters(this))
@@ -73,7 +73,6 @@ public class MethodSymbol : MemberSymbol
         _lazyImplements = fnImplements != null
             ? new Lazy<ImmutableList<MethodSymbol>>(() => fnImplements(this))
             : null;
-        ConstructedFrom = constructedFrom;
     }
 
     /// <summary>
@@ -84,23 +83,20 @@ public class MethodSymbol : MemberSymbol
         || this.TypeArguments.Count > 0;
 
     /// <summary>
-    /// True if the method is a generic method definition.
-    /// </summary>
-    public bool IsDefinition => 
-        IsGeneric && this.TypeArguments.Count == 0;
-
-    /// <summary>
     /// True if the method is a constructed generic method.
     /// </summary>
     public bool IsConstructed => 
         IsGeneric && this.TypeArguments.Count > 0;
 
     /// <summary>
-    /// The method this method is constructed from.
+    /// The definition of the method without substituted type parameters.
     /// </summary>
-    public MethodSymbol? ConstructedFrom { get; }
+    public new MethodSymbol? Definition =>
+        base.Definition as MethodSymbol;
 
-
+    /// <summary>
+    /// True if the method is constructable.
+    /// </summary>
     public override bool IsConstructable =>
         this.IsGeneric;
 
@@ -143,7 +139,7 @@ public class MethodSymbol : MemberSymbol
 
     internal protected override MethodSymbol Construct(ConstructionContext context)
     {
-        var definition = this.ConstructedFrom ?? this;
+        var definition = this.Definition ?? this;
         var subContext = context.CreateSubstitution(definition.TypeParameters);
 
         return new MethodSymbol(
@@ -174,7 +170,7 @@ public class MethodSymbol : MemberSymbol
             () => context.Substitute(this.ReturnType),
             this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
             this.Implements != null ? me => context.Substitute(this.Implements, me) : null,
-            this.ConstructedFrom ?? (this.IsConstructable ? this : null)
+            this.Definition ?? this
             );
     }
 }

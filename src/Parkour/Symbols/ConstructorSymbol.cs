@@ -21,17 +21,24 @@ public class ConstructorSymbol : MemberSymbol
     /// </summary>
     public TypeSymbol ConstructedType => (TypeSymbol)this.DeclaringSymbol!;
 
+    /// <summary>
+    /// The definition of the constructor without substituted type parameters.
+    /// </summary>
+    public new ConstructorSymbol? Definition => base.Definition as ConstructorSymbol;
+
     public ConstructorSymbol(
         TypeSymbol declaringType,
         SymbolAccess access, 
         BitSet<SymbolModifier> modifiers, 
         Func<ConstructorSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
-        Func<ConstructorSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
+        Func<ConstructorSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
+        ConstructorSymbol? definition = null)
         : base(
             modifiers.Contains(SymbolModifier.Static) ? ".cctor" : ".ctor", 
             declaringType, 
             access, 
-            modifiers)
+            modifiers,
+            definition)
     {
         _lazyParameters = fnParameters != null
             ? new Lazy<ImmutableList<ParameterSymbol>>(() => fnParameters(this))
@@ -54,7 +61,8 @@ public class ConstructorSymbol : MemberSymbol
             this.Access,
             this.Modifiers,
             this.Parameters.Count > 0 ? me => context.Substitute(this.Parameters, me) : null,
-            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
+            this.Definition ?? this
             );
     }
 }

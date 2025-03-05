@@ -10,7 +10,7 @@ public class AliasSymbol : ContainerSymbol
     public AliasSymbol(
         string name,
         ContainerSymbol aliasedSymbol)
-        : base(name, null, SymbolAccess.Public, SymbolModifier.None)
+        : base(name, null, SymbolAccess.Public, SymbolModifier.None, definition: null)
     {
         AliasedSymbol = aliasedSymbol;
     }

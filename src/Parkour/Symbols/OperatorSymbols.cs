@@ -182,7 +182,7 @@ public sealed class OperatorSymbols
     /// </summary>
     private static ImmutableList<OperatorSymbol> CreateDefault(SymbolTable symbols, ImmutableList<OperatorSymbol> intrinsice)
     {
-        var stringConcat = symbols.String.GetMethod("Concat", [symbols.String, symbols.String]);
+        var stringConcat = symbols.String.FindMethod("Concat", [symbols.String, symbols.String]);
 
         return intrinsice.AddRange([
             BinaryOp(OperatorKind.LogicalAndAlso, symbols.Boolean),

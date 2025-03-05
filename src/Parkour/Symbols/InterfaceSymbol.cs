@@ -2,6 +2,13 @@
 
 public class InterfaceSymbol : TypeSymbol
 {
+    public override bool IsInterface => true;
+
+    /// <summary>
+    /// The definition without substitution of type parameters.
+    /// </summary>
+    public new InterfaceSymbol? Definition => base.Definition as InterfaceSymbol;
+
     public InterfaceSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -12,7 +19,7 @@ public class InterfaceSymbol : TypeSymbol
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
         Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
-        TypeSymbol? constructedFrom)
+        InterfaceSymbol? definition = null)
         : base(
             name,
             declaringSymbol,
@@ -23,15 +30,13 @@ public class InterfaceSymbol : TypeSymbol
             fnBaseTypes,
             fnMembers,
             fnAttributes,
-            constructedFrom)
+            definition)
     {
     }
 
-    public override bool IsInterface => true;
-
     internal protected override TypeSymbol Construct(ConstructionContext context)
     {
-        var definition = this.ConstructedFrom ?? this;
+        var definition = this.Definition ?? this;
         var subContext = context.CreateSubstitution(definition.TypeParameters);
 
         return new InterfaceSymbol(
@@ -63,7 +68,7 @@ public class InterfaceSymbol : TypeSymbol
             this.BaseTypes.Count > 0 ? () => context.Substitute(this.BaseTypes) : null,
             this.Members.Count > 0 ? me => context.Substitute(this.Members) : null,
             this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
-            this.ConstructedFrom ?? (this.IsConstructable ? this : null)
+            this.Definition ?? this
             );
     }
 }

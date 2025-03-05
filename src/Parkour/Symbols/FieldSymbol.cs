@@ -20,6 +20,11 @@ public sealed class FieldSymbol : MemberSymbol
     /// </summary>
     public object? ConstantValue { get; }
 
+    /// <summary>
+    /// The field definition without substituted type parameter references.
+    /// </summary>
+    public new FieldSymbol? Definition => base.Definition as FieldSymbol;
+
     public FieldSymbol(
         string name,
         Symbol? declaringSymbol,
@@ -27,8 +32,9 @@ public sealed class FieldSymbol : MemberSymbol
         BitSet<SymbolModifier> modifiers,
         Func<TypeSymbol> fnType,
         Func<FieldSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
-        object? constantValue = null)
-        : base(name, declaringSymbol, access, modifiers)
+        object? constantValue = null,
+        FieldSymbol? definition = null)
+        : base(name, declaringSymbol, access, modifiers, definition)
     {
         _lazyType = new Lazy<TypeSymbol>(fnType, SpecialSymbols.CyclicDefinition);
         _lazyAttributes = fnAttributes != null
@@ -52,7 +58,9 @@ public sealed class FieldSymbol : MemberSymbol
             this.Access,
             this.Modifiers,
             () => context.Substitute(this.Type),
-            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
+            this.ConstantValue,
+            definition: this.Definition ?? this
             );
     }
 }

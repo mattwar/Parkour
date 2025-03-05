@@ -23,7 +23,7 @@ public class SymbolEqualityComparer : IEqualityComparer<Symbol>
                 // must both be constructed with same definition
                 if (!method1.IsConstructed 
                     || !method2.IsConstructed
-                    || method1.ConstructedFrom != method2.ConstructedFrom
+                    || method1.Definition != method2.Definition
                     || method1.TypeArguments.Count != method2.TypeArguments.Count)
                     return false;
 
@@ -48,9 +48,9 @@ public class SymbolEqualityComparer : IEqualityComparer<Symbol>
             case TypeSymbol type:
                 return TypeEqualityComparer.Instance.GetHashCode(type);
             case MethodSymbol method:
-                if (method.IsConstructed && method.ConstructedFrom != null)
+                if (method.IsConstructed && method.Definition != null)
                 {
-                    var hc = GetHashCode(method.ConstructedFrom);
+                    var hc = GetHashCode(method.Definition);
 
                     for (int i = 0; i < method.TypeArguments.Count; i++)
                     {

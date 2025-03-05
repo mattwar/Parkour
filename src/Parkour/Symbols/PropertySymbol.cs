@@ -33,6 +33,11 @@ public sealed class PropertySymbol : MemberSymbol
         _lazyAttributes?.Value ?? ImmutableList<AttributeInfo>.Empty;
     private readonly Lazy<ImmutableList<AttributeInfo>>? _lazyAttributes;
 
+    /// <summary>
+    /// The definition of the property without substituted type parameter references.
+    /// </summary>
+    public new PropertySymbol? Definition => base.Definition as PropertySymbol;
+
     public PropertySymbol(
         string name,
         Symbol? declaringSymbol,
@@ -42,8 +47,9 @@ public sealed class PropertySymbol : MemberSymbol
         Func<PropertySymbol, FieldSymbol>? fnBackingField,
         Func<PropertySymbol, MethodSymbol>? fnGetMethod,
         Func<PropertySymbol, MethodSymbol>? fnSetMethod,
-        Func<PropertySymbol, ImmutableList<AttributeInfo>>? fnAttributes)
-        : base(name, declaringSymbol, access, modifiers)
+        Func<PropertySymbol, ImmutableList<AttributeInfo>>? fnAttributes,
+        PropertySymbol? definition = null)
+        : base(name, declaringSymbol, access, modifiers, definition)
     {
         _lazyType = new Lazy<TypeSymbol>(fnType, SpecialSymbols.CyclicDefinition);
         _lazyBackingField = fnBackingField != null
@@ -90,7 +96,8 @@ public sealed class PropertySymbol : MemberSymbol
             this.BackingField != null ? me => context.Substitute(this.BackingField) : null,
             this.GetMethod != null ? me => context.Substitute(this.GetMethod) : null,
             this.SetMethod != null ? me => context.Substitute(this.SetMethod) : null,
-            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null
+            this.Attributes.Count > 0 ? me => this.Attributes.SelectSame(a => a.Substitute(context)) : null,
+            this.Definition ?? this
             );
     }
 }

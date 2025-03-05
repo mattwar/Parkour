@@ -30,8 +30,7 @@ public sealed class ArraySymbol : TypeSymbol
         int dimensions,
         bool isSZArray,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
-        Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers,
-        TypeSymbol? constructedFrom)
+        Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers)
         : base(
             "Array", 
             declaringSymbol, 
@@ -42,7 +41,7 @@ public sealed class ArraySymbol : TypeSymbol
             fnBaseTypes, 
             fnMembers, 
             fnAttributes: null,
-            constructedFrom)
+            definition: null)
     {
         _lazyElementType = new Lazy<TypeSymbol>(fnElementType, SpecialSymbols.CyclicDefinition);
         _dimensions = isSZArray ? 0 : dimensions;
@@ -72,8 +71,8 @@ public sealed class ArraySymbol : TypeSymbol
             this.Dimensions,
             this.IsSZArray,
             () => context.Substitute(this.BaseTypes),
-            me => context.Substitute(this.Members),
-            this.ConstructedFrom);
+            me => context.Substitute(this.Members)
+            );
     }
 
     protected override string GetFullName()

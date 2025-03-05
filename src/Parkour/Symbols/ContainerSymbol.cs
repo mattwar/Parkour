@@ -9,8 +9,9 @@ public abstract class ContainerSymbol : MemberSymbol
         string name, 
         Symbol? declaringSymbol,
         SymbolAccess access, 
-        BitSet<SymbolModifier> modifiers)
-        : base(name, declaringSymbol, access, modifiers)
+        BitSet<SymbolModifier> modifiers,
+        MemberSymbol? definition)
+        : base(name, declaringSymbol, access, modifiers, definition)
     {
     }
 
@@ -99,7 +100,7 @@ public abstract class ContainerSymbol : MemberSymbol
     /// <summary>
     /// Gets all the first symbol that matches the predicate.
     /// </summary>
-    public Symbol? GetFirstMember<TSymbol>(Func<TSymbol, bool> predicate) where TSymbol : Symbol =>
+    public TSymbol? GetFirstMember<TSymbol>(Func<TSymbol, bool> predicate) where TSymbol : Symbol =>
         GetFirstMember(null, predicate);
 
     /// <summary>

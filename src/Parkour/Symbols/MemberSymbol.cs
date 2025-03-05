@@ -20,6 +20,16 @@ public abstract class MemberSymbol : Symbol
     /// </summary>
     public Symbol? DeclaringSymbol { get; }
 
+    /// <summary>
+    /// True if the member is the definition, and not one that has type parameters substituted.
+    /// </summary>
+    public bool IsDefinition => this.Definition == null;
+
+    /// <summary>
+    /// The defintion of this symbol without substitution of type parameters.
+    /// </summary>
+    public MemberSymbol? Definition { get; }
+
     public bool IsPublic => Access == SymbolAccess.Public;
     public bool IsPrivate => Access == SymbolAccess.Private;
     public bool IsProtected => Access == SymbolAccess.Protected;
@@ -76,12 +86,14 @@ public abstract class MemberSymbol : Symbol
         string name, 
         Symbol? declaringSymbol,
         SymbolAccess access,
-        BitSet<SymbolModifier> modifiers)
+        BitSet<SymbolModifier> modifiers,
+        MemberSymbol? definition)
         : base(name)
     {
         this.DeclaringSymbol = declaringSymbol;
         this.Access = access;
         this.Modifiers = modifiers;
+        this.Definition = definition;
     }
 
     /// <summary>
