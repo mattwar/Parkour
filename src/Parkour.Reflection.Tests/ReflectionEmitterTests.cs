@@ -33,16 +33,7 @@ public class ReflectionEmitterTests : EmitterTests
 
         if (emitter.Module is Module m && testMethodName != null)
         {
-            var testType = emitter.Module.GetType("Test");
-            Assert.IsNotNull(testType, "Test type not found");
-            var testMethod = testType.GetMethod(testMethodName, BindingFlags.Public | BindingFlags.Static);
-            Assert.IsNotNull(testMethod, "Test.Run not found");
-            var testResult = testMethod.Invoke(null, []);
-
-            if (fnCheckResult != null)
-            {
-                fnCheckResult(testResult);
-            }
+            RunTest(emitter.Assembly, testMethodName, fnCheckResult);
         }
 
         var resultSymbols = ReflectionSymbols.GetOrCreate(reflectionImports.Assemblies.Add(emitter.Assembly));

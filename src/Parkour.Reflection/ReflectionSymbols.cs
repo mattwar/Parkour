@@ -204,7 +204,7 @@ public class ReflectionSymbols : StandardSymbolTable
                             GetModifiers(method),
                             fnTypeParameters:
                                 method.IsGenericMethodDefinition
-                                    ? me => CreateTypeParameters(method.GetGenericArguments())
+                                    ? me => CreateTypeParameters(method.GetGenericArguments(), declaringSymbol)
                                     : me => ImmutableList<TypeParameterSymbol>.Empty,
                             fnTypeArguments:
                                 () => ImmutableList<TypeSymbol>.Empty,
@@ -266,7 +266,7 @@ public class ReflectionSymbols : StandardSymbolTable
                     case Type type:
                         if (type.IsGenericTypeParameter)
                         {
-                            return new TypeParameterSymbol(type.Name);
+                            return new TypeParameterSymbol(type.Name, declaringSymbol);
                         }
                         else
                         {
@@ -276,7 +276,7 @@ public class ReflectionSymbols : StandardSymbolTable
 
                             Func<TypeSymbol, ImmutableList<TypeParameterSymbol>> fnTypeParameters =
                                 type.IsGenericTypeDefinition
-                                    ? me => CreateTypeParameters(type.GetGenericArguments())
+                                    ? me => CreateTypeParameters(type.GetGenericArguments(), declaringSymbol)
                                     : me => ImmutableList<TypeParameterSymbol>.Empty;
 
                             Func<ImmutableList<TypeSymbol>> fnTypeArguments =
@@ -352,8 +352,8 @@ public class ReflectionSymbols : StandardSymbolTable
             .Select(p => (ParameterSymbol)CreateSymbol(p, declaringSymbol)!)
             .ToImmutableList();
 
-        ImmutableList<TypeParameterSymbol> CreateTypeParameters(IEnumerable<Type> typeParameters) =>
-            typeParameters.Select(tp => new TypeParameterSymbol(tp.Name)).ToImmutableList();
+        ImmutableList<TypeParameterSymbol> CreateTypeParameters(IEnumerable<Type> typeParameters, Symbol declaringSymbol) =>
+            typeParameters.Select(tp => new TypeParameterSymbol(tp.Name, declaringSymbol)).ToImmutableList();
 
         ImmutableList<TypeSymbol> GetBaseTypes(Type? baseType, Type[] interfaces)
         {

@@ -937,6 +937,21 @@ public abstract class EmitterTests
         string? testMethodName = null,
         Action<object?>? fnCheckResult = null);
 
+    protected void RunTest(Assembly assembly, string testMethodName, Action<object?>? fnCheckResult)
+    {
+        var testType = assembly.GetType("Test", throwOnError: true);
+        Assert.IsNotNull(testType, "Test type not found");
+        var testMethod = testType.GetMethod(testMethodName, BindingFlags.Public | BindingFlags.Static);
+        Assert.IsNotNull(testMethod, "Test.Run not found");
+        var testResult = testMethod.Invoke(null, []);
+
+        if (fnCheckResult != null)
+        {
+            fnCheckResult(testResult);
+        }
+    }
+
+
     /// <summary>
     /// Verify all the declared symbols exist in the results
     /// </summary>

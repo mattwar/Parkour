@@ -537,10 +537,10 @@ public partial class CecilEmitter
         }
 
         private FieldReference DateTime_Default => 
-            _externalSymbols.CecilDateTime.Fields.First(f => f.Name == "MinValue");
+            _emitter.GetImportedSymbol(_externalSymbols.CecilDateTime.Fields.First(f => f.Name == "MinValue"));
 
         private FieldReference Decimal_Default =>
-            _externalSymbols.CecilDecimal.Fields.First(f => f.Name == "Zero");
+            _emitter.GetImportedSymbol(_externalSymbols.CecilDecimal.Fields.First(f => f.Name == "Zero"));
 
         public override void EmitDefault(TypeSymbol typeSymbol)
         {
@@ -654,19 +654,19 @@ public partial class CecilEmitter
                 // do nothing since same type
                 return;
             }
-            else if (comparer.Equals(targetType, _externalSymbols.CecilVoid))
+            else if (comparer.Equals(targetType, _emitter._module.TypeSystem.Void))
             {
                 // target does not expect a type and expression type is not void.
                 EmitPop();
                 return;
             }
-            else if (comparer.Equals(sourceType, _externalSymbols.CecilVoid))
+            else if (comparer.Equals(sourceType, _emitter._module.TypeSystem.Void))
             {
                 // source has no type (so no value was left on stack), but target expects a type (not void)
                 EmitDefault(targetTypeSymbol);
                 return;
             }
-            else if (comparer.Equals(targetType, _externalSymbols.CecilObject))
+            else if (comparer.Equals(targetType, _emitter._module.TypeSystem.Object))
             {
                 if (sourceType.IsValueType)
                 {
@@ -674,7 +674,7 @@ public partial class CecilEmitter
                 }
                 return;
             }
-            else if (comparer.Equals(sourceType, _externalSymbols.CecilObject))
+            else if (comparer.Equals(sourceType, _emitter._module.TypeSystem.Object))
             {
                 if (targetType.IsValueType)
                 {

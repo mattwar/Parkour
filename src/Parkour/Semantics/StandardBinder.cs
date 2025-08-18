@@ -723,7 +723,7 @@ public class StandardBinder : SemanticBinder
         Symbol? declaringSymbol,
         TypeParameterDeclaration declaration)
     {
-        return new TypeParameterSymbol(declaration.Name);
+        return new TypeParameterSymbol(declaration.Name, declaringSymbol);
     }
 
 #endregion

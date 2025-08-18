@@ -18,7 +18,7 @@ using System.Reflection.Emit;
 /// </summary>
 public partial class CecilEmitter : SemanticEmitter
 {
-    private readonly CecilSymbols _symbols;
+    private readonly CecilSymbols _externalSymbols;
     private readonly AssemblyDefinition _assembly;
     private readonly ModuleDefinition _module;
     private readonly List<Diagnostic> _diagnostics;
@@ -30,23 +30,23 @@ public partial class CecilEmitter : SemanticEmitter
     public ModuleDefinition Module => _module;
 
     public CecilEmitter(
-        CecilSymbols symbols,
+        CecilSymbols externalSymbols,
         AssemblyDefinition assembly,
         ModuleDefinition? module = null)
     {
-        _symbols = symbols;
+        _externalSymbols = externalSymbols;
         _assembly = assembly;
         _module = module ?? assembly.MainModule;
         _diagnostics = new List<Diagnostic>();
     }
 
     public CecilEmitter(
-        CecilSymbols symbols,
+        CecilSymbols externalSymbols,
         AssemblyDefinition assembly,
         string? moduleName,
         ModuleKind moduleKind = ModuleKind.Dll)
         : this(
-              symbols,
+              externalSymbols,
               assembly,
               CreateModule(assembly, moduleName, moduleKind)
               )
@@ -54,12 +54,12 @@ public partial class CecilEmitter : SemanticEmitter
     }
 
     public CecilEmitter(
-        CecilSymbols symbols,
+        CecilSymbols externalSymbols,
         string assemblyName,
         string? moduleName = null,
         ModuleKind moduleKind = ModuleKind.Dll)
         : this(
-              symbols,
+              externalSymbols,
               AssemblyDefinition.CreateAssembly(new AssemblyNameDefinition(assemblyName, new Version(1, 0)), $"Module0", ModuleKind.Dll))
     {
     }
@@ -102,7 +102,7 @@ public partial class CecilEmitter : SemanticEmitter
             return;
         }
 
-        var typeDef = new TypeDefinition(typeSymbol.Name, typeSymbol.Namespace, GetTypeAttributes(typeSymbol));
+        var typeDef = new TypeDefinition(typeSymbol.Namespace, typeSymbol.Name, GetTypeAttributes(typeSymbol));
 
         if (typeSymbol.DeclaringSymbol is TypeSymbol pts)
         {
@@ -161,9 +161,16 @@ public partial class CecilEmitter : SemanticEmitter
                 }
             }
 
-            if (typeSymbol.IsValueType && !hasBaseType)
+            if (!hasBaseType)
             {
-                typeDef.BaseType = GetCecilType(_symbols.GetTypeSymbol(typeof(ValueType)));
+                if (typeSymbol.IsValueType)
+                {
+                    typeDef.BaseType = GetCecilType(_externalSymbols.GetTypeSymbol(typeof(ValueType)));
+                }
+                else if (typeSymbol.IsClass)
+                {
+                    typeDef.BaseType = _module.TypeSystem.Object;
+                }
             }
         }
         else
@@ -210,7 +217,8 @@ public partial class CecilEmitter : SemanticEmitter
 
                 case ConstructorSymbol constructor:
                     var ctorAttributes = GetMethodAttributes(constructor);
-                    var constructorDef = new MethodDefinition(constructor.Name, ctorAttributes, declaringType);
+                    ctorAttributes |= MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
+                    var constructorDef = new MethodDefinition(constructor.Name, ctorAttributes, _module.TypeSystem.Void);
                     _symbolToDefinition.Add(constructor, constructorDef);
                     AddParameters(constructorDef.Parameters, constructor.Parameters);
                     declaringType.Methods.Add(constructorDef);
@@ -363,7 +371,7 @@ public partial class CecilEmitter : SemanticEmitter
         void AddAttributes(ICustomAttributeProvider member, IEnumerable<AttributeInfo> attributes)
         {
             // don't re-add attribute if they have already been added
-            if (member.CustomAttributes.Count == 0)
+            if (member.CustomAttributes.Count > 0)
                 return;
 
             foreach (var attrInfo in attributes)
@@ -386,7 +394,7 @@ public partial class CecilEmitter : SemanticEmitter
                         && memberDef is MethodDefinition methodDef
                         && methodDecl.Symbol is MethodSymbol methodSymbol)
                     {
-                        var ilEmitter = new ILEmitter(this, _symbols, methodDef.Body, _diagnostics);
+                        var ilEmitter = new ILEmitter(this, _externalSymbols, methodDef.Body, _diagnostics);
                         var bodyBuilder = new StandardBodyBuilder(methodSymbol, ilEmitter);
                         bodyBuilder.BuildBody(methodDecl.Body, methodSymbol.ReturnType, methodDecl.ReturnLabel);
                     }
@@ -396,9 +404,9 @@ public partial class CecilEmitter : SemanticEmitter
                         && memberDef is MethodDefinition constructorDef
                         && constructorDecl.Symbol is ConstructorSymbol constructorSymbol)
                     {
-                        var ilEmitter = new ILEmitter(this, _symbols, constructorDef.Body, _diagnostics);
+                        var ilEmitter = new ILEmitter(this, _externalSymbols, constructorDef.Body, _diagnostics);
                         var bodyBuilder = new StandardBodyBuilder(constructorSymbol, ilEmitter);
-                        bodyBuilder.BuildBody(constructorDecl.Body, constructorSymbol.DeclaringType!, constructorDecl.ReturnLabel);
+                        bodyBuilder.BuildBody(constructorDecl.Body, _externalSymbols.Void, constructorDecl.ReturnLabel);
                     }
                     break;
                 case PropertyDeclaration propertyDecl:
@@ -600,11 +608,11 @@ public partial class CecilEmitter : SemanticEmitter
             switch (value)
             {
                 case AttributeConstantValue cv:
-                    var valueTypeSymbol = _symbols.GetTypeSymbol(value != null ? value.GetType() : typeof(object));
+                    var valueTypeSymbol = _externalSymbols.GetTypeSymbol(cv.Value != null ? cv.Value.GetType() : typeof(object));
                     var valueTypeRef = GetCecilType(valueTypeSymbol);
                     return new CustomAttributeArgument(valueTypeRef, cv.Value);
                 case AttributeTypeValue tv:
-                    return new CustomAttributeArgument(_symbols.CecilType, GetCecilType(tv.Type));
+                    return new CustomAttributeArgument(_externalSymbols.CecilType, GetCecilType(tv.Type));
                 case AttributeArrayValue av:
                     var elemType = GetCecilType(av.ElementType);
                     var arrayType = new ArrayType(elemType);
@@ -634,8 +642,66 @@ public partial class CecilEmitter : SemanticEmitter
     }
 
     internal IMetadataTokenProvider? GetCecilReference(Symbol symbol) =>
-        _symbols.TryGetMetadataObject(symbol, out var obj, GetCecilReferenceFromDeclarations) ? obj : null;
+        _externalSymbols.TryGetCecilSymbol(symbol, out var obj, GetEmittedSymbol, GetImportedSymbol) ? obj : null;
 
-    private IMetadataTokenProvider? GetCecilReferenceFromDeclarations(Symbol symbol) =>
-        _symbolToDefinition.TryGetValue(symbol, out var def) ? def : null;
+    private IMetadataTokenProvider? GetEmittedSymbol(Symbol symbol)
+    {
+        // this is one of the declared symbols..
+        if (_symbolToDefinition.TryGetValue(symbol, out var def))
+            return def;
+        return null;
+    }
+
+    /// <summary>
+    /// The symbols that have been imported into the module
+    /// </summary>
+    private readonly Dictionary<IMetadataTokenProvider, IMetadataTokenProvider> _importedSymbols =
+        new Dictionary<IMetadataTokenProvider, IMetadataTokenProvider>();
+
+    /// <summary>
+    /// Gets the imported version of the symbol.
+    /// </summary>
+    private IMetadataTokenProvider GetImportedSymbol(IMetadataTokenProvider symbol) =>
+        GetImportedSymbol<IMetadataTokenProvider>(symbol);
+
+    /// <summary>
+    /// Gets the imported version of the symbol.
+    /// </summary>
+    private TSymbol GetImportedSymbol<TSymbol>(TSymbol symbol)
+        where TSymbol : IMetadataTokenProvider
+    {
+        if (!_importedSymbols.TryGetValue(symbol, out var imported))
+        {
+            imported = Import();
+            if (imported != null)
+                _importedSymbols[symbol] = imported;
+        }
+
+        return (TSymbol)(imported ?? symbol);
+
+        IMetadataTokenProvider? Import()
+        {
+            switch (symbol)
+            {
+                case TypeReference typeRef:
+                    switch (typeRef.FullName)
+                    {
+                        case "System.Object":
+                            return _module.TypeSystem.Object;
+                        case "System.Void":
+                            return _module.TypeSystem.Void;
+                        default:
+                            return _module.ImportReference(typeRef);
+                    }
+                case MethodReference methodRef:
+                    return _module.ImportReference(methodRef);
+                case FieldReference fieldRef:
+                    return _module.ImportReference(fieldRef);
+                //case PropertyReference propertyRef:
+                //    return _module.ImportReference(propertyRef);
+                default:
+                    return null;
+            }
+        }
+    }
 }
