@@ -100,9 +100,12 @@ public abstract class MemberSymbol : Symbol
     /// The namespace this symbol is declared within.
     /// </summary>
     public string Namespace => 
-        this.DeclaringSymbol is MemberSymbol ms
-            ? ms.Namespace 
-            : "";
+        this.DeclaringSymbol switch
+        {
+           NamespaceSymbol ns => ns.FullName,
+           MemberSymbol ms => ms.Namespace,
+           _ => ""
+        };
 
     /// <summary>
     /// The type this symbol is declared within.

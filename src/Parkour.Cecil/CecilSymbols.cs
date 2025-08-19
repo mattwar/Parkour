@@ -202,7 +202,7 @@ public class CecilSymbols : StandardSymbolTable
                 case MethodDefinition md:
                     var name = StripArity(md.Name, out var arity);
                     return new MethodSymbol(
-                        StripArity(md.Name),
+                        md.GetName(),
                         declaringSymbol,
                         GetAccess(md),
                         GetModifiers(md),
@@ -350,10 +350,10 @@ public class CecilSymbols : StandardSymbolTable
 
         ImmutableList<Symbol> CreateMembers(TypeDefinition type, MemberSymbol? declaringSymbol)
         {
-            var methods = type.Methods.Where(m => m.IsConstructor || !m.Name.Contains(".")).Select(m => CreateSymbol(m, declaringSymbol));
-            var fields = type.Fields.Select(f => CreateSymbol(f, declaringSymbol));
-            var properties = type.Properties.Where(p => !p.Name.Contains(".")).Select(p => CreateSymbol(p, declaringSymbol));
-            var events = type.Events.Where(e => !e.Name.Contains(".")).Select(e => CreateSymbol(e, declaringSymbol));
+            var methods = type.Methods.Where(m => (m.IsConstructor || !m.Name.Contains(".")) && CanCreateMember(m)).Select(m => CreateSymbol(m, declaringSymbol));
+            var fields = type.Fields.Where(CanCreateMember).Select(f => CreateSymbol(f, declaringSymbol));
+            var properties = type.Properties.Where(p => !p.Name.Contains(".") && CanCreateMember(p)).Select(p => CreateSymbol(p, declaringSymbol));
+            var events = type.Events.Where(e => !e.Name.Contains(".") && CanCreateMember(e)).Select(e => CreateSymbol(e, declaringSymbol));
             var nestedTypes = type.NestedTypes.Select(t => CreateSymbol(t, declaringSymbol));
 
             return methods
@@ -363,6 +363,63 @@ public class CecilSymbols : StandardSymbolTable
                 .Concat(nestedTypes)
                 .Where(s => s != null)
                 .ToImmutableList()!;
+        }
+
+        bool CanCreateMember(IMemberDefinition member)
+        {
+            switch (member)
+            {
+                case MethodDefinition md:
+                    return CanCreateTypeReference(md.ReturnType)
+                        && CanCreateParameters(md.Parameters);
+                case FieldDefinition fd:
+                    return CanCreateTypeReference(fd.FieldType);
+                case PropertyDefinition pd:
+                    return CanCreateTypeReference(pd.PropertyType)
+                        && CanCreateParameters(pd.Parameters);
+                case EventDefinition ed:
+                    return CanCreateTypeReference(ed.EventType);
+                default:
+                    return false;
+            }
+        }
+
+        bool CanCreateParameters(IEnumerable<ParameterDefinition> parameters)
+        {
+            foreach (var pd in parameters)
+            {
+                if (!CanCreateParameter(pd))
+                    return false;
+            }
+            return true;
+        }
+
+        bool CanCreateParameter(ParameterDefinition pd)
+        {
+            return CanCreateTypeReference(pd.ParameterType);
+        }
+
+        bool CanCreateTypeReference(TypeReference typeRef)
+        {
+            switch (typeRef)
+            {
+                case GenericInstanceType git:
+                    return CanCreateReferences(git.GenericArguments);
+                case ByReferenceType brt:
+                    return false;
+                default:
+                    return true;
+            }
+        }
+
+        bool CanCreateReferences(IEnumerable<TypeReference> typeRefs)
+        {
+            foreach (var typeRef in typeRefs)
+            {
+                if (!CanCreateTypeReference(typeRef))
+                    return false;
+            }
+            return true;
         }
 
         ImmutableList<ParameterSymbol> CreateParameters(MemberSymbol? declaringSymbol, MethodReference method) =>
@@ -379,8 +436,8 @@ public class CecilSymbols : StandardSymbolTable
 
         AttributeInfo? CreateAttributeInfo(CustomAttribute data)
         {
-            var constructor = (ConstructorSymbol?)GetSymbol(data.Constructor);
-            if (constructor != null)
+            if (TryGetSymbol(data.Constructor, out var symbol)
+                && symbol is ConstructorSymbol constructor)
             {
                 var type = constructor.ConstructedType;
                 var arguments = data.ConstructorArguments
@@ -419,7 +476,7 @@ public class CecilSymbols : StandardSymbolTable
     /// <summary>
     /// Gets the interface methods that this method implements.
     /// </summary>
-    ImmutableList<MethodSymbol> GetImplementedInterfaceMethods(MethodDefinition implementationMethod)
+    private ImmutableList<MethodSymbol> GetImplementedInterfaceMethods(MethodDefinition implementationMethod)
     {
         var declaringType = ((MethodReference)implementationMethod).DeclaringType;
 
@@ -436,9 +493,9 @@ public class CecilSymbols : StandardSymbolTable
 
             foreach (var methodSymbol in ifaceSymbol!.Members.OfType<MethodSymbol>())
             {
-                if (TryGetMemberReference(methodSymbol, out var cecilMember)
-                    && cecilMember is MethodReference ifaceMethodRef
-                    && IsImplicitInterfaceImplementation(implementationMethod, ifaceMethodRef))
+                var matchingMember = CecilHelpers.GetMatchingMember(methodSymbol, iface.InterfaceType.Resolve());
+                if (matchingMember is MethodReference ifaceMethodRef
+                    && CecilHelpers.IsImplicitInterfaceImplementation(implementationMethod, ifaceMethodRef))
                 {
                     if (list == null)
                         list = new List<MethodSymbol>();
@@ -451,7 +508,6 @@ public class CecilSymbols : StandardSymbolTable
             ? list.ToImmutableList()
             : ImmutableList<MethodSymbol>.Empty;
     }
-
 
     private ImmutableList<TypeSymbol> GetBaseTypes(TypeReference? baseType, IList<InterfaceImplementation> interfaces)
     {
@@ -541,23 +597,35 @@ public class CecilSymbols : StandardSymbolTable
     /// <summary>
     /// Gets the symbol corresponding to the Cecil metadata object.
     /// </summary>
-    private Symbol? GetSymbol(IMetadataTokenProvider cecilSymbol)
+    private Symbol GetSymbol(IMetadataTokenProvider cecilSymbol)
+    {
+        if (TryGetSymbol(cecilSymbol, out var symbol))
+            return symbol;
+        throw new InvalidOperationException($"Cannot determine symbol for {cecilSymbol.GetMetadataName()}");
+    }
+
+    /// <summary>
+    /// Gets the symbol corresponding to the Cecil metadata object.
+    /// </summary>
+    private bool TryGetSymbol(IMetadataTokenProvider cecilSymbol, [NotNullWhen(true)] out Symbol? symbol)
     {
         // is this a known symbol?
-        if (_cecilToSymbolMap.TryGetValue(cecilSymbol, out var symbol))
-            return symbol;
+        if (_cecilToSymbolMap.TryGetValue(cecilSymbol, out symbol))
+            return true;
 
         symbol = Get();
-        return symbol;
+        return symbol != null;
 
         Symbol? Get()
         {
             if (cecilSymbol is MemberReference member)
             {
-                member = ResolveReference(member);
+                // convert to definition if possible
+                if (TryGetDefinition(member, out var definition))
+                    member = (MemberReference)definition;
 
                 // is resolved reference a known symbol?
-                if (_cecilToSymbolMap.TryGetValue(member, out symbol))
+                if (_cecilToSymbolMap.TryGetValue(member, out var symbol))
                     return symbol;
 
                 if (member is ArrayType at)
@@ -572,23 +640,26 @@ public class CecilSymbols : StandardSymbolTable
                 }
                 else if (member is GenericInstanceMethod gm)
                 {
-                    var elementMethod = (MethodSymbol)GetSymbol(gm.ElementMethod)!;
+                    var elementMethod = (MethodSymbol)GetSymbol(gm.ElementMethod);
                     return GetConstructedMember(elementMethod, gm.GenericArguments.ToList());
                 }
                 else if (member is GenericParameter gp)
                 {
                     Symbol? tp = null;
-                    if (!_cecilToSymbolMap.TryGetValue(gp, out tp))
+                    var ownerSymbol = (MemberSymbol)GetSymbol(gp.Owner);
+                    while (ownerSymbol != null)
                     {
-                        var ownerSymbol = GetSymbol(gp.Owner);
                         if (ownerSymbol is TypeSymbol ts)
                         {
-                            tp = ts.TypeParameters.FirstOrDefault(x => x.Name == gp.Name);
+                            tp = ts.TypeParameters.FirstOrDefault(x => gp.MatchesName(x.Name));
                         }
                         else if (ownerSymbol is MethodSymbol ms)
                         {
-                            tp = ms.TypeParameters.FirstOrDefault(x => x.Name == gp.Name);
+                            tp = ms.TypeParameters.FirstOrDefault(x => gp.MatchesName(x.Name));
                         }
+                        if (tp != null)
+                            return tp;
+                        ownerSymbol = ownerSymbol.DeclaringSymbol as MemberSymbol;
                     }
                     return tp;
                 }
@@ -598,7 +669,7 @@ public class CecilSymbols : StandardSymbolTable
                     var declaringType = GetTypeSymbol(member.DeclaringType);
                     return FindMember(declaringType, member);
                 }
-                else if (TryGetDottedPath(member, out var path))
+                else if (CecilHelpers.TryGetDottedPath(member, out var path))
                 {
                     return GetSymbol(path);
                 }
@@ -613,7 +684,9 @@ public class CecilSymbols : StandardSymbolTable
     /// </summary>
     private TypeSymbol GetTypeSymbol(TypeReference type)
     {
-        return (TypeSymbol)GetSymbol(type)!;
+        return GetSymbol(type) is TypeSymbol ts 
+            ? ts
+            : throw new InvalidOperationException("Could not get corresponding type symbol");
     }
 
     /// <summary>
@@ -662,7 +735,7 @@ public class CecilSymbols : StandardSymbolTable
             case GenericParameter gp:
                 if (gp.Owner != null)
                 {
-                    var owner = (MemberSymbol)GetSymbol((MemberReference)gp.Owner)!;
+                    var owner = (MemberSymbol)GetSymbol((MemberReference)gp.Owner);
                     return GetTypeParameter(owner, gp.Name);
                 }
                 else
@@ -765,431 +838,23 @@ public class CecilSymbols : StandardSymbolTable
 
     #endregion
 
-    #region Get Cecil types from symbols
-    /// <summary>
-    /// Gets the Cecil metadata object corresponding to the <see cref="Symbol"/>.
-    /// </summary>
-    public bool TryGetCecilSymbol(Symbol symbol, [NotNullWhen(true)] out IMetadataTokenProvider? cecilSymbol) =>
-        TryGetCecilSymbol(symbol, out cecilSymbol, null, null);
+    #region Get corresponding Cecil definitions
 
     /// <summary>
-    /// Gets the Cecil metadata object corresponding to the <see cref="Symbol"/>.
+    /// Gets the equivalent Cecil symbol definition for the given parkour <see cref="Symbol"/>.
     /// </summary>
-    public bool TryGetCecilSymbol(
-        Symbol symbol, 
-        [NotNullWhen(true)] out IMetadataTokenProvider? cecilSymbol, 
-        Func<Symbol, IMetadataTokenProvider?>? alternateSource,
-        Func<IMetadataTokenProvider, IMetadataTokenProvider>? importer)
-    {
-        if (alternateSource?.Invoke(symbol) is IMetadataTokenProvider alt)
-        {
-            cecilSymbol = alt;
-            return true;
-        }
-
-        if (symbol is TypeSymbol typeSymbol
-            && TryGetCecilTypeReference(typeSymbol, out var cecilType, alternateSource, importer))
-        {
-            cecilSymbol = cecilType;
-            return true;
-        }
-        else if (symbol is MemberSymbol memberSymbol
-            && TryGetMemberReference(memberSymbol, out var cecilMember, alternateSource, importer))
-        {
-            cecilSymbol = cecilMember;
-            return true;
-        }
-        else if (symbol is ParameterSymbol parameterSymbol
-            && parameterSymbol.DeclaringSymbol is MemberSymbol declaringMemberSymbol
-            && TryGetMemberReference(declaringMemberSymbol, out var declaringMember, alternateSource, importer)
-            && declaringMember is MethodDefinition declaringMethod)
-        {
-            var index = declaringMemberSymbol switch
-            {
-                MethodSymbol ms => ms.Parameters.IndexOf(parameterSymbol),
-                ConstructorSymbol cs => cs.Parameters.IndexOf(parameterSymbol),
-                _ => -1
-            };
-
-            var parameters = declaringMethod.Parameters;
-            if (index >= 0 && index < parameters.Count)
-            {
-                cecilSymbol = parameters[index];
-                return true;
-            }
-        }
-
-        cecilSymbol = null;
-        return false;
-    }
-
-    public TypeReference GetCecilTypeReference(
-        TypeSymbol typeSymbol)
-        => GetCecilTypeReference(typeSymbol, null, null);
-
-    public TypeReference GetCecilTypeReference(
-        TypeSymbol typeSymbol, 
-        Func<Symbol, IMetadataTokenProvider?>? alternateSource,
-        Func<IMetadataTokenProvider, IMetadataTokenProvider>? importer) 
-        =>
-        TryGetCecilTypeReference(typeSymbol, out var cecilType, alternateSource, importer)
-            ? cecilType
-            : throw new InvalidOperationException($"Could not get Cecil type reference for '{typeSymbol.FullName}'");
-
-    /// <summary>
-    /// Gets a Cecil <see cref="TypeReference"/> correpsonding with the <see cref="TypeSymbol"/>
-    /// </summary>
-    public bool TryGetCecilTypeReference(TypeSymbol typeSymbol, [NotNullWhen(true)] out TypeReference? cecilType) =>
-        TryGetCecilTypeReference(typeSymbol, out cecilType, null, null);
-
-    /// <summary>
-    /// Gets a Cecil <see cref="TypeReference"/> corresponding with the <see cref="TypeSymbol"/>
-    /// </summary>
-    public bool TryGetCecilTypeReference(
-        TypeSymbol typeSymbol, [NotNullWhen(true)] out TypeReference? cecilType, 
-        Func<Symbol, IMetadataTokenProvider?>? alternateSource,
-        Func<IMetadataTokenProvider, IMetadataTokenProvider>? importer)
-    {
-        if (typeSymbol == null)
-        {
-            cecilType = null;
-            return false;
-        }
-
-        if (alternateSource?.Invoke(typeSymbol) is TypeDefinition altType)
-        {
-            cecilType = altType;
-            return true;
-        }
-
-        if (_symbolToCecilMap.TryGetValue(typeSymbol, out var runtimeInfo)
-            && runtimeInfo is TypeDefinition rt)
-        {
-            cecilType = Import(rt);
-            return true;
-        }
-
-        if (typeSymbol == this.Object
-            || typeSymbol == SpecialSymbols.Null
-            || typeSymbol == SpecialSymbols.Unknown)
-        {
-            cecilType = Import(this.CecilObject);
-            return true;
-        }
-        else if (
-            typeSymbol == this.Void
-            || typeSymbol == SpecialSymbols.DoesNotReturn)
-        {
-            cecilType = Import(this.CecilVoid);
-            return true;
-        }
-
-        if (typeSymbol is ArraySymbol array
-            && TryGetCecilTypeReference(array.ElementType, out var elementType, alternateSource, importer))
-        {
-            cecilType = new ArrayType(elementType);           
-            return true;
-        }
-        else if (typeSymbol is TypeParameterSymbol tp)
-        {
-            if (typeSymbol.DeclaringSymbol is TypeSymbol ts 
-                && TryGetCecilTypeReference(ts, out var declaringType))
-            {
-                cecilType = new GenericParameter(tp.Name, declaringType);
-                return true;
-            }
-            else if (typeSymbol.DeclaringSymbol is MethodSymbol ms
-                && TryGetCecilSymbol(ms, out var declaringMethod))
-            {
-                cecilType = new GenericParameter(tp.Name, (MethodReference)declaringMethod);
-                return true;
-            }
-        }
-        else if (typeSymbol.Definition != null
-            && TryGetCecilTypeReference(typeSymbol.Definition, out var elementTypeDef, alternateSource, importer))
-        {
-            var generic = new GenericInstanceType(elementTypeDef);
-
-            // reference includes all type args (including type args of declaring type)
-            var allTypeArgs = GetAllTypeArguments(typeSymbol);
-            if (TryGetCecilTypeReferences(allTypeArgs, out var allTypeArgsRefs, alternateSource, importer))
-            {
-                foreach (var arg in allTypeArgsRefs)
-                {
-                    generic.GenericArguments.Add(arg);
-                }
-            }
-
-            // declaring type is element's declaring type?
-            //generic.DeclaringType = elementTypeDef.DeclaringType;
-
-            cecilType = Import(generic);
-            return true;
-        }
-        else if (typeSymbol.Definition == null)
-        {
-            if (GetFirstTypeDefinition(typeSymbol.FullName) is { } td)
-            {
-                cecilType = Import(td);
-                return true;
-            }
-        }
-
-        cecilType = null;
-        return false;
-
-        TypeReference Import(TypeReference typeRef)
-        {
-            if (importer != null)
-            {
-                return (TypeReference)importer(typeRef);
-            }
-            return typeRef;
-        }
-    }
-
-    /// <summary>
-    /// Gets all the type arguments of the symbol and declaring symbol(s)
-    /// in order as would be needed to represented in metadata.
-    /// </summary>
-    private ImmutableList<TypeSymbol> GetAllTypeArguments(MemberSymbol symbol)
-    {
-        List<TypeSymbol>? typeArgs = null;
-        Gather(symbol);
-        return typeArgs != null ? typeArgs.ToImmutableList() : ImmutableList<TypeSymbol>.Empty;
-
-        void Gather(MemberSymbol symbol)
-        {
-            if (symbol.DeclaringSymbol is TypeSymbol declaringType)
-            {
-                Gather(declaringType);
-            }
-
-            if (symbol is TypeSymbol ts && ts.TypeArguments.Count > 0)
-            {
-                if (typeArgs == null)
-                    typeArgs = new List<TypeSymbol>();
-                typeArgs.AddRange(ts.TypeArguments);
-
-            }
-            else if (symbol is MethodSymbol ms  && ms.TypeArguments.Count > 0)
-            {
-                if (typeArgs == null)
-                    typeArgs = new List<TypeSymbol>();
-                typeArgs.AddRange(ms.TypeArguments);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets a list of Cecil <see cref="TypeReference"/> corresponding to the list of <see cref="TypeSymbol"/>.
-    /// </summary>
-    private bool TryGetCecilTypeReferences(
-        IEnumerable<TypeSymbol> typeSymbols, 
-        [NotNullWhen(true)] out IReadOnlyList<TypeReference>? types,
-        Func<Symbol, IMetadataTokenProvider?>? alternateSource,
-        Func<IMetadataTokenProvider, IMetadataTokenProvider>? importer)
-    {
-        var list = new List<TypeReference>();
-
-        foreach (var typeSymbol in typeSymbols)
-        {
-            if (!TryGetCecilTypeReference(typeSymbol, out var rt, alternateSource, importer))
-            {
-                types = null;
-                return false;
-            }
-
-            list.Add(rt);
-        }
-
-        types = list;
-        return true;
-    }
-
-    /// <summary>
-    /// Gets a Cecil <see cref="MemberReference"/> corresponding to the <see cref="MemberSymbol"/>.
-    /// </summary>
-    public bool TryGetMemberReference(MemberSymbol memberSymbol, [NotNullWhen(true)] out MemberReference? member) =>
-        TryGetMemberReference(memberSymbol, out member, null, null);
-
-    /// <summary>
-    /// Gets a Cecil <see cref="MemberReference"/> corresponding to the <see cref="MemberSymbol"/>.
-    /// </summary>
-    private bool TryGetMemberReference(
-        MemberSymbol memberSymbol, 
-        [NotNullWhen(true)] out MemberReference? member, 
-        Func<Symbol, IMetadataTokenProvider?>? alternateSource,
-        Func<IMetadataTokenProvider, IMetadataTokenProvider>? importer)
-    {
-        if (alternateSource?.Invoke(memberSymbol) is MemberReference amr)
-        {
-            member = amr;
-            return true;
-        }
-
-        if (_symbolToCecilMap.TryGetValue(memberSymbol, out var runtimeInfo)
-            && runtimeInfo is MemberReference mr)
-        {
-            member = Import(mr);
-            return true;
-        }
-
-        // if this is a type, defer to TryGetTypeReference
-        if (memberSymbol is TypeSymbol typeSymbol
-            && TryGetCecilTypeReference(typeSymbol, out var typeRef, alternateSource, importer))
-        {
-            member = typeRef;
-            return true;
-        }
-
-        if (memberSymbol.Definition != null
-            && TryGetMemberReference(memberSymbol.Definition, out var memberDef))
-        {
-            var allTypeArgs = GetAllTypeArguments(memberSymbol);
-
-            // we can encode methods as GenericInstanceMethod with all the type args
-            // even if they don't have their own type parameters
-            if (memberDef is MethodDefinition methodDef && methodDef.GenericParameters.Count > 0)
-            {
-                var gm = new GenericInstanceMethod(methodDef);
-                if (TryGetCecilTypeReferences(allTypeArgs, out var allTypeArgsRefs, alternateSource, importer))
-                {
-                    foreach (var arg in allTypeArgsRefs)
-                    {
-                        gm.GenericArguments.Add(arg);
-                    }
-                }
-
-                member = Import(gm);
-                return true;
-            }
-            else
-            {
-                // make generic instance of declaring type and construct a fake member with it
-                if (TryGetCecilTypeReferences(allTypeArgs, out var allTypeArgsRefs, alternateSource, importer))
-                {
-                    var typeArgs = allTypeArgsRefs.ToArray();
-                    var dt = memberDef.DeclaringType.Resolve();
-                    var gtd = dt.MakeGenericInstanceType(typeArgs);
-                    member = (MemberReference?)GetMatchingMember(memberSymbol.Definition, gtd.Resolve());
-                    if (member != null)
-                    {
-                        member.DeclaringType = gtd;
-                        member = Import(member);
-                        return true;
-                    }
-                }
-
-#if false
-                // construct fake version of reference that has the correct types and refers to the generic declaring type
-                if (memberSymbol is FieldSymbol fieldSymbol
-                    && memberDef is FieldDefinition fieldDef)
-                {
-                    var fieldType = GetCecilTypeReference(fieldSymbol.Type, alternateSource, importer);
-                    member = Import(new FieldReference(fieldDef.Name, fieldType, gtd));
-                    return true;
-                }
-                else if (memberSymbol is ConstructorSymbol constructorSymbol
-                    && memberDef is MethodDefinition constructorDef)
-                {
-                    var voidType = _typeSystem?.Void ?? GetCecilTypeReference(this.Void);
-                    var md = new MethodDefinition(constructorDef.Name, constructorDef.Attributes, voidType);
-                    ((MethodReference)md).DeclaringType = gtd;
-                    member = Import(md);
-                    return true;
-                }
-#endif
-            }
-        }
-        else if (memberSymbol.Definition == null
-            && memberSymbol.DeclaringType != null
-            && TryGetCecilTypeReference(memberSymbol.DeclaringType, out var declaringTypeRef, alternateSource, importer)
-            && declaringTypeRef is TypeDefinition td)
-        {
-            member = (MemberReference?)GetMatchingMember(memberSymbol, td);
-            member = member != null ? Import(member) : null;
-            return member != null;
-        }
-
-        member = null;
-        return false;
-
-        IMemberDefinition? GetMatchingMember(MemberSymbol symbolDef, TypeDefinition td)
-        {
-            switch (symbolDef)
-            {
-                case MethodSymbol method:
-                    return td.Methods.FirstOrDefault(m => MatchMethod(method, m));
-                case ConstructorSymbol constructor:
-                    return td.Methods.FirstOrDefault(m => MatchConstructor(constructor, m));
-                case FieldSymbol field:
-                    return td.Fields.FirstOrDefault(f => f.Name == field.Name && f.IsStatic == field.IsStatic);
-                case PropertySymbol property:
-                    return td.Properties.FirstOrDefault(p => p.Name == property.Name && p.Parameters.Count == 0);
-                case IndexerSymbol indexer:
-                    return td.Properties.FirstOrDefault(p => p.Name == indexer.Name && MatchParameters(indexer.GetMethod!.Parameters, p.Parameters));
-                default:
-                    return null;
-            }
-
-            bool MatchMethod(MethodSymbol method, MethodDefinition methodDef)
-            {
-                if (method.Name != methodDef.Name
-                    || method.Parameters.Count != methodDef.Parameters.Count
-                    || method.TypeParameters.Count != methodDef.GenericParameters.Count)
-                    return false;
-
-                return MatchParameters(method.Parameters, methodDef.Parameters);
-            }
-
-            bool MatchConstructor(ConstructorSymbol constructor, MethodDefinition methodDef)
-            {
-                if (methodDef.IsConstructor
-                    && methodDef.IsStatic == constructor.IsStatic
-                    && methodDef.Parameters.Count == constructor.Parameters.Count)
-                {
-                    return MatchParameters(constructor.Parameters, methodDef.Parameters);
-                }
-                return false;
-            }
-
-            bool MatchParameters(IReadOnlyList<ParameterSymbol> parameters, IList<ParameterDefinition> parameterDefs)
-            {
-                if (parameterDefs.Count != parameterDefs.Count)
-                    return false;
-
-                for (int i = 0; i < parameters.Count; i++)
-                {
-                    if (!TryGetCecilTypeReference(parameters[i].Type, out var paramTypeRef))
-                        return false;
-                    if (!this.TypeReferenceComparer.Equals(parameterDefs[i].ParameterType, paramTypeRef))
-                        return false;
-                }
-
-                return true;
-            }
-        }
-
-        MemberReference Import(MemberReference memberRef)
-        {
-            if (importer != null)
-            {
-                return (MemberReference)importer(memberRef);
-            }
-            return memberRef;
-        }
-    }
+    public bool TryGetDefinition(Symbol symbol, [NotNullWhen(true)] out IMetadataTokenProvider? cecilDefinition) =>
+        _symbolToCecilMap.TryGetValue(symbol, out cecilDefinition);
 
     /// <summary>
     /// Gets the definition that the reference is referring to.
     /// </summary>
-    private bool TryGetDefinition(MemberReference reference, [NotNullWhen(true)] out IMemberDefinition? definition)
+    private bool TryGetDefinition(MemberReference reference, [NotNullWhen(true)] out IMemberDefinition? cecilDefinition)
     {
         // already a definition?
         if (reference is IMemberDefinition md)
         {
-            definition = md;
+            cecilDefinition = md;
             return true;
         }
 
@@ -1198,12 +863,12 @@ public class CecilSymbols : StandardSymbolTable
             case GenericInstanceMethod:
             case GenericInstanceType:
             case ArrayType:
-                definition = null;
+                cecilDefinition = null;
                 return false;
             case TypeReference typeRef:
                 // lookup definition by full name
-                definition = GetFirstTypeDefinition(typeRef.FullName);
-                return definition != null;
+                cecilDefinition = GetFirstTypeDefinition(typeRef.FullName);
+                return cecilDefinition != null;
         }
 
         var declaringTypeDef = reference.DeclaringType != null
@@ -1214,37 +879,38 @@ public class CecilSymbols : StandardSymbolTable
         // otherwise, find matching member in declaring type
         if (declaringTypeDef != null)
         {
-            definition = null;
+            cecilDefinition = null;
 
             switch (reference)
             {
                 case MethodReference methodRef:
-                    definition = declaringTypeDef.Methods.FirstOrDefault(m => m.Name == methodRef.Name && SignatureMatches(m, methodRef));
+                    cecilDefinition = declaringTypeDef.Methods.FirstOrDefault(m => m.Name == methodRef.Name 
+                        && CecilHelpers.SignatureMatches(m, methodRef));
                     break;
                 case FieldReference fieldRef:
-                    definition = declaringTypeDef.Fields.FirstOrDefault(f => f.Name == fieldRef.Name);
+                    cecilDefinition = declaringTypeDef.Fields.FirstOrDefault(f => f.Name == fieldRef.Name);
                     break;
                 case PropertyReference propertyRef:
-                    definition = declaringTypeDef.Properties.FirstOrDefault(p => p.Name == propertyRef.Name);
+                    cecilDefinition = declaringTypeDef.Properties.FirstOrDefault(p => p.Name == propertyRef.Name);
                     break;
                 case EventReference eventRef:
-                    definition = declaringTypeDef.Events.FirstOrDefault(e => e.Name == eventRef.Name);
+                    cecilDefinition = declaringTypeDef.Events.FirstOrDefault(e => e.Name == eventRef.Name);
                     break;
             }
 
-            return definition != null;
+            return cecilDefinition != null;
         }
 
-        definition = null;
+        cecilDefinition = null;
         return false;
     }
-#endregion
+    #endregion
 
     #region Find Cecil types by name
     /// <summary>
     /// Gets all the <see cref="TypeDefinition"/> objects with the full name.
     /// </summary>
-    private ImmutableList<TypeDefinition> GetTypeDefinitions(string fullName)
+    public ImmutableList<TypeDefinition> GetTypeDefinitions(string fullName)
     {
         if (_metadataNameToTypeMap == null)
         {
@@ -1260,7 +926,7 @@ public class CecilSymbols : StandardSymbolTable
     /// <summary>
     /// Gets the first <see cref="TypeDefinition"/> found for the name or null if not found.
     /// </summary>
-    internal TypeDefinition? GetFirstTypeDefinition(string fullName) =>
+    public TypeDefinition? GetFirstTypeDefinition(string fullName) =>
         GetTypeDefinitions(fullName).FirstOrDefault();
 
     /// <summary>
@@ -1286,410 +952,6 @@ public class CecilSymbols : StandardSymbolTable
 
     internal TypeDefinition CecilMulticastDelegate => _lazyMulitcastDelegateType ??= GetFirstTypeDefinition("System.MulticastDelegate")!;
     private TypeDefinition? _lazyMulitcastDelegateType;
-
-    #endregion
-
-    #region Cecil helpers
-    /// <summary>
-    /// Resolves name-only references to definitions if possible.
-    /// Returns the definition if found, otherwise the original reference.
-    /// </summary>
-    private MemberReference ResolveReference(MemberReference reference)
-    {
-        if (TryGetDefinition(reference, out var definition))
-        {
-            return (MemberReference)definition;
-        }
-        return reference;
-    }
-
-    /// <summary>
-    /// Implicit interface implementations are based only on method's name and signature equivalence.
-    /// </summary>
-    private bool IsImplicitInterfaceImplementation(MethodDefinition method, MethodReference interfaceMethod)
-    {
-        var declaringType = ((MethodReference)method).DeclaringType.Resolve();
-
-        // check that the 'overridden' method is iface method and the iface is implemented by method.DeclaringType
-        if (!IsInterface(interfaceMethod.DeclaringType) ||
-            !declaringType.Interfaces.Any(i => Equals(i.InterfaceType, interfaceMethod.DeclaringType)))
-        {
-            return false;
-        }
-
-        // check whether the type contains some other explicit implementation of the method
-        if (declaringType.Methods.SelectMany(m => m.Overrides).Any(m => Equals(m, interfaceMethod)))
-        {
-            // explicit implementation -> no implicit implementation possible
-            return false;
-        }
-
-        // now it is enough to just match the signatures and names:
-        return method.Name == interfaceMethod.Name && SignatureMatches(method, interfaceMethod);
-    }
-
-    /// <summary>
-    /// True if the type is known to be an interface.
-    /// </summary>
-    private bool IsInterface(TypeReference type)
-    {
-        var resolved = ResolveReference(type);
-        if (resolved is TypeDefinition td)
-            return td.IsInterface;
-        else if (resolved is GenericInstanceType git)
-            return IsInterface(git.ElementType);
-        return false;
-    }
-
-    /// <summary>
-    /// True if the two method signatures match
-    /// </summary>
-    private bool SignatureMatches(MethodReference method1, MethodReference method2)
-    {
-        method1 = (MethodReference)ResolveReference(method1);
-        method2 = (MethodReference)ResolveReference(method2);
-
-        if (method1 is GenericInstanceMethod gm1 && method2 is GenericInstanceMethod gm2)
-        {
-            if (!SignatureMatches(gm1.ElementMethod, gm2.ElementMethod))
-                return false;
-
-            return Equals(gm1.GenericArguments, gm2.GenericArguments);
-        }
-        else
-        {
-            if (method1.GenericParameters.Count != method2.GenericParameters.Count)
-                return false;
-
-            if (method1.Parameters.Count != method2.Parameters.Count)
-                return false;
-
-            for (int i = 0; i < method1.Parameters.Count; i++)
-            {
-                if (!Equals(method1.Parameters[i].ParameterType, method2.Parameters[i].ParameterType))
-                    return false;
-            }
-        }
-
-        return true;
-    }
-
-#if false
-    /// <summary>
-    /// True if this method overrides the specified method.
-    /// </summary>
-    private bool Overrides(MethodDefinition method, MethodReference overridden)
-    {
-        bool explicitIfaceImplementation = method.Overrides.Any(overrides => Equals(overrides, overridden));
-        if (explicitIfaceImplementation)
-        {
-            return true;
-        }
-
-        if (IsImplicitInterfaceImplementation(method, overridden))
-        {
-            return true;
-        }
-
-        // new slot method cannot override any base classes' method by convention:
-        if (method.IsNewSlot)
-        {
-            return false;
-        }
-
-        // check base-type overrides using Cecil's helper method GetOriginalBaseMethod()
-        return Equals(method.GetOriginalBaseMethod(), overridden);
-    }
-#endif
-
-    /// <summary>
-    /// Gets the dotted path to a symbol in the global namespace.
-    /// </summary>
-    private static bool TryGetDottedPath(IMetadataTokenProvider cecilSymbol, [NotNullWhen(true)] out string? dottedPath)
-    {
-        dottedPath = GetPath(cecilSymbol);
-        return dottedPath != null;
-
-        string? GetPath(IMetadataTokenProvider cecilSymbol)
-        {
-            return GetConstructedPath(cecilSymbol, ImmutableList<TypeReference>.Empty);
-        }
-
-        string? GetConstructedPath(IMetadataTokenProvider cecilSymbol, ImmutableList<TypeReference> typeArguments)
-        {
-            if (cecilSymbol is TypeDefinition type)
-            {
-                var myTypeArgs = typeArguments.Count >= type.GenericParameters.Count
-                    ? typeArguments.GetRange(typeArguments.Count - type.GenericParameters.Count, type.GenericParameters.Count)
-                    : ImmutableList<TypeReference>.Empty;
-                var remainingTypeArgs = myTypeArgs.Count > 0
-                    ? typeArguments.RemoveRange(typeArguments.Count - myTypeArgs.Count, myTypeArgs.Count)
-                    : typeArguments;
-
-                if (type.DeclaringType != null)
-                {
-                    if (GetConstructedPath(type.DeclaringType, remainingTypeArgs) is string declaringTypePath)
-                    {
-                        return WithTypeArgs(declaringTypePath + "." + type.Name, myTypeArgs);
-                    }
-                }
-                else if (type.Namespace != null)
-                {
-                    return WithTypeArgs(type.Namespace + "." + type.Name, myTypeArgs);
-                }
-                else
-                {
-                    return WithTypeArgs(type.Name, myTypeArgs);
-                }
-            }
-            else if (cecilSymbol is GenericInstanceType gt)
-            {
-                var typeArgs = gt.GenericArguments.ToList();
-                return GetConstructedPath(gt.ElementType, typeArguments);
-            }
-            else if (cecilSymbol is GenericInstanceMethod gm)
-            {
-                var typeArgs = gm.GenericArguments.ToList();
-                return GetConstructedPath(gm.ElementMethod, typeArguments);
-            }
-            else if (cecilSymbol is MethodDefinition method)
-            {
-                var myTypeArgs = typeArguments.Count >= method.GenericParameters.Count
-                    ? typeArguments.GetRange(typeArguments.Count - method.GenericParameters.Count, method.GenericParameters.Count)
-                    : ImmutableList<TypeReference>.Empty;
-                var remainingTypeArgs = myTypeArgs.Count > 0
-                    ? typeArguments.RemoveRange(typeArguments.Count - myTypeArgs.Count, myTypeArgs.Count)
-                    : typeArguments;
-
-                if (method.DeclaringType != null)
-                {
-                    if (GetConstructedPath(method.DeclaringType, remainingTypeArgs) is string declaringTypePath)
-                    {
-                        return WithTypeArgs(declaringTypePath + "." + method.Name, myTypeArgs);
-                    }
-                }
-                else
-                {
-                    return WithTypeArgs(method.Name, myTypeArgs);
-                }
-            }
-            else if (cecilSymbol is IMemberDefinition member)
-            {
-                if (member.DeclaringType != null)
-                {
-                    if (GetConstructedPath(member.DeclaringType, typeArguments) is string declaringTypePath)
-                    {
-                        return declaringTypePath + "." + member.Name;
-                    }
-                }
-                else
-                {
-                    return member.Name;
-                }
-            }
-
-            return null;
-        }
-
-        string? WithTypeArgs(string? path, ImmutableList<TypeReference> typeArgs)
-        {
-            if (path != null && typeArgs.Count > 0)
-            {
-                return $"{path}[{string.Join(", ", typeArgs.Select(ta => GetPath(ta) ?? ta.Name))}]";
-            }
-            return path;
-        }
-    }
-
-    #endregion
-
-    #region Cecil object equality
-
-    /// <summary>
-    /// Returns true if the two Cecil metadata objects are the same or refer to the same definition or instantiation.
-    /// </summary>
-    private bool Equals(IMetadataTokenProvider? x, IMetadataTokenProvider? y)
-    {
-        if (x == y)
-            return true;
-
-        if (x == null || y == null)
-            return false;
-
-        if (x is MemberReference xmr && y is MemberReference ymr)
-        {
-            xmr = ResolveReference(xmr);
-            ymr = ResolveReference(ymr);
-
-            if (x is GenericInstanceType xgt && y is GenericInstanceType ygt)
-            {
-                return Equals(xgt.ElementType, ygt.ElementType)
-                    && Equals(xgt.GenericArguments, ygt.GenericArguments);
-            }
-            else if (x is GenericInstanceMethod xgm && y is GenericInstanceMethod ygm)
-            {
-                return Equals(xgm.ElementMethod, ygm.ElementMethod)
-                    && Equals(xgm.GenericArguments, ygm.GenericArguments);
-            }
-            else if (x is ArrayType xat && y is ArrayType yat)
-            {
-                return xat.Rank == yat.Rank
-                    && Equals(xat.ElementType, yat.ElementType);
-            }
-            else if (x is TypeReference xt && y is TypeReference yt)
-            {
-                if (xt.IsGenericParameter && yt.IsGenericParameter)
-                {
-                    return xt.Name == yt.Name;
-                }
-                else
-                {
-                    return xt.Name == yt.Name
-                        && xt.Namespace == yt.Namespace
-                        && xt.GenericParameters.Count == yt.GenericParameters.Count;
-                }
-            }
-            else if (x is MethodReference xmd && y is MethodReference ymd)
-            {
-                return xmd.Name == ymd.Name
-                    && xmd.GenericParameters.Count == ymd.GenericParameters.Count
-                    && xmd.Parameters.Count == ymd.Parameters.Count
-                    && Equals(xmd.Parameters, ymd.Parameters)
-                    && Equals(xmd.DeclaringType, ymd.DeclaringType);
-            }
-            else if (x is FieldReference xf && y is FieldReference yf)
-            {
-                return xf.Name == yf.Name
-                    && Equals(xf.FieldType, yf.FieldType)
-                    && Equals(xf.DeclaringType, yf.DeclaringType);
-            }
-            else if (x is PropertyReference xp && y is PropertyReference yp)
-            {
-                return xp.Name == yp.Name
-                    && Equals(xp.PropertyType, yp.PropertyType)
-                    && Equals(xp.DeclaringType, yp.DeclaringType);
-            }
-            else if (x is EventReference xe && y is EventReference ye)
-            {
-                return xe.Name == ye.Name
-                    && Equals(xe.EventType, ye.EventType)
-                    && Equals(xe.DeclaringType, ye.DeclaringType);
-            }
-            else
-            {
-                return xmr.Name == ymr.Name
-                    && Equals(xmr.DeclaringType, ymr.DeclaringType);
-            }
-        }
-        else if (x is ParameterReference xpr && y is ParameterReference ypr)
-        {
-            return xpr.Name == ypr.Name
-                && Equals(xpr.ParameterType, ypr.ParameterType);
-        }
-
-        return x == y;
-    }
-
-    private bool Equals<T>(IList<T> x, IList<T> y) where T : IMetadataTokenProvider
-    {
-        if (x.Count != y.Count)
-            return false;
-
-        for (int i = 0; i < x.Count; i++)
-        {
-            if (!Equals(x[i], y[i]))
-                return false;
-        }
-
-        return true;
-    }
-
-    public int GetHashCode(IMetadataTokenProvider symbol)
-    {
-        if (symbol is MemberReference mr)
-        {
-            mr = ResolveReference(mr);
-
-            if (mr is GenericInstanceType gt)
-            {
-                return HashCode.Combine(
-                    GetHashCode(gt.ElementType),
-                    GetHashCode(gt.GenericArguments)
-                    );
-            }
-            else if (mr is GenericInstanceMethod gm)
-            {
-                return HashCode.Combine(
-                    GetHashCode(gm.ElementMethod),
-                    GetHashCode(gm.GenericArguments)
-                    );
-            }
-            else if (mr is ArrayType at)
-            {
-                return GetHashCode(at.ElementType);
-            }
-            else if (!mr.IsDefinition)
-            {
-                if (mr is TypeReference tr)
-                {
-                    return HashCode.Combine(tr.FullName);
-                }
-                else if (mr.DeclaringType != null)
-                {
-                    return HashCode.Combine(GetHashCode(mr.DeclaringType), mr.Name);
-                }
-            }
-        }
-        else if (symbol is ParameterReference pr)
-        {
-            HashCode.Combine(pr.Name.GetHashCode(), pr.ParameterType.GetHashCode());
-        }
-
-        return symbol.GetHashCode();
-    }
-
-    private int GetHashCode<T>(IList<T> symbols) where T : IMetadataTokenProvider
-    {
-        int hash = 0;
-        foreach (var symbol in symbols)
-        {
-            hash = HashCode.Combine(hash, symbol.GetHashCode());
-        }
-        return hash;
-    }
-
-    /// <summary>
-    /// A comparer for Cecil type references.
-    /// </summary>
-    public EqualityComparer<TypeReference> TypeReferenceComparer => 
-        _lazyTypeReferenceComparer ??= new CecilEqualityComparer<TypeReference>(this);
-    private EqualityComparer<TypeReference>? _lazyTypeReferenceComparer;
-
-    /// <summary>
-    /// Compares Cecil symbols for equality.
-    /// Definitions must be same instance.
-    /// References must refer to same definition and have same instantiation etc.
-    /// </summary>
-    public class CecilEqualityComparer<T> : EqualityComparer<T>
-        where T : IMetadataTokenProvider
-    {
-        private readonly CecilSymbols _symbols;
-
-        public CecilEqualityComparer(CecilSymbols symbols)
-        {
-            _symbols = symbols;
-        }
-
-        public override bool Equals(T? x, T? y)
-        {
-            return _symbols.Equals(x, y);
-        }
-
-        public override int GetHashCode([DisallowNull] T symbol)
-        {
-            return _symbols.GetHashCode(symbol);
-        }
-    }
 
     #endregion
 

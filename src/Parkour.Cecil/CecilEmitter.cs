@@ -1,16 +1,18 @@
-﻿using System;
+﻿using Mono.Cecil;
+using Mono.Collections.Generic;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Mono.Cecil;
-using Mono.Collections.Generic;
 
 namespace Parkour.Cecil;
 
+using Mono.Cecil.Rocks;
 using Semantics;
 using Symbols;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection.Emit;
 
 /// <summary>
@@ -149,7 +151,7 @@ public partial class CecilEmitter : SemanticEmitter
             var hasBaseType = false;
             foreach (var bt in typeSymbol.BaseTypes)
             {
-                var btr = GetCecilType(bt);
+                var btr = GetEmitTypeReference(bt);
                 if (bt.IsInterface)
                 {
                     typeDef.Interfaces.Add(new InterfaceImplementation(btr));
@@ -165,7 +167,7 @@ public partial class CecilEmitter : SemanticEmitter
             {
                 if (typeSymbol.IsValueType)
                 {
-                    typeDef.BaseType = GetCecilType(_externalSymbols.GetTypeSymbol(typeof(ValueType)));
+                    typeDef.BaseType = GetEmitTypeReference(_externalSymbols.GetTypeSymbol(typeof(ValueType)));
                 }
                 else if (typeSymbol.IsClass)
                 {
@@ -208,7 +210,7 @@ public partial class CecilEmitter : SemanticEmitter
             switch (declaration.Symbol)
             {
                 case FieldSymbol field:
-                    var fieldType = GetCecilType(field.Type);
+                    var fieldType = GetEmitTypeReference(field.Type);
                     var fieldAttributes = GetFieldAttributes(field);
                     var fieldDef = new FieldDefinition(field.Name, fieldAttributes, fieldType);
                     _symbolToDefinition.Add(field, fieldDef);
@@ -226,7 +228,7 @@ public partial class CecilEmitter : SemanticEmitter
 
                 case MethodSymbol method:
                     var methodAttributes = GetMethodAttributes(method);
-                    var methodDef = new MethodDefinition(method.Name, methodAttributes, GetCecilType(method.ReturnType));
+                    var methodDef = new MethodDefinition(method.Name, methodAttributes, GetEmitTypeReference(method.ReturnType));
                     _symbolToDefinition.Add(method, methodDef);
                     AddParameters(methodDef.Parameters, method.Parameters);
                     foreach (var tp in method.TypeParameters)
@@ -240,7 +242,7 @@ public partial class CecilEmitter : SemanticEmitter
 
                 case PropertySymbol property when declaration is PropertyDeclaration propertyDecl:
                     var propertyAttributes = GetPropertyAttributes(property);
-                    var propertyType = GetCecilType(property.Type);
+                    var propertyType = GetEmitTypeReference(property.Type);
                     var propertyDef = new PropertyDefinition(property.Name, propertyAttributes, propertyType);
                     _symbolToDefinition.Add(property, propertyDef);
                     declaringType.Properties.Add(propertyDef);
@@ -262,7 +264,7 @@ public partial class CecilEmitter : SemanticEmitter
 
                 case IndexerSymbol indexer when declaration is IndexerDeclaration indexerDecl:
                     var indexerAttributes = GetPropertyAttributes(indexer);
-                    var indexerType = GetCecilType(indexer.ElementType);
+                    var indexerType = GetEmitTypeReference(indexer.ElementType);
                     var indexerDef = new PropertyDefinition(indexer.Name, indexerAttributes, indexerType);
                     _symbolToDefinition.Add(indexer, indexerDef);
                     AddParameters(indexerDef.Parameters, indexer.GetMethod!.Parameters, addToMap: false);
@@ -290,7 +292,7 @@ public partial class CecilEmitter : SemanticEmitter
 
         ParameterDefinition CreateParameter(ParameterSymbol parameter, bool addToMap)
         {
-            var type = GetCecilType(parameter.Type);
+            var type = GetEmitTypeReference(parameter.Type);
             var attributes = GetParameterAttributes(parameter);
             var definition = new ParameterDefinition(parameter.Name, attributes, type);
             if (addToMap)
@@ -575,13 +577,13 @@ public partial class CecilEmitter : SemanticEmitter
 
     private CustomAttribute CreateCustomAttribute(AttributeInfo info)
     {
-        var constructor = GetCecilReference<MethodReference>(info.Constructor);
+        var constructor = GetEmitSymbolReference<MethodReference>(info.Constructor);
         var argValues = info.Arguments.Select(a => GetValue(a.Value)).ToArray();
         var props = info.Members.Where(m => m.Member is PropertySymbol);
-        var propInfos = props.Select(p => GetCecilReference<PropertyReference>(p.Member)).ToArray();
+        var propInfos = props.Select(p => GetEmitSymbolReference<PropertyReference>(p.Member)).ToArray();
         var propValues = props.Select(p => GetValue(p.Value)).ToArray();
         var fields = info.Members.Where(m => m.Member is FieldSymbol);
-        var fieldInfos = fields.Select(f => GetCecilReference<FieldReference>(f.Member)).ToArray();
+        var fieldInfos = fields.Select(f => GetEmitSymbolReference<FieldReference>(f.Member)).ToArray();
         var fieldValues = fields.Select(f => GetValue(f.Value)).ToArray();
 
         var attr = new CustomAttribute(constructor);
@@ -609,12 +611,12 @@ public partial class CecilEmitter : SemanticEmitter
             {
                 case AttributeConstantValue cv:
                     var valueTypeSymbol = _externalSymbols.GetTypeSymbol(cv.Value != null ? cv.Value.GetType() : typeof(object));
-                    var valueTypeRef = GetCecilType(valueTypeSymbol);
+                    var valueTypeRef = GetEmitTypeReference(valueTypeSymbol);
                     return new CustomAttributeArgument(valueTypeRef, cv.Value);
                 case AttributeTypeValue tv:
-                    return new CustomAttributeArgument(_externalSymbols.CecilType, GetCecilType(tv.Type));
+                    return new CustomAttributeArgument(_externalSymbols.CecilType, GetEmitTypeReference(tv.Type));
                 case AttributeArrayValue av:
-                    var elemType = GetCecilType(av.ElementType);
+                    var elemType = GetEmitTypeReference(av.ElementType);
                     var arrayType = new ArrayType(elemType);
                     var values = av.Values.Select(v => GetValue(v)).ToArray();
                     return new CustomAttributeArgument(elemType, values);
@@ -623,26 +625,6 @@ public partial class CecilEmitter : SemanticEmitter
             }
         }
     }
-
-    internal TypeReference GetCecilType(TypeSymbol typeSymbol) =>
-        GetCecilReference<TypeReference>(typeSymbol);
-
-    internal TRef GetCecilReference<TRef>(Symbol symbol)
-        where TRef : MemberReference
-    {
-        var cr = GetCecilReference(symbol);
-        if (cr != null && cr is TRef tinfo)
-        {
-            return tinfo;
-        }
-        else
-        {
-            throw new InvalidOperationException($"Could not convert symbol '{symbol.FullName}' to cecil metadata object.");
-        }
-    }
-
-    internal IMetadataTokenProvider? GetCecilReference(Symbol symbol) =>
-        _externalSymbols.TryGetCecilSymbol(symbol, out var obj, GetEmittedSymbol, GetImportedSymbol) ? obj : null;
 
     private IMetadataTokenProvider? GetEmittedSymbol(Symbol symbol)
     {
@@ -661,14 +643,7 @@ public partial class CecilEmitter : SemanticEmitter
     /// <summary>
     /// Gets the imported version of the symbol.
     /// </summary>
-    private IMetadataTokenProvider GetImportedSymbol(IMetadataTokenProvider symbol) =>
-        GetImportedSymbol<IMetadataTokenProvider>(symbol);
-
-    /// <summary>
-    /// Gets the imported version of the symbol.
-    /// </summary>
-    private TSymbol GetImportedSymbol<TSymbol>(TSymbol symbol)
-        where TSymbol : IMetadataTokenProvider
+    private IMetadataTokenProvider GetImportedSymbol(IMetadataTokenProvider symbol)
     {
         if (!_importedSymbols.TryGetValue(symbol, out var imported))
         {
@@ -677,7 +652,7 @@ public partial class CecilEmitter : SemanticEmitter
                 _importedSymbols[symbol] = imported;
         }
 
-        return (TSymbol)(imported ?? symbol);
+        return imported ?? symbol;
 
         IMetadataTokenProvider? Import()
         {
@@ -690,6 +665,32 @@ public partial class CecilEmitter : SemanticEmitter
                             return _module.TypeSystem.Object;
                         case "System.Void":
                             return _module.TypeSystem.Void;
+                        case "System.Boolean":
+                            return _module.TypeSystem.Boolean;
+                        case "System.Int64":
+                            return _module.TypeSystem.Int64;
+                        case "System.Int32":
+                            return _module.TypeSystem.Int32;
+                        case "System.Int16":
+                            return _module.TypeSystem.Int16;
+                        case "System.Int8":
+                            return _module.TypeSystem.SByte;
+                        case "System.UInt64":
+                            return _module.TypeSystem.UInt64;
+                        case "System.UInt32":
+                            return _module.TypeSystem.UInt32;
+                        case "System.UInt16":
+                            return _module.TypeSystem.UInt16;
+                        case "System.UInt8":
+                            return _module.TypeSystem.Byte;
+                        case "System.String":
+                            return _module.TypeSystem.String;
+                        case "System.Char":
+                            return _module.TypeSystem.Char;
+                        case "System.Single":
+                            return _module.TypeSystem.Single;
+                        case "System.Double":
+                            return _module.TypeSystem.Double;
                         default:
                             return _module.ImportReference(typeRef);
                     }
@@ -697,11 +698,341 @@ public partial class CecilEmitter : SemanticEmitter
                     return _module.ImportReference(methodRef);
                 case FieldReference fieldRef:
                     return _module.ImportReference(fieldRef);
-                //case PropertyReference propertyRef:
-                //    return _module.ImportReference(propertyRef);
                 default:
                     return null;
             }
         }
     }
+
+    #region Get Cecil symbols from parkour symbols
+
+    /// <summary>
+    /// Gets the Cecil symbol reference corresponding to the parkour <see cref="Symbol"/>
+    /// for emitting into IL.
+    /// </summary>
+    private TRef GetEmitSymbolReference<TRef>(Symbol symbol)
+        where TRef : IMetadataTokenProvider
+    { 
+        var symbolRef = GetEmitSymbolReference(symbol);
+        if (symbolRef is TRef tref)
+            return tref;
+        throw new InvalidOperationException($"Could not convert symbol of type '{symbolRef.GetType().Name}' to {typeof(TRef).Name}.");
+    }
+
+    /// <summary>
+    /// Gets the Cecil symbol reference corresponding to the parkour <see cref="Symbol"/>
+    /// for emitting into IL.
+    /// </summary>
+    private IMetadataTokenProvider GetEmitSymbolReference(Symbol symbol) =>
+        TryGetEmitSymbolReference(symbol, out var cecilSymbol)
+            ? cecilSymbol
+            : throw new InvalidOperationException($"Could not get Cecil symbol for '{symbol.FullName}'");
+
+    /// <summary>
+    /// Gets the Cecil symbol reference corresponding to the parkour <see cref="Symbol"/>
+    /// for emitting into IL.
+    /// </summary>
+    private bool TryGetEmitSymbolReference(
+        Symbol symbol,
+        [NotNullWhen(true)] out IMetadataTokenProvider? cecilSymbol)
+    {
+        if (_symbolToDefinition.TryGetValue(symbol, out cecilSymbol))
+            return true;
+
+        if (symbol is TypeSymbol typeSymbol
+            && TryGetEmitTypeReference(typeSymbol, out var cecilType))
+        {
+            cecilSymbol = cecilType;
+            return true;
+        }
+        else if (symbol is MemberSymbol memberSymbol
+            && TryGetEmitMemberReference(memberSymbol, out var cecilMember))
+        {
+            cecilSymbol = cecilMember;
+            return true;
+        }
+        else if (symbol is ParameterSymbol parameterSymbol
+            && parameterSymbol.DeclaringSymbol is MemberSymbol declaringMemberSymbol
+            && TryGetEmitMemberReference(declaringMemberSymbol, out var declaringMember)
+            && declaringMember is MethodDefinition declaringMethod)
+        {
+            var index = declaringMemberSymbol switch
+            {
+                MethodSymbol ms => ms.Parameters.IndexOf(parameterSymbol),
+                ConstructorSymbol cs => cs.Parameters.IndexOf(parameterSymbol),
+                _ => -1
+            };
+
+            var parameters = declaringMethod.Parameters;
+            if (index >= 0 && index < parameters.Count)
+            {
+                cecilSymbol = parameters[index];
+                return true;
+            }
+        }
+
+        cecilSymbol = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Gets a Cecil <see cref="TypeReference"/> corresponding with the <see cref="TypeSymbol"/>
+    /// for emitting into IL.
+    /// </summary>
+    private TypeReference GetEmitTypeReference(TypeSymbol typeSymbol) =>
+        TryGetEmitTypeReference(typeSymbol, out var cecilType)
+            ? cecilType
+            : throw new InvalidOperationException($"Could not get Cecil type reference for '{typeSymbol.FullName}'");
+
+    /// <summary>
+    /// Gets a Cecil <see cref="TypeReference"/> corresponding with the <see cref="TypeSymbol"/>
+    /// for emitting into IL.
+    /// </summary>
+    private bool TryGetEmitTypeReference(TypeSymbol typeSymbol, [NotNullWhen(true)] out TypeReference? cecilType)
+    {
+        // paranoid
+        if (typeSymbol == null)
+        {
+            cecilType = null;
+            return false;
+        }
+
+        // check if we already have the definition in the emitted symbols
+        if (_symbolToDefinition.TryGetValue(typeSymbol, out var cecilDefinition)
+            && cecilDefinition is TypeDefinition cecilTypeDefinition)
+        {
+            cecilType = cecilTypeDefinition;
+            return true;
+        }
+
+        // check if we already have the definition in the external symbols
+        if (_externalSymbols.TryGetDefinition(typeSymbol, out cecilDefinition)
+            && cecilDefinition is TypeDefinition ctd)
+        {
+            cecilType = (TypeReference)GetImportedSymbol(ctd);
+            return true;
+        }
+
+        if (typeSymbol == _externalSymbols.Object
+            || typeSymbol == SpecialSymbols.Null
+            || typeSymbol == SpecialSymbols.Unknown)
+        {
+            cecilType = (TypeReference)GetImportedSymbol(_externalSymbols.CecilObject);
+            return true;
+        }
+        else if (
+            typeSymbol == _externalSymbols.Void
+            || typeSymbol == SpecialSymbols.DoesNotReturn)
+        {
+            cecilType = (TypeReference)GetImportedSymbol(_externalSymbols.CecilVoid);
+            return true;
+        }
+
+        if (typeSymbol is ArraySymbol array
+            && TryGetEmitTypeReference(array.ElementType, out var elementType))
+        {
+            cecilType = new ArrayType(elementType);
+            return true;
+        }
+        else if (typeSymbol is TypeParameterSymbol tp)
+        {
+            if (typeSymbol.DeclaringSymbol is TypeSymbol ts
+                && TryGetEmitTypeReference(ts, out var declaringType))
+            {
+                cecilType = new GenericParameter(tp.Name, declaringType);
+                return true;
+            }
+            else if (typeSymbol.DeclaringSymbol is MethodSymbol ms
+                && TryGetEmitSymbolReference(ms, out var declaringMethod))
+            {
+                cecilType = new GenericParameter(tp.Name, (MethodReference)declaringMethod);
+                return true;
+            }
+        }
+        else if (typeSymbol.Definition != null
+            && TryGetEmitTypeReference(typeSymbol.Definition, out var elementTypeDef))
+        {
+            var generic = new GenericInstanceType(elementTypeDef);
+
+            // reference includes all type args (including type args of declaring type)
+            var allTypeArgs = GetAllTypeArguments(typeSymbol);
+            if (TryGetEmitTypeReferences(allTypeArgs, out var allTypeArgsRefs))
+            {
+                foreach (var arg in allTypeArgsRefs)
+                {
+                    generic.GenericArguments.Add(arg);
+                }
+            }
+
+            cecilType = (TypeReference)GetImportedSymbol(generic);
+            return true;
+        }
+        else if (typeSymbol.Definition == null)
+        {
+            // find by name
+            if (_externalSymbols.GetFirstTypeDefinition(typeSymbol.FullName) is { } td)
+            {
+                cecilType = (TypeReference)GetImportedSymbol(td);
+                return true;
+            }
+        }
+
+        cecilType = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Gets all the type arguments of the symbol and declaring symbol(s)
+    /// in order as would be needed to represented in metadata.
+    /// </summary>
+    private ImmutableList<TypeSymbol> GetAllTypeArguments(MemberSymbol symbol)
+    {
+        List<TypeSymbol>? typeArgs = null;
+        Gather(symbol);
+        return typeArgs != null ? typeArgs.ToImmutableList() : ImmutableList<TypeSymbol>.Empty;
+
+        void Gather(MemberSymbol symbol)
+        {
+            if (symbol.DeclaringSymbol is TypeSymbol declaringType)
+            {
+                Gather(declaringType);
+            }
+
+            if (symbol is TypeSymbol ts && ts.TypeArguments.Count > 0)
+            {
+                if (typeArgs == null)
+                    typeArgs = new List<TypeSymbol>();
+                typeArgs.AddRange(ts.TypeArguments);
+
+            }
+            else if (symbol is MethodSymbol ms && ms.TypeArguments.Count > 0)
+            {
+                if (typeArgs == null)
+                    typeArgs = new List<TypeSymbol>();
+                typeArgs.AddRange(ms.TypeArguments);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a list of Cecil <see cref="TypeReference"/> corresponding to the list of <see cref="TypeSymbol"/>
+    /// for emitting into IL.
+    /// </summary>
+    private bool TryGetEmitTypeReferences(
+        IEnumerable<TypeSymbol> typeSymbols,
+        [NotNullWhen(true)] out IReadOnlyList<TypeReference>? types)
+    {
+        var list = new List<TypeReference>();
+
+        foreach (var typeSymbol in typeSymbols)
+        {
+            if (!TryGetEmitTypeReference(typeSymbol, out var rt))
+            {
+                types = null;
+                return false;
+            }
+
+            list.Add(rt);
+        }
+
+        types = list;
+        return true;
+    }
+
+    /// <summary>
+    /// Gets a <see cref="MemberReference"/> corresponding to the <see cref="MemberSymbol"/>
+    /// for emitting into IL.
+    /// </summary>
+    private MemberReference GetEmitMemberReference(MemberSymbol memberSymbol) =>
+        TryGetEmitMemberReference(memberSymbol, out var member)
+            ? member
+            : throw new InvalidOperationException($"Could not get Cecil member reference for '{memberSymbol.FullName}'");
+
+    /// <summary>
+    /// Gets a <see cref="MemberReference"/> corresponding to the <see cref="MemberSymbol"/>
+    /// for emitting into IL.
+    /// </summary>
+    private bool TryGetEmitMemberReference(
+        MemberSymbol memberSymbol,
+        [NotNullWhen(true)] out MemberReference? member)
+    {
+        if (_symbolToDefinition.TryGetValue(memberSymbol, out var cecilDefinition)
+            && cecilDefinition is MemberReference cecilMemberReference)
+        {
+            member = cecilMemberReference;
+            return true;
+        }
+
+        if (_externalSymbols.TryGetDefinition(memberSymbol, out cecilDefinition)
+            && cecilDefinition is MemberReference mr)
+        {
+            member = (MemberReference)GetImportedSymbol(mr);
+            return true;
+        }
+
+        // if this is a type, defer to TryGetTypeReference
+        if (memberSymbol is TypeSymbol typeSymbol
+            && TryGetEmitTypeReference(typeSymbol, out var typeRef))
+        {
+            member = typeRef;
+            return true;
+        }
+
+        if (memberSymbol.Definition != null
+            && TryGetEmitMemberReference(memberSymbol.Definition, out var memberDef))
+        {
+            var allTypeArgs = GetAllTypeArguments(memberSymbol);
+
+            // we can encode methods as GenericInstanceMethod with all the type args
+            // even if they don't have their own type parameters
+            if (memberDef is MethodDefinition methodDef && methodDef.GenericParameters.Count > 0)
+            {
+                var gm = new GenericInstanceMethod(methodDef);
+                if (TryGetEmitTypeReferences(allTypeArgs, out var allTypeArgsRefs))
+                {
+                    foreach (var arg in allTypeArgsRefs)
+                    {
+                        gm.GenericArguments.Add(arg);
+                    }
+                }
+
+                member = (MemberReference)GetImportedSymbol(gm);
+                return true;
+            }
+            else
+            {
+                // make generic instance of declaring type and construct a fake member with it
+                if (TryGetEmitTypeReferences(allTypeArgs, out var allTypeArgsRefs))
+                {
+                    var typeArgs = allTypeArgsRefs.ToArray();
+                    var dt = memberDef.DeclaringType.Resolve();
+                    var gtd = dt.MakeGenericInstanceType(typeArgs);
+                    member = (MemberReference?)CecilHelpers.GetMatchingMember(memberSymbol.Definition, gtd.Resolve());
+                    if (member != null)
+                    {
+                        member.DeclaringType = gtd;
+                        member = (MemberReference)GetImportedSymbol(member);
+                        return true;
+                    }
+                }
+            }
+        }
+        else if (memberSymbol.Definition == null
+            && memberSymbol.DeclaringType != null
+            && TryGetEmitTypeReference(memberSymbol.DeclaringType, out var declaringTypeRef)
+            && declaringTypeRef is TypeDefinition td)
+        {
+            member = (MemberReference?)CecilHelpers.GetMatchingMember(memberSymbol, td);
+            member = member != null ? (MemberReference)GetImportedSymbol(member) : null;
+            return member != null;
+        }
+
+        member = null;
+        return false;
+    }
+
+    private static readonly CecilEqualityComparer<TypeReference> TypeReferenceComparer = 
+        CecilEqualityComparer<TypeReference>.Instance;
+
+#endregion
 }

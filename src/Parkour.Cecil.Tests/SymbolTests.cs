@@ -77,7 +77,7 @@ namespace Tests
 
             listInt32.WalkDeclarations(null);
 
-            symbols.TryGetCecilTypeReference(listInt32, out var cecilType);
+            //symbols.TryGetCecilTypeReference(listInt32, out var cecilType);
         }
 
 

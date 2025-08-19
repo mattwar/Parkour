@@ -30,7 +30,7 @@ public partial class CecilEmitter
             _body = body;
             _diagnostics = diagnostics;
             _ilgen = body.GetILProcessor();
-            _variablePool = new Dictionary<TypeReference, Stack<VariableDefinition>>(externalSymbols.TypeReferenceComparer);
+            _variablePool = new Dictionary<TypeReference, Stack<VariableDefinition>>(CecilEmitter.TypeReferenceComparer);
         }
 
         public override SymbolTable ExternalSymbols =>
@@ -77,7 +77,7 @@ public partial class CecilEmitter
         {
             if (!_variableToLocalMap.TryGetValue(variable, out var local))
             {
-                var variableType = _emitter.GetCecilType(variable.Type);
+                var variableType = _emitter.GetEmitTypeReference(variable.Type);
                 local = AllocateVariable(variableType);
                 _variableToLocalMap.Add(variable, local);
             }
@@ -227,7 +227,7 @@ public partial class CecilEmitter
 
         public override void EmitLoadArrayElement(TypeSymbol elementTypeSymbol)
         {
-            var type = _emitter.GetCecilType(elementTypeSymbol);
+            var type = _emitter.GetEmitTypeReference(elementTypeSymbol);
 
             switch (type.MetadataType)
             {
@@ -282,7 +282,7 @@ public partial class CecilEmitter
 
         public override void EmitStoreArrayElement(TypeSymbol elementTypeSymbol)
         {
-            var type = _emitter.GetCecilType(elementTypeSymbol);
+            var type = _emitter.GetEmitTypeReference(elementTypeSymbol);
             switch (type.MetadataType)
             {
                 case MetadataType.SByte:
@@ -326,7 +326,7 @@ public partial class CecilEmitter
 
         public override void EmitLoadField(FieldSymbol field)
         {
-            var fi = _emitter.GetCecilReference<FieldReference>(field);
+            var fi = _emitter.GetEmitSymbolReference<FieldReference>(field);
             if (field.IsStatic)
             {
                 _ilgen.Emit(OpCodes.Ldsfld, fi);
@@ -339,7 +339,7 @@ public partial class CecilEmitter
 
         public override void EmitLoadFieldAddress(FieldSymbol field)
         {
-            var fi = _emitter.GetCecilReference<FieldReference>(field);
+            var fi = _emitter.GetEmitSymbolReference<FieldReference>(field);
             if (field.IsStatic)
             {
                 _ilgen.Emit(OpCodes.Ldsflda, fi);
@@ -352,7 +352,7 @@ public partial class CecilEmitter
 
         public override void EmitStoreField(FieldSymbol field)
         {
-            var fi = _emitter.GetCecilReference<FieldReference>(field);
+            var fi = _emitter.GetEmitSymbolReference<FieldReference>(field);
             if (field.IsStatic)
             {
                 _ilgen.Emit(OpCodes.Stsfld, fi);
@@ -515,13 +515,13 @@ public partial class CecilEmitter
 
         public override void EmitLoadMethod(MethodSymbol methodSymbol)
         {
-            var method = _emitter.GetCecilReference<MethodReference>(methodSymbol);
+            var method = _emitter.GetEmitSymbolReference<MethodReference>(methodSymbol);
             _ilgen.Emit(OpCodes.Ldftn, method);
         }
 
         public override void EmitLoadToken(MemberSymbol symbol)
         {
-            var member = _emitter.GetCecilReference(symbol);
+            var member = _emitter.GetEmitSymbolReference(symbol);
             switch (member)
             {
                 case MethodReference method:
@@ -537,14 +537,14 @@ public partial class CecilEmitter
         }
 
         private FieldReference DateTime_Default => 
-            _emitter.GetImportedSymbol(_externalSymbols.CecilDateTime.Fields.First(f => f.Name == "MinValue"));
+            (FieldReference)_emitter.GetImportedSymbol(_externalSymbols.CecilDateTime.Fields.First(f => f.Name == "MinValue"));
 
         private FieldReference Decimal_Default =>
-            _emitter.GetImportedSymbol(_externalSymbols.CecilDecimal.Fields.First(f => f.Name == "Zero"));
+            (FieldReference)_emitter.GetImportedSymbol(_externalSymbols.CecilDecimal.Fields.First(f => f.Name == "Zero"));
 
         public override void EmitDefault(TypeSymbol typeSymbol)
         {
-            var type = _emitter.GetCecilType(typeSymbol);
+            var type = _emitter.GetEmitTypeReference(typeSymbol);
             EmitDefault(type);
         }
 
@@ -604,7 +604,7 @@ public partial class CecilEmitter
 
         public override void EmitCall(MethodSymbol methodSymbol)
         {
-            var method = _emitter.GetCecilReference<MethodReference>(methodSymbol);
+            var method = _emitter.GetEmitSymbolReference<MethodReference>(methodSymbol);
 
             var instanceIsValueType = (method.DeclaringType != null && method.DeclaringType.IsValueType);
             var op = methodSymbol.IsStatic || instanceIsValueType
@@ -616,25 +616,25 @@ public partial class CecilEmitter
 
         public override void EmitCall(ConstructorSymbol constructorSymbol)
         {
-            var constructor = _emitter.GetCecilReference<MethodReference>(constructorSymbol);
+            var constructor = _emitter.GetEmitSymbolReference<MethodReference>(constructorSymbol);
             _ilgen.Emit(OpCodes.Call, constructor);
         }
 
         public override void EmitNew(ConstructorSymbol constructorSymbol)
         {
-            var constructor = _emitter.GetCecilReference<MethodReference>(constructorSymbol);
+            var constructor = _emitter.GetEmitSymbolReference<MethodReference>(constructorSymbol);
             _ilgen.Emit(OpCodes.Newobj, constructor);
         }
 
         public override void EmitNewSZArray(TypeSymbol elementTypeSymbol)
         {
-            var type = _emitter.GetCecilType(elementTypeSymbol);
+            var type = _emitter.GetEmitTypeReference(elementTypeSymbol);
             _ilgen.Emit(OpCodes.Newarr, type);
         }
 
         public override void EmitInit(TypeSymbol typeSymbol)
         {
-            var type = _emitter.GetCecilType(typeSymbol);
+            var type = _emitter.GetEmitTypeReference(typeSymbol);
             var variable = AllocateVariable(type);
             _ilgen.Emit(OpCodes.Ldloca, variable);
             _ilgen.Emit(OpCodes.Initobj, type);
@@ -644,10 +644,10 @@ public partial class CecilEmitter
 
         public override void EmitConvert(TypeSymbol sourceTypeSymbol, TypeSymbol targetTypeSymbol, bool isChecked)
         {
-            var sourceType = _emitter.GetCecilType(sourceTypeSymbol);
-            var targetType = _emitter.GetCecilType(targetTypeSymbol);
+            var sourceType = _emitter.GetEmitTypeReference(sourceTypeSymbol);
+            var targetType = _emitter.GetEmitTypeReference(targetTypeSymbol);
 
-            var comparer = _externalSymbols.TypeReferenceComparer;
+            var comparer = CecilEmitter.TypeReferenceComparer;
 
             if (comparer.Equals(sourceType, targetType))
             {
@@ -1072,13 +1072,13 @@ public partial class CecilEmitter
 
         public override void EmitAsType(TypeSymbol instanceTypeSymbol)
         {
-            var instanceType = _emitter.GetCecilType(instanceTypeSymbol);
+            var instanceType = _emitter.GetEmitTypeReference(instanceTypeSymbol);
             _ilgen.Emit(OpCodes.Isinst, instanceType);
         }
 
         public override void EmitAdd(TypeSymbol operandTypeSymbol, bool isChecked)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Add
                 : IsUnsigned(operandType) ? OpCodes.Add_Ovf_Un
                 : OpCodes.Add_Ovf;
@@ -1087,7 +1087,7 @@ public partial class CecilEmitter
 
         public override void EmitSubtract(TypeSymbol operandTypeSymbol, bool isChecked)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Sub
                 : IsUnsigned(operandType) ? OpCodes.Sub_Ovf_Un
                 : OpCodes.Sub_Ovf;
@@ -1096,7 +1096,7 @@ public partial class CecilEmitter
 
         public override void EmitMultiply(TypeSymbol operandTypeSymbol, bool isChecked)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             var op = (!isChecked || IsFloatingPoint(operandType)) ? OpCodes.Mul
                 : IsUnsigned(operandType) ? OpCodes.Mul_Ovf_Un
                 : OpCodes.Mul_Ovf;
@@ -1105,14 +1105,14 @@ public partial class CecilEmitter
 
         public override void EmitDivide(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             var op = IsUnsigned(operandType) ? OpCodes.Div_Un : OpCodes.Div;
             _ilgen.Emit(op);
         }
 
         public override void EmitRemainder(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             var op = IsUnsigned(operandType) ? OpCodes.Rem_Un : OpCodes.Rem;
             _ilgen.Emit(op);
         }
@@ -1156,7 +1156,7 @@ public partial class CecilEmitter
 
         public override void EmitShiftLeft(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             var mask = (operandType.MetadataType == MetadataType.Int64 || operandType.MetadataType == MetadataType.UInt64) ? 0x3F : 0x1F;
             EmitLoadInt32(mask);
             _ilgen.Emit(OpCodes.And);
@@ -1165,7 +1165,7 @@ public partial class CecilEmitter
 
         public override void EmitShiftRight(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             var mask = (operandType.MetadataType == MetadataType.Int64 || operandType.MetadataType == MetadataType.UInt64) ? 0x3F : 0x1F;
             EmitLoadInt32(mask);
             _ilgen.Emit(OpCodes.And);
@@ -1179,7 +1179,7 @@ public partial class CecilEmitter
 
         public override void EmitNotEqual(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             if (operandType.MetadataType == MetadataType.Boolean)
             {
                 _ilgen.Emit(OpCodes.Xor);
@@ -1195,13 +1195,13 @@ public partial class CecilEmitter
 
         public override void EmitLessThan(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Clt_Un : OpCodes.Clt);
         }
 
         public override void EmitLessThanOrEqual(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? OpCodes.Cgt_Un : OpCodes.Cgt);
             _ilgen.Emit(OpCodes.Ldc_I4_0);
             _ilgen.Emit(OpCodes.Ceq);
@@ -1209,13 +1209,13 @@ public partial class CecilEmitter
 
         public override void EmitGreaterThan(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) ? OpCodes.Cgt_Un : OpCodes.Cgt);
         }
 
         public override void EmitGreaterThanOrEqual(TypeSymbol operandTypeSymbol)
         {
-            var operandType = _emitter.GetCecilType(operandTypeSymbol);
+            var operandType = _emitter.GetEmitTypeReference(operandTypeSymbol);
             _ilgen.Emit(IsUnsigned(operandType) || IsFloatingPoint(operandType) ? OpCodes.Clt_Un : OpCodes.Clt);
             _ilgen.Emit(OpCodes.Ldc_I4_0);
             _ilgen.Emit(OpCodes.Ceq);
@@ -1235,7 +1235,7 @@ public partial class CecilEmitter
         public override void EmitThrow(TypeSymbol exceptionTypeSymbol, string message)
         {
             var constructorSymbol = exceptionTypeSymbol.GetFirstMember<ConstructorSymbol>(m => !m.IsStatic && m.Parameters.Count == 1 && m.Parameters[0].Type == _externalSymbols.String);
-            var constructor = _emitter.GetCecilReference<MethodReference>(constructorSymbol!);
+            var constructor = _emitter.GetEmitSymbolReference<MethodReference>(constructorSymbol!);
             _ilgen.Emit(OpCodes.Ldstr, message);
             _ilgen.Emit(OpCodes.Newobj, constructor);
             _ilgen.Emit(OpCodes.Throw);
