@@ -12,7 +12,7 @@ public class NamespaceSymbol : ContainerSymbol
         string name, 
         Symbol? declaringSymbol,
         Func<NamespaceSymbol, ImmutableList<Symbol>> fnMembers)
-        : base(name, declaringSymbol, SymbolAccess.Public, SymbolModifier.None, null)
+        : base(name, declaringSymbol, Access.Public, Modifier.None, null)
     {
         _lazyMembers = new Lazy<ImmutableList<Symbol>>(() => fnMembers(this));
     }

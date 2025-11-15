@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 public static class SemanticFactoryExtensions
@@ -25,7 +26,7 @@ public static class SemanticFactoryExtensions
 
     public static PropertyDeclaration WithGetAccess(
         this PropertyDeclaration property,
-        SymbolAccess access)
+        Access access)
         =>
         property.WithGetMethod(
             property.GetMethod.WithAccess(access)
@@ -50,7 +51,7 @@ public static class SemanticFactoryExtensions
 
     public static PropertyDeclaration WithSetAccess(
         this PropertyDeclaration property,
-        SymbolAccess access)
+        Access access)
         =>
         property.SetMethod != null
             ? property.WithSetMethod(property.SetMethod.WithAccess(access))

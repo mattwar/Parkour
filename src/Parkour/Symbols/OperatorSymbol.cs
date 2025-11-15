@@ -5,7 +5,7 @@ public class OperatorSymbol : DelegateSymbol
     /// <summary>
     /// The kind of the operator.
     /// </summary>
-    public string Kind => this.Name;
+    public Operator Operator { get; }
 
     /// <summary>
     /// Method used in checked context (if not actually an intrinsic operator)
@@ -18,17 +18,18 @@ public class OperatorSymbol : DelegateSymbol
     public MethodSymbol? UncheckMethod { get; }
 
     public OperatorSymbol(
-        string kind,
+        Operator op,
         Func<DelegateSymbol, ImmutableList<ParameterSymbol>> fnParameters, 
         Func<TypeSymbol> fnReturnType,
         MethodSymbol? checkedMethod = null,
         MethodSymbol? uncheckedMethod = null)
         : base(
-            kind,
+            op.GetType().Name,
             null,
             fnParameters,
             fnReturnType)
     {
+        this.Operator = op;
         this.CheckedMethod = checkedMethod;
         this.UncheckMethod = uncheckedMethod;
     }

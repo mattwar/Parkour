@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 namespace Parkour.Cecil;
 
 using Mono.Cecil.Rocks;
+using Parkour;
 using Semantics;
 using Symbols;
 using System.Diagnostics.CodeAnalysis;
@@ -438,11 +439,11 @@ public partial class CecilEmitter : SemanticEmitter
             case StructSymbol:
                 attrs |= TypeAttributes.Class;
 
-                if (ts.Modifiers.Contains(SymbolModifier.Abstract))
+                if (ts.Modifiers.Contains(Modifier.Abstract))
                     attrs |= TypeAttributes.Abstract;
-                else if (ts.Modifiers.Contains(SymbolModifier.Sealed))
+                else if (ts.Modifiers.Contains(Modifier.Sealed))
                     attrs |= TypeAttributes.Sealed;
-                else if (ts.Modifiers.Contains(SymbolModifier.Special))
+                else if (ts.Modifiers.Contains(Modifier.Special))
                     attrs |= TypeAttributes.SpecialName;
                 break;
             case InterfaceSymbol:
@@ -452,27 +453,27 @@ public partial class CecilEmitter : SemanticEmitter
 
 
         var isNested = ts.DeclaringSymbol is TypeSymbol;
-        if (ts.Access == SymbolAccess.Private)
+        if (ts.Access == Access.Private)
         {
             attrs |= isNested ? TypeAttributes.NestedPrivate : TypeAttributes.NotPublic;
         }
-        else if (ts.Access == SymbolAccess.Public)
+        else if (ts.Access == Access.Public)
         {
             attrs |= isNested ? TypeAttributes.NestedPublic : TypeAttributes.NotPublic;
         }
-        else if (ts.Access == SymbolAccess.Internal)
+        else if (ts.Access == Access.Internal)
         {
             attrs |= isNested ? TypeAttributes.NestedAssembly : TypeAttributes.NotPublic;
         }
-        else if (ts.Access == SymbolAccess.Protected)
+        else if (ts.Access == Access.Protected)
         {
             attrs |= isNested ? TypeAttributes.NestedFamily : TypeAttributes.NotPublic;
         }
-        else if (ts.Access == SymbolAccess.ProtectedOrInternal)
+        else if (ts.Access == Access.ProtectedOrInternal)
         {
             attrs |= isNested ? TypeAttributes.NestedFamORAssem : TypeAttributes.NotPublic;
         }
-        else if (ts.Access == SymbolAccess.ProtectedAndInternal)
+        else if (ts.Access == Access.ProtectedAndInternal)
         {
             attrs |= isNested ? TypeAttributes.NestedFamANDAssem : TypeAttributes.NotPublic;
         }
@@ -484,36 +485,36 @@ public partial class CecilEmitter : SemanticEmitter
     {
         FieldAttributes attrs = default;
 
-        if (field.Modifiers.Contains(SymbolModifier.Static))
+        if (field.Modifiers.Contains(Modifier.Static))
             attrs |= FieldAttributes.Static;
 
-        if (field.Modifiers.Contains(SymbolModifier.Special))
+        if (field.Modifiers.Contains(Modifier.Special))
             attrs |= FieldAttributes.SpecialName;
 
-        if (field.Modifiers.Contains(SymbolModifier.Constant))
+        if (field.Modifiers.Contains(Modifier.Constant))
             attrs |= FieldAttributes.Literal;
 
-        if (field.Access == SymbolAccess.Private)
+        if (field.Access == Access.Private)
         {
             attrs |= FieldAttributes.Private;
         }
-        else if (field.Access == SymbolAccess.Public)
+        else if (field.Access == Access.Public)
         {
             attrs |= FieldAttributes.Public;
         }
-        else if (field.Access == SymbolAccess.Protected)
+        else if (field.Access == Access.Protected)
         {
             attrs |= FieldAttributes.Family;
         }
-        else if (field.Access == SymbolAccess.Internal)
+        else if (field.Access == Access.Internal)
         {
             attrs |= FieldAttributes.Assembly;
         }
-        else if (field.Access == SymbolAccess.ProtectedOrInternal)
+        else if (field.Access == Access.ProtectedOrInternal)
         {
             attrs |= FieldAttributes.FamORAssem;
         }
-        else if (field.Access == SymbolAccess.ProtectedAndInternal)
+        else if (field.Access == Access.ProtectedAndInternal)
         {
             attrs |= FieldAttributes.FamANDAssem;
         }
@@ -525,37 +526,37 @@ public partial class CecilEmitter : SemanticEmitter
     {
         MethodAttributes attrs = default;
 
-        if (method.Modifiers.Contains(SymbolModifier.Static))
+        if (method.Modifiers.Contains(Modifier.Static))
             attrs |= MethodAttributes.Static;
 
         if (method.DeclaringSymbol == null
             || method.DeclaringSymbol is NamespaceSymbol)
             attrs |= MethodAttributes.Static;
 
-        if (method.Modifiers.Contains(SymbolModifier.Special))
+        if (method.Modifiers.Contains(Modifier.Special))
             attrs |= MethodAttributes.SpecialName;
 
-        if (method.Access == SymbolAccess.Private)
+        if (method.Access == Access.Private)
         {
             attrs |= MethodAttributes.Private;
         }
-        else if (method.Access == SymbolAccess.Public)
+        else if (method.Access == Access.Public)
         {
             attrs |= MethodAttributes.Public;
         }
-        else if (method.Access == SymbolAccess.Protected)
+        else if (method.Access == Access.Protected)
         {
             attrs |= MethodAttributes.Family;
         }
-        else if (method.Access == SymbolAccess.Internal)
+        else if (method.Access == Access.Internal)
         {
             attrs |= MethodAttributes.Assembly;
         }
-        else if (method.Access == SymbolAccess.ProtectedOrInternal)
+        else if (method.Access == Access.ProtectedOrInternal)
         {
             attrs |= MethodAttributes.FamORAssem;
         }
-        else if (method.Access == SymbolAccess.ProtectedAndInternal)
+        else if (method.Access == Access.ProtectedAndInternal)
         {
             attrs |= MethodAttributes.FamANDAssem;
         }

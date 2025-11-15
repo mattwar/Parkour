@@ -107,9 +107,11 @@ public abstract class SemanticEmitter
         }
     }
 
-
     public class EmitResult
     {
+        /// <summary>
+        /// Any diagnostics produced during emission.
+        /// </summary>
         public ImmutableList<Diagnostic> Diagnostics { get; }
 
         public EmitResult(ImmutableList<Diagnostic>? diagnostics)
@@ -118,4 +120,3 @@ public abstract class SemanticEmitter
         }
     }
 }
-

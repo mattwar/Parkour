@@ -28,8 +28,8 @@ public sealed class FieldSymbol : MemberSymbol
     public FieldSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<TypeSymbol> fnType,
         Func<FieldSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         object? constantValue = null,

@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 using static Semantics.SemanticFactory;
 
@@ -26,15 +27,15 @@ public class FieldInitializerLowerer : PartialLowerer
             .OfType<FieldDeclaration>()
             .Where(fd =>
                 fd.Initializer != null
-                && !fd.Modifiers.Contains(SymbolModifier.Constant))
+                && !fd.Modifiers.Contains(Modifier.Constant))
             .ToList();
 
         var instanceFields =
-            fields.Where(f => !f.Modifiers.Contains(SymbolModifier.Static))
+            fields.Where(f => !f.Modifiers.Contains(Modifier.Static))
             .ToList();
 
         var staticFields =
-            fields.Where(f => f.Modifiers.Contains(SymbolModifier.Static))
+            fields.Where(f => f.Modifiers.Contains(Modifier.Static))
             .ToList();
 
         // no fields to fix, no rewrite
@@ -57,7 +58,7 @@ public class FieldInitializerLowerer : PartialLowerer
         {
             if (decl is ConstructorDeclaration cd)
             {
-                if (cd.Modifiers.Contains(SymbolModifier.Static))
+                if (cd.Modifiers.Contains(Modifier.Static))
                 {
                     var newConstructor = cd.WithBody(Block(staticAssignments.Add(cd.Body)));
                     newDecls.Add(newConstructor);
@@ -83,7 +84,7 @@ public class FieldInitializerLowerer : PartialLowerer
 
         if (!foundStaticConstructor && staticAssignments.Count > 0)
         {
-            newDecls.Add(Constructor(Block(staticAssignments)).WithModifiers(SymbolModifier.Static));
+            newDecls.Add(Constructor(Block(staticAssignments)).WithModifiers(Modifier.Static));
         }
 
         if (!foundInstanceConstructor && instanceAssignments.Count > 0)

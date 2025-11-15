@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using Parkour;
 using Parkour.Reflection;
 using Parkour.Semantics;
 using Parkour.Symbols;
@@ -49,7 +50,7 @@ public abstract class EmitterTests
 
         // static method
         TestEmit(
-            Class("C", [Method("M", [], Int32Type, Block(Constant(123))).WithModifiers(SymbolModifier.Static)]),
+            Class("C", [Method("M", [], Int32Type, Block(Constant(123))).WithModifiers(Modifier.Static)]),
             test: Symbol("C.M").Call(),
             expectedResult: 123
             );
@@ -163,7 +164,7 @@ public abstract class EmitterTests
 
         // static field
         TestEmit(
-            Class("C", [Field("F", Int32Type).WithModifiers(SymbolModifier.Static)]),
+            Class("C", [Field("F", Int32Type).WithModifiers(Modifier.Static)]),
             Symbol("C").Member("F"),
             0
             );
@@ -177,14 +178,14 @@ public abstract class EmitterTests
 
         // static field with initializer
         TestEmit(
-            Class("C", [Field("F", Int32Type, Constant(10)).WithModifiers(SymbolModifier.Static)]),
+            Class("C", [Field("F", Int32Type, Constant(10)).WithModifiers(Modifier.Static)]),
             Symbol("C").Member("F"),
             10
             );
 
         // const field with initializer
         TestEmit(
-            Class("C", [Field("F", Int32Type, Constant(10)).WithModifiers(SymbolModifier.Static | SymbolModifier.Constant)]),
+            Class("C", [Field("F", Int32Type, Constant(10)).WithModifiers(Modifier.Static | Modifier.Constant)]),
             Symbol("C").Member("F"),
             10
             );
@@ -202,7 +203,7 @@ public abstract class EmitterTests
 
         // static method
         TestEmit(
-            Class("C", [Method("M", [], Int32Type, Block(Constant(123))).WithModifiers(SymbolModifier.Static)]),
+            Class("C", [Method("M", [], Int32Type, Block(Constant(123))).WithModifiers(Modifier.Static)]),
             test: Symbol("C.M").Call(),
             expectedResult: 123
             );
@@ -234,7 +235,7 @@ public abstract class EmitterTests
 
         // static auto property
         TestEmit(
-            Class("C", [Property("P", Int32Type).WithModifiers(SymbolModifier.Static)]),
+            Class("C", [Property("P", Int32Type).WithModifiers(Modifier.Static)]),
             Symbol("C").Member("P"),
             expectedResult: 0
             );
@@ -256,7 +257,7 @@ public abstract class EmitterTests
         TestEmit(
             Class("C", [
                 Indexer(Int32Type, [Parameter("index", Int32Type)], Name("index"), null)
-                    .WithModifiers(SymbolModifier.Static),
+                    .WithModifiers(Modifier.Static),
                 ]),
             Symbol("C").Element(Constant(123)),
             expectedResult: 123
@@ -355,7 +356,7 @@ public abstract class EmitterTests
     public void TestExpression_Call()
     {
         TestEmit(
-            [Class("C", [Method("M", [], Int32Type, Constant(123)).WithModifiers(SymbolModifier.Static)])],
+            [Class("C", [Method("M", [], Int32Type, Constant(123)).WithModifiers(Modifier.Static)])],
             Symbol("C.M").Call(),
             expectedResult: 123
             );
@@ -909,7 +910,7 @@ public abstract class EmitterTests
         {
             elements = elements.Add(
                 Class("Test", [
-                     Method("Run", [], ObjectType, test).WithModifiers(SymbolModifier.Static)
+                     Method("Run", [], ObjectType, test).WithModifiers(Modifier.Static)
                      ]));
         }
 

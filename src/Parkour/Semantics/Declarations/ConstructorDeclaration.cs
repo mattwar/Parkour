@@ -1,6 +1,7 @@
 ﻿
 namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 public class ConstructorDeclaration : MemberDeclaration
@@ -12,8 +13,8 @@ public class ConstructorDeclaration : MemberDeclaration
     public LabelSymbol? ReturnLabel { get; }
 
     private ConstructorDeclaration(
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         ImmutableList<AttributeExpression> attributes,
         ImmutableList<ParameterDeclaration> parameters,
         Expression body,
@@ -25,7 +26,7 @@ public class ConstructorDeclaration : MemberDeclaration
             CombineState(parameters) 
             | State(body)
             | NotNullState(symbol),
-            modifiers.Contains(SymbolModifier.Static) ? ".cctor" : ".ctor",
+            modifiers.Contains(Modifier.Static) ? ".cctor" : ".ctor",
             access,
             modifiers,
             attributes,
@@ -43,8 +44,8 @@ public class ConstructorDeclaration : MemberDeclaration
         Expression body,
         ISourceLocation? location)
         : this(
-              SymbolAccess.Public, 
-              SymbolModifier.None, 
+              Access.Public,
+              Modifier.None, 
               ImmutableList<AttributeExpression>.Empty,
               parameters, 
               body, 
@@ -114,7 +115,7 @@ public class ConstructorDeclaration : MemberDeclaration
             diagnostics
             );
 
-    public override ConstructorDeclaration WithAccess(SymbolAccess access) =>
+    public override ConstructorDeclaration WithAccess(Access access) =>
         access == this.Access ? this :
         new ConstructorDeclaration(
             access,
@@ -128,7 +129,7 @@ public class ConstructorDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override ConstructorDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    public override ConstructorDeclaration WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new ConstructorDeclaration(
             this.Access,

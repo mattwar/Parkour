@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 public sealed class IndexerDeclaration : MemberDeclaration
@@ -12,8 +13,8 @@ public sealed class IndexerDeclaration : MemberDeclaration
 
     private IndexerDeclaration(
         string name,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         ImmutableList<AttributeExpression> attributes,
         Expression? elementType,
         MethodDeclaration getMethod,
@@ -46,8 +47,8 @@ public sealed class IndexerDeclaration : MemberDeclaration
         ISourceLocation? location)
         : this(
               "Item",
-              SymbolAccess.Public, 
-              SymbolModifier.None,
+              Access.Public,
+              Modifier.None,
               ImmutableList<AttributeExpression>.Empty,
               elementType, 
               getMethod, 
@@ -118,7 +119,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             diagnostics
             );
 
-    public override IndexerDeclaration WithAccess(SymbolAccess access) =>
+    public override IndexerDeclaration WithAccess(Access access) =>
         access == this.Access ? this :
         new IndexerDeclaration(
             this.Name,
@@ -133,7 +134,7 @@ public sealed class IndexerDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override IndexerDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    public override IndexerDeclaration WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new IndexerDeclaration(
             this.Name,
@@ -141,8 +142,8 @@ public sealed class IndexerDeclaration : MemberDeclaration
             modifiers,
             this.Attributes,
             this.ElementType,
-            this.GetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special),
-            this.SetMethod != null ? this.SetMethod.WithModifiers(modifiers | SymbolModifier.HideBySig | SymbolModifier.Special) : null,
+            this.GetMethod.WithModifiers(modifiers | Modifier.HideBySig | Modifier.Special),
+            this.SetMethod != null ? this.SetMethod.WithModifiers(modifiers | Modifier.HideBySig | Modifier.Special) : null,
             this.Location,
             this.Symbol,
             this.Diagnostics

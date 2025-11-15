@@ -1,21 +1,21 @@
 ﻿using System.Collections;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Parkour;
 
 /// <summary>
-/// An extensible set of bits where each bit is a singleton instance of a class.
-/// The maximum number of unique singetons for this set is 64.
-/// Do not rely on the order of bits in this set.
+/// A set of values stored using bits.
+/// The maximum number of unique values for all instances of the same kind of set is 64.
+/// Do not rely on the order of values in this set to remain the same across uses,
+/// it is dependent on the order the values are introduced to any instance of a set.
 /// </summary>
-public readonly struct BitSet<TBit>
-    : IEquatable<BitSet<TBit>>,
-      IEnumerable<TBit>,
+public readonly struct BitSet<TValue>
+    : IEquatable<BitSet<TValue>>,
+      IEnumerable<TValue>,
       IEnumerable
-    where TBit : class
+    where TValue : class
 {
     /// <summary>
-    /// the actual bits that are set
+    /// The actual bits that are set in this bit set.
     /// </summary>
     private readonly ulong _bits;
 
@@ -24,83 +24,106 @@ public readonly struct BitSet<TBit>
         _bits = bits;
     }
 
-    private static int _nextIndex;
+    /// <summary>
+    /// The number of bit indices that have been assigned so far
+    /// for all instances of this type.
+    /// </summary>
+    private static int _indexCount;
 
-    private static ImmutableDictionary<int, TBit> _indexToBitMap =
-        ImmutableDictionary<int, TBit>.Empty;
+    /// <summary>
+    /// Maps indices to <see cref="TValue"/> values, 
+    /// for all instances of this type.
+    /// </summary>
+    private static ImmutableDictionary<int, TValue> _indexToValueMap =
+        ImmutableDictionary<int, TValue>.Empty;
 
-    private static ImmutableDictionary<TBit, int> _bitToIndexMap =
-        ImmutableDictionary<TBit, int>.Empty;
+    /// <summary>
+    /// Maps values to assigned indices,
+    /// for all instances of this type.
+    /// </summary>
+    private static ImmutableDictionary<TValue, int> _valueToIndexMap =
+        ImmutableDictionary<TValue, int>.Empty;
 
-    private static ulong GetMask(TBit bit)
+    /// <summary>
+    /// Gets the bit mask for a value that can be used to set or test the bit
+    /// in the <see cref="_bits"/> field.
+    /// </summary>
+    private static ulong GetBitMask(TValue value)
     {
-        if (!_bitToIndexMap.TryGetValue(bit, out var index))
-        {
-            // allocate index to new bit
-            index = ImmutableInterlocked.GetOrAdd(ref _bitToIndexMap, bit, _bit => _nextIndex++);
-            ImmutableInterlocked.GetOrAdd(ref _indexToBitMap, index, _index => bit);
-        }
+        return 1UL << GetBitIndex(value);
+    }
 
-        return 1UL << index;
+    /// <summary>
+    /// Gets the assigned bit index for a value, allocating a new index if needed.
+    /// </summary>
+    private static int GetBitIndex(TValue value)
+    {
+        if (!_valueToIndexMap.TryGetValue(value, out var index))
+        {
+            // allocate bit for value
+            index = ImmutableInterlocked.GetOrAdd(ref _valueToIndexMap, value, _value => _indexCount++);
+            ImmutableInterlocked.GetOrAdd(ref _indexToValueMap, index, _index => value);
+        }
+        return index;
     }
 
     /// <summary>
     /// Represents no bits are set.
     /// </summary>
-    public static readonly BitSet<TBit> Empty = default;
+    public static readonly BitSet<TValue> Empty = default;
 
     /// <summary>
     /// Returns true if this set of bits contains any of the bits in the other set.
     /// </summary>
-    public bool Contains(BitSet<TBit> bitset) =>
+    public bool Contains(BitSet<TValue> bitset) =>
         (_bits & bitset._bits) != 0;
 
     /// <summary>
     /// Returns true if this set of bits contains the specified bit
     /// </summary>
-    public bool Contains(TBit bit) =>
-        (_bits & GetMask(bit)) != 0;
+    public bool Contains(TValue value) =>
+        (_bits & GetBitMask(value)) != 0;
 
     /// <summary>
     /// Adds the bits from the same family together.
     /// </summary>
-    public BitSet<TBit> Add(BitSet<TBit> bitset) =>
-        new BitSet<TBit>(_bits | bitset._bits);
+    public BitSet<TValue> Add(BitSet<TValue> bitset) =>
+        new BitSet<TValue>(_bits | bitset._bits);
 
     /// <summary>
     /// Adds the bits from the same family together.
     /// </summary>
-    public readonly BitSet<TBit> Add(TBit bit) =>
-        new BitSet<TBit>(_bits | GetMask(bit));
+    public readonly BitSet<TValue> Add(TValue value) =>
+        new BitSet<TValue>(_bits | GetBitMask(value));
 
     /// <summary>
     /// Returns the bitset with the bits of the same family removed.
     /// </summary>
-    public BitSet<TBit> Remove(BitSet<TBit> bitset) =>
-        new BitSet<TBit>(_bits & ~bitset._bits);
+    public BitSet<TValue> Remove(BitSet<TValue> bitset) =>
+        new BitSet<TValue>(_bits & ~bitset._bits);
 
     /// <summary>
     /// Returns the bitset with the bit from the same family removed.
     /// </summary>
-    public BitSet<TBit> Remove(TBit bit) =>
-        new BitSet<TBit>(_bits & ~GetMask(bit));
+    public BitSet<TValue> Remove(TValue value) =>
+        new BitSet<TValue>(_bits & ~GetBitMask(value));
 
     /// <summary>
     /// The set bits in common between the two sets.
     /// </summary>
-    public BitSet<TBit> Intersect(BitSet<TBit> bitset) =>
-        new BitSet<TBit>(_bits & bitset._bits);
+    public BitSet<TValue> Intersect(BitSet<TValue> bitset) =>
+        new BitSet<TValue>(_bits & bitset._bits);
 
     /// <summary>
     /// Enumerates the bits in the set
     /// </summary>
-    public IEnumerator<TBit> GetEnumerator()
+    public IEnumerator<TValue> GetEnumerator()
     {
-        for (int i = 0; i < _nextIndex; i++)
+        for (int i = 0; i < _indexCount; i++)
         {
             var bitMask = 1UL << i;
             if ((_bits & bitMask) != 0
-                && _indexToBitMap.TryGetValue(i, out var bit))
+                && _indexToValueMap.TryGetValue(i, out var bit))
             {
                 yield return bit;
             }
@@ -113,14 +136,14 @@ public readonly struct BitSet<TBit>
     /// <summary>
     /// True if the sets of bits are the same.
     /// </summary>
-    public bool Equals(BitSet<TBit> other) =>
+    public bool Equals(BitSet<TValue> other) =>
         _bits == other._bits;
 
     /// <summary>
     /// True if the sets of bits are the same.
     /// </summary>
     public override bool Equals([NotNullWhen(true)] object? obj) =>
-        obj is BitSet<TBit> bs && Equals(bs);
+        obj is BitSet<TValue> bs && Equals(bs);
 
     public override int GetHashCode() =>
         unchecked((int)_bits);
@@ -130,30 +153,30 @@ public readonly struct BitSet<TBit>
         string.Join(" | ", this.Select(b => b.ToString()).OrderBy(s => s));
 
 
-    public static bool operator ==(BitSet<TBit> a, BitSet<TBit> b) =>
+    public static bool operator ==(BitSet<TValue> a, BitSet<TValue> b) =>
         a.Equals(b);
 
-    public static bool operator !=(BitSet<TBit> a, BitSet<TBit> b) =>
+    public static bool operator !=(BitSet<TValue> a, BitSet<TValue> b) =>
         !a.Equals(b);
 
-    public static implicit operator BitSet<TBit>(TBit bit) =>
-        new BitSet<TBit>(GetMask(bit));
+    public static implicit operator BitSet<TValue>(TValue bit) =>
+        new BitSet<TValue>(GetBitMask(bit));
 
-    public static BitSet<TBit> operator |(BitSet<TBit> a, BitSet<TBit> b) =>
+    public static BitSet<TValue> operator |(BitSet<TValue> a, BitSet<TValue> b) =>
         a.Add(b);
 
-    public static BitSet<TBit> operator |(BitSet<TBit> a, TBit b) =>
+    public static BitSet<TValue> operator |(BitSet<TValue> a, TValue b) =>
     a.Add(b);
 
-    public static BitSet<TBit> operator +(BitSet<TBit> a, BitSet<TBit> b) =>
+    public static BitSet<TValue> operator +(BitSet<TValue> a, BitSet<TValue> b) =>
         a.Add(b);
 
-    public static BitSet<TBit> operator +(BitSet<TBit> a, TBit b) =>
+    public static BitSet<TValue> operator +(BitSet<TValue> a, TValue b) =>
         a.Add(b);
 
-    public static BitSet<TBit> operator -(BitSet<TBit> a, BitSet<TBit> b) =>
+    public static BitSet<TValue> operator -(BitSet<TValue> a, BitSet<TValue> b) =>
         a.Remove(b);
 
-    public static BitSet<TBit> operator -(BitSet<TBit> a, TBit b) =>
+    public static BitSet<TValue> operator -(BitSet<TValue> a, TValue b) =>
         a.Remove(b);
 }

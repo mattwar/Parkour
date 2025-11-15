@@ -33,9 +33,9 @@ public sealed class ArraySymbol : TypeSymbol
         Func<TypeSymbol, ImmutableList<Symbol>>? fnMembers)
         : base(
             "Array", 
-            declaringSymbol, 
-            SymbolAccess.Public,
-            SymbolModifier.None,
+            declaringSymbol,
+            Access.Public,
+            Modifier.None,
             fnTypeParameters: null, 
             fnTypeArguments: null, 
             fnBaseTypes, 

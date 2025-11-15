@@ -2,6 +2,7 @@
 
 namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 /// <summary>
@@ -69,7 +70,7 @@ public class StandardBodyBuilder : BodyBuilder
 
         switch (expression)
         {
-            case AdjustedReferenceExpression are:
+            case AugmentedReferenceExpression are:
                 EmitAdjustedReferenceExpression(are, asAddress: false);
                 break;
 
@@ -195,7 +196,7 @@ public class StandardBodyBuilder : BodyBuilder
     {
         switch (expression)
         {
-            case AdjustedReferenceExpression are:
+            case AugmentedReferenceExpression are:
                 EmitAdjustedReferenceExpression(are, asAddress: true);
                 break;
 
@@ -397,7 +398,7 @@ public class StandardBodyBuilder : BodyBuilder
         {
             case MemberExpression member:
                 return member;
-            case AdjustedReferenceExpression filter:
+            case AugmentedReferenceExpression filter:
                 return GetMemberExpression(filter.TypeOrMember);
             default:
                 return null;
@@ -847,7 +848,7 @@ public class StandardBodyBuilder : BodyBuilder
         EmitSymbolReference(memberSymbol, asAddress, location);
     }
 
-    protected virtual void EmitAdjustedReferenceExpression(AdjustedReferenceExpression adjusted, bool asAddress)
+    protected virtual void EmitAdjustedReferenceExpression(AugmentedReferenceExpression adjusted, bool asAddress)
     {
         if (adjusted.ReferencedSymbol is MemberSymbol memberSymbol)
         {
@@ -864,7 +865,7 @@ public class StandardBodyBuilder : BodyBuilder
     }
 
     /// <summary>
-    /// Drills down through <see cref="AdjustedReferenceExpression"/> to find the <see cref="MemberExpression"/> and return its instance.
+    /// Drills down through <see cref="AugmentedReferenceExpression"/> to find the <see cref="MemberExpression"/> and return its instance.
     /// </summary>
     protected virtual Expression? GetMemberInstance(Expression expression)
     {
@@ -873,7 +874,7 @@ public class StandardBodyBuilder : BodyBuilder
             case MemberExpression member:
                 return member.Instance;
 
-            case AdjustedReferenceExpression filter:
+            case AugmentedReferenceExpression filter:
                 return GetMemberInstance(filter.TypeOrMember);
 
             default:
@@ -1163,7 +1164,7 @@ public class StandardBodyBuilder : BodyBuilder
         }
         else
         {
-            this.Emitter.EmitThrowAndReport(new Diagnostic($"Unknown operator kind '{opex.Kind}'").WithLocation(opex.Location));
+            this.Emitter.EmitThrowAndReport(new Diagnostic($"Unknown operator kind '{opex.Operator}'").WithLocation(opex.Location));
         }
     }
 
@@ -1176,94 +1177,94 @@ public class StandardBodyBuilder : BodyBuilder
         ISourceLocation? location)
     {
         var operandType = opsym.Parameters[0].Type;
-        switch (opsym.Kind)
+        switch (opsym.Operator)
         {
-            case OperatorKind.Add:
+            case RuntimeOperator.Add:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitAdd(operandType, this.IsChecked);
                 break;
-            case OperatorKind.Subtract:
+            case RuntimeOperator.Subtract:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitSubtract(operandType, this.IsChecked);
                 break;
-            case OperatorKind.Divide:
+            case RuntimeOperator.Divide:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitDivide(operandType);
                 break;
-            case OperatorKind.Multiply:
+            case RuntimeOperator.Multiply:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitMultiply(operandType, this.IsChecked);
                 break;
-            case OperatorKind.Remainder:
+            case RuntimeOperator.Remainder:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitRemainder(operandType);
                 break;
-            case OperatorKind.Negate:
+            case RuntimeOperator.Negate:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitNegate(operandType);
                 break;
-            case OperatorKind.Increment:
+            case RuntimeOperator.Increment:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitIncrement(operandType, this.IsChecked);
                 break;
-            case OperatorKind.Decrement:
+            case RuntimeOperator.Decrement:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitDecrement(operandType, this.IsChecked);
                 break;
-            case OperatorKind.BitwiseAnd:
-            case OperatorKind.LogicalAnd:
+            case RuntimeOperator.BitwiseAnd:
+            case RuntimeOperator.LogicalAnd:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitAnd();
                 break;
-            case OperatorKind.BitwiseOr:
-            case OperatorKind.LogicalOr:
+            case RuntimeOperator.BitwiseOr:
+            case RuntimeOperator.LogicalOr:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitOr();
                 break;
-            case OperatorKind.BitwiseXor:
-            case OperatorKind.LogicalXor:
+            case RuntimeOperator.BitwiseXor:
+            case RuntimeOperator.LogicalXor:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitXor();
                 break;
-            case OperatorKind.BitwiseNot:
-            case OperatorKind.LogicalNot:
+            case RuntimeOperator.BitwiseNot:
+            case RuntimeOperator.LogicalNot:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitNot();
                 break;
-            case OperatorKind.ShiftLeft:
+            case RuntimeOperator.ShiftLeft:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitShiftLeft(operandType);
                 break;
-            case OperatorKind.ShiftRight:
+            case RuntimeOperator.ShiftRight:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitShiftRight(operandType);
                 break;
-            case OperatorKind.Equal:
+            case RuntimeOperator.Equal:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitEqual(operandType);
                 break;
-            case OperatorKind.NotEqual:
+            case RuntimeOperator.NotEqual:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitNotEqual(operandType);
                 break;
-            case OperatorKind.LessThan:
+            case RuntimeOperator.LessThan:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitLessThan(operandType);
                 break;
-            case OperatorKind.LessThanOrEqual:
+            case RuntimeOperator.LessThanOrEqual:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitLessThanOrEqual(operandType);
                 break;
-            case OperatorKind.GreaterThan:
+            case RuntimeOperator.GreaterThan:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitGreaterThan(operandType);
                 break;
-            case OperatorKind.GreaterThanOrEqual:
+            case RuntimeOperator.GreaterThanOrEqual:
                 EmitArguments(opsym.Parameters, arguments);
                 this.Emitter.EmitGreaterThanOrEqual(operandType);
                 break;
 
-            case OperatorKind.LogicalAndAlso:
+            case RuntimeOperator.LogicalAndAlso:
                 var andAlsoFalse = new LabelSymbol("andAlsoFalse", this.ExternalSymbols.Void);
                 var andAlsoEnd = new LabelSymbol("andAlsoEnd", this.ExternalSymbols.Void);
                 EmitArgument(opsym.Parameters[0], arguments[0]);
@@ -1275,7 +1276,7 @@ public class StandardBodyBuilder : BodyBuilder
                 this.Emitter.MarkLabel(andAlsoEnd);
                 break;
 
-            case OperatorKind.LogicalOrElse:
+            case RuntimeOperator.LogicalOrElse:
                 var orElseTrue = new LabelSymbol("orElseTrue", this.ExternalSymbols.Void);
                 var orElseEnd = new LabelSymbol("orElseEnd", this.ExternalSymbols.Void);
                 EmitArgument(opsym.Parameters[0], arguments[0]);
@@ -1287,7 +1288,7 @@ public class StandardBodyBuilder : BodyBuilder
                 break;
 
             default:
-                this.Emitter.EmitThrowAndReport(new Diagnostic($"Unhandled operator kind '{opsym.Kind}' in EmitOperator.").WithLocation(location));
+                this.Emitter.EmitThrowAndReport(new Diagnostic($"Unhandled operator kind '{opsym.Operator}' in EmitOperator.").WithLocation(location));
                 break;
         }
     }

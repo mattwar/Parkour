@@ -1,4 +1,6 @@
 ﻿namespace Parkour.Semantics;
+
+using Parkour;
 using Symbols;
 using System.Xml.Linq;
 
@@ -9,8 +11,8 @@ public class NamespaceDeclaration : MemberDeclaration
 
     private NamespaceDeclaration(
         string name,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         ImmutableList<AttributeExpression> attributes,
         ImmutableList<Declaration> declarations,
         ISourceLocation? location,
@@ -35,9 +37,9 @@ public class NamespaceDeclaration : MemberDeclaration
         ImmutableList<Declaration> declarations,
         ISourceLocation? location)
         : this(
-              name, 
-              SymbolAccess.Public,
-              SymbolModifier.None,
+              name,
+              Access.Public,
+              Modifier.None,
               ImmutableList<AttributeExpression>.Empty,
               declarations, 
               location, 
@@ -98,7 +100,7 @@ public class NamespaceDeclaration : MemberDeclaration
             diagnostics
             );
 
-    public override NamespaceDeclaration WithAccess(SymbolAccess access) =>
+    public override NamespaceDeclaration WithAccess(Access access) =>
         access == this.Access ? this :
         new NamespaceDeclaration(
             this.Name,
@@ -112,7 +114,7 @@ public class NamespaceDeclaration : MemberDeclaration
             );
 
 
-    public override NamespaceDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    public override NamespaceDeclaration WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new NamespaceDeclaration(
             this.Name,

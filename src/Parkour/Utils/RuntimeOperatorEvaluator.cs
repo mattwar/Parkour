@@ -7,17 +7,17 @@ using Symbols;
 /// <summary>
 /// Executes common operators against values.
 /// </summary>
-public abstract class RuntimeOperators
+public abstract class RuntimeOperatorEvaluator
 {
     /// <summary>
     /// Invokes the unary operator with the operand value.
     /// </summary>
-    public abstract object? Invoke(string operatorName, object? value, bool isChecked = true);
+    public abstract object? Evaluate(RuntimeOperator op, object? value, bool isChecked = true);
 
     /// <summary>
     /// Invokes the binary operator with the the left & right argument values.
     /// </summary>
-    public abstract object? Invoke(string operatorName, object? left, object? right, bool isChecked = true);
+    public abstract object? Evaluate(RuntimeOperator op, object? left, object? right, bool isChecked = true);
 
     /// <summary>
     /// Converts the value to the type.
@@ -25,67 +25,58 @@ public abstract class RuntimeOperators
     public abstract object? Convert(Type type, object? value, bool isChecked = true);
 }
 
-public static class RuntimeOperatorExtensions
-{
-    public static object? Add(this RuntimeOperators operators, object? left, object? right) =>
-        operators.Invoke(OperatorKind.Add, left, right);
-
-    public static object? AddUnchecked(this RuntimeOperators operators, object? left, object? right) =>
-        operators.Invoke(OperatorKind.Add, left, right, isChecked: false);
-}
-
 /// <summary>
-/// Implemention of <see cref="RuntimeOperators"/> using dotnet language rules.
+/// Implemention of <see cref="RuntimeOperatorEvaluator"/> using dotnet language rules.
 /// </summary>
-public class StandardRuntimeOperators : RuntimeOperators
+public class StandardRuntimeOperatorEvaluator : RuntimeOperatorEvaluator
 {
-    private StandardRuntimeOperators()
+    private StandardRuntimeOperatorEvaluator()
     {
     }
 
-    public static StandardRuntimeOperators Instance = 
-        new StandardRuntimeOperators();
+    public static readonly StandardRuntimeOperatorEvaluator Instance = 
+        new StandardRuntimeOperatorEvaluator();
 
-    public override object? Invoke(string operatorName, object? value, bool isChecked = true)
+    public override object? Evaluate(RuntimeOperator op, object? value, bool isChecked = true)
     {
         if (value == null)
             return null;
 
         var ops = GetOperators(value);
 
-        switch (operatorName)
+        switch (op)
         {
-            case OperatorKind.Negate:
+            case RuntimeOperator.Negate:
                 return isChecked ? ops.Negate(value) : ops.NegateUnchecked(value);
-            case OperatorKind.Increment:
+            case RuntimeOperator.Increment:
                 return isChecked ? ops.Increment(value) : ops.IncrementUnchecked(value);
-            case OperatorKind.Decrement:
+            case RuntimeOperator.Decrement:
                 return isChecked ? ops.Decrement(value) : ops.DecrementUnchecked(value);
-            case OperatorKind.BitwiseNot:
+            case RuntimeOperator.BitwiseNot:
                 return ops.BitwiseNot(value);
-            case OperatorKind.LogicalNot:
+            case RuntimeOperator.LogicalNot:
                 return ops.LogicalNot(value);
-            case OperatorKind.UnaryPlus:
+            case RuntimeOperator.UnaryPlus:
                 return value;
-            case OperatorKind.True:
+            case RuntimeOperator.True:
                 return ops.True(value);
-            case OperatorKind.False:
+            case RuntimeOperator.False:
                 return ops.False(value);
             default:
-                throw new InvalidOperationException($"Unhandled unary operator kind '{operatorName}'");
+                throw new InvalidOperationException($"Unhandled unary operator kind '{op.GetType().Name}'");
         }
     }
 
-    public override object? Invoke(string operatorName, object? left, object? right, bool isChecked = true)
+    public override object? Evaluate(RuntimeOperator op, object? left, object? right, bool isChecked = true)
     {
         if (left == null || right == null) return null;
 
-        if (operatorName == OperatorKind.ShiftLeft)
+        if (op is RuntimeOperator.ShiftLeft)
         {
             var ops = GetOperators(left);
             return isChecked ? ops.ShiftLeft(left, right) : ops.ShiftLeftUnchecked(left, right);
         }
-        else if (operatorName == OperatorKind.ShiftRight)
+        else if (op is RuntimeOperator.ShiftRight)
         {
             var ops = GetOperators(left);
             return isChecked ? ops.ShiftRight(left, right) : ops.ShiftRightUnchecked(left, right);
@@ -94,44 +85,44 @@ public class StandardRuntimeOperators : RuntimeOperators
         {
             var ops = GetOperators(left, right);
 
-            switch (operatorName)
+            switch (op)
             {
-                case OperatorKind.Add:
+                case RuntimeOperator.Add:
                     return isChecked ? ops.Add(left, right) : ops.AddUnchecked(left, right);
-                case OperatorKind.Subtract:
+                case RuntimeOperator.Subtract:
                     return isChecked ? ops.Subtract(left, right) : ops.SubtractUnchecked(left, right);
-                case OperatorKind.Multiply:
+                case RuntimeOperator.Multiply:
                     return isChecked ? ops.Multiply(left, right) : ops.MultiplyUnchecked(left, right);
-                case OperatorKind.Divide:
+                case RuntimeOperator.Divide:
                     return isChecked ? ops.Divide(left, right) : ops.DivideUnchecked(left, right);
-                case OperatorKind.Remainder:
+                case RuntimeOperator.Remainder:
                     return isChecked ? ops.Remainder(left, right) : ops.RemainderUnchecked(left, right);
-                case OperatorKind.BitwiseAnd:
+                case RuntimeOperator.BitwiseAnd:
                     return ops.BitwiseAnd(left, right);
-                case OperatorKind.BitwiseOr:
+                case RuntimeOperator.BitwiseOr:
                     return ops.BitwiseOr(left, right);
-                case OperatorKind.BitwiseXor:
+                case RuntimeOperator.BitwiseXor:
                     return ops.BitwiseXor(left, right);
-                case OperatorKind.Equal:
+                case RuntimeOperator.Equal:
                     return ops.Equal(left, right);
-                case OperatorKind.NotEqual:
+                case RuntimeOperator.NotEqual:
                     return ops.NotEqual(left, right);
-                case OperatorKind.LessThan:
+                case RuntimeOperator.LessThan:
                     return ops.LessThan(left, right);
-                case OperatorKind.LessThanOrEqual:
+                case RuntimeOperator.LessThanOrEqual:
                     return ops.LessThanOrEqual(left, right);
-                case OperatorKind.GreaterThan:
+                case RuntimeOperator.GreaterThan:
                     return ops.GreaterThan(left, right);
-                case OperatorKind.GreaterThanOrEqual:
+                case RuntimeOperator.GreaterThanOrEqual:
                     return ops.GreaterThanOrEqual(left, right);
-                case OperatorKind.LogicalAnd:
-                case OperatorKind.LogicalAndAlso:
+                case RuntimeOperator.LogicalAnd:
+                case RuntimeOperator.LogicalAndAlso:
                     return ops.LogicalAnd(left, right);
-                case OperatorKind.LogicalOr:
-                case OperatorKind.LogicalOrElse:
+                case RuntimeOperator.LogicalOr:
+                case RuntimeOperator.LogicalOrElse:
                     return ops.LogicalOr(left, right);
                 default:
-                    throw new InvalidOperationException($"Unhandled binary operator kind '{operatorName}'.");
+                    throw new InvalidOperationException($"Unhandled binary operator kind '{op.GetType().Name}'.");
             }
         }
     }
@@ -318,7 +309,6 @@ public class StandardRuntimeOperators : RuntimeOperators
 
         throw new InvalidOperationException($"No compatible operators for types: '{leftType.FullName}' and '{rightType.FullName}'");
     }
-
 
     private class TypedOperators<T>
         : IOperators

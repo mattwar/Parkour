@@ -4,7 +4,7 @@ using Symbols;
 /// <summary>
 /// Constructs a constructable type or member by giving it type arguments.
 /// </summary>
-public class ConstructExpression : AdjustedReferenceExpression
+public class ConstructExpression : AugmentedReferenceExpression
 {
     public override Expression TypeOrMember { get; }
     public ImmutableList<Expression> TypeArguments { get; }

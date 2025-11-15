@@ -4,10 +4,18 @@ using Symbols;
 /// <summary>
 /// Filters referenced symbols to only those matching the arity.
 /// </summary>
-public class ArityExpression : AdjustedReferenceExpression
+public class ArityExpression : AugmentedReferenceExpression
 {
+    /// <summary>
+    /// An expression that represents the type or member whose arity is being referenced.
+    /// </summary>
     public override Expression TypeOrMember { get; }
+
+    /// <summary>
+    /// The arity being referenced.
+    /// </summary>
     public int Arity { get; }
+
     public override Symbol? ReferencedSymbol { get; }
 
     private ArityExpression(

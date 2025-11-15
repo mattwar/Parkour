@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 using static Semantics.SemanticFactory;
 
@@ -30,8 +31,8 @@ public class TopLevelExpressionLowerer : PartialLowerer
                             Symbol("System.Object"),
                             Block(exprs),
                             exprs[0].Location)
-                            .WithAccess(SymbolAccess.Public)
-                            .WithModifiers(SymbolModifier.Static)
+                            .WithAccess(Access.Public)
+                            .WithModifiers(Modifier.Static)
                     ],
                     exprs[0].Location);
 

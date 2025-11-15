@@ -386,22 +386,22 @@ public abstract class SymbolTable
         }
     }
 
-    private ImmutableDictionary<string, ImmutableList<OperatorSymbol>>? _kindToOperatorMap;
+    private ImmutableDictionary<Operator, ImmutableList<OperatorSymbol>>? _kindToOperatorMap;
 
     /// <summary>
     /// Gets the operators for the specific operator kind.
     /// </summary>
-    public ImmutableList<OperatorSymbol> GetOperators(string kind)
+    public ImmutableList<OperatorSymbol> GetOperators(Operator op)
     {
         if (_kindToOperatorMap == null)
         {
             var tmp = this.Operators
-                .GroupBy(op => op.Kind)
+                .GroupBy(op => op.Operator)
                 .ToImmutableDictionary(g => g.Key, g => g.ToImmutableList());
             Interlocked.CompareExchange(ref _kindToOperatorMap, tmp, null);
         }
 
-        return _kindToOperatorMap.TryGetValue(kind, out var operators)
+        return _kindToOperatorMap.TryGetValue(op, out var operators)
             ? operators
             : ImmutableList<OperatorSymbol>.Empty;
     }

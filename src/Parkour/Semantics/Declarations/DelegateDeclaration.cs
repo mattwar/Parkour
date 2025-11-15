@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 public sealed class DelegateDeclaration : TypeDeclaration
@@ -11,8 +12,8 @@ public sealed class DelegateDeclaration : TypeDeclaration
 
     private DelegateDeclaration(
         string name,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         ImmutableList<AttributeExpression> attributes,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
@@ -46,8 +47,8 @@ public sealed class DelegateDeclaration : TypeDeclaration
         ISourceLocation? location)
         : this(
               name,
-              SymbolAccess.Public,
-              SymbolModifier.None,
+              Access.Public,
+              Modifier.None,
               ImmutableList<AttributeExpression>.Empty,
               ImmutableList<TypeParameterDeclaration>.Empty,
               [SemanticFactory.Symbol("System.Delegate")],
@@ -129,7 +130,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             diagnostics
             );
 
-    public override DelegateDeclaration WithAccess(SymbolAccess access) =>
+    public override DelegateDeclaration WithAccess(Access access) =>
         access == this.Access ? this :
         new DelegateDeclaration(
             this.Name,
@@ -146,7 +147,7 @@ public sealed class DelegateDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override DelegateDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    public override DelegateDeclaration WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new DelegateDeclaration(
             this.Name,

@@ -4,6 +4,7 @@ using System.Reflection;
 
 namespace Parkour.Linq;
 
+using Parkour;
 using Reflection;
 using Semantics;
 using Symbols;
@@ -236,7 +237,7 @@ public class LinqTranslator
         {
             case MemberExpression member:
                 return member.Instance;
-            case AdjustedReferenceExpression adjust:
+            case AugmentedReferenceExpression adjust:
                 return GetCallInstance(adjust.TypeOrMember);
             default:
                 return expression;
@@ -466,48 +467,48 @@ public class LinqTranslator
 
     private L.Expression TranslateOperator(OperatorSymbol opsym, ImmutableList<Expression> arguments)
     {
-        switch (opsym.Kind)
+        switch (opsym.Operator)
         {
-            case OperatorKind.Add:
+            case RuntimeOperator.Add:
                 return L.Expression.Add(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Subtract:
+            case RuntimeOperator.Subtract:
                 return L.Expression.Subtract(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Multiply:
+            case RuntimeOperator.Multiply:
                 return L.Expression.Multiply(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Divide:
+            case RuntimeOperator.Divide:
                 return L.Expression.Divide(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Remainder:
+            case RuntimeOperator.Remainder:
                 return L.Expression.Modulo(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Negate:
+            case RuntimeOperator.Negate:
                 return L.Expression.Negate(Translate(arguments[0]));
-            case OperatorKind.BitwiseAnd:
-            case OperatorKind.LogicalAnd:
+            case RuntimeOperator.BitwiseAnd:
+            case RuntimeOperator.LogicalAnd:
                 return L.Expression.And(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.BitwiseOr:
-            case OperatorKind.LogicalOr:
+            case RuntimeOperator.BitwiseOr:
+            case RuntimeOperator.LogicalOr:
                 return L.Expression.Or(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.BitwiseNot:
-            case OperatorKind.LogicalNot:
+            case RuntimeOperator.BitwiseNot:
+            case RuntimeOperator.LogicalNot:
                 return L.Expression.Not(Translate(arguments[0]));
-            case OperatorKind.LogicalAndAlso:
+            case RuntimeOperator.LogicalAndAlso:
                 return L.Expression.AndAlso(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.LogicalOrElse:
+            case RuntimeOperator.LogicalOrElse:
                 return L.Expression.OrElse(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.Equal:
+            case RuntimeOperator.Equal:
                 return L.Expression.Equal(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.NotEqual:
+            case RuntimeOperator.NotEqual:
                 return L.Expression.NotEqual(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.LessThan:
+            case RuntimeOperator.LessThan:
                 return L.Expression.LessThan(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.LessThanOrEqual:
+            case RuntimeOperator.LessThanOrEqual:
                 return L.Expression.LessThanOrEqual(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.GreaterThan:
+            case RuntimeOperator.GreaterThan:
                 return L.Expression.GreaterThan(Translate(arguments[0]), Translate(arguments[1]));
-            case OperatorKind.GreaterThanOrEqual:
+            case RuntimeOperator.GreaterThanOrEqual:
                 return L.Expression.GreaterThanOrEqual(Translate(arguments[0]), Translate(arguments[1]));
         }
 
-        throw new InvalidOperationException($"Unhandled operator kind '{opsym.Kind}'");
+        throw new InvalidOperationException($"Unhandled operator kind '{opsym.Operator}'");
     }
 
     private L.Expression TranslateSymbolReference(SymbolExpression rex)

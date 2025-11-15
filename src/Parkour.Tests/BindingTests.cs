@@ -77,7 +77,7 @@ public class BindingTests
         // static field
         TestBind(
             [
-                Class("C", [Field("F", Int32Type).WithModifiers(SymbolModifier.Static)]),
+                Class("C", [Field("F", Int32Type).WithModifiers(Modifier.Static)]),
                 Name("C").Member("F"),
             ],
             expectedSymbols: ["C.F"],
@@ -157,7 +157,7 @@ public class BindingTests
         // static void method
         TestBind(
             [
-                Class("C", [Method("M", [], VoidType, Block()).WithModifiers(SymbolModifier.Static)]),
+                Class("C", [Method("M", [], VoidType, Block()).WithModifiers(Modifier.Static)]),
                 Name("C").Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
@@ -167,7 +167,7 @@ public class BindingTests
         // static int returning method
         TestBind(
             [
-                Class("C", [Method("M", [], Int32Type, Constant(1)).WithModifiers(SymbolModifier.Static)]),
+                Class("C", [Method("M", [], Int32Type, Constant(1)).WithModifiers(Modifier.Static)]),
                 Name("C").Member("M").Call()
             ],
             expectedSymbols: ["C.M"],
@@ -177,7 +177,7 @@ public class BindingTests
         // static int returning method with parameter
         TestBind(
             [
-                Class("C", [Method("M", [Parameter("p", Int32Type)], Int32Type, Constant(1)).WithModifiers(SymbolModifier.Static)]),
+                Class("C", [Method("M", [Parameter("p", Int32Type)], Int32Type, Constant(1)).WithModifiers(Modifier.Static)]),
                 Name("C").Member("M").Call(Constant(1))
             ],
             expectedSymbols: ["C.M"],
@@ -259,7 +259,7 @@ public class BindingTests
         // static property
         TestBind(
             [
-                Class("C", [Property("P", Int32Type).WithModifiers(SymbolModifier.Static)]),
+                Class("C", [Property("P", Int32Type).WithModifiers(Modifier.Static)]),
                 Name("C").Member("P")
             ],
             expectedSymbols: ["C.P"],

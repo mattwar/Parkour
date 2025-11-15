@@ -1,9 +1,11 @@
 ﻿namespace Parkour.Semantics;
+
+using Parkour;
 using Symbols;
 
 public sealed class ParameterDeclaration : Declaration
 {
-    public BitSet<SymbolModifier> Modifiers { get; }
+    public BitSet<Modifier> Modifiers { get; }
     public ImmutableList<AttributeExpression> Attributes { get; }
     public Expression? ParameterType { get; }
 
@@ -11,7 +13,7 @@ public sealed class ParameterDeclaration : Declaration
 
     private ParameterDeclaration(
         string name, 
-        BitSet<SymbolModifier> modifiers,
+        BitSet<Modifier> modifiers,
         ImmutableList<AttributeExpression> attributes,
         Expression? parameterType,
         ISourceLocation? location,
@@ -36,7 +38,7 @@ public sealed class ParameterDeclaration : Declaration
         ISourceLocation? location)
         : this(
               name,
-              SymbolModifier.None,
+              Modifier.None,
               ImmutableList<AttributeExpression>.Empty,
               parameterType, 
               location, 
@@ -81,7 +83,7 @@ public sealed class ParameterDeclaration : Declaration
             diagnostics
             );
 
-    public ParameterDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    public ParameterDeclaration WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new ParameterDeclaration(
             this.Name,

@@ -41,8 +41,8 @@ public sealed class PropertySymbol : MemberSymbol
     public PropertySymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<TypeSymbol> fnType,
         Func<PropertySymbol, FieldSymbol>? fnBackingField,
         Func<PropertySymbol, MethodSymbol>? fnGetMethod,

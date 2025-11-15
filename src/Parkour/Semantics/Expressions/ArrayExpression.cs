@@ -2,14 +2,22 @@
 using Symbols;
 
 /// <summary>
-/// Converts referenced types to an arrays of that type.
+/// Augments type expressions with array semantics.
 /// </summary>
-public class ArrayExpression : AdjustedReferenceExpression
+public class ArrayExpression : AugmentedReferenceExpression
 {
+    /// <summary>
+    /// The element type of the array.
+    /// </summary>
     public Expression ElementType { get; }
+
+    /// <summary>
+    /// The type of the array, determined by semantic analysis.
+    /// </summary>
     public TypeSymbol? ArrayTypeSymbol { get; }
 
     public override Expression TypeOrMember => this.ElementType;
+
     public override Symbol? ReferencedSymbol => this.ArrayTypeSymbol;
 
     private ArrayExpression(
@@ -66,6 +74,8 @@ public class ArrayExpression : AdjustedReferenceExpression
             this.Diagnostics
             );
 
+    /// <summary>
+    /// Returns a new instance of <see cref="ArrayExpression"/> with the specified array type symbol.
     public ArrayExpression WithArrayTypeSymbol(TypeSymbol? arrayTypeSymbol) =>
         arrayTypeSymbol == this.ReferencedSymbol ? this :
         new ArrayExpression(
@@ -76,6 +86,9 @@ public class ArrayExpression : AdjustedReferenceExpression
             this.Diagnostics
             );
 
+    /// <summary>
+    /// Returns a new instance of <see cref="ArrayExpression"/> with the specified element type. 
+    /// </summary>
     public ArrayExpression WithElementType(Expression elementType) =>
         elementType == this.TypeOrMember ? this :
         new ArrayExpression(

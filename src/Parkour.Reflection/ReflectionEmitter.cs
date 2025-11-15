@@ -4,6 +4,7 @@ using System.Reflection.Emit;
 
 namespace Parkour.Reflection;
 
+using Parkour;
 using Semantics;
 using Symbols;
 using System.Diagnostics.CodeAnalysis;
@@ -243,7 +244,7 @@ public partial class ReflectionEmitter : SemanticEmitter
             _symbolToBuilder.Add(fieldSymbol, fieldBuilder);
 
             // set constant value
-            if (fieldSymbol.Modifiers.Contains(SymbolModifier.Constant)
+            if (fieldSymbol.Modifiers.Contains(Modifier.Constant)
                 && fieldDecl.Initializer is ConstantExpression fieldConst)
             {
                 fieldBuilder.SetConstant(fieldConst.Value);
@@ -612,11 +613,11 @@ public partial class ReflectionEmitter : SemanticEmitter
             case StructSymbol:
                 attrs |= TypeAttributes.Class;
 
-                if (ts.Modifiers.Contains(SymbolModifier.Abstract))
+                if (ts.Modifiers.Contains(Modifier.Abstract))
                     attrs |= TypeAttributes.Abstract;
-                else if (ts.Modifiers.Contains(SymbolModifier.Sealed))
+                else if (ts.Modifiers.Contains(Modifier.Sealed))
                     attrs |= TypeAttributes.Sealed;
-                else if (ts.Modifiers.Contains(SymbolModifier.Special))
+                else if (ts.Modifiers.Contains(Modifier.Special))
                     attrs |= TypeAttributes.SpecialName;
                 break;
             case InterfaceSymbol:
@@ -624,31 +625,27 @@ public partial class ReflectionEmitter : SemanticEmitter
                 break;
         }
 
-
         var isNested = ts.DeclaringSymbol is TypeSymbol;
-        if (ts.Access == SymbolAccess.Private)
+        switch (ts.Access)
         {
-            attrs |= isNested ? TypeAttributes.NestedPrivate : TypeAttributes.NotPublic;
-        }
-        else if (ts.Access == SymbolAccess.Public)
-        {
-            attrs |= isNested ? TypeAttributes.NestedPublic : TypeAttributes.NotPublic;
-        }
-        else if (ts.Access == SymbolAccess.Internal)
-        {
-            attrs |= isNested ? TypeAttributes.NestedAssembly : TypeAttributes.NotPublic;
-        }
-        else if (ts.Access == SymbolAccess.Protected)
-        {
-            attrs |= isNested ? TypeAttributes.NestedFamily : TypeAttributes.NotPublic;
-        }
-        else if (ts.Access == SymbolAccess.ProtectedOrInternal)
-        {
-            attrs |= isNested ? TypeAttributes.NestedFamORAssem : TypeAttributes.NotPublic;
-        }
-        else if (ts.Access == SymbolAccess.ProtectedAndInternal)
-        {
-            attrs |= isNested ? TypeAttributes.NestedFamANDAssem : TypeAttributes.NotPublic;
+            case RuntimeAccess.Private:
+                attrs |= isNested ? TypeAttributes.NestedPrivate : TypeAttributes.NotPublic;
+                break;
+            case RuntimeAccess.Public:
+                attrs |= isNested ? TypeAttributes.NestedPublic : TypeAttributes.NotPublic;
+                break;
+            case RuntimeAccess.Internal:
+                attrs |= isNested ? TypeAttributes.NestedAssembly : TypeAttributes.NotPublic;
+                break;
+            case RuntimeAccess.Protected:
+                attrs |= isNested ? TypeAttributes.NestedFamily : TypeAttributes.NotPublic;
+                break;
+            case RuntimeAccess.ProtectedOrInternal:
+                attrs |= isNested ? TypeAttributes.NestedFamORAssem : TypeAttributes.NotPublic;
+                break;
+            case RuntimeAccess.ProtectedAndInternal:
+                attrs |= isNested ? TypeAttributes.NestedFamANDAssem : TypeAttributes.NotPublic;
+                break;
         }
 
         return attrs;
@@ -658,36 +655,36 @@ public partial class ReflectionEmitter : SemanticEmitter
     {
         FieldAttributes attrs = default;
 
-        if (field.Modifiers.Contains(SymbolModifier.Static))
+        if (field.Modifiers.Contains(Modifier.Static))
             attrs |= FieldAttributes.Static;
 
-        if (field.Modifiers.Contains(SymbolModifier.Special))
+        if (field.Modifiers.Contains(Modifier.Special))
             attrs |= FieldAttributes.SpecialName;
 
-        if (field.Modifiers.Contains(SymbolModifier.Constant))
+        if (field.Modifiers.Contains(Modifier.Constant))
             attrs |= FieldAttributes.Literal;
 
-        if (field.Access == SymbolAccess.Private)
+        if (field.Access == Access.Private)
         {
             attrs |= FieldAttributes.Private;
         }
-        else if (field.Access == SymbolAccess.Public)
+        else if (field.Access == Access.Public)
         {
             attrs |= FieldAttributes.Public;
         }
-        else if (field.Access == SymbolAccess.Protected)
+        else if (field.Access == Access.Protected)
         {
             attrs |= FieldAttributes.Family;
         }
-        else if (field.Access == SymbolAccess.Internal)
+        else if (field.Access == Access.Internal)
         {
             attrs |= FieldAttributes.Assembly;
         }
-        else if (field.Access == SymbolAccess.ProtectedOrInternal)
+        else if (field.Access == Access.ProtectedOrInternal)
         {
             attrs |= FieldAttributes.FamORAssem;
         }
-        else if (field.Access == SymbolAccess.ProtectedAndInternal)
+        else if (field.Access == Access.ProtectedAndInternal)
         {
             attrs |= FieldAttributes.FamANDAssem;
         }
@@ -699,37 +696,37 @@ public partial class ReflectionEmitter : SemanticEmitter
     {
         MethodAttributes attrs = default;
 
-        if (method.Modifiers.Contains(SymbolModifier.Static))
+        if (method.Modifiers.Contains(Modifier.Static))
             attrs |= MethodAttributes.Static;
 
         if (method.DeclaringSymbol == null
             || method.DeclaringSymbol is NamespaceSymbol)
             attrs |= MethodAttributes.Static;
 
-        if (method.Modifiers.Contains(SymbolModifier.Special))
+        if (method.Modifiers.Contains(Modifier.Special))
             attrs |= MethodAttributes.SpecialName;
 
-        if (method.Access == SymbolAccess.Private)
+        if (method.Access == Access.Private)
         {
             attrs |= MethodAttributes.Private;
         }
-        else if (method.Access == SymbolAccess.Public)
+        else if (method.Access == Access.Public)
         {
             attrs |= MethodAttributes.Public;
         }
-        else if (method.Access == SymbolAccess.Protected)
+        else if (method.Access == Access.Protected)
         {
             attrs |= MethodAttributes.Family;
         }
-        else if (method.Access == SymbolAccess.Internal)
+        else if (method.Access == Access.Internal)
         {
             attrs |= MethodAttributes.Assembly;
         }
-        else if (method.Access == SymbolAccess.ProtectedOrInternal)
+        else if (method.Access == Access.ProtectedOrInternal)
         {
             attrs |= MethodAttributes.FamORAssem;
         }
-        else if (method.Access == SymbolAccess.ProtectedAndInternal)
+        else if (method.Access == Access.ProtectedAndInternal)
         {
             attrs |= MethodAttributes.FamANDAssem;
         }

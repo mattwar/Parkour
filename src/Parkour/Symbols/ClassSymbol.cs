@@ -12,8 +12,8 @@ public class ClassSymbol : TypeSymbol
     public ClassSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
@@ -37,8 +37,8 @@ public class ClassSymbol : TypeSymbol
     public ClassSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers)
+        Access access,
+        BitSet<Modifier> modifiers)
         : this(
               name, 
               declaringSymbol, 
@@ -57,8 +57,8 @@ public class ClassSymbol : TypeSymbol
         : this(
             name,
             declaringSymbol: null,
-            SymbolAccess.Public,
-            SymbolModifier.None)
+            Access.Public,
+            Modifier.None)
     {
     }
 

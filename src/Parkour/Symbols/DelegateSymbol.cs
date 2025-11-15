@@ -30,8 +30,8 @@ public class DelegateSymbol : TypeSymbol
     private DelegateSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<DelegateSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
         Func<TypeSymbol> fnReturnType,
         Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
@@ -64,8 +64,8 @@ public class DelegateSymbol : TypeSymbol
     public DelegateSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<DelegateSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
         Func<TypeSymbol> fnReturnType,
         Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
@@ -93,8 +93,8 @@ public class DelegateSymbol : TypeSymbol
         : this(
             name,
             declaringSymbol,
-            SymbolAccess.Public,
-            SymbolModifier.None,
+            Access.Public,
+            Modifier.None,
             fnParameters,
             fnReturnType,
             fnAttributes: null)

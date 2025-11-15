@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 public class MethodDeclaration : MemberDeclaration
@@ -15,8 +16,8 @@ public class MethodDeclaration : MemberDeclaration
 
     private MethodDeclaration(
         string name, 
-        SymbolAccess access, 
-        BitSet<SymbolModifier> modifiers, 
+        Access access, 
+        BitSet<Modifier> modifiers, 
         ImmutableList<AttributeExpression> attributes,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<ParameterDeclaration> parameters,
@@ -57,9 +58,9 @@ public class MethodDeclaration : MemberDeclaration
         Expression? body,
         ISourceLocation? location)
         : this(
-              name, 
-              SymbolAccess.Public, 
-              SymbolModifier.None,
+              name,
+              Access.Public,
+              Modifier.None,
               ImmutableList<AttributeExpression>.Empty,
               ImmutableList<TypeParameterDeclaration>.Empty,
               parameters, 
@@ -162,7 +163,7 @@ public class MethodDeclaration : MemberDeclaration
             diagnostics
             );
 
-    public override MethodDeclaration WithAccess(SymbolAccess access) =>
+    public override MethodDeclaration WithAccess(Access access) =>
         access == this.Access ? this :
         new MethodDeclaration(
             this.Name,
@@ -180,7 +181,7 @@ public class MethodDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override MethodDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    public override MethodDeclaration WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new MethodDeclaration(
             this.Name,

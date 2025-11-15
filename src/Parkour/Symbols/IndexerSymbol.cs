@@ -35,8 +35,8 @@ public sealed class IndexerSymbol : MemberSymbol
     public IndexerSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<TypeSymbol> fnElementType,
         Func<IndexerSymbol, MethodSymbol>? fnGetMethod,
         Func<IndexerSymbol, MethodSymbol>? fnSetMethod,

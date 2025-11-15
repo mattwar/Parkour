@@ -2,13 +2,28 @@
 
 using Symbols;
 
+/// <summary>
+/// The base class for all semantic elements, including expressions, statements, and declarations.
+/// Semantic elements start out unbound and become either bound or assigned diagnostics during semantic analysis.
+/// </summary>
 [System.Diagnostics.DebuggerDisplay("{DebugText}")]
 public abstract class SemanticElement
 {
     internal protected virtual string DebugText => $"{GetType().Name}";
 
+    /// <summary>
+    /// Any diagnostics associated with this <see cref="SemanticElement"/>.
+    /// </summary>
     public ImmutableList<Diagnostic> Diagnostics { get; }
+
+    /// <summary>
+    /// The source location corresponding to this <see cref="SemanticElement"/>.
+    /// </summary>
     public ISourceLocation? Location { get; }
+
+    /// <summary>
+    /// The aggregated state of this <see cref="SemanticElement"/> and its descendants.
+    /// </summary>
     private readonly ContainsState _state;
 
     /// <summary>
@@ -86,11 +101,22 @@ public abstract class SemanticElement
     public string ToDebugText() =>
         new SemanticWriter().WriteToString(this);
 
+    /// <summary>
+    /// Semantic state that aggregates from leaves to root.
+    /// </summary>
     [Flags]
     internal protected enum ContainsState
     {
         None = 0,
+
+        /// <summary>
+        /// Expression is unbound.
+        /// </summary>
         Unbound = 2,
+
+        /// <summary>
+        /// Expression has or contains diagnostics.
+        /// </summary>
         Diagnostics = 4
     }
 
@@ -112,31 +138,52 @@ public abstract class SemanticElement
         }
     }
 
-    protected static ContainsState CombineState<TSemantic>(IEnumerable<TSemantic>? items)
+    /// <summary>
+    /// Combine the <see cref="ContainsState"/> of multiple semantic elements.
+    /// </summary>
+    protected static ContainsState CombineState<TSemantic>(IEnumerable<TSemantic>? elements)
         where TSemantic : SemanticElement =>
-        items != null
-            ? items.Aggregate(ContainsState.None, (s, e) => s | State(e))
+        elements != null
+            ? elements.Aggregate(ContainsState.None, (s, e) => s | State(e))
             : ContainsState.None;
 
+    /// <summary>
+    /// Accesses the <see cref="ContainsState"/> of a semantic element.
+    /// </summary>
     protected static ContainsState State(SemanticElement? element) =>
         element != null ? element._state : ContainsState.None;
 
+    /// <summary>
+    /// An assertion that the symbol is not null.
+    /// If the symbol is null the state will be <see cref="ContainsState.Unbound"/>.
+    /// </summary>
     protected static ContainsState NotNullState(Symbol? symbol) =>
         symbol == null || symbol == SpecialSymbols.Unknown
             ? ContainsState.Unbound 
             : ContainsState.None;
 
+    /// <summary>
+    /// An assertion that the symbol is not null and there are no diagnostics.
+    /// If either are true, the state is <see cref="ContainsState.Unbound"/>.
+    /// </summary>
     protected static ContainsState NotNullOrDiagnosticState(Symbol? symbol, ImmutableList<Diagnostic>? diagnostics) =>
         (symbol == null || symbol == SpecialSymbols.Unknown) 
             && (diagnostics == null || diagnostics.Count == 0)
             ? ContainsState.Unbound
             : ContainsState.None;
 
+    /// <summary>
+    /// Creates a new instance of the semantic element with the specified source location.
+    /// </summary>
     public abstract SemanticElement WithLocation(ISourceLocation? location);
+
+    /// <summary>
+    /// Creates a new instance of the semantic element with the specified diagnostics.
+    /// </summary>
     public abstract SemanticElement WithDiagnostics(ImmutableList<Diagnostic> diagnostics);
 
     /// <summary>
-    /// Invokes the rewriter on the children
+    /// Invokes the rewriter on the children, returning a new semantic element if any children changed.
     /// </summary>
     public abstract SemanticElement RewriteChildren(SemanticRewriter rewriter);
 

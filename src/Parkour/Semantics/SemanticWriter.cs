@@ -1,4 +1,6 @@
 ﻿namespace Parkour.Semantics;
+
+using Parkour;
 using Symbols;
 
 /// <summary>
@@ -473,22 +475,22 @@ public class SemanticWriter
         WriteLine("}");
     }
 
-    private void WriteAccessAndModifiers(SymbolAccess access, BitSet<SymbolModifier> modifiers)
+    private void WriteAccessAndModifiers(Access access, BitSet<Modifier> modifiers)
     {
         WriteAccess(access);
         WriteModifiers(modifiers);
     }
 
-    private void WriteAccess(SymbolAccess access)
+    private void WriteAccess(Access access)
     {
-        WriteSeparated(access.ToString().ToLower());
+        WriteSeparated(access.Name);
     }
 
-    private void WriteModifiers(BitSet<SymbolModifier> modifiers)
+    private void WriteModifiers(BitSet<Modifier> modifiers)
     {
-        if (modifiers != SymbolModifier.None)
+        if (modifiers != Modifier.None)
         {
-            foreach (var mod in modifiers.Select(m => m.ToString().ToLower()).OrderBy(x => x))
+            foreach (var mod in modifiers.Select(m => m.Name).OrderBy(x => x))
             {
                 WriteSeparated(mod);
             }

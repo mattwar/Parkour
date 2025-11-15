@@ -2,6 +2,7 @@
 
 namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 /// <summary>
@@ -379,7 +380,7 @@ public class StandardBinder : SemanticBinder
         Symbol? declaringSymbol,
         FieldDeclaration declaration)
     {
-        var constValue = declaration.Modifiers.Contains(SymbolModifier.Constant)
+        var constValue = declaration.Modifiers.Contains(Modifier.Constant)
             && declaration.Initializer is ConstantExpression constExpr
             ? constExpr.Value
             : null;
@@ -497,8 +498,8 @@ public class StandardBinder : SemanticBinder
     {
         var mmods = declaration.Modifiers
             | (declaringSymbol is NamespaceSymbol 
-                ? SymbolModifier.Static 
-                : SymbolModifier.None);
+                ? Modifier.Static 
+                : Modifier.None);
 
         return new MethodSymbol(
             declaration.Name,
@@ -2000,7 +2001,7 @@ public class StandardBinder : SemanticBinder
         {
             case MemberExpression member:
                 return member.Instance;
-            case AdjustedReferenceExpression filter:
+            case AugmentedReferenceExpression filter:
                 return GetCallInstance(filter.TypeOrMember);
             default:
                 return expression;
@@ -2950,8 +2951,8 @@ public class StandardBinder : SemanticBinder
                 functionSymbol = new DelegateSymbol(
                     lambda.Name,
                     null,
-                    SymbolAccess.Public,
-                    SymbolModifier.None,
+                    Access.Public,
+                    Modifier.None,
                     me =>
                     {
                         var pms = CreateParameterSymbols(me, context);
@@ -3095,7 +3096,7 @@ public class StandardBinder : SemanticBinder
         {
             var arguments = BindList(context, opex.Arguments);
 
-            GetCandidateOperators(context, opex.Kind, arguments, candidates);
+            GetCandidateOperators(context, opex.Operator, arguments, candidates);
 
             Symbol? operatorSymbol = null;
 
@@ -3142,11 +3143,11 @@ public class StandardBinder : SemanticBinder
         }
     }
 
-    protected virtual void GetCandidateOperators(BindingContext context, string operatorKind, ImmutableList<Expression> arguments, List<Symbol> candidates)
+    protected virtual void GetCandidateOperators(BindingContext context, Operator op, ImmutableList<Expression> arguments, List<Symbol> candidates)
     {
-        candidates.AddRange(context.Symbols.GetOperators(operatorKind));
+        candidates.AddRange(context.Symbols.GetOperators(op));
 
-        var opName = GetOperatorName(operatorKind);
+        var opName = GetOperatorName(op);
         foreach (var arg in arguments)
         {
             GetMatchingTypeMembers(arg.ResultType, opName, s => s is MemberSymbol ms && ms.IsStatic, candidates);
@@ -3159,53 +3160,53 @@ public class StandardBinder : SemanticBinder
         return candidates.FirstOrDefault(c => MatchesParameters(context, c, arguments));
     }
 
-    private static string? GetOperatorName(string opKind)
+    private static string? GetOperatorName(Operator opKind)
     {
         return opKind switch
         {
-            OperatorKind.Add => "op_Addition",
-            OperatorKind.Subtract => "op_Subtraction",
-            OperatorKind.Multiply => "op_Multiply",
-            OperatorKind.Divide => "op_Division",
-            OperatorKind.Remainder => "op_Modulus",
-            OperatorKind.Negate => "op_Negation",
-            OperatorKind.UnaryPlus => "op_UnaryPlus",
-            OperatorKind.ShiftLeft => "op_ShiftLeft",
-            OperatorKind.ShiftRight => "op_ShiftRight",
-            OperatorKind.BitwiseAnd => "op_BitwiseAnd",
-            OperatorKind.BitwiseOr => "op_BitwiseOr",
-            OperatorKind.BitwiseXor => "op_ExclusiveOr",
-            OperatorKind.BitwiseNot => "op_OnesCompliment",
-            OperatorKind.LogicalAnd => "op_BitwiseAnd",
-            OperatorKind.LogicalOr => "op_BitwiseOr",
-            OperatorKind.LogicalNot => "op_LogicalNot",
-            OperatorKind.LogicalXor => "op_ExclusiveOr",
-            OperatorKind.Equal => "op_Equality",
-            OperatorKind.NotEqual => "op_Inequality",
-            OperatorKind.LessThan => "op_LessThan",
-            OperatorKind.LessThanOrEqual => "op_LessThanOrEqual",
-            OperatorKind.GreaterThan => "op_GreaterThan",
-            OperatorKind.GreaterThanOrEqual => "op_GreaterThanOrEqual",
-            OperatorKind.True => "op_True",
-            OperatorKind.False => "op_False",
-            OperatorKind.Increment => "op_Increment",
-            OperatorKind.Decrement => "op_Decrement",
+            RuntimeOperator.Add => "op_Addition",
+            RuntimeOperator.Subtract => "op_Subtraction",
+            RuntimeOperator.Multiply => "op_Multiply",
+            RuntimeOperator.Divide => "op_Division",
+            RuntimeOperator.Remainder => "op_Modulus",
+            RuntimeOperator.Negate => "op_Negation",
+            RuntimeOperator.UnaryPlus => "op_UnaryPlus",
+            RuntimeOperator.ShiftLeft => "op_ShiftLeft",
+            RuntimeOperator.ShiftRight => "op_ShiftRight",
+            RuntimeOperator.BitwiseAnd => "op_BitwiseAnd",
+            RuntimeOperator.BitwiseOr => "op_BitwiseOr",
+            RuntimeOperator.BitwiseXor => "op_ExclusiveOr",
+            RuntimeOperator.BitwiseNot => "op_OnesCompliment",
+            RuntimeOperator.LogicalAnd => "op_BitwiseAnd",
+            RuntimeOperator.LogicalOr => "op_BitwiseOr",
+            RuntimeOperator.LogicalNot => "op_LogicalNot",
+            RuntimeOperator.LogicalXor => "op_ExclusiveOr",
+            RuntimeOperator.Equal => "op_Equality",
+            RuntimeOperator.NotEqual => "op_Inequality",
+            RuntimeOperator.LessThan => "op_LessThan",
+            RuntimeOperator.LessThanOrEqual => "op_LessThanOrEqual",
+            RuntimeOperator.GreaterThan => "op_GreaterThan",
+            RuntimeOperator.GreaterThanOrEqual => "op_GreaterThanOrEqual",
+            RuntimeOperator.True => "op_True",
+            RuntimeOperator.False => "op_False",
+            RuntimeOperator.Increment => "op_Increment",
+            RuntimeOperator.Decrement => "op_Decrement",
             _ => null
         };
     }
 
-    private ImmutableDictionary<string, ImmutableList<OperatorSymbol>>? _kindToOperatorsMap;
+    private ImmutableDictionary<Operator, ImmutableList<OperatorSymbol>>? _kindToOperatorsMap;
 
-    protected virtual ImmutableList<OperatorSymbol> GetOperators(BindingContext context, string operatorKind)
+    protected virtual ImmutableList<OperatorSymbol> GetOperators(BindingContext context, Operator op)
     {
         if (_kindToOperatorsMap == null)
         {
             _kindToOperatorsMap = OperatorSymbols.From(context.Symbols).Default
-                .GroupBy(op => op.Kind)
+                .GroupBy(op => op.Operator)
                 .ToImmutableDictionary(g => g.Key, g => g.ToImmutableList());
         }
 
-        if (_kindToOperatorsMap.TryGetValue(operatorKind, out var operators))
+        if (_kindToOperatorsMap.TryGetValue(op, out var operators))
             return operators;
 
         return ImmutableList<OperatorSymbol>.Empty;

@@ -1,5 +1,4 @@
-﻿
-namespace Parkour.Symbols;
+﻿namespace Parkour.Symbols;
 
 public abstract class TypeSymbol : ContainerSymbol
 {
@@ -41,8 +40,8 @@ public abstract class TypeSymbol : ContainerSymbol
     protected TypeSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<TypeSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<ImmutableList<TypeSymbol>>? fnBaseTypes,
@@ -71,8 +70,8 @@ public abstract class TypeSymbol : ContainerSymbol
     protected TypeSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes)
         : this(
             name,
@@ -94,8 +93,8 @@ public abstract class TypeSymbol : ContainerSymbol
         : this(
               name,
               null,
-              SymbolAccess.Public,
-              SymbolModifier.None,
+              Access.Public,
+              Modifier.None,
               fnAttributes)
     {
     }
@@ -104,8 +103,8 @@ public abstract class TypeSymbol : ContainerSymbol
         : this(
             name,
             null,
-            SymbolAccess.Public,
-            SymbolModifier.None,
+            Access.Public,
+            Modifier.None,
             null)
     {
     }

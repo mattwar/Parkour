@@ -1,4 +1,6 @@
 ﻿namespace Parkour.Semantics;
+
+using Parkour;
 using Symbols;
 
 public abstract class TypeDeclaration : MemberDeclaration
@@ -10,8 +12,8 @@ public abstract class TypeDeclaration : MemberDeclaration
     private protected TypeDeclaration(
         ContainsState state,
         string name,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         ImmutableList<AttributeExpression> attributes,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
@@ -67,7 +69,7 @@ public abstract class TypeDeclaration : MemberDeclaration
         declarations ??= ImmutableList<Declaration>.Empty;
 
         // include a default constructor if no instance constructor is specified
-        if (declarations.Any(d => d is ConstructorDeclaration cd && !cd.Modifiers.Contains(SymbolModifier.Static)))
+        if (declarations.Any(d => d is ConstructorDeclaration cd && !cd.Modifiers.Contains(Modifier.Static)))
             return declarations;
 
         return declarations.Add(SemanticFactory.Constructor(location));

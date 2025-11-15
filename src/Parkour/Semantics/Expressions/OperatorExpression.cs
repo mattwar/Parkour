@@ -1,17 +1,33 @@
 ﻿namespace Parkour.Semantics;
+
+using Parkour;
 using Symbols;
 
+/// <summary>
+/// An operator invocation.
+/// </summary>
 public class OperatorExpression : Expression
 {
     protected internal override string DebugText =>
-        $"{nameof(OperatorExpression)}: {Kind}";
+        $"{nameof(OperatorExpression)}: {Operator}";
 
-    public string Kind { get; }
+    /// <summary>
+    /// The operator being invoked.
+    /// </summary>
+    public Operator Operator { get; }
+
+    /// <summary>
+    /// The arguments to the operator.
+    /// </summary>
     public ImmutableList<Expression> Arguments { get; }
+
+    /// <summary>
+    /// The <see cref="Symbol"/> for the operator, determined during semantic analysis.
+    /// </summary>
     public Symbol? OperatorSymbol { get; }
 
     private OperatorExpression(
-        string kind, 
+        Operator op, 
         ImmutableList<Expression> arguments,
         ISourceLocation? location,
         Symbol? operatorSymbol,
@@ -25,23 +41,23 @@ public class OperatorExpression : Expression
             resultType, 
             diagnostics)
     {
-        this.Kind = kind;
+        this.Operator = op;
         this.Arguments = arguments;
         this.OperatorSymbol = operatorSymbol;
     }
 
     public OperatorExpression(
-        string kind,
+        Operator op,
         ImmutableList<Expression> arguments,
         ISourceLocation? location)
-        : this(kind, arguments, location, null, null, null)
+        : this(op, arguments, location, null, null, null)
     {
     }
 
     public override OperatorExpression WithLocation(ISourceLocation? location) =>
         location == this.Location ? this :
         new OperatorExpression(
-            this.Kind,
+            this.Operator,
             this.Arguments,
             location,
             this.OperatorSymbol,
@@ -52,7 +68,7 @@ public class OperatorExpression : Expression
     public override OperatorExpression WithDiagnostics(ImmutableList<Diagnostic> diagnostics) =>
         diagnostics == this.Diagnostics ? this :
         new OperatorExpression(
-            this.Kind,
+            this.Operator,
             this.Arguments,
             this.Location,
             this.OperatorSymbol,
@@ -63,7 +79,7 @@ public class OperatorExpression : Expression
     public override OperatorExpression WithResultType(TypeSymbol? resultType) =>
         resultType == this.ResultType ? this :
         new OperatorExpression(
-            this.Kind,
+            this.Operator,
             this.Arguments,
             this.Location,
             this.OperatorSymbol,
@@ -71,10 +87,10 @@ public class OperatorExpression : Expression
             this.Diagnostics
             );
 
-    public OperatorExpression WithKind(string kind) =>
-        kind == this.Kind ? this :
+    public OperatorExpression WithOperator(Operator op) =>
+        op == this.Operator ? this :
         new OperatorExpression(
-            kind,
+            op,
             this.Arguments,
             this.Location,
             this.OperatorSymbol,
@@ -85,7 +101,7 @@ public class OperatorExpression : Expression
     public OperatorExpression WithArguments(ImmutableList<Expression> arguments) =>
         arguments == this.Arguments ? this :
         new OperatorExpression(
-            this.Kind,
+            this.Operator,
             arguments,
             this.Location,
             this.OperatorSymbol,
@@ -96,7 +112,7 @@ public class OperatorExpression : Expression
     public OperatorExpression WithOperatorSymbol(Symbol? operatorSymbol) =>
         operatorSymbol == this.OperatorSymbol ? this :
         new OperatorExpression(
-            this.Kind,
+            this.Operator,
             this.Arguments,
             this.Location,
             operatorSymbol,

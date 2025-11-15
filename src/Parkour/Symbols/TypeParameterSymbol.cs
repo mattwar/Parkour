@@ -1,4 +1,5 @@
-﻿using Parkour.Symbols;
+﻿using Parkour;
+using Parkour.Symbols;
 
 public class TypeParameterSymbol : TypeSymbol
 {
@@ -6,7 +7,7 @@ public class TypeParameterSymbol : TypeSymbol
         string name,
         Symbol? declaringSymbol,
         Func<TypeSymbol, ImmutableList<AttributeInfo>>? fnAttributes = null)
-        : base(name, declaringSymbol, SymbolAccess.Public, SymbolModifier.None, fnAttributes)
+        : base(name, declaringSymbol, Access.Public, Modifier.None, fnAttributes)
     {
     }
 }

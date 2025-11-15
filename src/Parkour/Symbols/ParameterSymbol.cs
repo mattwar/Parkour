@@ -4,7 +4,7 @@ public sealed class ParameterSymbol : Symbol
 {
     public Symbol? DeclaringSymbol { get; }
 
-    public BitSet<SymbolModifier> Modifiers { get; }
+    public BitSet<Modifier> Modifiers { get; }
 
     /// <summary>
     /// The type of the parameter.
@@ -32,7 +32,7 @@ public sealed class ParameterSymbol : Symbol
     public ParameterSymbol(
         string name, 
         Symbol? declaringSymbol,
-        BitSet<SymbolModifier> modifiers,
+        BitSet<Modifier> modifiers,
         Func<TypeSymbol> fnType,
         Func<ParameterSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         ParameterSymbol? definition = null)
@@ -54,7 +54,7 @@ public sealed class ParameterSymbol : Symbol
         : this(
               name,
               declaringSymbol,
-              SymbolModifier.None,
+              Modifier.None,
               () => type,
               fnAttributes: null,
               definition: null)

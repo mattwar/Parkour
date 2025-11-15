@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 /// <summary>
@@ -282,7 +283,7 @@ public static class SemanticFactory
     /// <summary>
     /// Creates a modified argument.
     /// </summary>
-    public static ArgumentExpression Argument(BitSet<SymbolModifier> modifiers, Expression expression, ISourceLocation? location = null) =>
+    public static ArgumentExpression Argument(BitSet<Modifier> modifiers, Expression expression, ISourceLocation? location = null) =>
         new ArgumentExpression(null, expression, location).WithModifiers(modifiers);
 
     /// <summary>
@@ -376,8 +377,8 @@ public static class SemanticFactory
     /// <summary>
     /// Invokes an intrinsic operator.
     /// </summary>
-    public static OperatorExpression Operator(string name, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
-        new OperatorExpression(name, arguments, location);
+    public static OperatorExpression OpEx(Operator op, ImmutableList<Expression> arguments, ISourceLocation? location = null) =>
+        new OperatorExpression(op, arguments, location);
 
     /// <summary>
     /// Return from a method or lambda.
@@ -438,67 +439,67 @@ public static class SemanticFactory
     /// Applies the Add operator to two values.
     /// </summary>
     public static OperatorExpression Add(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.Add, [left, right], location);
+        OpEx(Operator.Add, [left, right], location);
 
     /// <summary>
     /// Applies the Subtract operator to two values.
     /// </summary>
     public static OperatorExpression Subtract(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.Subtract, [left, right], location);
+        OpEx(Operator.Subtract, [left, right], location);
 
     /// <summary>
     /// Applies the Multiply operator to two values.
     /// </summary>
     public static OperatorExpression Multiply(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.Multiply, [left, right], location);
+        OpEx(Operator.Multiply, [left, right], location);
 
     /// <summary>
     /// Applies the Divide operator to two values.
     /// </summary>
     public static OperatorExpression Divide(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.Divide, [left, right], location);
+        OpEx(Operator.Divide, [left, right], location);
 
     /// <summary>
     /// Applies the Remainder operator to two values.
     /// </summary>
     public static OperatorExpression Remainder(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.Remainder, [left, right], location);
+        OpEx(Operator.Remainder, [left, right], location);
 
     /// <summary>
     /// Applies the Negate operator to a value.
     /// </summary>
     public static OperatorExpression Negate(Expression operand, ISourceLocation? location = null) =>
-        Operator(OperatorKind.Negate, [operand], location);
+        OpEx(Operator.Negate, [operand], location);
 
     public static OperatorExpression BitwiseAnd(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.BitwiseAnd, [left, right], location);
+        OpEx(Operator.BitwiseAnd, [left, right], location);
 
     public static OperatorExpression BitwiseOr(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.BitwiseOr, [left, right], location);
+        OpEx(Operator.BitwiseOr, [left, right], location);
 
     public static OperatorExpression BitwiseXor(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.BitwiseXor, [left, right], location);
+        OpEx(Operator.BitwiseXor, [left, right], location);
 
     public static OperatorExpression BitwiseNot(Expression operand, ISourceLocation? location = null) =>
-        Operator(OperatorKind.BitwiseNot, [operand], location);
+        OpEx(Operator.BitwiseNot, [operand], location);
 
     public static OperatorExpression LogicalAnd(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.LogicalAnd, [left, right], location);
+        OpEx(Operator.LogicalAnd, [left, right], location);
 
     public static OperatorExpression LogicalOr(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.LogicalOr, [left, right], location);
+        OpEx(Operator.LogicalOr, [left, right], location);
 
     public static OperatorExpression LogicalXor(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.BitwiseXor, [left, right], location);
+        OpEx(Operator.BitwiseXor, [left, right], location);
 
     public static OperatorExpression LogicalNot(Expression operand, ISourceLocation? location = null) =>
-        Operator(OperatorKind.LogicalNot, [operand], location);
+        OpEx(Operator.LogicalNot, [operand], location);
 
     public static OperatorExpression LogicalAndAlso(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.LogicalAndAlso, [left, right], location);
+        OpEx(Operator.LogicalAndAlso, [left, right], location);
 
     public static OperatorExpression LogicalOrElse(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.LogicalOrElse, [left, right], location);
+        OpEx(Operator.LogicalOrElse, [left, right], location);
 
     public static OperatorExpression And(Expression left, Expression right, ISourceLocation? location = null) =>
         LogicalAnd(left, right, location);
@@ -516,28 +517,28 @@ public static class SemanticFactory
         LogicalNot(operand, location);
 
     public static OperatorExpression ShiftLeft(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.ShiftLeft, [left, right], location);
+        OpEx(Operator.ShiftLeft, [left, right], location);
 
     public static OperatorExpression ShiftRight(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.ShiftRight, [left, right], location);
+        OpEx(Operator.ShiftRight, [left, right], location);
 
     public static OperatorExpression Equal(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.Equal, [left, right], location);
+        OpEx(Operator.Equal, [left, right], location);
 
     public static OperatorExpression NotEqual(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.NotEqual, [left, right], location);
+        OpEx(Operator.NotEqual, [left, right], location);
 
     public static OperatorExpression LessThan(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.LessThan, [left, right], location);
+        OpEx(Operator.LessThan, [left, right], location);
 
     public static OperatorExpression LessThanOrEqual(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.LessThanOrEqual, [left, right], location);
+        OpEx(Operator.LessThanOrEqual, [left, right], location);
 
     public static OperatorExpression GreaterThan(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.GreaterThan, [left, right], location);
+        OpEx(Operator.GreaterThan, [left, right], location);
 
     public static OperatorExpression GreaterThanOrEqual(Expression left, Expression right, ISourceLocation? location = null) =>
-        Operator(OperatorKind.GreaterThanOrEqual, [left, right], location);
+        OpEx(Operator.GreaterThanOrEqual, [left, right], location);
 
     #endregion
 
@@ -618,12 +619,12 @@ public static class SemanticFactory
         return new IndexerDeclaration(
             elementType,
             Method("get_Item", parameters, elementType, getter, getter.Location)
-                .WithModifiers(SymbolModifier.HideBySig | SymbolModifier.Special),
+                .WithModifiers(Modifier.HideBySig | Modifier.Special),
             (setter != null)
                 ? Method("set_Item",
                     parameters.Add(Parameter("value", elementType)),
                     VoidType, setter, setter.Location)
-                    .WithModifiers(SymbolModifier.HideBySig | SymbolModifier.Special)
+                    .WithModifiers(Modifier.HideBySig | Modifier.Special)
                 : null,
             location);
     }
@@ -728,7 +729,7 @@ public static class SemanticFactory
                 propertyType,
                 getter,
                 location)
-                .WithModifiers(SymbolModifier.HideBySig | SymbolModifier.Special),
+                .WithModifiers(Modifier.HideBySig | Modifier.Special),
             setter != null
                 ? Method(
                     "set_" + name,
@@ -736,7 +737,7 @@ public static class SemanticFactory
                     VoidType,
                     setter,
                     location)
-                    .WithModifiers(SymbolModifier.HideBySig | SymbolModifier.Special)
+                    .WithModifiers(Modifier.HideBySig | Modifier.Special)
                 : null,
             location
             );
@@ -756,7 +757,7 @@ public static class SemanticFactory
             location)
             .WithBackingField(
                 Field(fieldName, propertyType)
-                .WithAccess(SymbolAccess.Private));
+                .WithAccess(Access.Private));
     }
 
     public static StructDeclaration Struct(

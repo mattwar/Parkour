@@ -7,15 +7,15 @@ using Symbols;
 /// </summary>
 public class ConstantFoldingLowerer : PartialLowerer
 {
-    private readonly RuntimeOperators _operators;
+    private readonly RuntimeOperatorEvaluator _operators;
 
-    public ConstantFoldingLowerer(RuntimeOperators operators)
+    public ConstantFoldingLowerer(RuntimeOperatorEvaluator operators)
     {
         _operators = operators;
     }
 
     public static readonly PartialLowerer Instance =
-        new ConstantFoldingLowerer(StandardRuntimeOperators.Instance);
+        new ConstantFoldingLowerer(StandardRuntimeOperatorEvaluator.Instance);
 
     public override ImmutableList<SemanticElement> Lower(
         ImmutableList<SemanticElement> elements,
@@ -25,14 +25,15 @@ public class ConstantFoldingLowerer : PartialLowerer
         {
             // intrinsic operators have operator symbols, not methods
             if (ex is OperatorExpression op
-                && op.OperatorSymbol is OperatorSymbol)
+                && op.OperatorSymbol is OperatorSymbol
+                && op.Operator is RuntimeOperator rop)
             {
                 if (op.Arguments.Count == 1
                     && op.Arguments[0] is ConstantExpression unaryArg)
                 {
                     try
                     {
-                        var result = _operators.Invoke(op.Kind, unaryArg.Value);
+                        var result = _operators.Evaluate(rop, unaryArg.Value);
                         if (result == null || symbols.GetTypeSymbol(result.GetType()) == op.ResultType)
                         {
                             return new ConstantExpression(result, op.Location)
@@ -49,7 +50,7 @@ public class ConstantFoldingLowerer : PartialLowerer
                 {
                     try
                     {
-                        var result = _operators.Invoke(op.Kind, arg0.Value, arg1.Value);
+                        var result = _operators.Evaluate(rop, arg0.Value, arg1.Value);
                         if (result == null || symbols.GetTypeSymbol(result.GetType()) == op.ResultType)
                         {
                             return new ConstantExpression(result, op.Location)

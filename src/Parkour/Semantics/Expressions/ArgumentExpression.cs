@@ -1,4 +1,6 @@
 ﻿namespace Parkour.Semantics;
+
+using Parkour;
 using Symbols;
 
 /// <summary>
@@ -9,14 +11,29 @@ public sealed class ArgumentExpression : Expression
     protected internal override string DebugText =>
         $"{GetType().Name}: {Name} = {Expression.DebugText}";
 
+    /// <summary>
+    /// The name of the argument, if any.
+    /// </summary>
     public string? Name { get; }
-    public BitSet<SymbolModifier> Modifiers { get; }
+
+    /// <summary>
+    /// Modifiers applied to the argument.
+    /// </summary>
+    public BitSet<Modifier> Modifiers { get; }
+
+    /// <summary>
+    /// The expression of the argument.
+    /// </summary>
     public Expression Expression { get; }
+
+    /// <summary>
+    /// The <see cref="ParameterSymbol"/> corresponding to the named argument, if any.
+    /// </summary>
     public Symbol? NamedSymbol { get; }
 
     private ArgumentExpression(
         string? name,
-        BitSet<SymbolModifier> modifiers,
+        BitSet<Modifier> modifiers,
         Expression expression,
         ISourceLocation? location,
         Symbol? namedSymbol,
@@ -38,8 +55,8 @@ public sealed class ArgumentExpression : Expression
         Expression expression,
         ISourceLocation? location)
         : this(
-              name, 
-              SymbolModifier.None,
+              name,
+              Modifier.None,
               expression, 
               location, 
               null, 
@@ -84,6 +101,9 @@ public sealed class ArgumentExpression : Expression
             this.Diagnostics
             );
 
+    /// <summary>
+    /// Returns a new argument expression with the specified name.
+    /// </summary>
     public ArgumentExpression WithName(string name) =>
         name == this.Name ? this :
         new ArgumentExpression(
@@ -96,7 +116,10 @@ public sealed class ArgumentExpression : Expression
             this.Diagnostics
             );
 
-    public ArgumentExpression WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    /// <summary>
+    /// Returns a new argument expression with the specified modifiers.
+    /// </summary>
+    public ArgumentExpression WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new ArgumentExpression(
             this.Name,
@@ -108,6 +131,9 @@ public sealed class ArgumentExpression : Expression
             this.Diagnostics
             );
 
+    /// <summary>
+    /// Returns a new argument expression with the specified expression.
+    /// </summary>
     public ArgumentExpression WithExpression(Expression expression) =>
         expression == this.Expression ? this :
         new ArgumentExpression(
@@ -120,6 +146,9 @@ public sealed class ArgumentExpression : Expression
             this.Diagnostics
             );
 
+    /// <summary>
+    /// Returns a new argument expression with the specified named symbol.
+    /// </summary>
     public ArgumentExpression WithNamedSymbol(Symbol? namedSymbol) =>
         namedSymbol == this.NamedSymbol ? this :
         new ArgumentExpression(

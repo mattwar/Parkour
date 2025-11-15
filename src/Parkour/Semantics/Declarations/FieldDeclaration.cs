@@ -1,5 +1,6 @@
 ﻿namespace Parkour.Semantics;
 
+using Parkour;
 using Symbols;
 
 public sealed class FieldDeclaration : MemberDeclaration
@@ -11,8 +12,8 @@ public sealed class FieldDeclaration : MemberDeclaration
 
     private FieldDeclaration(
         string name,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         ImmutableList<AttributeExpression> attributes,
         Expression? fieldType,
         Expression? initializer,
@@ -40,9 +41,9 @@ public sealed class FieldDeclaration : MemberDeclaration
         Expression? initializer,
         ISourceLocation? location)
         : this(
-              name, 
-              SymbolAccess.Public, 
-              SymbolModifier.None, 
+              name,
+              Access.Public,
+              Modifier.None, 
               ImmutableList<AttributeExpression>.Empty,
               fieldType, 
               initializer, 
@@ -108,7 +109,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             diagnostics
             );
 
-    public override FieldDeclaration WithAccess(SymbolAccess access) =>
+    public override FieldDeclaration WithAccess(Access access) =>
         access == this.Access ? this :
         new FieldDeclaration(
             this.Name,
@@ -122,7 +123,7 @@ public sealed class FieldDeclaration : MemberDeclaration
             this.Diagnostics
             );
 
-    public override FieldDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    public override FieldDeclaration WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new FieldDeclaration(
             this.Name,

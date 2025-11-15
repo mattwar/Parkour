@@ -1,7 +1,6 @@
 ﻿using Parkour;
 using Parkour.Semantics;
 using Parkour.Reflection;
-using Parkour.Symbols;
 using static Parkour.Semantics.SemanticFactory;
 
 namespace Tests;
@@ -14,37 +13,37 @@ public class LoweringTests
     public void TestConstantFolding()
     {
         // int operator folds
-        TestFoldOperator(OperatorKind.Add, [1, 2], 3);
-        TestFoldOperator(OperatorKind.Subtract, [1, 2], -1);
-        TestFoldOperator(OperatorKind.Multiply, [2, 3], 6);
-        TestFoldOperator(OperatorKind.Divide, [6, 3], 2);
-        TestFoldOperator(OperatorKind.Remainder, [5, 3], 2);
-        TestFoldOperator(OperatorKind.Negate, [2], -2);
-        TestFoldOperator(OperatorKind.Increment, [1], 2);
-        TestFoldOperator(OperatorKind.Decrement, [1], 0);
-        TestFoldOperator(OperatorKind.BitwiseAnd, [1, 2], 0);
-        TestFoldOperator(OperatorKind.BitwiseOr, [1, 2], 3);
-        TestFoldOperator(OperatorKind.BitwiseXor, [1, 0], 1);
-        TestFoldOperator(OperatorKind.BitwiseNot, [1], ~1);
-        TestFoldOperator(OperatorKind.ShiftLeft, [1, 1], 2);
-        TestFoldOperator(OperatorKind.ShiftRight, [4, 1], 2);
-        TestFoldOperator(OperatorKind.Equal, [1, 1], true);
-        TestFoldOperator(OperatorKind.NotEqual, [1, 0], true);
-        TestFoldOperator(OperatorKind.LessThan, [1, 2], true);
-        TestFoldOperator(OperatorKind.LessThanOrEqual, [2, 2], true);
-        TestFoldOperator(OperatorKind.GreaterThan, [2, 1], true);
-        TestFoldOperator(OperatorKind.GreaterThanOrEqual, [2, 2], true);
+        TestFoldOperator(Operator.Add, [1, 2], 3);
+        TestFoldOperator(Operator.Subtract, [1, 2], -1);
+        TestFoldOperator(Operator.Multiply, [2, 3], 6);
+        TestFoldOperator(Operator.Divide, [6, 3], 2);
+        TestFoldOperator(Operator.Remainder, [5, 3], 2);
+        TestFoldOperator(Operator.Negate, [2], -2);
+        TestFoldOperator(Operator.Increment, [1], 2);
+        TestFoldOperator(Operator.Decrement, [1], 0);
+        TestFoldOperator(Operator.BitwiseAnd, [1, 2], 0);
+        TestFoldOperator(Operator.BitwiseOr, [1, 2], 3);
+        TestFoldOperator(Operator.BitwiseXor, [1, 0], 1);
+        TestFoldOperator(Operator.BitwiseNot, [1], ~1);
+        TestFoldOperator(Operator.ShiftLeft, [1, 1], 2);
+        TestFoldOperator(Operator.ShiftRight, [4, 1], 2);
+        TestFoldOperator(Operator.Equal, [1, 1], true);
+        TestFoldOperator(Operator.NotEqual, [1, 0], true);
+        TestFoldOperator(Operator.LessThan, [1, 2], true);
+        TestFoldOperator(Operator.LessThanOrEqual, [2, 2], true);
+        TestFoldOperator(Operator.GreaterThan, [2, 1], true);
+        TestFoldOperator(Operator.GreaterThanOrEqual, [2, 2], true);
 
         // bool operator folds
-        TestFoldOperator(OperatorKind.LogicalAnd, [true, true], true);
-        TestFoldOperator(OperatorKind.LogicalOr, [true, false], true);
-        TestFoldOperator(OperatorKind.LogicalNot, [true], false);
+        TestFoldOperator(Operator.LogicalAnd, [true, true], true);
+        TestFoldOperator(Operator.LogicalOr, [true, false], true);
+        TestFoldOperator(Operator.LogicalNot, [true], false);
     }
 
-    private void TestFoldOperator(string op, object[] args, object expectedResult)
+    private void TestFoldOperator(Operator op, object[] args, object expectedResult)
     {
         TestLower(
-            Operator(op, args.Select(a => (Expression)Constant(a)).ToImmutableList()),
+            OpEx(op, args.Select(a => (Expression)Constant(a)).ToImmutableList()),
             lowerers: [ConstantFoldingLowerer.Instance],
             fnValidate: elements =>
             {

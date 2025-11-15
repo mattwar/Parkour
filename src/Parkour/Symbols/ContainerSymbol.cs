@@ -8,8 +8,8 @@ public abstract class ContainerSymbol : MemberSymbol
     protected ContainerSymbol(
         string name, 
         Symbol? declaringSymbol,
-        SymbolAccess access, 
-        BitSet<SymbolModifier> modifiers,
+        Access access, 
+        BitSet<Modifier> modifiers,
         MemberSymbol? definition)
         : base(name, declaringSymbol, access, modifiers, definition)
     {

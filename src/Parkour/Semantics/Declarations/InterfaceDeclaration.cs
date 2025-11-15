@@ -1,4 +1,6 @@
 ﻿namespace Parkour.Semantics;
+
+using Parkour;
 using Symbols;
 
 public sealed class InterfaceDeclaration : TypeDeclaration
@@ -7,8 +9,8 @@ public sealed class InterfaceDeclaration : TypeDeclaration
 
     private InterfaceDeclaration(
         string name,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         ImmutableList<AttributeExpression> attributes,
         ImmutableList<TypeParameterDeclaration> typeParameters,
         ImmutableList<Expression> baseTypes,
@@ -37,9 +39,9 @@ public sealed class InterfaceDeclaration : TypeDeclaration
         ImmutableList<Declaration>? declarations,
         ISourceLocation? location)
         : this(
-              name, 
-              SymbolAccess.Public, 
-              SymbolModifier.None, 
+              name,
+              Access.Public, 
+              Modifier.None, 
               ImmutableList<AttributeExpression>.Empty,
               ImmutableList<TypeParameterDeclaration>.Empty, 
               baseTypes, 
@@ -110,7 +112,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             diagnostics
             );
 
-    public override InterfaceDeclaration WithAccess(SymbolAccess access) =>
+    public override InterfaceDeclaration WithAccess(Access access) =>
         access == this.Access ? this :
         new InterfaceDeclaration(
             this.Name,
@@ -125,7 +127,7 @@ public sealed class InterfaceDeclaration : TypeDeclaration
             this.Diagnostics
             );
 
-    public override InterfaceDeclaration WithModifiers(BitSet<SymbolModifier> modifiers) =>
+    public override InterfaceDeclaration WithModifiers(BitSet<Modifier> modifiers) =>
         modifiers == this.Modifiers ? this :
         new InterfaceDeclaration(
             this.Name,

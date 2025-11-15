@@ -9,6 +9,7 @@ using Mono.Cecil.Rocks;
 namespace Parkour.Cecil;
 
 using Mono.CompilerServices.SymbolWriter;
+using Parkour;
 using Symbols;
 
 /// <summary>
@@ -528,67 +529,67 @@ public class CecilSymbols : StandardSymbolTable
         }
     }
 
-    public static SymbolAccess GetAccess(IMemberDefinition definition) =>
+    public static Access GetAccess(IMemberDefinition definition) =>
         definition switch
         {
             TypeDefinition type =>
-                type.IsPublic ? SymbolAccess.Public
-                : type.IsNestedPublic ? SymbolAccess.Public
-                : type.IsNestedFamily ? SymbolAccess.Protected
-                : type.IsNestedFamilyAndAssembly ? SymbolAccess.ProtectedAndInternal
-                : type.IsNestedFamilyOrAssembly ? SymbolAccess.ProtectedOrInternal
-                : type.IsPublic ? SymbolAccess.Public
-                : type.IsNotPublic ? SymbolAccess.Internal
-                : SymbolAccess.Private,
+                type.IsPublic ? Access.Public
+                : type.IsNestedPublic ? Access.Public
+                : type.IsNestedFamily ? Access.Protected
+                : type.IsNestedFamilyAndAssembly ? Access.ProtectedAndInternal
+                : type.IsNestedFamilyOrAssembly ? Access.ProtectedOrInternal
+                : type.IsPublic ? Access.Public
+                : type.IsNotPublic ? Access.Internal
+                : Access.Private,
             FieldDefinition field =>
-                field.IsPublic ? SymbolAccess.Public
-                : field.IsAssembly ? SymbolAccess.Internal
-                : field.IsFamily ? SymbolAccess.Protected
-                : field.IsFamilyAndAssembly ? SymbolAccess.ProtectedAndInternal
-                : field.IsFamilyOrAssembly ? SymbolAccess.ProtectedOrInternal
-                : SymbolAccess.Private,
+                field.IsPublic ? Access.Public
+                : field.IsAssembly ? Access.Internal
+                : field.IsFamily ? Access.Protected
+                : field.IsFamilyAndAssembly ? Access.ProtectedAndInternal
+                : field.IsFamilyOrAssembly ? Access.ProtectedOrInternal
+                : Access.Private,
             PropertyDefinition property =>
                 GetAccess(property.GetMethod!),
             MethodDefinition method =>
-                method.IsPublic ? SymbolAccess.Public
-                : method.IsAssembly ? SymbolAccess.Internal
-                : method.IsFamily ? SymbolAccess.Protected
-                : method.IsFamilyAndAssembly ? SymbolAccess.ProtectedAndInternal
-                : method.IsFamilyOrAssembly ? SymbolAccess.ProtectedOrInternal
-                : SymbolAccess.Private,
-            _ => SymbolAccess.Private
+                method.IsPublic ? Access.Public
+                : method.IsAssembly ? Access.Internal
+                : method.IsFamily ? Access.Protected
+                : method.IsFamilyAndAssembly ? Access.ProtectedAndInternal
+                : method.IsFamilyOrAssembly ? Access.ProtectedOrInternal
+                : Access.Private,
+            _ => Access.Private
         };
 
-    public static BitSet<SymbolModifier> GetModifiers(IMemberDefinition definition) =>
+    public static BitSet<Modifier> GetModifiers(IMemberDefinition definition) =>
         definition switch
         {
             TypeDefinition type =>
-                (type.IsAbstract ? SymbolModifier.Abstract : SymbolModifier.None)
-                | (type.IsSealed ? SymbolModifier.Sealed : SymbolModifier.None),
+                (type.IsAbstract ? Modifier.Abstract : Modifier.None)
+                | (type.IsSealed ? Modifier.Sealed : Modifier.None),
             FieldDefinition field =>
-                (field.IsStatic ? SymbolModifier.Static : SymbolModifier.None)
-                | (field.IsLiteral ? SymbolModifier.Constant : SymbolModifier.None),
+                (field.IsStatic ? Modifier.Static : Modifier.None)
+                | (field.IsLiteral ? Modifier.Constant : Modifier.None),
             PropertyDefinition property =>
                 // borrow modifiers from the get method
-                GetModifiers(property.GetMethod!).Remove(SymbolModifier.HideBySig).Remove(SymbolModifier.Special),
+                GetModifiers(property.GetMethod!).Remove(Modifier.HideBySig).Remove(Modifier.Special),
             MethodDefinition method =>
-                (method.IsStatic ? SymbolModifier.Static : SymbolModifier.None)
-                | (method.IsAbstract ? SymbolModifier.Abstract : SymbolModifier.None)
-                | (method.IsVirtual ? SymbolModifier.Virtual : SymbolModifier.None)
-                | (method.IsFinal ? SymbolModifier.Sealed : SymbolModifier.None)
-                | (method.IsHideBySig ? SymbolModifier.HideBySig : SymbolModifier.None)
-                | (method.IsSpecialName ? SymbolModifier.Special : SymbolModifier.None),
-            _ => SymbolModifier.None
+                (method.IsStatic ? Modifier.Static : Modifier.None)
+                | (method.IsAbstract ? Modifier.Abstract : Modifier.None)
+                | (method.IsVirtual ? Modifier.Virtual : Modifier.None)
+                | (method.IsFinal ? Modifier.Sealed : Modifier.None)
+                | (method.IsHideBySig ? Modifier.HideBySig : Modifier.None)
+                | (method.IsSpecialName ? Modifier.Special : Modifier.None),
+            _ => Modifier.None
         };
 
-    public static BitSet<SymbolModifier> GetModifiers(ParameterDefinition definition)
+    public static BitSet<Modifier> GetModifiers(ParameterDefinition definition)
     {
         var isIn = (definition.Attributes & ParameterAttributes.In) != 0;
         var isOut = (definition.Attributes & ParameterAttributes.Out) != 0;
-        return isIn && isOut ? SymbolModifier.Ref
-            : isIn ? SymbolModifier.In
-            : isOut ? SymbolModifier.Out
-            : SymbolModifier.None;
+        return isIn && isOut ? Modifier.Ref
+            : isIn ? Modifier.In
+            : isOut ? Modifier.Out
+            : Modifier.None;
     }
 
     #endregion

@@ -28,13 +28,13 @@ public class ConstructorSymbol : MemberSymbol
 
     public ConstructorSymbol(
         TypeSymbol declaringType,
-        SymbolAccess access, 
-        BitSet<SymbolModifier> modifiers, 
+        Access access, 
+        BitSet<Modifier> modifiers, 
         Func<ConstructorSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
         Func<ConstructorSymbol, ImmutableList<AttributeInfo>>? fnAttributes,
         ConstructorSymbol? definition = null)
         : base(
-            modifiers.Contains(SymbolModifier.Static) ? ".cctor" : ".ctor", 
+            modifiers.Contains(Modifier.Static) ? ".cctor" : ".ctor", 
             declaringType, 
             access, 
             modifiers,

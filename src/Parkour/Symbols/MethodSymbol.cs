@@ -46,8 +46,8 @@ public class MethodSymbol : MemberSymbol
     public MethodSymbol(
         string name,
         Symbol? declaringSymbol,
-        SymbolAccess access,
-        BitSet<SymbolModifier> modifiers,
+        Access access,
+        BitSet<Modifier> modifiers,
         Func<MethodSymbol, ImmutableList<TypeParameterSymbol>>? fnTypeParameters,
         Func<ImmutableList<TypeSymbol>>? fnTypeArguments,
         Func<MethodSymbol, ImmutableList<ParameterSymbol>>? fnParameters,
