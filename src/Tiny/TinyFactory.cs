@@ -5,104 +5,105 @@ namespace Tiny
 {
     public static class TinyFactory
     {
+
         public static SyntaxToken IdentifierToken(string trivia, string text) =>
-            new SyntaxToken(TinyTokenKinds.IdentifierToken, trivia, text);
+            new TinyToken(TinyTokenKinds.IdentifierToken, trivia, text);
 
         public static SyntaxToken IdentifierToken(string text) =>
             IdentifierToken("", text);
 
         public static SyntaxToken NumberToken(string trivia, string text) =>
-            new SyntaxToken(TinyTokenKinds.NumberToken, trivia, text);
+            new TinyToken(TinyTokenKinds.NumberToken, trivia, text);
 
         public static SyntaxToken NumberToken(string text) =>
             NumberToken("", text);
 
         public static SyntaxToken StringToken(string trivia, string text) =>
-            new SyntaxToken(TinyTokenKinds.StringToken, trivia, text);
+            new TinyToken(TinyTokenKinds.StringToken, trivia, text);
 
         public static SyntaxToken StringToken(string text) =>
             StringToken("", text);
 
         public static SyntaxToken PlusToken(string trivia, string text = TinyTokenTexts.Plus) =>
-            new SyntaxToken(TinyTokenKinds.PlusToken, trivia, text);
+            new TinyToken(TinyTokenKinds.PlusToken, trivia, text);
 
         public static SyntaxToken PlusToken(string text = TinyTokenTexts.Plus) =>
             PlusToken("", text);
 
         public static SyntaxToken DashToken(string trivia, string text = TinyTokenTexts.Dash) =>
-            new SyntaxToken(TinyTokenKinds.DashToken, trivia, text);
+            new TinyToken(TinyTokenKinds.DashToken, trivia, text);
 
         public static SyntaxToken DashToken(string text = TinyTokenTexts.Dash) =>
             DashToken("", text);
 
         public static SyntaxToken AsteriskToken(string trivia, string text = TinyTokenTexts.Asterisk) =>
-            new SyntaxToken(TinyTokenKinds.AsteriskToken, trivia, text);
+            new TinyToken(TinyTokenKinds.AsteriskToken, trivia, text);
 
         public static SyntaxToken AsteriskToken(string text = TinyTokenTexts.Asterisk) =>
             AsteriskToken("", text);
 
         public static SyntaxToken SlashToken(string trivia, string text = TinyTokenTexts.Slash) =>
-            new SyntaxToken(TinyTokenKinds.SlashToken, trivia, text);
+            new TinyToken(TinyTokenKinds.SlashToken, trivia, text);
 
         public static SyntaxToken SlashToken(string text = TinyTokenTexts.Slash) =>
             SlashToken("", text);
 
         public static SyntaxToken EqualEqualToken(string trivia, string text = TinyTokenTexts.EqualEqual) =>
-            new SyntaxToken(TinyTokenKinds.EqualEqualToken, trivia, text);
+            new TinyToken(TinyTokenKinds.EqualEqualToken, trivia, text);
 
         public static SyntaxToken EqualEqualToken(string text = TinyTokenTexts.EqualEqual) =>
             EqualEqualToken("", text);
 
         public static SyntaxToken NotEqualToken(string trivia, string text = TinyTokenTexts.NotEqual) =>
-            new SyntaxToken(TinyTokenKinds.NotEqualToken, trivia, text);
+            new TinyToken(TinyTokenKinds.NotEqualToken, trivia, text);
 
         public static SyntaxToken NotEqualToken(string text = TinyTokenTexts.NotEqual) =>
             NotEqualToken("", text);
 
         public static SyntaxToken LessThanToken(string trivia, string text = TinyTokenTexts.LessThan) =>
-            new SyntaxToken(TinyTokenKinds.LessThanToken, trivia, text);
+            new TinyToken(TinyTokenKinds.LessThanToken, trivia, text);
 
         public static SyntaxToken LessThanToken(string text = TinyTokenTexts.LessThan) =>
             LessThanToken("", text);
 
         public static SyntaxToken LessThanOrEqualToken(string trivia, string text = TinyTokenTexts.LessThanEqual) =>
-            new SyntaxToken(TinyTokenKinds.LessThanEqualToken, trivia, text);
+            new TinyToken(TinyTokenKinds.LessThanEqualToken, trivia, text);
 
         public static SyntaxToken LessThanOrEqualToken(string text = TinyTokenTexts.LessThanEqual) =>
             LessThanToken("", text);
 
         public static SyntaxToken GreaterThanToken(string trivia, string text = TinyTokenTexts.GreaterThan) =>
-            new SyntaxToken(TinyTokenKinds.GreaterThanToken, trivia, text);
+            new TinyToken(TinyTokenKinds.GreaterThanToken, trivia, text);
 
         public static SyntaxToken GreaterThanToken(string text = TinyTokenTexts.LessThan) =>
             GreaterThanToken("", text);
 
         public static SyntaxToken GreaterThanOrEqualToken(string trivia, string text = TinyTokenTexts.GreaterThanEqual) =>
-            new SyntaxToken(TinyTokenKinds.GreaterThanEqualToken, trivia, text);
+            new TinyToken(TinyTokenKinds.GreaterThanEqualToken, trivia, text);
 
         public static SyntaxToken GreaterThanOrEqualToken(string text = TinyTokenTexts.GreaterThanEqual) =>
             GreaterThanToken("", text);
 
         public static SyntaxToken AndToken(string trivia, string text = TinyTokenTexts.And) =>
-            new SyntaxToken(TinyTokenKinds.AndToken, trivia, text);
+            new TinyToken(TinyTokenKinds.AndToken, trivia, text);
 
         public static SyntaxToken AndToken(string text = TinyTokenTexts.And) =>
             AndToken("", text);
 
         public static SyntaxToken OrToken(string trivia, string text = TinyTokenTexts.Or) =>
-            new SyntaxToken(TinyTokenKinds.OrToken, trivia, text);
+            new TinyToken(TinyTokenKinds.OrToken, trivia, text);
 
         public static SyntaxToken OrToken(string text = TinyTokenTexts.Or) =>
             OrToken("", text);
 
         public static SyntaxToken NotToken(string trivia, string text = TinyTokenTexts.Not) =>
-            new SyntaxToken(TinyTokenKinds.NotToken, trivia, text);
+            new TinyToken(TinyTokenKinds.NotToken, trivia, text);
 
         public static SyntaxToken NotToken(string text = TinyTokenTexts.Not) =>
             NotToken("", text);
 
         public static SyntaxToken EndOfTextToken(string trivia = "") =>
-            new SyntaxToken(TinyTokenKinds.EndOfTextToken, trivia, "");
+            new TinyToken(TinyTokenKinds.EndOfTextToken, trivia, "");
 
         public static TinyExpression Identifier(SyntaxToken token) =>
             new TinyIdentifier(token);
@@ -178,10 +179,10 @@ namespace Tiny
 
         public static TinyExpression MissingExpression() =>
             new TinyIdentifier(
-                new SyntaxToken(TinyTokenKinds.IdentifierToken, "", ""), 
+                new TinyToken(TinyTokenKinds.IdentifierToken, "", ""), 
                 new Diagnostic("Expression expected"));
 
         public static SyntaxToken MissingCloseParen() =>
-            new SyntaxToken(TinyTokenKinds.CloseParenToken, "", "", new Diagnostic("Missing )"));
+            new TinyToken(TinyTokenKinds.CloseParenToken, "", "", new Diagnostic("Missing )"));
     }
 }

@@ -21,7 +21,7 @@ namespace Tiny
         public TinyParser()
         {
             Parser<LexicalToken, SyntaxToken> ToToken(Parser<LexicalToken, LexicalToken> parser) =>
-                parser.Select(lt => new SyntaxToken(lt.Kind, lt.Trivia, lt.Text, lt.Diagnostic));
+                parser.Select(lt => (SyntaxToken)new TinyToken(lt.Kind, lt.Trivia, lt.Text, lt.Diagnostic));
 
             Parser<LexicalToken, SyntaxToken> Token(string text) =>
                 ToToken(Match(t => t.Text == text, $"'{text}'"));

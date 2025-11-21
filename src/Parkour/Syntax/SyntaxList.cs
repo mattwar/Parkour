@@ -1,15 +1,20 @@
 ﻿namespace Parkour.Syntax;
 
 /// <summary>
-/// A <see cref="SyntaxNode"/> that represents an arbitrary list of <see cref="SyntaxElement"/>
+/// A <see cref="SyntaxNode"/> base class that represents an arbitrary list of <see cref="SyntaxElement"/>.
 /// </summary>
-public class SyntaxList : SyntaxNode
+public record SyntaxList(Diagnostic? Diagnostic)
+    : SyntaxNode(Diagnostic)
 {
-    public IReadOnlyList<SyntaxElement?> Elements { get; }
+    /// <summary>
+    /// The elements of the list.
+    /// </summary>
+    public IReadOnlyList<SyntaxElement?> Elements { get; } = Array.Empty<SyntaxElement?>();
+
     public override int Length { get; }
 
-    public SyntaxList(string kind, IReadOnlyList<SyntaxElement?> elements, Diagnostic? diagnostic = null)
-        : base(kind, diagnostic)
+    public SyntaxList(IReadOnlyList<SyntaxElement?> elements, Diagnostic? diagnostic = null)
+        : this(diagnostic)
     {
         int offsetInParent = 0;
 
@@ -38,13 +43,4 @@ public class SyntaxList : SyntaxNode
 
     public override int ChildCount => this.Elements.Count;
     public override SyntaxElement? GetChild(int index) => this.Elements[index];
-
-    /// <summary>
-    /// Creates a new <see cref="SyntaxList"/> with the specified elements if they are different
-    /// than the this list's elements.
-    /// </summary>
-    public SyntaxList Update(IReadOnlyList<SyntaxElement?> elements)
-    {
-        return Elements == elements ? this : new SyntaxList(Kind, elements);
-    }
 }

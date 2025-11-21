@@ -1,4 +1,7 @@
-﻿namespace Tiny;
+﻿using Parkour;
+using Parkour.Syntax;
+
+namespace Tiny;
 
 public static class TinyTokenKinds
 {
@@ -79,3 +82,8 @@ public static class TinyNodeKinds
     public const string Root = nameof(Root);
 }
 
+public record class TinyToken(string Kind, string Trivia, string Text, Diagnostic? Diagnostic = null)
+    : SyntaxToken(Trivia, Text, Diagnostic)
+{
+    public override string Kind { get; } = Kind;
+}

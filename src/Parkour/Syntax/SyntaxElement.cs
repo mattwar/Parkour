@@ -1,15 +1,17 @@
-﻿using System.Text;
+﻿using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Parkour.Syntax;
 
 [System.Diagnostics.DebuggerDisplay("{DebugText}")]
-public abstract class SyntaxElement
+public abstract record SyntaxElement(Diagnostic? Diagnostic)
     : ISyntaxElement, ISourceLocation
 {
     /// <summary>
     /// The text displayed in the debugger for this element.
     /// </summary>
-    private string DebugText => $"{GetType().Name}: {Kind}: {ToString(0, 20)}";
+    private string DebugText => $"{GetType().Name}: {ToString(0, 20)}";
 
     /// <summary>
     /// Either the parent <see cref="SyntaxNode"/> or containing <see cref="SyntaxTree"/>
@@ -27,26 +29,14 @@ public abstract class SyntaxElement
     private int _indexInParent;
 
     /// <summary>
+    /// The kind of this syntax element.
+    /// </summary>
+    public virtual string Kind => this.GetType().Name;
+
+    /// <summary>
     /// The starting character position of this element within the source text.
     /// </summary>
     private int _start = -1;
-
-    protected SyntaxElement(string kind, Diagnostic? diagnostic)
-    {
-        Kind = kind;
-        Diagnostic = diagnostic;
-        _parent = default!;
-    }
-
-    /// <summary>
-    /// The kind of this element, as determined by the user.
-    /// </summary>
-    public string Kind { get; }
-
-    /// <summary>
-    /// An optional diagnostic associated with this element.
-    /// </summary>
-    public Diagnostic? Diagnostic { get; }
 
     /// <summary>
     /// The text position this element including starting trivia.
@@ -73,11 +63,6 @@ public abstract class SyntaxElement
         this.Start + (GetFirstToken() is SyntaxToken token ? token.Trivia.Length : 0);
 
     /// <summary>
-    /// The character length of the entire element (including trivia).
-    /// </summary>
-    public abstract int Length { get; }
-
-    /// <summary>
     /// The character length of the starting trivia associated with this element.
     /// </summary>
     public int TriviaLength => TextStart - Start;
@@ -93,6 +78,12 @@ public abstract class SyntaxElement
     public int End => Start + Length;
 
     /// <summary>
+    /// The character length of the entire element (including trivia).
+    /// </summary>
+    public virtual int Length =>
+        GetChildInfo().Length;
+
+    /// <summary>
     /// True if this element was considered missing when parsed.
     /// </summary>
     public bool IsMissing => Diagnostic != null && TextLength == 0;
@@ -105,12 +96,94 @@ public abstract class SyntaxElement
     /// <summary>
     /// The number of child elements this element contains.
     /// </summary>
-    public virtual int ChildCount => 0;
+    public virtual int ChildCount =>
+        GetChildInfo().Children.Count;
 
     /// <summary>
     /// Returns the child element at the specified index.
     /// </summary>
-    public virtual SyntaxElement? GetChild(int index) => null;
+    public virtual SyntaxElement? GetChild(int index) =>
+        GetChildInfo().Children[index];
+
+    private ChildInfo GetChildInfo()
+    {
+        if (!_instanceToChildInfoMap.TryGetValue(this, out var info))
+        {
+            info = _instanceToChildInfoMap.GetOrAdd(this, _me => new ChildInfo(GetChildAccessors(), _me));
+        }
+        return info;
+    }
+
+    private class ChildInfo
+    {
+        public int Length { get; }
+        public IReadOnlyList<SyntaxElement?> Children { get; }
+
+        public ChildInfo(IReadOnlyList<Func<object, SyntaxElement?>> accessors, SyntaxElement element)
+        {
+            var children = new List<SyntaxElement?>();
+            var length = 0;
+            foreach (var acc in accessors)
+            {
+                var child = acc(element);
+                children.Add(child);
+                if (child != null)
+                {
+                    if (element is SyntaxNode node)
+                    {
+                        child.SetParent(node, length, children.Count);
+                    }
+
+                    length += child.Length;
+                }
+            }
+            this.Children = children.AsReadOnly();
+            this.Length = length;
+        }
+    }
+
+    private static readonly ConditionalWeakTable<SyntaxElement, ChildInfo> _instanceToChildInfoMap =
+        new ConditionalWeakTable<SyntaxElement, ChildInfo>();
+
+
+    private static readonly ConditionalWeakTable<Type, IReadOnlyList<Func<object, SyntaxElement?>>> _typeToAccessorsMap =
+        new ConditionalWeakTable<Type, IReadOnlyList<Func<object, SyntaxElement?>>>();
+
+    private IReadOnlyList<Func<object, SyntaxElement?>> GetChildAccessors()
+    {
+        var type = this.GetType();
+
+        if (!_typeToAccessorsMap.TryGetValue(type, out var accessors))
+        {
+            accessors = _typeToAccessorsMap.GetOrAdd(type, _type => CreateAccessors(_type));
+        }
+        return accessors;
+
+        static IReadOnlyList<Func<object, SyntaxElement?>> CreateAccessors(Type type)
+        {
+            var accessors = new List<Func<object, SyntaxElement?>>();
+
+            // get primary constructor..
+            var primaryConstructor = type.GetConstructors()
+                .First(c => !c.IsStatic && c.GetParameters().Length > 0);
+
+            var props = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.CanRead)
+                .ToDictionary(p => p.Name, p => p);
+
+            foreach (var param in primaryConstructor.GetParameters())
+            {
+                if (param.ParameterType.IsAssignableTo(typeof(SyntaxElement))
+                    && props.TryGetValue(param.Name!, out var prop))
+                {
+                    // Consider: RefEmit this for speed?
+                    accessors.Add(obj => prop.GetValue(obj) as SyntaxElement);
+                }
+            }
+
+            return accessors.AsReadOnly();
+        }
+    }
 
     /// <summary>
     /// The count of text characters from the start of the parent element.
@@ -161,7 +234,7 @@ public abstract class SyntaxElement
     /// <summary>
     /// Assigns the parent node and other facts to this element.
     /// </summary>
-    internal void SetParent(SyntaxNode parent, int offsetInParent, int indexInParent)
+    internal virtual void SetParent(SyntaxNode parent, int offsetInParent, int indexInParent)
     {
         if (_start == -1)
         {
