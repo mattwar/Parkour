@@ -915,7 +915,7 @@ public abstract class EmitterTests
         }
 
         var binding = binder.Bind(elements, imports);
-        var dx = binding.Elements.GetContainedDiagnostics();
+        var dx = binding.BoundElements.GetContainedDiagnostics();
         if (dx.Count > 0)
         {
             var dxs = string.Join("\n", dx.Select(d => d.ToString()));

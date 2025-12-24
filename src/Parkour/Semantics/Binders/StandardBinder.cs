@@ -2,7 +2,6 @@
 
 namespace Parkour.Semantics;
 
-using Parkour;
 using Symbols;
 
 /// <summary>

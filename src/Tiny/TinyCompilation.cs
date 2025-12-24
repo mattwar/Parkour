@@ -34,7 +34,7 @@ public class TinyCompilation : SemanticCompilation
         {
             var unbound = new TinyTranslator().Translate(tree.Root);
             var binding = new StandardBinder().Bind([unbound], _imports);
-            return new BindingInfo(_imports, binding.Elements);
+            return new BindingInfo(_imports, binding.BoundElements);
        }
 
         return new BindingInfo(_imports, ImmutableList<SemanticElement>.Empty);

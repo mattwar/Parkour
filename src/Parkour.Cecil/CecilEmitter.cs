@@ -78,16 +78,16 @@ public partial class CecilEmitter : SemanticEmitter
     /// <summary>
     /// Emits all lowered types and members into a <see cref="ModuleBuilder"/>.
     /// </summary>
-    public override EmitResult Emit(
+    public override CecilEmitting Emit(
         SemanticLowering lowering)
     {
-        var declarations = lowering.Elements
+        var declarations = lowering.LoweredElements
             .OfType<Declaration>()
             .ToImmutableList();
 
         Declare(declarations);
 
-        return new EmitResult(_diagnostics.ToImmutableList());
+        return new CecilEmitting(_assembly, _module, _diagnostics.ToImmutableList());
     }
 
     protected override void DeclareType(TypeDeclaration declaration)

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using L = System.Linq.Expressions;
 
 namespace Parkour.Linq;
 
@@ -19,30 +18,17 @@ public class LinqEmitter : SemanticEmitter
         _symbols = symbols;
     }
 
-    public override LinqEmitResult Emit(
+    public override LinqEmitting Emit(
         SemanticLowering lowering)
     {
         var translator = new LinqTranslator(_symbols);
-        var exprs = lowering.Elements
+        var exprs = lowering.LoweredElements
             .OfType<Expression>()
             .Select(e => translator.Translate(e))
             .ToImmutableList();
-        return new LinqEmitResult(
+        return new LinqEmitting(
             exprs,
             ImmutableList<Diagnostic>.Empty
             );
-    }
-
-    public class LinqEmitResult : EmitResult
-    {
-        public ImmutableList<L.Expression> Expressions { get; }
-
-        public LinqEmitResult(
-            ImmutableList<L.Expression> expressions,
-            ImmutableList<Diagnostic> diagnostics)
-            : base(diagnostics)
-        {
-            this.Expressions = expressions;
-        }
     }
 }

@@ -3,14 +3,15 @@
 using Symbols;
 
 /// <summary>
-/// Emits low-level elements into a final representation.
+/// Emits low-level elements into a final form.
 /// </summary>
 public abstract class SemanticEmitter
 {
     /// <summary>
-    /// Emits all low-level elements into final representation.
+    /// Emits all low-level elements into a final form.
+    /// This is typically an IL assembly, machine code, or some other executable format.
     /// </summary>
-    public abstract EmitResult Emit(
+    public abstract SemanticEmitting Emit(
         SemanticLowering lowering);
 
 
@@ -104,19 +105,6 @@ public abstract class SemanticEmitter
             {
                 action(md);
             }
-        }
-    }
-
-    public class EmitResult
-    {
-        /// <summary>
-        /// Any diagnostics produced during emission.
-        /// </summary>
-        public ImmutableList<Diagnostic> Diagnostics { get; }
-
-        public EmitResult(ImmutableList<Diagnostic>? diagnostics)
-        {
-            this.Diagnostics = diagnostics ?? ImmutableList<Diagnostic>.Empty;
         }
     }
 }

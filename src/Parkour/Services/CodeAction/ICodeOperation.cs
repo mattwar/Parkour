@@ -1,7 +1,19 @@
-﻿namespace Parkour.Services;
+﻿using Parkour.Text;
 
-public class ICodeOperation
+namespace Parkour.Services;
+
+public interface ICodeOperation
 {
-
 }
 
+public interface ITextChangedOperation : ICodeOperation
+{
+    public ISourceDocument Document { get; }
+    public EditString ChangedText { get; }
+}
+
+public interface  ICursorPositionOperation : ICodeOperation
+{
+    public ISourceDocument Document { get; }
+    public int NewPosition { get; }
+}

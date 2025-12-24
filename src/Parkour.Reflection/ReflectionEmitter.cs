@@ -8,7 +8,7 @@ using Parkour;
 using Semantics;
 using Symbols;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection.PortableExecutable;
+
 
 /// <summary>
 /// A <see cref="SemanticEmitter"/> that emits into a <see cref="ModuleBuilder"/>
@@ -64,10 +64,10 @@ public partial class ReflectionEmitter : SemanticEmitter
     /// <summary>
     /// Emits all lowered types and members into a <see cref="ModuleBuilder"/>.
     /// </summary>
-    public override EmitResult Emit(
+    public override ReflectionEmitting Emit(
         SemanticLowering lowering)
     {
-        var declarations = lowering.Elements
+        var declarations = lowering.LoweredElements
             .OfType<Declaration>()
             .ToImmutableList();
 
@@ -77,7 +77,7 @@ public partial class ReflectionEmitter : SemanticEmitter
         // finalize types (so they can be used).
         CreateTypes();
 
-        return new EmitResult(_diagnostics.ToImmutableList());
+        return new ReflectionEmitting(this.Assembly, this.Module, _diagnostics.ToImmutableList());
     }
 
     private void CreateTypes()

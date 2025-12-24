@@ -1,7 +1,7 @@
 ﻿namespace Parkour;
 
 /// <summary>
-/// A closed-hierarchy of runtime operators.
+/// A closed-hierarchy of runtime operators understood by IL emit.
 /// </summary>
 public class RuntimeOperator : Operator
 {

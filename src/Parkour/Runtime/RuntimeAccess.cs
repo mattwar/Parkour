@@ -1,7 +1,7 @@
 ﻿namespace Parkour;
 
 /// <summary>
-/// The closed-hierarchy of runtime access restrictions.
+/// The closed-hierarchy of runtime access restrictions understood by IL metadata.
 /// </summary>
 public abstract class RuntimeAccess : Access
 {

@@ -1268,7 +1268,7 @@ public class BindingTests
         var binder = new StandardBinder();
         var binding = binder.Bind(elements, ReflectionSymbols.CurrentMscorlib);
         
-        var diagnostics = binding.Elements.GetContainedDiagnostics();       
+        var diagnostics = binding.BoundElements.GetContainedDiagnostics();       
         if (diagnostics.Count > 0 && !containsDiagnostics)
         {
             Assert.Fail($"Unexpected declaration diagnostics:\n{diagnostics[0]}");
@@ -1278,7 +1278,7 @@ public class BindingTests
             Assert.Fail($"Unexpected missing diagnostics");
         }
 
-        var allBound = binding.Elements.All(e => !e.IsUnbound);
+        var allBound = binding.BoundElements.All(e => !e.IsUnbound);
         if (!allBound)
         {
             Assert.Fail("Elements still unbound after binding");
@@ -1293,7 +1293,7 @@ public class BindingTests
             }
         }
 
-        if (binding.Elements.OfType<Expression>().LastOrDefault() is Expression expr)
+        if (binding.BoundElements.OfType<Expression>().LastOrDefault() is Expression expr)
         {
             if (expectedResultType != null)
                 Assert.AreEqual(expectedResultType, expr.ResultType?.FullName, "result type");
@@ -1303,6 +1303,6 @@ public class BindingTests
         }
 
         if (fnValidate != null)
-            fnValidate(binding.Elements);
+            fnValidate(binding.BoundElements);
     }
 }

@@ -370,7 +370,7 @@ public abstract class SymbolTable
     private ImmutableList<OperatorSymbol>? _operators;
 
     /// <summary>
-    /// All the known operators
+    /// All the symbols of the known operators
     /// </summary>
     public virtual ImmutableList<OperatorSymbol> Operators
     {

@@ -25,25 +25,25 @@ public class StandardLowerer : SemanticLowerer
         var lowerers = new List<PartialLowerer>();
         
         if (this.IncludeElementLowerers)
-            this.GetElementSpecificLowerers(binding.Elements, lowerers);
+            this.GetElementSpecificLowerers(binding.BoundElements, lowerers);
 
         lowerers.AddRange(this.Lowerers);
 
-        var newElements = binding.Elements;
+        var newElements = binding.BoundElements;
 
         foreach (var lowerer in lowerers)
         {
             newElements = lowerer.Lower(newElements, binding.ImportedSymbols);
         }
 
-        if (newElements != binding.Elements)
+        if (newElements != binding.BoundElements)
         {
             var newBinding = this.Binder.Bind(newElements, binding.ImportedSymbols);
-            return new SemanticLowering(newBinding.Elements, binding.ImportedSymbols, newBinding.CombinedSymbols);
+            return new SemanticLowering(newBinding.BoundElements, binding.ImportedSymbols, newBinding.CombinedSymbols);
         }
         else
         {
-            return new SemanticLowering(binding.Elements, binding.ImportedSymbols, binding.CombinedSymbols);
+            return new SemanticLowering(binding.BoundElements, binding.ImportedSymbols, binding.CombinedSymbols);
         }
     }
 

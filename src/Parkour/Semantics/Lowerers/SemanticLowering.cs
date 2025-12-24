@@ -2,15 +2,12 @@
 
 using Symbols;
 
-/// <summary>
-/// The result of binding a set of declarations and an optional expression.
-/// </summary>
-public class SemanticBinding
+public class SemanticLowering
 {
     /// <summary>
     /// The elements after being bound.
     /// </summary>
-    public ImmutableList<SemanticElement> Elements { get; }
+    public ImmutableList<SemanticElement> LoweredElements { get; }
 
     /// <summary>
     /// The imported symbols.
@@ -22,12 +19,12 @@ public class SemanticBinding
     /// </summary>
     public SymbolTable CombinedSymbols { get; }
 
-    public SemanticBinding(
+    public SemanticLowering(
         ImmutableList<SemanticElement> elements,
         SymbolTable importedSymbols,
         SymbolTable combinedSymbols)
     {
-        this.Elements = elements;
+        this.LoweredElements = elements;
         this.ImportedSymbols = importedSymbols;
         this.CombinedSymbols = combinedSymbols;
     }

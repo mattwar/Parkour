@@ -90,13 +90,13 @@ public class LoweringTests
         var binder = new StandardBinder();
         var binding = binder.Bind(elements, ReflectionSymbols.CurrentMscorlib);
 
-        var bindingDiagnostics = binding.Elements.GetContainedDiagnostics();
+        var bindingDiagnostics = binding.BoundElements.GetContainedDiagnostics();
         if (bindingDiagnostics.Count > 0)
         {
             Assert.Fail($"Unexpected binding diagnostics:\n{bindingDiagnostics[0]}");
         }
 
-        var allBound = binding.Elements.All(e => !e.IsUnbound);
+        var allBound = binding.BoundElements.All(e => !e.IsUnbound);
         if (!allBound)
         {
             Assert.Fail("Elements still unbound after binding");
@@ -110,7 +110,7 @@ public class LoweringTests
 
         var lowering = lowerer.Lower(binding);
 
-        var loweringDiagnostics = lowering.Elements.GetContainedDiagnostics();
+        var loweringDiagnostics = lowering.LoweredElements.GetContainedDiagnostics();
         if (loweringDiagnostics.Count > 0)
         if (loweringDiagnostics.Count > 0 && !containsDiagnostics)
         {
@@ -142,7 +142,7 @@ public class LoweringTests
             }
         }
 
-        if (lowering.Elements.OfType<Expression>().LastOrDefault() is Expression expr)
+        if (lowering.LoweredElements.OfType<Expression>().LastOrDefault() is Expression expr)
         {
             if (expectedResultType != null)
                 Assert.AreEqual(expectedResultType, expr.ResultType?.FullName, "result type");
@@ -152,6 +152,6 @@ public class LoweringTests
         }
 
         if (fnValidate != null)
-            fnValidate(lowering.Elements);
+            fnValidate(lowering.LoweredElements);
     }
 }

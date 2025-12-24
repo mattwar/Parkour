@@ -1,7 +1,7 @@
 ﻿namespace Parkour;
 
 /// <summary>
-/// A closed-hierarchy of runtime modifiers.
+/// A closed-hierarchy of runtime member modifiers understood by IL metadata.
 /// </summary>
 public class RuntimeModifier : Modifier
 {

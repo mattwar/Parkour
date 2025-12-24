@@ -282,7 +282,7 @@ public class TranslationTests
 
         var binder = new StandardBinder();
         var binding = binder.Bind([expression], _symbols);
-        var bound = (LambdaExpression)binding.Elements[0];
+        var bound = (LambdaExpression)binding.BoundElements[0];
 
         if (bound.ContainsDiagnostics)
         {
