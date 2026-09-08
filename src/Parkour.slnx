@@ -1,0 +1,16 @@
+<Solution>
+  <Project Path="Parkour.Cecil.Tests/Parkour.Cecil.Tests.csproj" />
+  <Project Path="Parkour.Cecil/Parkour.Cecil.csproj" />
+  <Project Path="Parkour.Linq.Tests/Parkour.Linq.Tests.csproj" />
+  <Project Path="Parkour.Linq/Parkour.Linq.csproj" />
+  <Project Path="Parkour.LSP/Parkour.LSP.csproj" />
+  <Project Path="Parkour.Reflection.Tests/Parkour.Reflection.Tests.csproj" />
+  <Project Path="Parkour.Reflection/Parkour.Reflection.csproj" />
+  <Project Path="Parkour.Tests.Common/Parkour.Tests.Common.csproj" />
+  <Project Path="Parkour.Tests/Parkour.Tests.csproj" />
+  <Project Path="Parkour/Parkour.csproj" />
+  <Project Path="Test.Metadata/Test.Metadata.csproj" />
+  <Project Path="Tiny.LSP/Tiny.LSP.csproj" />
+  <Project Path="Tiny.Tests/Tiny.Tests.csproj" />
+  <Project Path="Tiny/Tiny.csproj" />
+</Solution>

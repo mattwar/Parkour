@@ -70,37 +70,37 @@ public class TinyTests
     public void TestClassifications()
     {
         TestClassification("ABC", [
-            ClassificationKinds.Name
+            ClassificationKind.Name()
             ]);
 
         TestClassification("'ABC'", [
-            ClassificationKinds.String
+            ClassificationKind.String()
             ]);
 
         TestClassification("123", [
-            ClassificationKinds.Number
+            ClassificationKind.Number()
             ]);
 
         TestClassification("A + B", [
-            ClassificationKinds.Name, 
-            ClassificationKinds.Punctuation, 
-            ClassificationKinds.Name
+            ClassificationKind.Name(), 
+            ClassificationKind.Punctuation(), 
+            ClassificationKind.Name()
             ]);
     }
 
-    private void TestClassification(string text, string[] expectedClassifications)
+    private void TestClassification(string text, ClassificationKind[] expectedClassifications)
     {
         var document = new SourceDocument("test", text);
         var compilation = new TinyCompilation(document, ReflectionSymbols.CurrentMscorlib);
-        var services = new TinyServices(compilation, document);
+        var services = new TinyDocumentServices(compilation, document);
 
-        var classifications = services.GetClassifications(0, text.Length, ServiceOptions.Default, default).Classifications;
+        var classifications = services.GetClassifications(new Parkour.Text.TextRange(0, text.Length), Settings.Default, default).ClassifiedRanges;
         Assert.AreEqual(expectedClassifications.Length, classifications.Count, "classification count");
 
-        if (expectedClassifications.Zip(classifications).Any(x => x.First != x.Second.Classification))
+        if (expectedClassifications.Zip(classifications).Any(x => x.First != x.Second.ClassificationKind))
         {
             var expected = string.Join(", ", expectedClassifications);
-            var actual = string.Join(", ", classifications.Select(c => c.Classification));
+            var actual = string.Join(", ", classifications.Select(c => c.ClassificationKind));
             Assert.Fail($"expected classifications:\n{expected}\nactual:\n{actual}");
         }
     }
@@ -116,9 +116,9 @@ public class TinyTests
         var (textWithoutMarker, position) = StripMarker(text);
         var document = new SourceDocument("test", textWithoutMarker);
         var compilation = new TinyCompilation(document, ReflectionSymbols.CurrentMscorlib);
-        var services = new TinyServices(compilation, document);
+        var services = new TinyDocumentServices(compilation, document);
 
-        var hoverText = services.GetHoverText(position, ServiceOptions.Default, default);
+        var hoverText = services.GetHoverText(position, Settings.Default, default);
 
         Assert.AreEqual(sections.Length, hoverText.Sections.Count, "sections");
         for (int i = 0; i < sections.Length; i++) 

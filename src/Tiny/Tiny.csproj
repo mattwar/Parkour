@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Parkour.LSP\Parkour.LSP.csproj" />
     <ProjectReference Include="..\Parkour\Parkour.csproj" />
   </ItemGroup>
 

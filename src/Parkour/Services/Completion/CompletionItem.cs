@@ -3,6 +3,11 @@
 public class CompletionItem
 {
     /// <summary>
+    /// The kind of completion item.
+    /// </summary>
+    public CompletionKind Kind { get; }
+
+    /// <summary>
     /// The text that is displayed in the completion list.
     /// </summary>
     public string DisplayText { get; }
@@ -32,12 +37,21 @@ public class CompletionItem
         string? matchText = null,
         string? orderText = null,
         string? beforeText = null,
-        string? afterText = null)
+        string? afterText = null,
+        CompletionKind? kind = null)
     {
+        this.Kind = kind ?? CompletionKind.Text();
         this.DisplayText = displayText;
         this.MatchText = matchText ?? displayText;
         this.OrderText = orderText ?? displayText;
         this.BeforeText = beforeText ?? displayText;
         this.AfterText = afterText ?? "";
     }
+
+    private string? _insertionText;
+
+    /// <summary>
+    /// The text to be inserted/replaced.
+    /// </summary>
+    public string InsertionText => _insertionText ??= BeforeText + AfterText;
 }
