@@ -1,19 +1,28 @@
 ﻿namespace Parkour.Services;
 
+using Parkour.Text;
+
+/// <summary>
+/// A aggregate of common services available for a document.
+/// </summary>
 public class DocumentServices
     : IDocumentServiceFactory,
-      IClassificationService,
-      ICodeActionService,
-      ICompletionService,
-      IDiagnosticService,
-      IFormattingService,
-      IHoverTextService
+      IClassificationDocumentService,
+      ICompletionDocumentService,
+      IHoverTextDocumentService,
+      IDiagnosticDocumentService,
+      IFormattingDocumentService,
+      IDocumentCodeActionService
 {
+    public ICompilation Compilation { get; }
+
     public ISourceDocument Document { get; }
 
     public DocumentServices(
+        ICompilation compilation,
         ISourceDocument document)
     {
+        this.Compilation = compilation;
         this.Document = document;
     }
 
@@ -25,60 +34,129 @@ public class DocumentServices
         return service != null;
     }
 
-    /// <summary>
-    /// Returns all classification kinds possible for the document.
-    /// </summary>
-    public virtual ImmutableList<string> GetClassificationKinds() =>
-        ImmutableList<string>.Empty;
-
-    /// <summary>
-    /// Gets the classifications for the text elements in the specified range.
-    /// </summary>
     public virtual ClassificationResult GetClassifications(
-        int start, 
-        int length, 
-        ServiceOptions options,
-        CancellationToken cancellationToken) 
-        =>
-        ClassificationResult.Empty;
+        TextRange range,
+        Settings options,
+        CancellationToken cancellationToken)
+    {
+        var tree = this.Compilation.GetSyntaxTree(this.Document);
+        if (tree == null)
+            return ClassificationResult.Empty;
 
-    /// <summary>
-    /// Gets the completions at the position in the document.
-    /// </summary>
+        var tokens = tree.GetTokens(range.Start, range.Length);
+
+        var classifications = tokens.Select(t =>
+            new ClassifiedTextRange(GetTokenClassification(t), t.TextStart, t.TextLength)
+            ).ToImmutableList();
+
+        return new ClassificationResult(classifications);
+    }
+
+    protected virtual ClassificationKind GetTokenClassification(ISyntaxToken token) =>
+        ClassificationKind.Text();
+
+
     public virtual CompletionResult GetCompletions(
-        int position, 
-        char? lastKey, 
-        ServiceOptions options,
-        CancellationToken cancellationToken) 
-        =>
-        CompletionResult.Empty;
+        int position,
+        char? lastKey,
+        Settings options,
+        CancellationToken cancellation)
+    {
+        var tree = this.Compilation.GetSyntaxTree(this.Document);
+        if (tree == null)
+            return CompletionResult.Empty;
 
-    /// <summary>
-    /// Gets the diagnostics overlapping with the specified text range.
-    /// </summary>
+        var completions = new List<CompletionItem>();
+        var annotations = this.Compilation.GetGrammarAnnotations<object>(this.Document, position, a => a is String || a is CompletionItem);
+        completions.AddRange(annotations.OfType<string>().Select(term => new CompletionItem(term)));
+        completions.AddRange(annotations.OfType<CompletionItem>());
+
+        var symbols = this.Compilation.GetSymbolsInScope(this.Document, position);
+        completions.AddRange(symbols.Select(s => new CompletionItem(s.Name)));
+
+        completions.Sort((a, b) => string.Compare(a.OrderText, b.OrderText));
+
+        return new CompletionResult(completions.ToImmutableList());
+    }
+
     public virtual DiagnosticResult GetDiagnostics(
-        int start, 
-        int length, 
-        ServiceOptions options,
-        CancellationToken cancellationToken) =>
-        DiagnosticResult.Empty;
+        int start, int length,
+        Settings options,
+        CancellationToken cancellation)
+    {
+        var compilation = this.Compilation;
+        var docDiagnostics = compilation.GetDiagnostics(this.Document);
 
-    /// <summary>
-    /// Gets the text to show in a hovering tool tip for the specified text position.
-    /// </summary>
+        if (start == 0 && length == this.Document.Text.Length)
+            return new DiagnosticResult(docDiagnostics);
+
+        var diagnostics = docDiagnostics
+            .Where(
+                d => d.Location != null
+                && d.Location.End > start
+                && d.Location.Start < start + length
+                )
+            .ToImmutableList();
+
+        return new DiagnosticResult(diagnostics);
+    }
+
+    public virtual DiagnosticResult GetDiagnostics(Settings options, CancellationToken cancellation)
+    {
+        return GetDiagnostics(0, this.Document.Text.Length, options, cancellation);
+    }
+
     public virtual HoverTextResult GetHoverText(
-        int position, 
-        ServiceOptions options,
-        CancellationToken cancellationToken) 
-        =>
-        HoverTextResult.Empty;
+        int position,
+        Settings options,
+        CancellationToken cancellationToken)
+    {
+        var compilation = this.Compilation;
+
+        var info = compilation.GetSemanticInfo(this.Document, position);
+        var diagnostics = GetDiagnostics(position, 0, options, cancellationToken);
+
+        var sections = new List<HoverTextSection>();
+        if (info.ReferencedSymbol != null
+            || info.ResultType != null)
+        {
+            var glyph = info.ReferencedSymbol != null
+                ? GetGlyph(info.ReferencedSymbol)
+                : "Expression";
+
+            var text =
+                info.ReferencedSymbol != null ?
+                    (info.ReferencedSymbol.FullName != info.ReferencedSymbol.Name
+                        ? $"{info.ReferencedSymbol.Name} ({info.ReferencedSymbol.FullName})"
+                        : info.ReferencedSymbol.Name)
+                : info.ResultType != null ? info.ResultType.FullName
+                : "";
+
+            var section = new HoverTextSection(glyph, text);
+            sections.Add(section);
+        }
+
+        if (diagnostics.Diagnostics.Count > 0)
+        {
+            sections.Add(
+                new HoverTextSection(
+                    "Diagnostic",
+                    diagnostics.Diagnostics[0].ToString()
+                    ));
+        }
+
+        return new HoverTextResult(sections.ToImmutableList());
+    }
+
+    protected virtual string GetGlyph(ISymbol symbol) =>
+        symbol.Kind;
 
     /// <summary>
     /// Gets available code actions at the specified text position.
     /// </summary>
     public virtual CodeActionResult GetActions(
         int position, 
-        ServiceOptions options,
+        Settings options,
         CancellationToken cancellationToken) 
         =>
         CodeActionResult.Empty;
@@ -88,7 +166,7 @@ public class DocumentServices
     /// </summary>
     public virtual CodeOperationResult GetOperations(
         ICodeAction action, 
-        ServiceOptions options,
+        Settings options,
         CancellationToken cancellationToken) 
         =>
         CodeOperationResult.Empty;
@@ -99,7 +177,7 @@ public class DocumentServices
     public virtual FormattingResult Format(
         int start, 
         int length, 
-        ServiceOptions options,
+        Settings options,
         CancellationToken cancellationToken) 
         =>
         new FormattingResult(this.Document.Text.Substring(start, length));

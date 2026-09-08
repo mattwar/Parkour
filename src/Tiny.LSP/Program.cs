@@ -22,7 +22,7 @@ internal class Program
 #pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
     }
 
-    private static async Task MainAsync(string[] args)
+    private static /*async*/ Task MainAsync(string[] args)
     {
         // Debugger.Launch();
         // while (!Debugger.IsAttached)
@@ -40,6 +40,7 @@ internal class Program
 
         //IObserver<WorkDoneProgressReport> workDone = null!;
 
+#if false
         var server = await LanguageServer.From(
             options =>
                 options
@@ -163,5 +164,8 @@ internal class Program
         ).ConfigureAwait(false);
 
         await server.WaitForExit.ConfigureAwait(false);
+#else
+    return Task.FromResult(0);
+#endif          
     }
 }

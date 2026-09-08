@@ -1,6 +1,8 @@
 ﻿namespace Parkour.Services;
 
+using Parkour.Text;
+
 public record HoverTextSection(
     string Glyph,
-    string Text,
-    ImmutableList<StyledRange> Styles);
+    StyledText Text
+    );

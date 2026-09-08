@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Xml.Serialization;
 
 namespace Parkour.Text;
 
@@ -651,5 +649,38 @@ public static class TextFacts
             lines.Add(text.Substring(lineStart, lineLength));
         }
         return lines;
+    }
+
+    /// <summary>
+    /// Breaks a text range into segments that do not span lines.
+    /// </summary>
+    public static void GetSingleLineSegments(
+        string text, 
+        TextRange range, 
+        List<TextRange> segments,
+        bool includeLineBreaks = true)
+    {
+        int segmentStart = range.Start;
+        while (segmentStart < range.End)
+        {
+            var nextLineStart = GetNextLineStart(text, segmentStart);
+            if (nextLineStart >= segmentStart
+                && nextLineStart < range.End)
+            {
+                var segmentEnd = includeLineBreaks ? nextLineStart : GetLineEnd(text, segmentStart);
+                var segmentLength = segmentEnd - segmentStart;
+                segments.Add(new TextRange(segmentStart, segmentLength));
+                segmentStart = nextLineStart;
+            }
+            else
+            {
+                if (range.End - segmentStart > 0)
+                {
+                    var length = GetLineLength(text, segmentStart);
+                    segments.Add(new TextRange(segmentStart, length));
+                }
+                break;
+            }
+        }
     }
 }

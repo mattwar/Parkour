@@ -60,7 +60,7 @@ public class StandardBodyBuilder : BodyBuilder
     {
         if (expression.Diagnostics.Count > 0)
         {
-            var error = expression.Diagnostics.FirstOrDefault(e => e.Severity == DiagnosticSeverity.Error);
+            var error = expression.Diagnostics.FirstOrDefault(e => e.Severity is DiagnosticSeverity.Error);
             if (error != null)
             {
                 this.Emitter.EmitThrow(error.ToString());

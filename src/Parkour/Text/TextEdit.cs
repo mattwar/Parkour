@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Parkour.Text;
+﻿namespace Parkour.Text;
 
 /// <summary>
 /// Represents a single edit to a text document: insert, delete or replace.
