@@ -204,7 +204,7 @@ public abstract class ParkourLanguageServer : LanguageServer
                 return TextEdit.Replacement(pos, c.RangeLength ?? 0, c.Text);
             }).ToImmutableList();
 
-            var newText = openDocInfo.Text.ApplyAll(edits);
+            var newText = openDocInfo.Text.ApplyParallel(edits);
             var newDoc = doc.WithInfo(openDocInfo with { Text = newText, Version = args.TextDocument.Version });
             this.ProjectManager.UpdateProject(newDoc.Project);
         }

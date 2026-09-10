@@ -83,7 +83,7 @@ public interface ISetting
 }
 
 /// <summary>
-/// An individual setting with a strongly-typed value.
+/// A setting with a strongly-typed value.
 /// </summary>
 public class Setting<TValue>
     : ISetting

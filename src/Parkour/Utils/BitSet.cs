@@ -3,10 +3,9 @@
 namespace Parkour;
 
 /// <summary>
-/// A set of values stored using bits.
+/// A set of singleton values stored using bits.
 /// The maximum number of unique values for all instances of the same kind of set is 64.
-/// Do not rely on the order of values in this set to remain the same across uses,
-/// it is dependent on the order the values are introduced to any instance of a set.
+/// Do not rely on the order of values in this set to remain the same across uses.
 /// </summary>
 public readonly struct BitSet<TValue>
     : IEquatable<BitSet<TValue>>,

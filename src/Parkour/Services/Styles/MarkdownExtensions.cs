@@ -16,7 +16,7 @@ public static class MarkdownExtensions
         ImmutableList<StyledTextRange> styles)
     {
         var edits = styles.Select(s => TextEdit.Replacement(s.Start, s.Length, ApplyStyle(text.Substring(s.Start, s.Length), s.Style))).ToImmutableList();
-        return new EditString(text).ApplyAll(edits).CurrentText;
+        return new EditString(text).ApplyParallel(edits).CurrentText;
     }
 
     public static string ApplyStyle(string text, TextStyle style)

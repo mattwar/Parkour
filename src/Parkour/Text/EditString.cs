@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Parkour.Semantics;
 
 namespace Parkour.Text;
 
@@ -21,14 +22,14 @@ public sealed class EditString
     public string CurrentText { get; }
 
     /// <summary>
-    /// The list of in order, non-overlapping edits, each relative the the original text.
+    /// The list of in-order, non-overlapping edits, each relative the the original text.
     /// </summary>
-    private ImmutableList<Edit> _changes;
+    private ImmutableList<RangeEdit> _changes;
 
     /// <summary>
     /// Constructs a new <see cref="EditString"/>.
     /// </summary>
-    private EditString(string originalText, string currentText, ImmutableList<Edit> changes)
+    private EditString(string originalText, string currentText, ImmutableList<RangeEdit> changes)
     {
         this.OriginalText = originalText ?? "";
         this.CurrentText = currentText ?? "";
@@ -39,7 +40,7 @@ public sealed class EditString
     /// Create a new <see cref="EditString"/> in a pre-edit state.
     /// </summary>
     public EditString(string text)
-        : this(text, text, ImmutableList<Edit>.Empty)
+        : this(text, text, ImmutableList<RangeEdit>.Empty)
     {
     }
 
@@ -63,16 +64,6 @@ public sealed class EditString
     /// </summary>
     public int IndexOf(string value) => this.CurrentText.IndexOf(value);
 
-#if false
-    /// <summary>
-    /// Converts the <see cref="EditString"/> to just its current text.
-    /// </summary>
-    public static implicit operator string(EditString editString)
-    {
-        return editString.CurrentText;
-    }
-#endif
-
     /// <summary>
     /// Converts a string into an <see cref="EditString"/> without any edits.
     /// </summary>
@@ -82,12 +73,11 @@ public sealed class EditString
     }
 
     /// <summary>
-    /// Returns a list of collective changes between the original and current text
+    /// Returns a list of parallel edits between the original and current text
     /// such that if applied to the original text (via ApplyAll) would produce the current text.
-    /// This list of changes is not guaranteed to match the exact sequence of edits originally made
-    /// to create the current text.
+    /// This list of changes is not guaranteed to match the exact sequence of edits originally made to create the current text.
     /// </summary>
-    public IReadOnlyList<TextEdit> GetChanges()
+    public ParallelEdits GetChanges()
     {
         var textChanges = new List<TextEdit>();
 
@@ -98,28 +88,7 @@ public sealed class EditString
             delta = delta - edit.DeleteLength + edit.InsertLength;
         }
 
-        return textChanges;
-    }
-
-    /// <summary>
-    /// Convert a list of collective changes to a list of sequential changes.
-    /// Collective changes are a set of edits each specified at a position in the original text.
-    /// Sequential changes are a set of edits each specified at positions in the logical text emerging after applying the prior edits.
-    /// Collective changes can be used in a call to ApplyAll.
-    /// Sequential changes can be used in a series of calls to Apply, one after the other.
-    /// </summary>
-    public static IReadOnlyList<TextEdit> ConvertToSequentialChanges(IReadOnlyList<TextEdit> collectiveChanges)
-    {
-        var sequentialChanges = new List<TextEdit>();
-
-        var delta = 0;
-        foreach (var edit in collectiveChanges)
-        {
-            sequentialChanges.Add(TextEdit.Replacement(edit.Start + delta, edit.DeleteLength, edit.InsertText));
-            delta = delta - edit.DeleteLength + edit.InsertText.Length;
-        }
-
-        return sequentialChanges;
+        return new ParallelEdits(textChanges);
     }
 
     /// <summary>
@@ -174,7 +143,7 @@ public sealed class EditString
     {
         var newText = this.CurrentText.Substring(start, length);
 
-        var newEdits = new List<Edit>(2);
+        var newEdits = new List<RangeEdit>(2);
 
         var endDeleteStart = start + length;
         var endDeleteLength = this.CurrentText.Length - endDeleteStart;
@@ -182,16 +151,16 @@ public sealed class EditString
         if (start > 0)
         {
             // remove first 'start' characters
-            newEdits.Add(new Edit(0, start, 0));
+            newEdits.Add(new RangeEdit(0, start, 0));
         }
 
         if (endDeleteStart > 0)
         {
             // remove last 'endDeleteLength' characters
-            newEdits.Add(new Edit(endDeleteStart, endDeleteLength, 0));
+            newEdits.Add(new RangeEdit(endDeleteStart, endDeleteLength, 0));
         }
 
-        return ApplyEdits(newText, newEdits.ToImmutableList());
+        return ApplyRangeEdits(newText, newEdits.ToImmutableList());
     }
 
     /// <summary>
@@ -248,7 +217,7 @@ public sealed class EditString
             return this;
 
         int startIndex = 0;
-        var newEdits = new List<Edit>();
+        var newEdits = new List<RangeEdit>();
 
         while (true)
         {
@@ -256,12 +225,12 @@ public sealed class EditString
             if (oldValueStart < startIndex)
                 break;
 
-            newEdits.Add(new Edit(oldValueStart, oldText.Length, newText.Length));
+            newEdits.Add(new RangeEdit(oldValueStart, oldText.Length, newText.Length));
 
             startIndex = oldValueStart + oldText.Length;
         }
 
-        return ApplyEdits(newCurrentText, newEdits.ToImmutableList());
+        return ApplyRangeEdits(newCurrentText, newEdits.ToImmutableList());
     }
 
     /// <summary>
@@ -291,7 +260,7 @@ public sealed class EditString
         if (edit.InsertText.Length != edit.DeleteLength
             || string.Compare(this.CurrentText, edit.Start, edit.InsertText, 0, edit.InsertText.Length) != 0)
         {
-            return ApplyEdits(newText, ImmutableList<Edit>.Empty.Add(new Edit(edit.Start, edit.DeleteLength, edit.InsertText.Length)));
+            return ApplyRangeEdits(newText, ImmutableList<RangeEdit>.Empty.Add(new RangeEdit(edit.Start, edit.DeleteLength, edit.InsertText.Length)));
         }
         else
         {
@@ -300,124 +269,60 @@ public sealed class EditString
     }
 
     /// <summary>
-    /// Returns a new <see cref="EditString"/> with all the edits applied.
-    /// Each edit is specified against positions in the current text and must be non-overlapping with other edits.
+    /// Returns a new <see cref="EditString"/> with the parallel edits applied.
     /// </summary>
-    public EditString ApplyAll(ImmutableList<TextEdit> edits)
+    public EditString Apply(ParallelEdits parallelEdits)
     {
+        var edits = parallelEdits.Edits;
+
         if (edits == null || edits.Count == 0)
             return this;
 
-        edits = GetOrderedEdits(edits);
+        var newText = parallelEdits.ApplyTo(this.CurrentText);
+        var newRangeEdits = edits.Select(e => new RangeEdit(e.Start, e.DeleteLength, e.InsertText.Length)).ToImmutableList();
 
-        if (!CanApplyAll(edits))
-            throw new InvalidOperationException("An edit occurs out of order, overlaps a prior edit or is specified out of bounds of the current text.");
-
-        var newText = GetNewText(this.CurrentText, edits);
-        var newEdits = edits.Select(e => new Edit(e.Start, e.DeleteLength, e.InsertText.Length)).ToImmutableList();
-
-        return ApplyEdits(newText, newEdits);
+        return ApplyRangeEdits(newText, newRangeEdits);
     }
 
     /// <summary>
-    /// Return true if the list of edits can be applied via ApplyAll.
-    /// Returns false if the edits are overlapping or out of bounds of the current text.
+    /// Returns a new <see cref="EditString"/> with the sequential edits applied.
     /// </summary>
-    public bool CanApplyAll(ImmutableList<TextEdit> edits)
+    public EditString Apply(SequentialEdits sequentialEdits)
     {
-        edits = GetOrderedEdits(edits);
+        var es = this;
 
-        // check for overlapping or out of bounds
-        var priorEnd = 0;
-
-        foreach (var edit in edits)
+        foreach (var edit in sequentialEdits.Edits)
         {
-            if (edit.Start < priorEnd
-                || edit.Start > this.CurrentText.Length + 1)
-            {
-                return false;
-            }
-
-            priorEnd = edit.Start + edit.DeleteLength;
+            es = es.Apply(edit);           
         }
 
-        return true;
+        return es;
     }
 
     /// <summary>
-    /// Returns the list of edits in order of start position.
+    /// Applies the edits all at once, as a single change.
+    /// Throws if any edit overlaps with another edit or any edit is out of bounds relative to the current text.
     /// </summary>
-    private static ImmutableList<TextEdit> GetOrderedEdits(ImmutableList<TextEdit> edits)
+    public EditString ApplyParallel(IEnumerable<TextEdit> edits)
     {
-        if (!IsInOrder(edits))
-        {
-            // OrderBy is a stable sort
-            edits = edits.OrderBy(e => e.Start).ToImmutableList();
-        }
-
-        return edits;
+        return Apply(new ParallelEdits(edits));
     }
 
     /// <summary>
-    /// Returns true if the list of edits is already in order.
+    /// Applies the edits, one at a time, in order.
+    /// Throws if an edit is out of bounds relative to the text resulting from all the prior edits.
     /// </summary>
-    private static bool IsInOrder(IReadOnlyList<TextEdit> edits)
+    public EditString ApplySequential(IEnumerable<TextEdit> edits)
     {
-        var lastStart = 0;
-
-        foreach (var edit in edits)
-        {
-            if (edit.Start < lastStart)
-                return false;
-
-            lastStart = edit.Start;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Gets the new text with the edits applied.
-    /// </summary>
-    private static string GetNewText(string text, IEnumerable<TextEdit> edits)
-    {
-        var builder = new StringBuilder();
-
-        // the end position of the last edit in the newest text. 
-        var priorEnd = 0;
-
-        // construct the new current text and the new list of edits
-        foreach (var edit in edits)
-        {
-            if (edit.Start > priorEnd)
-            {
-                // append anything between this point and the edit start
-                builder.Append(text, priorEnd, edit.Start - priorEnd);
-            }
-
-            priorEnd = edit.Start + edit.DeleteLength;
-
-            if (edit.InsertText.Length > 0)
-            {
-                builder.Append(edit.InsertText);
-            }
-        }
-
-        // add any remaining text
-        if (priorEnd < text.Length)
-        {
-            builder.Append(text, priorEnd, text.Length - priorEnd);
-        }
-
-        return builder.ToString();
+        return Apply(new SequentialEdits(edits));
     }
 
     /// <summary>
     /// Returns a new <see cref="EditString"/> containing both old and new edits.
     /// </summary>
-    private EditString ApplyEdits(string newText, ImmutableList<Edit> newEdits)
+    private EditString ApplyRangeEdits(string newText, ImmutableList<RangeEdit> rangeEdits)
     {
-        var combinedEdits = CombineEdits(_changes, newEdits);
+        var combinedEdits = CombineEdits(_changes, rangeEdits);
         return new EditString(this.OriginalText, newText, combinedEdits);
     }
 
@@ -425,7 +330,7 @@ public sealed class EditString
     /// Combines a list of old edits with a list of new edits.
     /// The new edits' positions are relative to after the old edits have been applied.
     /// </summary>
-    private static ImmutableList<Edit> CombineEdits(ImmutableList<Edit> oldEdits, ImmutableList<Edit> newEdits)
+    private static ImmutableList<RangeEdit> CombineEdits(ImmutableList<RangeEdit> oldEdits, ImmutableList<RangeEdit> newEdits)
     {
         if (newEdits.Count == 0)
             return oldEdits;
@@ -439,7 +344,7 @@ public sealed class EditString
         var oldEdit = hasOldEdit ? oldEdits[0] : default;
         var newEdit = hasNewEdit ? newEdits[0] : default;
 
-        var combinedEdits = ImmutableList<Edit>.Empty.ToBuilder();
+        var combinedEdits = ImmutableList<RangeEdit>.Empty.ToBuilder();
 
         while (hasOldEdit && hasNewEdit)
         {
@@ -470,7 +375,7 @@ public sealed class EditString
                 // new edit is entirely before the old edit, so this where the new edit belongs
 
                 // add adjusted new edit
-                combinedEdits.Add(new Edit(newEdit.Start - oldDelta, newEdit.DeleteLength, newEdit.InsertLength));
+                combinedEdits.Add(new RangeEdit(newEdit.Start - oldDelta, newEdit.DeleteLength, newEdit.InsertLength));
 
                 // go to the next new edit
                 if (hasNewEdit = nextNewIndex < newEdits.Count)
@@ -502,10 +407,10 @@ public sealed class EditString
                 var partialDeleteLength = (oldEdit.Start + oldDelta) - newEdit.Start;
 
                 // add the portion of the delete before the overlap
-                combinedEdits.Add(new Edit(newEdit.Start - oldDelta, partialDeleteLength, 0));
+                combinedEdits.Add(new RangeEdit(newEdit.Start - oldDelta, partialDeleteLength, 0));
 
                 // adjust new edit to coincide with old edit with the remaining delete
-                newEdit = new Edit(oldEdit.Start + oldDelta, newEdit.DeleteLength - partialDeleteLength, newEdit.InsertLength);
+                newEdit = new RangeEdit(oldEdit.Start + oldDelta, newEdit.DeleteLength - partialDeleteLength, newEdit.InsertLength);
                 continue;
             }
             else if (newEdit.Start > oldEdit.Start + oldDelta)
@@ -516,11 +421,11 @@ public sealed class EditString
                 var partialDeleteLength = Math.Min(oldEdit.DeleteLength, partialInsertLength);
 
                 // add the old edits partial delete & insert
-                combinedEdits.Add(new Edit(oldEdit.Start, partialDeleteLength, partialInsertLength));
+                combinedEdits.Add(new RangeEdit(oldEdit.Start, partialDeleteLength, partialInsertLength));
                 oldDelta = oldDelta - partialDeleteLength + partialInsertLength;
 
                 // adjust old edit now coincide with new edit with the remaining delete & insert
-                oldEdit = new Edit(newEdit.Start - oldDelta, oldEdit.DeleteLength - partialDeleteLength, oldEdit.InsertLength - partialInsertLength);
+                oldEdit = new RangeEdit(newEdit.Start - oldDelta, oldEdit.DeleteLength - partialDeleteLength, oldEdit.InsertLength - partialInsertLength);
                 continue;
             }
             // otherwise both edits start at the same position
@@ -529,11 +434,11 @@ public sealed class EditString
                 // new edit deletes less than old edit inserts
 
                 // adjust old edit to insert less and insert new edit w/deletes before it.
-                oldEdit = new Edit(oldEdit.Start, oldEdit.DeleteLength, oldEdit.InsertLength - newEdit.DeleteLength);
+                oldEdit = new RangeEdit(oldEdit.Start, oldEdit.DeleteLength, oldEdit.InsertLength - newEdit.DeleteLength);
                 oldDelta = oldDelta + newEdit.DeleteLength;
 
                 // add the remaining portion of the new edit here with only the insert part
-                combinedEdits.Add(new Edit(newEdit.DeleteEnd - oldDelta, 0, newEdit.InsertLength));
+                combinedEdits.Add(new RangeEdit(newEdit.DeleteEnd - oldDelta, 0, newEdit.InsertLength));
 
                 // go to next new edit
                 if (hasNewEdit = nextNewIndex < newEdits.Count)
@@ -553,7 +458,7 @@ public sealed class EditString
 
                 // adjust new edit to delete less (and subsume this old edit)
                 var newDeletion = newEdit.DeleteLength + oldEdit.DeleteLength - oldEdit.InsertLength;
-                newEdit = new Edit(oldEdit.Start + oldDelta, newDeletion, newEdit.InsertLength);
+                newEdit = new RangeEdit(oldEdit.Start + oldDelta, newDeletion, newEdit.InsertLength);
 
                 // go to next old edit
                 if (hasOldEdit = nextOldIndex < oldEdits.Count)
@@ -570,14 +475,14 @@ public sealed class EditString
         if (hasNewEdit)
         {
             // add adjusted new edit
-            combinedEdits.Add(new Edit(newEdit.Start - oldDelta, newEdit.DeleteLength, newEdit.InsertLength));
+            combinedEdits.Add(new RangeEdit(newEdit.Start - oldDelta, newEdit.DeleteLength, newEdit.InsertLength));
         }
 
         for (; nextNewIndex < newEdits.Count; nextNewIndex++)
         {
             newEdit = newEdits[nextNewIndex];
             // add adjusted new edit
-            combinedEdits.Add(new Edit(newEdit.Start - oldDelta, newEdit.DeleteLength, newEdit.InsertLength));
+            combinedEdits.Add(new RangeEdit(newEdit.Start - oldDelta, newEdit.DeleteLength, newEdit.InsertLength));
         }
 
         // add remaining old edits
@@ -596,7 +501,7 @@ public sealed class EditString
         return combinedEdits.ToImmutable();
     }
 
-    private static void CombineAdjacentEdits(ImmutableList<Edit>.Builder edits)
+    private static void CombineAdjacentEdits(ImmutableList<RangeEdit>.Builder edits)
     {
         for (int i = edits.Count - 1; i >= 1; i--)
         {
@@ -604,14 +509,18 @@ public sealed class EditString
             var prevEdit = edits[i - 1];
             if (prevEdit.DeleteEnd == edit.Start)
             {
-                edits[i - 1] = new Edit(prevEdit.Start, prevEdit.DeleteLength + edit.DeleteLength, prevEdit.InsertLength + edit.InsertLength);
+                edits[i - 1] = new RangeEdit(prevEdit.Start, prevEdit.DeleteLength + edit.DeleteLength, prevEdit.InsertLength + edit.InsertLength);
                 edits.RemoveAt(i);
             }
         }
     }
 
+    /// <summary>
+    /// An edit of a text range (no text involved).
+    /// Used to represent edits affecting the positioning of text.
+    /// </summary>
     [System.Diagnostics.DebuggerDisplay("Start: {Start}, Delete: {DeleteLength}, Insert: {InsertLength}")]
-    private struct Edit
+    private struct RangeEdit
     {
         public int Start { get; }
         public int DeleteLength { get; }
@@ -620,7 +529,7 @@ public sealed class EditString
         public int DeleteEnd => Start + DeleteLength;
         public int InsertEnd => Start + InsertLength;
 
-        public Edit(int start, int deleteLength, int insertLength)
+        public RangeEdit(int start, int deleteLength, int insertLength)
         {
             if (start < 0)
                 throw new ArgumentOutOfRangeException("start", "negative start position");
@@ -780,7 +689,7 @@ public sealed class EditString
         }
 
         return (edits != null)
-            ? this.ApplyAll(edits.ToImmutable())
+            ? this.Apply(new ParallelEdits(edits))
             : this;
     }
 
@@ -815,7 +724,195 @@ public sealed class EditString
         }
 
         if (edits != null)
-            return this.ApplyAll(edits.ToImmutable());
+            return this.Apply(new ParallelEdits(edits));
         return this;
     }
+}
+
+/// <summary>
+/// A set of non-overlapping edits all relative to the same original text.
+/// </summary>
+public struct ParallelEdits
+{
+    /// <summary>
+    /// The parallel edits
+    /// </summary>
+    public ImmutableList<TextEdit> Edits { get; }
+
+    public ParallelEdits(IEnumerable<TextEdit> edits)
+    {
+        var imEdits = edits.ToImmutableList();
+        var orderedEdits = GetOrderedEdits(imEdits);
+        if (HasOverlap(orderedEdits))
+            throw new InvalidOperationException("Invalid: at least two edits overlap each other");
+        this.Edits = orderedEdits;
+    }
+
+    /// <summary>
+    /// Convert to sequential edits.
+    /// </summary>
+    public SequentialEdits ToSequential()
+    {
+        var seqentialEdits = new List<TextEdit>();
+
+        var delta = 0;
+        foreach (var edit in this.Edits)
+        {
+            seqentialEdits.Add(TextEdit.Replacement(edit.Start + delta, edit.DeleteLength, edit.InsertText));
+            delta = delta - edit.DeleteLength + edit.InsertText.Length;
+        }
+
+        return new SequentialEdits(seqentialEdits);
+    }
+
+    /// <summary>
+    /// Returns true if at least two edits overlap each other.
+    /// </summary>
+    public static bool HasOverlap(ImmutableList<TextEdit> edits)
+    {
+        return HasOverlap_OrderedEdits(GetOrderedEdits(edits));
+    }
+
+    /// <summary>
+    /// Returns true if at least two edits overlap each other.
+    /// </summary>
+    private static bool HasOverlap_OrderedEdits(ImmutableList<TextEdit> edits)
+    {
+        // check for overlapping or out of bounds
+        var priorEnd = 0;
+
+        foreach (var edit in edits)
+        {
+            if (edit.Start < priorEnd)
+            {
+                return true;
+            }
+
+            priorEnd = edit.Start + edit.DeleteLength;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns the list of edits in order of start position.
+    /// </summary>
+    private static ImmutableList<TextEdit> GetOrderedEdits(ImmutableList<TextEdit> edits)
+    {
+        if (!IsInOrder(edits))
+        {
+            // OrderBy is a stable sort
+            edits = edits.OrderBy(e => e.Start).ToImmutableList();
+        }
+
+        return edits;
+    }
+
+    /// <summary>
+    /// Returns true if the list of edits is already in order.
+    /// </summary>
+    private static bool IsInOrder(IReadOnlyList<TextEdit> edits)
+    {
+        var lastStart = 0;
+
+        foreach (var edit in edits)
+        {
+            if (edit.Start < lastStart)
+                return false;
+
+            lastStart = edit.Start;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Apply the edits to the text.
+    /// </summary>
+    public string ApplyTo(string text)
+    {
+        if (!CanApplyTo(text))
+            throw new InvalidOperationException("At least one edit is out of bounds of the text.");
+
+        var builder = new StringBuilder();
+
+        // the end position of the last edit in the newest text. 
+        var priorEnd = 0;
+
+        // construct the new current text and the new list of edits
+        foreach (var edit in this.Edits)
+        {
+            if (edit.Start > priorEnd)
+            {
+                // append anything between this point and the edit start
+                builder.Append(text, priorEnd, edit.Start - priorEnd);
+            }
+
+            priorEnd = edit.Start + edit.DeleteLength;
+
+            if (edit.InsertText.Length > 0)
+            {
+                builder.Append(edit.InsertText);
+            }
+        }
+
+        // add any remaining text
+        if (priorEnd < text.Length)
+        {
+            builder.Append(text, priorEnd, text.Length - priorEnd);
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Return true if the list of edits can be applied via ApplyAll.
+    /// Returns false if the edits are overlapping or out of bounds of the current text.
+    /// </summary>
+    public bool CanApplyTo(string text)
+    {
+        // check for overlapping or out of bounds
+        var priorEnd = 0;
+
+        foreach (var edit in this.Edits)
+        {
+            if (edit.Start > text.Length || edit.Start + edit.DeleteLength > text.Length)
+            {
+                return false;
+            }
+
+            priorEnd = edit.Start + edit.DeleteLength;
+        }
+
+        return true;
+    }
+}
+
+/// <summary>
+/// A sequence of edits, each relative to the text produced by applying all the prior edits.
+/// </summary>
+public struct SequentialEdits
+{
+    /// <summary>
+    /// The sequential edits
+    /// </summary>
+    public ImmutableList<TextEdit> Edits { get; }
+
+    public SequentialEdits(IEnumerable<TextEdit> edits)
+    {       
+        this.Edits = edits.ToImmutableList();
+    }
+
+    public string ApplyTo(string text)
+    {
+        var es = new EditString(text);
+        foreach (var edit in this.Edits)
+        {
+            es = es.Apply(edit);
+        }
+        return es.CurrentText;
+    }
+
+    public static implicit operator SequentialEdits(TextEdit edit) => 
+        new SequentialEdits([edit]);
 }

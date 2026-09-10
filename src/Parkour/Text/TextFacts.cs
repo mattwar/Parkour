@@ -109,7 +109,7 @@ public static class TextFacts
             pos--;
         }
 
-        return start - pos;
+        return start - pos - 1;
     }
 
     public static bool IsLineBreakStart(char ch)
