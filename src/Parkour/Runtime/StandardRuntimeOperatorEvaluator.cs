@@ -1,32 +1,10 @@
-﻿using System.Numerics; 
+using System.Numerics; 
 
 namespace Parkour;
 
-using Symbols;
-
 /// <summary>
-/// Executes common operators against values.
-/// </summary>
-public abstract class RuntimeOperatorEvaluator
-{
-    /// <summary>
-    /// Invokes the unary operator with the operand value.
-    /// </summary>
-    public abstract object? Evaluate(RuntimeOperator op, object? value, bool isChecked = true);
-
-    /// <summary>
-    /// Invokes the binary operator with the the left & right argument values.
-    /// </summary>
-    public abstract object? Evaluate(RuntimeOperator op, object? left, object? right, bool isChecked = true);
-
-    /// <summary>
-    /// Converts the value to the type.
-    /// </summary>
-    public abstract object? Convert(Type type, object? value, bool isChecked = true);
-}
-
-/// <summary>
-/// Implemention of <see cref="RuntimeOperatorEvaluator"/> using dotnet language rules.
+/// Implemention of <see cref="RuntimeOperatorEvaluator"/> using dotnet runtime rules
+/// with understanding of common numeric types and interfaces.
 /// </summary>
 public class StandardRuntimeOperatorEvaluator : RuntimeOperatorEvaluator
 {
@@ -135,6 +113,7 @@ public class StandardRuntimeOperatorEvaluator : RuntimeOperatorEvaluator
         if (value == null)
             return GetOperators(type).DefaultValue;
 
+        // if value's type is runtime assignable to target type, just return the value we already have
         if (value.GetType().IsAssignableTo(type))
             return value;
 

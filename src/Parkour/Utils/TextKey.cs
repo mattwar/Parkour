@@ -2,6 +2,9 @@
 
 namespace Parkour;
 
+/// <summary>
+/// A range of text that can be used as a key.
+/// </summary>
 internal struct TextKey : IEquatable<TextKey>
 {
     private readonly string _text;

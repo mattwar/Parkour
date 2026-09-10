@@ -17,7 +17,7 @@ internal static class ImmutableExtensions
     }
 
     /// <summary>
-    /// Maps the items of list back to items of the same type.
+    /// Maps the items of the list back to items of the same type.
     /// If all items stay the same instance, the original list is returned.
     /// </summary>
     public static ImmutableList<TItem> SelectSame<TItem>(
