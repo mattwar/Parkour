@@ -1,5 +1,9 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A <see cref="MultiParser{TInput, TOutput}"/> that produces the output of the first nested <see cref="MultiParser{TInput, TOutput}"/> to produce an output.
+/// </summary>
+
 public sealed class FirstMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {
     private readonly IReadOnlyList<MultiParser<TInput, TOutput>> _parsers;

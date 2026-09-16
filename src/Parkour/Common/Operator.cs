@@ -1,7 +1,8 @@
 ﻿namespace Parkour;
 
 /// <summary>
-/// An open hierarchy of operators.
+/// The base class of an open hierarchy of operators.
+/// Each operator is a singleton subtype of <see cref="Operator"/>
 /// </summary>
 public abstract class Operator
 {

@@ -1,5 +1,8 @@
 ﻿namespace Parkour;
 
+/// <summary>
+/// The line and character offset of a item in source.
+/// </summary>
 public readonly struct LinePosition
 {
     /// <summary>

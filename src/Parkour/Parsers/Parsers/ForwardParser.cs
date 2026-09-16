@@ -1,6 +1,10 @@
 ﻿
 namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that fowards to another parser, supplied via a function.
+/// This is used to form cycles in the parser graph.
+/// </summary>
 public sealed class ForwardParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly Func<Parser<TInput, TOutput>> _fnParser;

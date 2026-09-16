@@ -1,5 +1,9 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A <see cref="MultiParser{TInput, TOutput}"> that produces the output of the nested <see cref="MultiParser{TInput, TOutput}"> that consumes the most input.
+/// Use of this parser can be expensive because it evaluates all nested parsers.
+/// </summary>
 public sealed class BestMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {
     private readonly IReadOnlyList<MultiParser<TInput, TOutput>> _parsers;

@@ -1,7 +1,8 @@
 ﻿namespace Parkour;
 
 /// <summary>
-/// An open-hierarchy of modifiers.
+/// The base class of an open hierarchy of modifiers.
+/// Each modifier is a singleton subtype of <see cref="Modifier"/>.
 /// </summary>
 public abstract class Modifier
 {

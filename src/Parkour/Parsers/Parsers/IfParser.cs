@@ -1,5 +1,9 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that produces the output of the nested parser if the condition succeeds to scan.
+/// This parser is used to do arbitrary look-ahead before committing to a parse.
+/// </summary>
 public class IfParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly Parser<TInput> _condition;

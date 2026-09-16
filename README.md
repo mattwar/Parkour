@@ -49,7 +49,7 @@ Load symbols from assembly metadata and emit lowered parkour semantic trees into
 
 ## Parkour.Linq
 
-Convert parkour sementic expressions into `System.Linq.Expression` trees at runtime, using an emitter.
+Translate `Parkour.Semantics.Expression` trees into `System.Linq.Expression` trees at runtime.
 
 ## Parkour.Reflection
 

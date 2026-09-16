@@ -72,7 +72,15 @@ public partial class ReflectionEmitter : SemanticEmitter
             .ToImmutableList();
 
         // declare all types and emit all IL
-        Declare(declarations);
+        StandardEmitVisitor.Visit(
+            declarations,
+            DeclareType,
+            DeclareBaseTypesAndInterfaces,
+            DeclareMember,
+            DeclareAccessors,
+            DeclareAttributes,
+            EmitMemberBody
+            );
 
         // finalize types (so they can be used).
         CreateTypes();
@@ -97,7 +105,7 @@ public partial class ReflectionEmitter : SemanticEmitter
         _moduleBuilder.CreateGlobalFunctions();
     }
 
-    protected override void DeclareType(TypeDeclaration declaration)
+    private void DeclareType(TypeDeclaration declaration)
     {
         var typeSymbol = declaration.Symbol as TypeSymbol;
         if (typeSymbol == null)
@@ -146,7 +154,7 @@ public partial class ReflectionEmitter : SemanticEmitter
         }
     }
 
-    protected override void DeclareBaseTypesAndInterfaces(TypeDeclaration declaration)
+    private void DeclareBaseTypesAndInterfaces(TypeDeclaration declaration)
     {
         var typeSymbol = declaration.Symbol as TypeSymbol;
         if (typeSymbol == null)
@@ -185,7 +193,7 @@ public partial class ReflectionEmitter : SemanticEmitter
         }
     }
 
-    protected override void DeclareMember(MemberDeclaration declaration)
+    private void DeclareMember(MemberDeclaration declaration)
     {
         var memberSymbol = declaration.Symbol as MemberSymbol;
         if (memberSymbol == null)
@@ -421,12 +429,12 @@ public partial class ReflectionEmitter : SemanticEmitter
         }
     }
 
-    protected override void DeclareAccessors(MemberDeclaration declaration)
+    private void DeclareAccessors(MemberDeclaration declaration)
     {
         // already handled in DeclareMember
     }
 
-    protected override void DeclareAttributes(MemberDeclaration declaration)
+    private void DeclareAttributes(MemberDeclaration declaration)
     {
         if (declaration.Symbol != null)
             Declare(declaration.Symbol);
@@ -550,7 +558,7 @@ public partial class ReflectionEmitter : SemanticEmitter
         }
     }
 
-    protected override void EmitMemberBody(MemberDeclaration declaration)
+    private void EmitMemberBody(MemberDeclaration declaration)
     {
         var memberSymbol = declaration.Symbol as MemberSymbol;
         if (memberSymbol == null)

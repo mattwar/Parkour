@@ -1,5 +1,8 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that produces the next input item as the output, if the nested parser fails to scan.
+/// </summary>
 public sealed class NotParser<TInput> : Parser<TInput, TInput>
 {
     private readonly Parser<TInput> _parser;

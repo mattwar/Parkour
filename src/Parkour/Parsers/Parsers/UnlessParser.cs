@@ -1,8 +1,18 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that produces the output of the nested parser unless the condition is also met in the input following the parse.
+/// </summary>
 public sealed class UnlessParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
+    /// <summary>
+    /// The parser that produces the output
+    /// </summary>
     private readonly Parser<TInput, TOutput> _parser;
+
+    /// <summary>
+    /// the condition that is tested against the input after the parser would have consumed
+    /// </summary>
     private readonly Parser<TInput> _condition;
 
     public UnlessParser(Parser<TInput, TOutput> parser, Parser<TInput> condition)

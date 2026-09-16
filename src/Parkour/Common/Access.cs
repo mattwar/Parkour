@@ -1,7 +1,8 @@
 ﻿namespace Parkour;
 
 /// <summary>
-/// The base class of an open enum for access restrictions.
+/// The base class of an open heirarchy of access restrictions.
+/// Each access is a singleton subtype of <see cref="Access"/>.
 /// </summary>
 public abstract class Access
 {

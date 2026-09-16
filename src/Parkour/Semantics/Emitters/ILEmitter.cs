@@ -3,7 +3,7 @@
 using Symbols;
 
 /// <summary>
-/// Used for emitting IL instructions.
+/// Used for emitting IL instructions for method bodies.
 /// </summary>
 public abstract class ILEmitter
 {

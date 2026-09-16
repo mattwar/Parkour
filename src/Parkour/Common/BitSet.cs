@@ -1,10 +1,11 @@
 ﻿using System.Collections;
+using System.Numerics;
 
 namespace Parkour;
 
 /// <summary>
-/// A set of singleton values stored using bits.
-/// The maximum number of unique values for all instances of the same kind of set is 64.
+/// A set of values stored as a 64 bit mask.
+/// The same instances of values are used for all instances of the same kind of <see cref="BitSet{TValue}"/>.
 /// Do not rely on the order of values in this set to remain the same across uses.
 /// </summary>
 public readonly struct BitSet<TValue>
@@ -22,6 +23,11 @@ public readonly struct BitSet<TValue>
     {
         _bits = bits;
     }
+
+    /// <summary>
+    /// The number of items currently in the set.
+    /// </summary>
+    public int Count => BitOperations.PopCount(_bits);
 
     /// <summary>
     /// The number of bit indices that have been assigned so far
@@ -74,7 +80,7 @@ public readonly struct BitSet<TValue>
     /// <summary>
     /// Returns true if this set of bits contains any of the bits in the other set.
     /// </summary>
-    public bool Contains(BitSet<TValue> bitset) =>
+    public bool ContainsAny(BitSet<TValue> bitset) =>
         (_bits & bitset._bits) != 0;
 
     /// <summary>
@@ -114,7 +120,7 @@ public readonly struct BitSet<TValue>
         new BitSet<TValue>(_bits & bitset._bits);
 
     /// <summary>
-    /// Enumerates the bits in the set
+    /// Enumerates the bits in the set.
     /// </summary>
     public IEnumerator<TValue> GetEnumerator()
     {
@@ -165,7 +171,7 @@ public readonly struct BitSet<TValue>
         a.Add(b);
 
     public static BitSet<TValue> operator |(BitSet<TValue> a, TValue b) =>
-    a.Add(b);
+        a.Add(b);
 
     public static BitSet<TValue> operator +(BitSet<TValue> a, BitSet<TValue> b) =>
         a.Add(b);

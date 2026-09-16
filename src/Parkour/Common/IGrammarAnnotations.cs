@@ -10,5 +10,6 @@ public interface IGrammarAnnotations
     /// </summary>
     ImmutableList<TAnnotation> GetAnnotations<TAnnotation>(
         int position,
-        Func<TAnnotation, bool>? filter = null);
+        Func<TAnnotation, bool>? filter = null
+        );
 }

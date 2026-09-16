@@ -2,6 +2,9 @@
 
 namespace Parkour.Parsers;
 
+/// <summary>
+/// An <see cref="EqualityComparer{T}"/> implemented by supplied functions.
+/// </summary>
 internal class CustomEqualityComparer<T> : EqualityComparer<T>
 {
     private readonly Func<T, T, bool> _fnEquals;

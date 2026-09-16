@@ -1,5 +1,10 @@
 ﻿namespace Parkour;
 
+/// <summary>
+/// Represents a unique language element identified during semantic analysis.
+/// Typically used for resolved name reference, either declared in source or from loaded metadata,
+/// such as types, methods, properties and fields.
+/// </summary>
 public interface ISymbol
 {
     /// <summary>

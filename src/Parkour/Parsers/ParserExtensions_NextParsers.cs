@@ -3,7 +3,9 @@
 public static partial class ParserExtensions
 {
     /// <summary>
-    /// Gets the set of parsers that would be invoked at the specified input position.
+    /// Gets the set of parsers within the grammer that would be invoked at the specified input position.
+    /// This is used to collect the set of annotations associated with those parsers 
+    /// and potentially compute things like completion information based on syntax.
     /// </summary>
     public static void GetNextParsers<TInput>(
         this Parser<TInput> parser,       

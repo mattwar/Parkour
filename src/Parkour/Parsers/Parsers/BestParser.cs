@@ -1,5 +1,9 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that produces the output of the nested parser that consumed the most input.
+/// Use of this parser can be expensive because it evaluates all nested parsers.
+/// </summary>
 public sealed class BestParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly IReadOnlyList<Parser<TInput, TOutput>> _parsers;

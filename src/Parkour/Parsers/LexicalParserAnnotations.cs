@@ -2,7 +2,7 @@
 namespace Parkour.Parsers;
 
 /// <summary>
-/// An annotation source that finds grammar annotations
+/// An <see cref="IGrammarAnnotation"/> source that finds grammar annotations
 /// by scanning to the position using the original input.
 /// </summary>
 public class LexicalParserAnnotations

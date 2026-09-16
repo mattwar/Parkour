@@ -1,9 +1,19 @@
 ﻿
 namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that directly converts a number of matched and consumed input items into an output.
+/// </summary>
 public sealed class MatchParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
+    /// <summary>
+    /// The function that determines how many input items to consume/convert
+    /// </summary>
     private readonly Matcher<TInput> _matcher;
+
+    /// <summary>
+    /// A function that converts a sequence of item input into an output value.
+    /// </summary>
     private readonly Converter<TInput, TOutput> _converter;
 
     public override ImmutableList<object> Annotations { get; }

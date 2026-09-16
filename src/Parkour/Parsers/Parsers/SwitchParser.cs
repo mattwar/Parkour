@@ -1,5 +1,8 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that produces the output of a nested parser that is picked based on the matching look-ahead of a sequence of items.
+/// </summary>
 public sealed class SwitchParser<TInput, TOutput> : Parser<TInput, TOutput> where TInput: notnull
 {
     private readonly SequenceDictionary<TInput, Parser<TInput, TOutput>> _matchTable;

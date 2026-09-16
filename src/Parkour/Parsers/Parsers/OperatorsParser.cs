@@ -1,5 +1,10 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser used to represent an entire multi-precedence-level operator tree.
+/// It is constructed via the callback <see cref="fnBuildOperators"/>, 
+/// each level can have multiple prefix, infix and postfix operators.
+/// </summary>
 public sealed class OperatorsParser<TInput, TOperand>
     : Parser<TInput, TOperand>
 {

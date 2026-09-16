@@ -1,7 +1,13 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that always produces an output without consuming any input.
+/// /// </summary>
 public sealed class AlwaysParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
+    /// <summary>
+    /// The function that generates the output
+    /// </summary>
     private readonly Func<TOutput> _selector;
 
     public override ImmutableList<object> Annotations { get; }
