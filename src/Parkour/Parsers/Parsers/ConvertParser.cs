@@ -1,6 +1,9 @@
 ﻿
 namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that converts the result of another parser.
+/// </summary>
 public sealed class ConvertParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly Parser<TInput> _parser;

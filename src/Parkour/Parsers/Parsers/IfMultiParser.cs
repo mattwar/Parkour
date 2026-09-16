@@ -1,8 +1,19 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A <see cref="MultiParser{TInput, TOutput}"/> that produces the output of the full <see cref="MultiParser{TInput, TOutput}"/> if the condition parser to scan.
+/// This parser is used to do arbitrary look-ahead before committing to a full parse.
+/// </summary>
 public class IfMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {
+    /// <summary>
+    /// Tne parser that must succeed to scan to trigger the parsing of the full parser.
+    /// </summary>
     private readonly Parser<TInput> _condition;
+
+    /// <summary>
+    /// The full parser.
+    /// </summary>
     private readonly MultiParser<TInput, TOutput> _parser;
 
     public IfMultiParser(Parser<TInput> condition, MultiParser<TInput, TOutput> parser)

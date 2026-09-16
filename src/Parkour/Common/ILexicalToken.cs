@@ -1,5 +1,8 @@
 ﻿namespace Parkour;
 
+/// <summary>
+/// A token produced by a lexical parser.
+/// </summary>
 public interface ILexicalToken
 {
     /// <summary>

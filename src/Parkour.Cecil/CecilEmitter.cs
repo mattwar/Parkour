@@ -63,7 +63,7 @@ public partial class CecilEmitter : SemanticEmitter
         ModuleKind moduleKind = ModuleKind.Dll)
         : this(
               externalSymbols,
-              AssemblyDefinition.CreateAssembly(new AssemblyNameDefinition(assemblyName, new Version(1, 0)), $"Module0", ModuleKind.Dll))
+              AssemblyDefinition.CreateAssembly(new AssemblyNameDefinition(assemblyName, new Version(1, 0)), moduleName ?? "Module0", moduleKind))
     {
     }
 
@@ -85,12 +85,20 @@ public partial class CecilEmitter : SemanticEmitter
             .OfType<Declaration>()
             .ToImmutableList();
 
-        Declare(declarations);
+        StandardEmitVisitor.Visit(
+            declarations,
+            DeclareType,
+            DeclareBaseTypesAndInterfaces,
+            DeclareMember,
+            DeclareAccessors,
+            DeclareAttributes,
+            EmitMemberBody
+            );
 
         return new CecilEmitting(_assembly, _module, _diagnostics.ToImmutableList());
     }
 
-    protected override void DeclareType(TypeDeclaration declaration)
+    private void DeclareType(TypeDeclaration declaration)
     {
         var typeSymbol = declaration.Symbol as TypeSymbol;
         if (typeSymbol == null)
@@ -135,8 +143,7 @@ public partial class CecilEmitter : SemanticEmitter
             _symbolToDefinition.Add(tp, gp);
         }
     }
-
-    protected override void DeclareBaseTypesAndInterfaces(TypeDeclaration declaration)
+    private void DeclareBaseTypesAndInterfaces(TypeDeclaration declaration)
     {
         if (declaration.Symbol == null)
         {
@@ -182,7 +189,7 @@ public partial class CecilEmitter : SemanticEmitter
         }
     }
 
-    protected override void DeclareMember(MemberDeclaration declaration)
+    private void DeclareMember(MemberDeclaration declaration)
     {
         var memberSymbol = declaration.Symbol as MemberSymbol;
         if (memberSymbol == null)
@@ -302,11 +309,11 @@ public partial class CecilEmitter : SemanticEmitter
         }
     }
 
-    protected override void DeclareAccessors(MemberDeclaration declaration)
+    private void DeclareAccessors(MemberDeclaration declaration)
     {
     }
 
-    protected override void DeclareAttributes(MemberDeclaration declaration)
+    private void DeclareAttributes(MemberDeclaration declaration)
     {
         if (declaration.Symbol != null)
         {
@@ -385,7 +392,7 @@ public partial class CecilEmitter : SemanticEmitter
         }
     }
 
-    protected override void EmitMemberBody(MemberDeclaration declaration)
+    private void EmitMemberBody(MemberDeclaration declaration)
     {
         if (declaration.Symbol != null
             && _symbolToDefinition.TryGetValue(declaration.Symbol, out var memberDef))

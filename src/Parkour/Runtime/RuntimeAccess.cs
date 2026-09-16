@@ -6,7 +6,7 @@
 public abstract class RuntimeAccess : Access
 {
     /// <summary>
-    /// Private constructor to close hierarchy.
+    /// Private constructor to close the hierarchy.
     /// </summary>
     private RuntimeAccess() { }
 

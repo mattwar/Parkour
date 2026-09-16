@@ -1,5 +1,8 @@
 ﻿namespace Parkour;
 
+/// <summary>
+/// The location in a source document.
+/// </summary>
 public interface ISourceLocation
 {
     /// <summary>

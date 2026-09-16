@@ -1,13 +1,18 @@
 ﻿namespace Parkour.Parsers;
 
 /// <summary>
-/// Applies the output of parser one to parser2 and 
+/// A parser that produces the output of the second parser that uses the output of the first parser as its input.
+/// This parser is not thread safe.
 /// </summary>
 public sealed class ApplyParser<TInput, TOutput1, TOutput2> : Parser<TInput, TOutput2>
 {
     private readonly Parser<TInput, TOutput1> _parser1;
     private readonly Parser<TInput, TOutput2> _parser2;
 
+    /// <summary>
+    /// The output of the first parser is stored here.
+    /// Can be an issue if this parser instance is used by mulitple threads simultaneously.
+    /// </summary>
     private TOutput1 _currentOutput1;
 
     public ApplyParser(

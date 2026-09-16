@@ -1,5 +1,10 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that produces the output of a nested parser.
+/// If the nested parser fails to produce an output, it still succeeds in producing the output of the 'fnMissing' function 
+/// without consuming input.
+/// </summary>
 public sealed class OptionalMultiParser<TInput, TOutput> : MultiParser<TInput, TOutput>
 {
     private readonly MultiParser<TInput, TOutput> _parser;

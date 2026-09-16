@@ -1,5 +1,8 @@
 ﻿namespace Parkour.Parsers;
 
+/// <summary>
+/// A parser that produces the output of the first nested parser to produce an output.
+/// </summary>
 public sealed class FirstParser<TInput, TOutput> : Parser<TInput, TOutput>
 {
     private readonly IReadOnlyList<Parser<TInput, TOutput>> _parsers;

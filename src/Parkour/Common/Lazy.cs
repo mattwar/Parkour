@@ -1,13 +1,25 @@
 ﻿namespace Parkour;
 
 /// <summary>
-/// Allows for thread-safe evalution of a value,
-/// returning a default value if the evaluation function is cyclic.
+/// Evaluates a value on demand.
+/// Evaluation is thread-safe. 
+/// Will returning a default value if the evaluation function is cyclic (calls back into the lazy Value property).
 /// </summary>
 public class Lazy<TValue>
 {
+    /// <summary>
+    /// The function to evaluate lazily.
+    /// </summary>
     private Func<TValue>? _fnValue;
+
+    /// <summary>
+    /// The evaluated value (or default value)
+    /// </summary>
     private TValue _value;
+
+    /// <summary>
+    /// The lock to use to guarantee thread safety.
+    /// </summary>
     private object? _syncLock;
 
     public Lazy(
@@ -16,9 +28,12 @@ public class Lazy<TValue>
     {
         _fnValue = fnValue;
         _value = defaultValue;
-        _syncLock = fnValue;
+        _syncLock = this; // use this as the lock?
     }
 
+    /// <summary>
+    /// The lazily computed value.
+    /// </summary>
     public TValue Value
     {
         get
@@ -36,8 +51,8 @@ public class Lazy<TValue>
             }
             else if (_syncLock is { } syncLock)
             {
-                // while there is still a lock..
-                // callers on same thread as as current lock holder will not block
+                // Wait until any current held lock is released..
+                // Note: cyclic callers on same thread as as current lock holder will not block
                 // and end up returning default value.
                 lock (syncLock)
                 {

@@ -1,7 +1,7 @@
 ﻿namespace Parkour;
 
 /// <summary>
-/// A compilation is parsed and semantically analyzed set of source documents. 
+/// A compilation is a parsed and semantically analyzed set of source documents. 
 /// </summary>
 public interface ICompilation
 {
@@ -25,7 +25,7 @@ public interface ICompilation
         Func<TAnnotation, bool>? filter = null);
 
     /// <summary>
-    /// Gets all the diagnostics for the document.
+    /// Gets all the syntax and semantic diagnostics for the document.
     /// </summary>
     ImmutableList<Diagnostic> GetDiagnostics(ISourceDocument document);
 
